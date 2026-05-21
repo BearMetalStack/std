@@ -32,7 +32,9 @@ async function packageInternalDeps(
       !ignorable.includes(entry.name) && !pathIgnerableRx.test(entry.path) &&
       (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))
     ) {
-      (await moduleInternalDeps(scope, entry.path)).map((e) => set.add(e));
+      (await moduleInternalDeps(scope, entry.path)).map((e) =>
+        set.add(e.split("/").slice(0, 2).join("/"))
+      );
     }
   }
   const packName = `${scope}/${pack}`;

@@ -6,7 +6,7 @@
 // ancestor mod.ts. Only the generated section (delimited by the markers
 // below) is touched — all other content is preserved.
 
-import { walkDir } from "@bearmetal/miscellanea";
+import { walkDir } from "@bearmetal/miscellanea/fs";
 
 const GENERATED_START = "// [GENERATED:link-mods] DO NOT EDIT BELOW";
 const GENERATED_END = "// [/GENERATED:link-mods]";

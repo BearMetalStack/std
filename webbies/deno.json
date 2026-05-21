@@ -5,7 +5,6 @@
 	"tasks": {
 		"dev": "deno -A --watch=components LinkMods.ts ./components & deno bundle --watch --platform=browser --sourcemap=inline public/index.html --outdir dist & deno run -NR --watch server.ts"
 	},
-	"unstable": ["raw-imports", "bundle"],
 	"compilerOptions": {
 		"lib": [
 			"dom",

@@ -10,14 +10,9 @@
 		"dev": "deno test --watch"
 	},
 	"license": "GPL-3.0-only",
-	"publish": {
-		"exclude": [".claude"]
-	},
 	"imports": {
-		"@bearmetal/router": "jsr:@bearmetal/router@0.5.0-dev.5",
-		"@db/postgres": "jsr:@db/postgres@^0.19.5",
-		"@std/assert": "jsr:@std/assert@1",
 		"@connectors": "./connectors/mod.ts",
+		"@db/postgres": "jsr:@db/postgres@^0.19.5",
 		"@lib/": "./lib/",
 		"@migrations": "./migrations/mod.ts"
 	},

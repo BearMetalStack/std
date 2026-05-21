@@ -1,4 +1,4 @@
-import { css } from "@lib/tags.ts";
+import { css } from "@bearmetal/miscellanea";
 
 export const animationSheet: CSSStyleSheet = ((): CSSStyleSheet => {
 	if (typeof document === "undefined") return null!;

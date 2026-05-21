@@ -1,4 +1,4 @@
-import { walkDir } from "@bearmetal/miscellanea";
+import { walkDir } from "@bearmetal/miscellanea/fs";
 
 export async function createBundles(
 	{ prod, version }: { prod: boolean; version: string },

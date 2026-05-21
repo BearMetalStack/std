@@ -1,5 +1,5 @@
 import { joinPath } from "@bearmetal/miscellanea";
-import { walkDir } from "@bearmetal/miscellanea";
+import { walkDir } from "@bearmetal/miscellanea/fs";
 
 function processSVG(svg: string, name: string) {
 	svg = svg.replace(/svg/g, "symbol")
