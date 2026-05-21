@@ -1,0 +1,15 @@
+{
+	"name": "@bearmetal/miscellanea",
+	"version": "0.0.1",
+	"exports": {
+		".": "./mod.ts",
+		"./path": "./path/mod.ts",
+		"./string": "./string/mod.ts",
+		"./fs": "./fs/mod.ts",
+		"./time": "./time/mod.ts"
+	},
+	"tasks": {
+		"dev": "deno test --watch"
+	},
+	"license": "GPL-3.0-only"
+}

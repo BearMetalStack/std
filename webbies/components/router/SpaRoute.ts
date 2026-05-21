@@ -1,5 +1,5 @@
 import { html } from "@lib/tags.ts";
-import { joinPath } from "@lib/joinPath.ts";
+import { joinPath } from "@bearmetal/miscellanea";
 import { registerElement } from "@lib/registerElements.ts";
 
 export class SpaRoute extends HTMLElement {

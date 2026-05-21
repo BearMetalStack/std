@@ -1,4 +1,4 @@
-import { joinPath } from "@lib/joinPath.ts";
+import { joinPath } from "@bearmetal/miscellanea";
 import type { SpaRoute } from "./SpaRoute.ts";
 import { registerElement } from "@lib/registerElements.ts";
 

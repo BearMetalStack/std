@@ -31,7 +31,7 @@ import type {
   ServiceToken,
   StateType,
 } from "./types.ts";
-import { joinPath } from "@/util/join.ts";
+import { joinPath } from "@bearmetal/miscellanea";
 
 export type {
   RouterContext,
@@ -42,7 +42,7 @@ export type {
   StateType,
 };
 
-export { Module, isAnyModule };
+export { isAnyModule, Module };
 export type { AnyModule, ModuleStateOf };
 
 // ─── Router ───────────────────────────────────────────────────────────────────

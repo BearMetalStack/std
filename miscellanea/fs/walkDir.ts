@@ -1,4 +1,4 @@
-import { joinPath } from "./joinPath.ts";
+import { joinPath } from "@bearmetal/miscellanea";
 
 export async function* walkDir(
 	dir: string,

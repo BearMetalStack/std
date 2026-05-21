@@ -1,7 +1,7 @@
 // deno-lint-ignore no-import-prefix
 import { $ } from "jsr:@david/dax@0.45.0";
 import { createBundles } from "./Bundle.ts";
-import { walkDir } from "@lib/walkDir.ts";
+import { walkDir } from "@bearmetal/miscellanea";
 
 const BUCKET = "cggtestbucket";
 

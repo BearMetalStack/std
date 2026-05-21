@@ -7,7 +7,7 @@
  * and automatically register its services on the parent.
  */
 
-import { joinPath } from "@/util/join.ts";
+import { joinPath } from "@bearmetal/miscellanea";
 import { type Infer, Schema } from "./schema.ts";
 import type {
   RouterHandler,
@@ -168,11 +168,13 @@ export interface AnyModule<TState extends StateType = StateType> {
 
 /** Duck-type guard — true for any object that looks like a Module. */
 export function isAnyModule(x: unknown): x is AnyModule<any> {
-  return x !== null && typeof x === "object" && "rawRoutes" in x && "rawServices" in x;
+  return x !== null && typeof x === "object" && "rawRoutes" in x &&
+    "rawServices" in x;
 }
 
 /** Extracts the state type contribution from a Module. */
-export type ModuleStateOf<M extends AnyModule<any>> = M extends AnyModule<infer T> ? T : never;
+export type ModuleStateOf<M extends AnyModule<any>> = M extends
+  AnyModule<infer T> ? T : never;
 
 /**
  * A self-contained bundle of routes, middleware, and services.
@@ -236,7 +238,9 @@ export class Module<TState extends StateType = {}> {
    * the `parent` argument — returning `false` if it throws lets the callback bubble
    * up to a higher ancestor where the service may be registered.
    */
-  getService<T extends ServiceActions>(name: string | ServiceToken<T>): Service<T> {
+  getService<T extends ServiceActions>(
+    name: string | ServiceToken<T>,
+  ): Service<T> {
     const svc = this._services.get(name as string);
     if (!svc) throw new Error(`Service "${String(name)}" not registered`);
     return svc as Service<T>;
@@ -304,7 +308,10 @@ export class Module<TState extends StateType = {}> {
 
     const addHandlers = (method: string, args: unknown[]) => {
       if (args[0] instanceof Schema) {
-        const [schema, ...handlers] = args as [Schema<unknown>, ...AnyHandler[]];
+        const [schema, ...handlers] = args as [
+          Schema<unknown>,
+          ...AnyHandler[],
+        ];
         routeConfig.schemas[method] = schema;
         (routeConfig.handlers[method] ??= []).push(...handlers);
       } else {
@@ -314,13 +321,34 @@ export class Module<TState extends StateType = {}> {
 
     // deno-lint-ignore no-explicit-any
     const configurator: any = {
-      get: (...args: unknown[]) => { addHandlers(GET, args); return configurator; },
-      post: (...args: unknown[]) => { addHandlers(POST, args); return configurator; },
-      put: (...args: unknown[]) => { addHandlers(PUT, args); return configurator; },
-      patch: (...args: unknown[]) => { addHandlers(PATCH, args); return configurator; },
-      delete: (...args: unknown[]) => { addHandlers(DELETE, args); return configurator; },
-      options: (...args: unknown[]) => { addHandlers(OPTIONS, args); return configurator; },
-      responds: (method: Method, schemas: { [status: number]: Schema<unknown> }) => {
+      get: (...args: unknown[]) => {
+        addHandlers(GET, args);
+        return configurator;
+      },
+      post: (...args: unknown[]) => {
+        addHandlers(POST, args);
+        return configurator;
+      },
+      put: (...args: unknown[]) => {
+        addHandlers(PUT, args);
+        return configurator;
+      },
+      patch: (...args: unknown[]) => {
+        addHandlers(PATCH, args);
+        return configurator;
+      },
+      delete: (...args: unknown[]) => {
+        addHandlers(DELETE, args);
+        return configurator;
+      },
+      options: (...args: unknown[]) => {
+        addHandlers(OPTIONS, args);
+        return configurator;
+      },
+      responds: (
+        method: Method,
+        schemas: { [status: number]: Schema<unknown> },
+      ) => {
         routeConfig.responseSchemas[method.toUpperCase()] = schemas;
         return configurator;
       },
@@ -345,7 +373,9 @@ export class Module<TState extends StateType = {}> {
    */
   // deno-lint-ignore no-explicit-any
   use(handler: RouterHandler<TState>): Module<any> {
-    (this.getOrCreateConfig("/.*").handlers[_use] ??= []).push(handler as AnyHandler);
+    (this.getOrCreateConfig("/.*").handlers[_use] ??= []).push(
+      handler as AnyHandler,
+    );
     return this;
   }
 
@@ -373,7 +403,9 @@ export class Module<TState extends StateType = {}> {
     return this._services.entries();
   }
 
-  protected getOrCreateConfig<T extends StateType>(path: string): RouteConfig<T> {
+  protected getOrCreateConfig<T extends StateType>(
+    path: string,
+  ): RouteConfig<T> {
     let config = this.routes.get(path);
     if (!config) {
       config = {
@@ -391,7 +423,11 @@ export class Module<TState extends StateType = {}> {
   protected resolveModuleStack(path: string, module: AnyModule<any>): void {
     module._setParent?.(this);
     for (const [routePath, thatConfig] of module.rawRoutes) {
-      const p = joinPath(path, routePath).replace(/\/$/, this.trailingSlash ? "/" : "") || "/";
+      const p =
+        joinPath(path, routePath).replace(
+          /\/$/,
+          this.trailingSlash ? "/" : "",
+        ) || "/";
       const thisConfig = this.getOrCreateConfig(p);
       for (const method of allMethods) {
         if (thatConfig.handlers[method]) {
@@ -402,7 +438,8 @@ export class Module<TState extends StateType = {}> {
           thisConfig.schemas[method] = thatConfig.schemas[method];
         }
         if (thatConfig.responseSchemas[method]) {
-          thisConfig.responseSchemas[method] = thatConfig.responseSchemas[method];
+          thisConfig.responseSchemas[method] =
+            thatConfig.responseSchemas[method];
         }
       }
     }

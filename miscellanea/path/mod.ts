@@ -1,4 +1,4 @@
-export function joinPath(...paths: string[]) {
+export function joinPath(...paths: string[]): string {
   const leading = paths[0]?.startsWith("/") ?? false;
   const segments = paths.flatMap((p) => p.split("/")).reduce((a, b) => {
     if (b === ".." || a.at(-1) === "*") a.pop();
@@ -6,4 +6,9 @@ export function joinPath(...paths: string[]) {
     return a;
   }, [] as string[]);
   return (leading ? "/" : "") + segments.join("/");
+}
+
+export function isRelativePath(path: string): boolean {
+  return !path.startsWith("/") &&
+    (path.startsWith("./") || path.startsWith("../"));
 }

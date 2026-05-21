@@ -1,4 +1,4 @@
-import { css } from "../lib/tags.ts";
+import { css } from "@bearmetal/miscellanea";
 
 export function SignInPage() {
   return (

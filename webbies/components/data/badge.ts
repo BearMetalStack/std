@@ -1,5 +1,5 @@
 import { BaseComponent } from "@lib/BaseComponent.ts";
-import { css } from "@lib/tags.ts";
+import { css } from "@bearmetal/miscellanea";
 import { registerElement } from "@lib/registerElements.ts";
 
 export class Badge extends BaseComponent {

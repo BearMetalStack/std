@@ -1,10 +1,22 @@
-import { BMC, isBMC } from "../lib/bmc.ts";
-import { escapeHtml } from "../lib/escapeHtml.ts";
+import { escapeHtml } from "@bearmetal/miscellanea";
+import { type BMC, isBMC } from "../lib/bmc.ts";
 import { Html } from "../lib/html.ts";
 
 const voidElements = new Set([
-  "area", "base", "br", "col", "embed", "hr", "img", "input",
-  "link", "meta", "param", "source", "track", "wbr",
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
 ]);
 
 function childToStr(c: unknown): string {
@@ -33,7 +45,9 @@ function buildAttrs(props: Record<string, unknown>): string {
 
 function flatChildren(children: unknown): unknown[] {
   if (children == null) return [];
-  if (Array.isArray(children)) return (children as unknown[]).flat(Infinity as 0);
+  if (Array.isArray(children)) {
+    return (children as unknown[]).flat(Infinity as 0);
+  }
   return [children];
 }
 

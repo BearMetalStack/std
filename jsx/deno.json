@@ -6,9 +6,6 @@
 		"dev": "deno run --watch main.ts",
 		"check": "deno check mod.ts client/mod.ts client/jsx-runtime.ts server/mod.ts server/jsx-runtime.ts"
 	},
-	"imports": {
-		"@std/assert": "jsr:@std/assert@1"
-	},
 	"exports": {
 		".": "./mod.ts",
 		"./client": "./client/mod.ts",

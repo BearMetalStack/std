@@ -1,5 +1,5 @@
-import { joinPath } from "@lib/joinPath.ts";
-import { walkDir } from "@lib/walkDir.ts";
+import { joinPath } from "@bearmetal/miscellanea";
+import { walkDir } from "@bearmetal/miscellanea";
 
 function processSVG(svg: string, name: string) {
 	svg = svg.replace(/svg/g, "symbol")

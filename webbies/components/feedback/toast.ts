@@ -1,5 +1,9 @@
-import { type TimeString, timeStringToMillis } from "@lib/time.ts";
-import { css, html } from "@lib/tags.ts";
+import {
+	css,
+	html,
+	type TimeString,
+	timeStringToMillis,
+} from "@bearmetal/miscellanea";
 import { injectStyle } from "@lib/injectStyle.ts";
 import { registerElements } from "@lib/registerElements.ts";
 

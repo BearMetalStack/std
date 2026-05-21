@@ -1,5 +1,5 @@
+import { joinPath } from "@bearmetal/miscellanea";
 import { getContentTypeByExtension } from "./contentType.ts";
-import { joinPath } from "@/util/join.ts";
 import { NotFound } from "./response.ts";
 
 export async function fileResponse(path: string): Promise<Response> {
@@ -17,10 +17,6 @@ export async function resolveStaticFile(
   spa: boolean,
   showIndex: boolean,
 ): Promise<Response> {
-  // let normalizedPath = (dir + "/" + pathname.replace(new RegExp("^" + root), ""))
-  //   .trim()
-  //   .replace("//", "/")
-  //   .replace(/\/\s?$/, "");
   let normalizedPath = spa
     ? joinPath(dir, pathname.split("/").pop()!)
     : (dir + "/" + pathname.replace(new RegExp("^" + root), ""))

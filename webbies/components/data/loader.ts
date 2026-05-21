@@ -1,5 +1,5 @@
 import { BaseComponent } from "@lib/BaseComponent.ts";
-import { css, html } from "@lib/tags.ts";
+import { css, html } from "@bearmetal/miscellanea";
 import { animationSheet } from "@style";
 import { registerElement } from "@lib/registerElements.ts";
 

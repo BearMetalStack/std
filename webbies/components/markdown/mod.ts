@@ -1,6 +1,5 @@
 import { markdownToHtml } from "@lib/md/html.ts";
-import { unescape } from "@lib/htmlEscape.ts";
-import { css } from "@lib/tags.ts";
+import { css, unescapeHtml } from "@bearmetal/miscellanea";
 import { registerElement } from "@lib/registerElements.ts";
 
 const STYLE = css`
@@ -38,7 +37,7 @@ export class Markdown extends HTMLElement {
 
 	connectedCallback() {
 		if (!this._originalContent) {
-			this._originalContent = unescape(this.innerHTML);
+			this._originalContent = unescapeHtml(this.innerHTML);
 		}
 		this.init().then((html) => this._render(html ?? ""));
 	}
@@ -91,5 +90,5 @@ export class Markdown extends HTMLElement {
 registerElement("bm-md", Markdown);
 
 // [GENERATED:link-mods] DO NOT EDIT BELOW
-import "@style"
+import "@style";
 // [/GENERATED:link-mods]

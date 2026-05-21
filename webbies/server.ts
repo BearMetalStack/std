@@ -1,7 +1,7 @@
 import { Router } from "@bearmetal/router";
 
 const app = new Router();
-app.use(async (_, __, next) => {
+app.use(async (_, next) => {
 	const res = await next();
 	res.headers.set("Access-Control-Allow-Origin", "*");
 	return res;

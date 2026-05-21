@@ -1,4 +1,4 @@
-import { walkDir } from "@lib/walkDir.ts";
+import { walkDir } from "@bearmetal/miscellanea";
 
 export async function createBundles(
 	{ prod, version }: { prod: boolean; version: string },
