@@ -1,0 +1,89 @@
+table {
+	border-radius: var(--radius-lg);
+	background-color: var(--color-bg-subtle);
+	overflow: clip;
+	border: 0;
+	border-collapse: collapse;
+
+	td, th {
+		color: var(--color-text);
+		padding: var(--space-2);
+		border: 0;
+		text-align: left;
+
+		&.center {
+			text-align: center;
+		}
+		&.right {
+			text-align: right;
+		}
+	}
+
+	tr:not(:last-child), thead, tbody:not(:last-child) {
+		border-bottom: var(--color-brand-200) 1px solid;
+	}
+
+	thead, tfoot {
+		background-color: #00000030;
+		td, th {
+			color: var(--color-text-subtle);
+		}
+	}
+
+	th > .sorting {
+		opacity: 0;
+
+		transition:
+			var(--transition-transform),
+			var(--transition-opacity);
+		transform: rotate(0);
+	}
+
+	th {
+    cursor: pointer;
+
+		&[data-sorting] > .sorting {
+			opacity: 1;
+		}
+
+		&[data-order="desc"] > .sorting {
+			transform: rotate(-180deg);
+		}
+	}
+
+	.pager {
+		display: flex;
+		justify-content: end;
+		align-items: center;
+		gap: 1rem;
+
+		/* button {
+			padding: 0;
+			height: 1.2em;
+			width: 1.2em;
+			border: none;
+			border-radius: var(--radius-base);
+			background-color: color-mix(
+				in srgb,
+				var(--color-brand-100) 30%,
+				transparent
+			);
+			transition: var(--transition-colors);
+
+			&:hover {
+				background-color: color-mix(
+					in srgb,
+					var(--color-brand-100) 50%,
+					transparent
+				);
+			}
+
+			bm-icon {
+				vertical-align: top;
+				fill: var(--color-brand-500);
+				width: 100%;
+				height: 100%;
+			}
+		} */
+	}
+}

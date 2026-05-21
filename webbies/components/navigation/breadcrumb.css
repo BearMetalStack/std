@@ -1,0 +1,24 @@
+bm-breadcrumb {
+  display: flex;
+  align-items: center;
+  text-transform: capitalize;
+  font-size: var(--breadcrumb-font-size);
+  padding: var(--space-1);
+  
+  a{
+    color: var(--breadcrumb-color);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    line-height: 1em;
+    &:not(:first-child)::before {
+      content: '/';
+      margin: 0 var(--space-2);
+      color: var(--breadcrumb-separator-color);
+    }
+    
+    &:hover, &.active {
+      color: var(--breadcrumb-color-active);
+    }
+  }
+}

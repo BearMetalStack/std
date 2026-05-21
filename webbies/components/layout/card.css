@@ -1,0 +1,28 @@
+bm-card {
+  background-color: var(--card-bg);
+  border: var(--card-border) solid var(--card-border-width);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  overflow: clip;
+  height: max-content;
+
+  > img {
+    margin: var(--space-4) 0;
+    &:nth-child(2) {
+      margin-top: 0;
+    }
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  > *:not(img) {
+    padding: 0 var(--card-padding);
+    &:first-child {
+      padding-top: var(--card-padding-sm);
+    }
+    &:last-child {
+      padding-bottom: var(--card-padding-sm);
+    }
+  }
+}

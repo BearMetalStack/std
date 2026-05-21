@@ -1,0 +1,43 @@
+{
+	"name": "@bearmetal/webbies",
+	"version": "0.0.2-dev.0",
+	"license": "GPL-3.0-only",
+	"tasks": {
+		"dev": "deno -A --watch=components LinkMods.ts ./components & deno bundle --watch --platform=browser --sourcemap=inline public/index.html --outdir dist & deno run -NR --watch server.ts"
+	},
+	"unstable": ["raw-imports", "bundle"],
+	"compilerOptions": {
+		"lib": [
+			"dom",
+			"dom.asynciterable",
+			"dom.iterable",
+			"esnext",
+			"deno.ns",
+			"deno.window",
+			"deno.unstable"
+		],
+		"jsx": "react-jsx",
+		"jsxFactory": "h",
+		"jsxFragmentFactory": "Fragment",
+		"jsxImportSource": "@bearmetal/jsx/client"
+	},
+	"publish": {
+		"exclude": ["./prod", "./dist"]
+	},
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts"
+	},
+	"imports": {
+		"@bearmetal/jsx": "jsr:@bearmetal/jsx@^0.0.1",
+		"@bearmetal/router": "jsr:@bearmetal/router@0.3.7-dev.3",
+		"@lib/": "./lib/",
+		"@/": "./",
+		"@std/assert": "jsr:@std/assert@^1.0.19",
+		"@std/testing": "jsr:@std/testing@^1.0.17",
+		"@style": "./style/mod.ts"
+	},
+	"fmt": {
+		"useTabs": true
+	}
+}
