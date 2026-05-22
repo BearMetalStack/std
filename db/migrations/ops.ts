@@ -1,4 +1,4 @@
-import type { ObjectSchema, Schema, SchemaShape } from "@bearmetal/router";
+import type { ObjectSchema, Schema, SchemaShape } from "@bearmetal/forge";
 
 export type IndexDef = {
   columns: string[];

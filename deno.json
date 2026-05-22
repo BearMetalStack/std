@@ -1,22 +1,38 @@
 {
 	"tasks": {
-		"dev": "deno run --watch main.ts",
-		"dependencies": "deno run -R dep_graph.ts",
-		"workspace:publish": "deno run -P=publish --env-file publish_workspace.ts"
+		"workspace:map-dependencies": "deno run -R dep_graph.ts",
+		"workspace:publish": {
+			"command": "deno run -P=publish --env-file publish_workspace.ts",
+			"description": "Publishes all packages in order of dependency",
+			"dependencies": ["workspace:bump-versions"]
+		},
+		"workspace:bump-versions": {
+			"command": "deno run -P=bump version_bump.ts",
+			"description": "Bumps versions of packages that have had changes since last bump"
+		}
 	},
 	"permissions": {
 		"publish": {
 			"run": true,
 			"read": true,
 			"env": ["JSR_PUBLISH_TOKEN"]
+		},
+		"bump": {
+			"run": true,
+			"read": true,
+			"write": true
 		}
 	},
 	"workspace": ["./*"],
 	"unstable": ["raw-imports", "bundle"],
 	"imports": {
 		"@std/assert": "jsr:@std/assert@1",
-		"@std/fs": "jsr:@std/fs@^1.0.23",
+		"@std/fs": "jsr:@std/fs@1",
 		"@std/testing": "jsr:@std/testing@1"
+	},
+	"fmt": {
+		"useTabs": true,
+		"lineWidth": 100
 	},
 	"compilerOptions": {
 		"lib": [

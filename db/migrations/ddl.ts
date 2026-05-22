@@ -4,7 +4,7 @@ import {
   OptionalSchema,
   type Schema,
   type SchemaShape,
-} from "@bearmetal/router";
+} from "@bearmetal/forge";
 import type { MigrationOp } from "./ops.ts";
 
 export function schemaToPostgresType(schema: Schema<unknown>): string {
@@ -16,7 +16,9 @@ export function schemaToPostgresType(schema: Schema<unknown>): string {
   if (json.type === "object" || json.type === "array") return "JSONB";
   if (json.oneOf) {
     const allStrings = json.oneOf.every(
-      (m) => m.type === "string" || (m.const !== undefined && typeof m.const === "string"),
+      (m) =>
+        m.type === "string" ||
+        (m.const !== undefined && typeof m.const === "string"),
     );
     return allStrings ? "TEXT" : "JSONB";
   }
@@ -130,6 +132,8 @@ export function opToStatements(
       return [{ sql: op.sql, params: op.params ?? [] }];
 
     case "extendTable":
-      throw new Error("extendTable ops require database access — handled by the migration runner, not opToStatements");
+      throw new Error(
+        "extendTable ops require database access — handled by the migration runner, not opToStatements",
+      );
   }
 }

@@ -1,34 +1,33 @@
+import type { ObjectSchema, SchemaShape } from "@bearmetal/forge";
 import {
   createService,
   createServiceToken,
   Module,
-  type ObjectSchema,
-  type SchemaShape,
   type ServiceToken,
 } from "@bearmetal/router";
 import { KVConnector, PostgresConnector } from "@connectors";
+import { schemaHash } from "@lib/hash.ts";
+import type { Migration, MigrationResult } from "@migrations";
+import { m } from "@migrations";
 import type {
   DBOptions,
   PostgresOptions,
   Queryable,
   TableIdentifier,
 } from "./types.d.ts";
-import { m } from "@migrations";
-import type { Migration, MigrationResult } from "@migrations";
-import { schemaHash } from "@lib/hash.ts";
 
+export {
+  type Infer,
+  ObjectSchema,
+  s,
+  type SchemaShape,
+} from "@bearmetal/forge";
 export {
   m,
   type Migration,
   type MigrationOp,
   type MigrationResult,
 } from "@migrations";
-export {
-  type Infer,
-  ObjectSchema,
-  s,
-  type SchemaShape,
-} from "@bearmetal/router";
 
 type ProviderType = "postgres" | "kv";
 

@@ -1,0 +1,13 @@
+{
+	"name": "@bearmetal/forge",
+	"description": "Runtime validation and JSON Schema generation for BearMetal",
+	"version": "0.0.1",
+	"exports": {
+		".": "./mod.ts"
+	},
+	"tasks": {
+		"dev": "deno test --watch"
+	},
+	"license": "GPL-3.0-only",
+	"files": ["mod.ts", "schema.ts", "LICENSE"]
+}
