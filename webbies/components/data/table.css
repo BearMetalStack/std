@@ -5,7 +5,8 @@ table {
 	border: 0;
 	border-collapse: collapse;
 
-	td, th {
+	td,
+	th {
 		color: var(--color-text);
 		padding: var(--space-2);
 		border: 0;
@@ -19,13 +20,17 @@ table {
 		}
 	}
 
-	tr:not(:last-child), thead, tbody:not(:last-child) {
-		border-bottom: var(--color-brand-200) 1px solid;
+	tr:not(:last-child),
+	thead,
+	tbody:not(:last-child) {
+		border-bottom: var(--color-bearmetal-200) 1px solid;
 	}
 
-	thead, tfoot {
+	thead,
+	tfoot {
 		background-color: #00000030;
-		td, th {
+		td,
+		th {
 			color: var(--color-text-subtle);
 		}
 	}
@@ -33,14 +38,12 @@ table {
 	th > .sorting {
 		opacity: 0;
 
-		transition:
-			var(--transition-transform),
-			var(--transition-opacity);
+		transition: var(--transition-transform), var(--transition-opacity);
 		transform: rotate(0);
 	}
 
 	th {
-    cursor: pointer;
+		cursor: pointer;
 
 		&[data-sorting] > .sorting {
 			opacity: 1;
@@ -65,7 +68,7 @@ table {
 			border-radius: var(--radius-base);
 			background-color: color-mix(
 				in srgb,
-				var(--color-brand-100) 30%,
+				var(--color-bearmetal-100) 30%,
 				transparent
 			);
 			transition: var(--transition-colors);
@@ -73,14 +76,14 @@ table {
 			&:hover {
 				background-color: color-mix(
 					in srgb,
-					var(--color-brand-100) 50%,
+					var(--color-bearmetal-100) 50%,
 					transparent
 				);
 			}
 
 			bm-icon {
 				vertical-align: top;
-				fill: var(--color-brand-500);
+				fill: var(--color-bearmetal-600);
 				width: 100%;
 				height: 100%;
 			}

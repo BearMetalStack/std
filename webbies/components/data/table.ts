@@ -1,55 +1,70 @@
 import { BaseComponent } from "@lib/BaseComponent.ts";
-import { html, css } from "@lib/tags.ts";
+import { css, html } from "@lib/tags.ts";
 import { injectStyle } from "@lib/injectStyle.ts";
 import { registerElement } from "@lib/registerElements.ts";
 
-injectStyle("bm-table", css`
-	bm-table table {
-		border-radius: var(--radius-lg);
-		background-color: var(--color-bg-subtle);
-		overflow: clip;
-		border: 0;
-		border-collapse: collapse;
-
-		td, th {
-			color: var(--color-text);
-			padding: var(--space-2);
+injectStyle(
+	"bm-table",
+	css`
+		bm-table table {
+			border-radius: var(--radius-lg);
+			background-color: var(--color-bg-subtle);
+			overflow: clip;
 			border: 0;
-			text-align: left;
+			border-collapse: collapse;
 
-			&.center { text-align: center; }
-			&.right { text-align: right; }
-		}
+			td, th {
+				color: var(--color-text);
+				padding: var(--space-2);
+				border: 0;
+				text-align: left;
 
-		tr:not(:last-child), thead, tbody:not(:last-child) {
-			border-bottom: var(--color-brand-200) 1px solid;
-		}
+				&.center {
+					text-align: center;
+				}
+				&.right {
+					text-align: right;
+				}
+			}
 
-		thead, tfoot {
-			background-color: #00000030;
-			td, th { color: var(--color-text-subtle); }
-		}
+			tr:not(:last-child), thead, tbody:not(:last-child) {
+				border-bottom: var(--color-bearmetal-200) 1px solid;
+			}
 
-		th > .sorting {
-			opacity: 0;
-			transition: var(--transition-transform), var(--transition-opacity);
-			transform: rotate(0);
-		}
+			thead, tfoot {
+				background-color: #00000030;
+				td, th {
+					color: var(--color-text-subtle);
+				}
+			}
 
-		th {
-			cursor: pointer;
-			&[data-sorting] > .sorting { opacity: 1; }
-			&[data-order="desc"] > .sorting { transform: rotate(-180deg); }
-		}
+			th > .sorting {
+				opacity: 0;
+				transition:
+					var(--transition-transform),
+					var(--transition-opacity);
+				transform: rotate(0);
+			}
 
-		.pager {
-			display: flex;
-			justify-content: end;
-			align-items: center;
-			gap: 1rem;
+			th {
+				cursor: pointer;
+				&[data-sorting] > .sorting {
+					opacity: 1;
+				}
+				&[data-order="desc"] > .sorting {
+					transform: rotate(-180deg);
+				}
+			}
+
+			.pager {
+				display: flex;
+				justify-content: end;
+				align-items: center;
+				gap: 1rem;
+			}
 		}
-	}
-`);
+	`,
+);
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -266,9 +281,7 @@ export class Table extends BaseComponent {
 		super();
 		this.useShadow();
 		this.setTemplate(LOADER);
-		this._pageSize = this.hasAttribute("page-size")
-			? Number(this.getAttribute("page-size"))
-			: 0;
+		this._pageSize = this.hasAttribute("page-size") ? Number(this.getAttribute("page-size")) : 0;
 	}
 
 	override connectedCallback(): void {
@@ -320,15 +333,13 @@ export class Table extends BaseComponent {
 			this._sortDir = 1;
 		}
 
-		this._sorted = !this._sortKey
-			? this._data.slice()
-			: this._data.toSorted((a, b) => {
-				const av = a[this._sortKey] ?? "";
-				const bv = b[this._sortKey] ?? "";
-				if (av > bv) return this._sortDir;
-				if (av < bv) return -this._sortDir;
-				return 0;
-			});
+		this._sorted = !this._sortKey ? this._data.slice() : this._data.toSorted((a, b) => {
+			const av = a[this._sortKey] ?? "";
+			const bv = b[this._sortKey] ?? "";
+			if (av > bv) return this._sortDir;
+			if (av < bv) return -this._sortDir;
+			return 0;
+		});
 
 		if (this._thead) updateHeadSort(this._thead, this._sortKey, this._sortDir);
 		this._renderBody();
@@ -360,9 +371,7 @@ export class Table extends BaseComponent {
 	}
 
 	private get _pageCount(): number {
-		return this._pageSize > 0
-			? Math.ceil(this._data.length / this._pageSize)
-			: 1;
+		return this._pageSize > 0 ? Math.ceil(this._data.length / this._pageSize) : 1;
 	}
 
 	private get _currentPage(): Row[] {
@@ -421,9 +430,7 @@ export class Table extends BaseComponent {
 			this._columns,
 			this._userTemplate,
 		);
-		tbody
-			? this._table.replaceChild(next, tbody)
-			: this._table.appendChild(next);
+		tbody ? this._table.replaceChild(next, tbody) : this._table.appendChild(next);
 	}
 }
 

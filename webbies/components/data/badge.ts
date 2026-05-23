@@ -15,9 +15,9 @@ export class Badge extends BaseComponent {
 				border-radius: var(--badge-radius);
 				letter-spacing: var(--badge-letter-spacing);
 
-				--color-badge-bg: var(--color-brand-50);
-				--color-badge-border: var(--color-brand-300);
-				--color-badge-text: var(--color-brand-400);
+				--color-badge-bg: var(--color-bearmetal-50);
+				--color-badge-border: var(--color-bearmetal-300);
+				--color-badge-text: var(--color-bearmetal-400);
 
 				border: var(--border-1-5) solid var(--color-badge-border);
 				background-color: var(--color-badge-bg);
@@ -52,9 +52,9 @@ export class Badge extends BaseComponent {
 					--color-badge-text: var(--color-danger);
 				}
 				&[grey] {
-					--color-badge-bg: var(--color-brand-grey-100);
-					--color-badge-border: var(--color-brand-grey-400);
-					--color-badge-text: var(--color-brand-grey-600);
+					--color-badge-bg: var(--color-bearmetal-grey-100);
+					--color-badge-border: var(--color-bearmetal-grey-400);
+					--color-badge-text: var(--color-bearmetal-grey-600);
 				}
 
 				&[interactive] {

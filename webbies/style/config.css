@@ -1,14 +1,14 @@
 /* ============================================================
    BearMetal Webbies — Config Template
    bearmetal-config.css
-   
+
    Import this AFTER bearmetal-base.css. Override only what
    you need — everything else inherits the base defaults.
-   
+
    Usage:
      <link rel="stylesheet" href="bearmetal-base.css">
      <link rel="stylesheet" href="bearmetal-config.css">
-   
+
    Or in CSS:
      @import 'bearmetal-base.css';
      @import 'bearmetal-config.css';
@@ -30,10 +30,10 @@
 
 :root {
 	/* ------ Brand color ramp (replace with your palette) ----- */
-	/* --color-brand-50:    #fefce8; */
-	/* --color-brand-500:   #eab308; */
-	/* --color-brand-600:   #ca8a04; */
-	/* --color-brand-700:   #a16207; */
+	/* --color-bearmetal-50:    #fefce8; */
+	/* --color-bearmetal-600:   #eab308; */
+	/* --color-bearmetal-500:   #ca8a04; */
+	/* --color-bearmetal-700:   #a16207; */
 
 	/* ------ Fonts -------------------------------------------- */
 	/* --font-sans:     'DM Sans', sans-serif;                    */
@@ -56,8 +56,8 @@
 	/* --color-border:   #2a2a2a;                                 */
 
 	/* ------ Interactive color aliases ------------------------ */
-	/* --color-interactive:        var(--color-brand-600);        */
-	/* --color-interactive-hover:  var(--color-brand-700);        */
+	/* --color-interactive:        var(--color-bearmetal-500);        */
+	/* --color-interactive-hover:  var(--color-bearmetal-700);        */
 
 	/* ------ Component-specific overrides --------------------- */
 	/* --card-radius:    var(--radius-2xl);                       */
@@ -74,8 +74,8 @@
 
 /*
 [data-theme="dark"] {
-  --color-brand-400: #fde047;
-  --color-interactive: var(--color-brand-400);
+  --color-bearmetal-400: #fde047;
+  --color-interactive: var(--color-bearmetal-400);
 }
 */
 

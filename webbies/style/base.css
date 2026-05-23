@@ -21,198 +21,615 @@
 	/* ----------------------------------------------------------
 		   COLOR — Brand
 		   ---------------------------------------------------------- */
-	--color-brand-50: #f5eeff; /* Tints, hover backgrounds */
-	--color-brand-100: #e8ccff; /* Subtle fills, badge backgrounds */
-	--color-brand-200: #cc99ff; /* Borders on light surfaces */
-	--color-brand-300: #aa55ee; /* Icons on light bg, decorative */
-	--color-brand-400: #7711cc; /* Large text on white, light mode links */
-	--color-brand-500: #36005c; /* ← brand identity color */
-	--color-brand-600: #4a0080; /* NOTE: lighter than 500 — interactive default (see docs) */
-	--color-brand-700: #290047; /* Hover state */
-	--color-brand-800: #1a0030; /* Active/pressed — "vibrant" dark bg */
-	--color-brand-900: #0d0018; /* Near-black */
-	--color-brand-950: #060009; /* Dark mode page bg — "shadow" dark bg */
+	--color-bearmetal-50: #f5eeff; /* Tints, hover backgrounds */
+	--color-bearmetal-100: #e8ccff; /* Subtle fills, badge backgrounds */
+	--color-bearmetal-200: #cc99ff; /* Borders on light surfaces */
+	--color-bearmetal-300: #aa55ee; /* Icons on light bg, decorative */
+	--color-bearmetal-400: #7711cc; /* Large text on white, light mode links */
+	--color-bearmetal-600: #36005c; /* ← brand identity color */
+	--color-bearmetal-500: #4a0080; /* NOTE: lighter than 500 — interactive default (see docs) */
+	--color-bearmetal-700: #290047; /* Hover state */
+	--color-bearmetal-800: #1a0030; /* Active/pressed — "vibrant" dark bg */
+	--color-bearmetal-900: #0d0018; /* Near-black */
+	--color-bearmetal-950: #060009; /* Dark mode page bg — "shadow" dark bg */
 
 	/* ----------------------------------------------------------
 	   COLOR — Brand Grey
 	   ---------------------------------------------------------- */
-	--color-brand-grey-50: #faf8fc; /* Page background                   → --color-bg */
-	--color-brand-grey-100: #f2eff6; /* Subtle surface                    → --color-bg-subtle */
-	--color-brand-grey-200: #e8e4f0; /* Muted surface, skeleton           → --color-bg-muted */
-	--color-brand-grey-300: #d8d2e6; /* Emphasis surface, hover           → --color-bg-emphasis */
-	--color-brand-grey-400: #c2bace; /* Subtle border                     → --color-border */
-	--color-brand-grey-500: #a89eb8; /* Default border                    → --color-border-strong */
-	--color-brand-grey-600: #7a7085; /* Muted text, placeholders          → --color-text-muted */
-	--color-brand-grey-700: #544d5e; /* Subtle text, secondary labels     → --color-text-subtle */
-	--color-brand-grey-800: #332d3a; /* Body text                         → --color-text */
-	--color-brand-grey-900: #1c1820; /* High contrast text */
-	--color-brand-grey-950: #100d14; /* Dark mode page bg */
+	--color-bearmetal-grey-50: #faf8fc; /* Page background                   → --color-bg */
+	--color-bearmetal-grey-100: #f2eff6; /* Subtle surface                    → --color-bg-subtle */
+	--color-bearmetal-grey-200: #e8e4f0; /* Muted surface, skeleton           → --color-bg-muted */
+	--color-bearmetal-grey-300: #d8d2e6; /* Emphasis surface, hover           → --color-bg-emphasis */
+	--color-bearmetal-grey-400: #c2bace; /* Subtle border                     → --color-border */
+	--color-bearmetal-grey-500: #a89eb8; /* Default border                    → --color-border-strong */
+	--color-bearmetal-grey-600: #7a7085; /* Muted text, placeholders          → --color-text-muted */
+	--color-bearmetal-grey-700: #544d5e; /* Subtle text, secondary labels     → --color-text-subtle */
+	--color-bearmetal-grey-800: #332d3a; /* Body text                         → --color-text */
+	--color-bearmetal-grey-900: #1c1820; /* High contrast text */
+	--color-bearmetal-grey-950: #100d14; /* Dark mode page bg */
 
 	/* ----------------------------------------------------------
 	   COLOR — Brand Success
 	   ---------------------------------------------------------- */
-	--color-brand-success-50: #f0faf1; /* Success bg tint                   → --color-success-light */
-	--color-brand-success-100: #d6f5d8; /* Alert background */
-	--color-brand-success-200: #a8e8ac; /* Badge background */
-	--color-brand-success-300: #6bcf72; /* Icons on light bg */
-	--color-brand-success-400: #2ea838; /* Large text on white */
-	--color-brand-success-500: #005c08; /* ← brand identity                  → --color-success */
-	--color-brand-success-600: #004d07; /* Buttons, interactive */
-	--color-brand-success-700: #003d05; /* Hover state                       → --color-success-dark */
-	--color-brand-success-800: #002803; /* Active/pressed, dark surfaces */
-	--color-brand-success-900: #001602; /* Near-black */
-	--color-brand-success-950: #000a01; /* Dark mode page bg (branded) */
+	--color-bearmetal-success-50: #f0faf1; /* Success bg tint                   → --color-success-light */
+	--color-bearmetal-success-100: #d6f5d8; /* Alert background */
+	--color-bearmetal-success-200: #a8e8ac; /* Badge background */
+	--color-bearmetal-success-300: #6bcf72; /* Icons on light bg */
+	--color-bearmetal-success-400: #2ea838; /* Large text on white */
+	--color-bearmetal-success-500: #005c08; /* ← brand identity                  → --color-success */
+	--color-bearmetal-success-600: #004d07; /* Buttons, interactive */
+	--color-bearmetal-success-700: #003d05; /* Hover state                       → --color-success-dark */
+	--color-bearmetal-success-800: #002803; /* Active/pressed, dark surfaces */
+	--color-bearmetal-success-900: #001602; /* Near-black */
+	--color-bearmetal-success-950: #000a01; /* Dark mode page bg (branded) */
 
 	/* ----------------------------------------------------------
 	   COLOR — Brand Danger
 	   ---------------------------------------------------------- */
-	--color-brand-danger-50: #fdf0f4; /* Danger bg tint                    → --color-danger-light */
-	--color-brand-danger-100: #f8d6e3; /* Alert background */
-	--color-brand-danger-200: #f0a8c2; /* Badge background */
-	--color-brand-danger-300: #d96690; /* Icons on light bg */
-	--color-brand-danger-400: #b03060; /* Large text on white */
-	--color-brand-danger-500: #5c0026; /* ← brand identity                  → --color-danger */
-	--color-brand-danger-600: #4a001e; /* Buttons, interactive */
-	--color-brand-danger-700: #380016; /* Hover state                       → --color-danger-dark */
-	--color-brand-danger-800: #25000e; /* Active/pressed, dark surfaces */
-	--color-brand-danger-900: #140008; /* Near-black */
-	--color-brand-danger-950: #0a0004; /* Dark mode page bg (branded) */
+	--color-bearmetal-danger-50: #fdf0f4; /* Danger bg tint                    → --color-danger-light */
+	--color-bearmetal-danger-100: #f8d6e3; /* Alert background */
+	--color-bearmetal-danger-200: #f0a8c2; /* Badge background */
+	--color-bearmetal-danger-300: #d96690; /* Icons on light bg */
+	--color-bearmetal-danger-400: #b03060; /* Large text on white */
+	--color-bearmetal-danger-500: #5c0026; /* ← brand identity                  → --color-danger */
+	--color-bearmetal-danger-600: #4a001e; /* Buttons, interactive */
+	--color-bearmetal-danger-700: #380016; /* Hover state                       → --color-danger-dark */
+	--color-bearmetal-danger-800: #25000e; /* Active/pressed, dark surfaces */
+	--color-bearmetal-danger-900: #140008; /* Near-black */
+	--color-bearmetal-danger-950: #0a0004; /* Dark mode page bg (branded) */
 
 	/* ----------------------------------------------------------
 	   COLOR — Brand Warning
 	   ---------------------------------------------------------- */
-	--color-brand-warning-50: #fdf9ee; /* Warning bg tint                   → --color-warning-light */
-	--color-brand-warning-100: #faefc8; /* Alert background */
-	--color-brand-warning-200: #f5dc88; /* Badge background */
-	--color-brand-warning-300: #e8c030; /* Icons on light bg */
-	--color-brand-warning-400: #a88800; /* Large text on white */
-	--color-brand-warning-500: #3d2e00; /* ← brand identity                  → --color-warning */
-	--color-brand-warning-600: #332600; /* Buttons, interactive */
-	--color-brand-warning-700: #261c00; /* Hover state                       → --color-warning-dark */
-	--color-brand-warning-800: #181100; /* Active/pressed, dark surfaces */
-	--color-brand-warning-900: #0d0900; /* Near-black */
-	--color-brand-warning-950: #070400; /* Dark mode page bg (branded) */
+	--color-bearmetal-warning-50: #fdf9ee; /* Warning bg tint                   → --color-warning-light */
+	--color-bearmetal-warning-100: #faefc8; /* Alert background */
+	--color-bearmetal-warning-200: #f5dc88; /* Badge background */
+	--color-bearmetal-warning-300: #e8c030; /* Icons on light bg */
+	--color-bearmetal-warning-400: #a88800; /* Large text on white */
+	--color-bearmetal-warning-500: #3d2e00; /* ← brand identity                  → --color-warning */
+	--color-bearmetal-warning-600: #332600; /* Buttons, interactive */
+	--color-bearmetal-warning-700: #261c00; /* Hover state                       → --color-warning-dark */
+	--color-bearmetal-warning-800: #181100; /* Active/pressed, dark surfaces */
+	--color-bearmetal-warning-900: #0d0900; /* Near-black */
+	--color-bearmetal-warning-950: #070400; /* Dark mode page bg (branded) */
 
 	/* ----------------------------------------------------------
 	   COLOR — Brand Info
 	   ---------------------------------------------------------- */
-	--color-brand-info-50: #eef4fd; /* Info bg tint                      → --color-info-light */
-	--color-brand-info-100: #cce0f8; /* Alert background */
-	--color-brand-info-200: #96c4f0; /* Badge background */
-	--color-brand-info-300: #4e9add; /* Icons on light bg */
-	--color-brand-info-400: #1a6ab8; /* Large text on white */
-	--color-brand-info-500: #001f4a; /* ← brand identity                  → --color-info */
-	--color-brand-info-600: #001838; /* Buttons, interactive */
-	--color-brand-info-700: #001028; /* Hover state                       → --color-info-dark */
-	--color-brand-info-800: #000a18; /* Active/pressed, dark surfaces */
-	--color-brand-info-900: #00050e; /* Near-black */
-	--color-brand-info-950: #000208; /* Dark mode page bg (branded) */
+	--color-bearmetal-info-50: #eef4fd; /* Info bg tint                      → --color-info-light */
+	--color-bearmetal-info-100: #cce0f8; /* Alert background */
+	--color-bearmetal-info-200: #96c4f0; /* Badge background */
+	--color-bearmetal-info-300: #4e9add; /* Icons on light bg */
+	--color-bearmetal-info-400: #1a6ab8; /* Large text on white */
+	--color-bearmetal-info-500: #001f4a; /* ← brand identity                  → --color-info */
+	--color-bearmetal-info-600: #001838; /* Buttons, interactive */
+	--color-bearmetal-info-700: #001028; /* Hover state                       → --color-info-dark */
+	--color-bearmetal-info-800: #000a18; /* Active/pressed, dark surfaces */
+	--color-bearmetal-info-900: #00050e; /* Near-black */
+	--color-bearmetal-info-950: #000208; /* Dark mode page bg (branded) */
 
 	/* ----------------------------------------------------------
    COLOR — Brand Orange
    ---------------------------------------------------------- */
-	--color-brand-orange-50: #fef4ec;
-	--color-brand-orange-100: #fcdcb0;
-	--color-brand-orange-200: #f5a855;
-	--color-brand-orange-300: #e88a30;
-	--color-brand-orange-400: #d96810;
-	--color-brand-orange-500: #b85500;
-	--color-brand-orange-600: #9c4400;
-	--color-brand-orange-700: #742f00;
-	--color-brand-orange-800: #5a2800;
-	--color-brand-orange-900: #2c1200;
-	--color-brand-orange-950: #160900;
+	--color-bearmetal-orange-50: #fef4ec;
+	--color-bearmetal-orange-100: #fcdcb0;
+	--color-bearmetal-orange-200: #f5a855;
+	--color-bearmetal-orange-300: #e88a30;
+	--color-bearmetal-orange-400: #d96810;
+	--color-bearmetal-orange-500: #b85500;
+	--color-bearmetal-orange-600: #9c4400;
+	--color-bearmetal-orange-700: #742f00;
+	--color-bearmetal-orange-800: #5a2800;
+	--color-bearmetal-orange-900: #2c1200;
+	--color-bearmetal-orange-950: #160900;
 	/* ----------------------------------------------------------
-	   COLOR — Neutral
-	   ---------------------------------------------------------- */
-	--color-neutral-0: #ffffff;
-	--color-neutral-50: #f8fafc;
-	--color-neutral-100: #f1f5f9;
-	--color-neutral-200: #e2e8f0;
-	--color-neutral-300: #cbd5e1;
-	--color-neutral-400: #94a3b8;
-	--color-neutral-500: #64748b;
-	--color-neutral-600: #475569;
-	--color-neutral-700: #334155;
-	--color-neutral-800: #1e293b;
-	--color-neutral-900: #0f172a;
-	--color-neutral-950: #020617;
+   COLOR — BearMetal Slate
+   ---------------------------------------------------------- */
+	--color-bearmetal-slate-50: #f4f6f8;
+	--color-bearmetal-slate-100: #e2e8f0;
+	--color-bearmetal-slate-200: #c4d0e0;
+	--color-bearmetal-slate-300: #94a8c0;
+	--color-bearmetal-slate-400: #6480a0;
+	--color-bearmetal-slate-500: #3c5068; /* ← identity */
+	--color-bearmetal-slate-600: #2e3e52;
+	--color-bearmetal-slate-700: #202e3c;
+	--color-bearmetal-slate-800: #141e28;
+	--color-bearmetal-slate-900: #0a1018;
+	--color-bearmetal-slate-950: #04080c;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Pebble
+   ---------------------------------------------------------- */
+	--color-bearmetal-pebble-50: #f5f4f3;
+	--color-bearmetal-pebble-100: #e4e2e0;
+	--color-bearmetal-pebble-200: #c8c4c0;
+	--color-bearmetal-pebble-300: #a09c98;
+	--color-bearmetal-pebble-400: #787470;
+	--color-bearmetal-pebble-500: #484442; /* ← identity */
+	--color-bearmetal-pebble-600: #3a3634;
+	--color-bearmetal-pebble-700: #2c2a28;
+	--color-bearmetal-pebble-800: #1c1a18;
+	--color-bearmetal-pebble-900: #100e0c;
+	--color-bearmetal-pebble-950: #060504;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Stone
+   ---------------------------------------------------------- */
+	--color-bearmetal-stone-50: #f7f5f2;
+	--color-bearmetal-stone-100: #e8e2d8;
+	--color-bearmetal-stone-200: #d0c4b0;
+	--color-bearmetal-stone-300: #a89880;
+	--color-bearmetal-stone-400: #806858;
+	--color-bearmetal-stone-500: #4a3c30; /* ← identity */
+	--color-bearmetal-stone-600: #3c3028;
+	--color-bearmetal-stone-700: #2c2420;
+	--color-bearmetal-stone-800: #1c1814;
+	--color-bearmetal-stone-900: #100c08;
+	--color-bearmetal-stone-950: #060402;
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Cyan
+   ---------------------------------------------------------- */
+	--color-bearmetal-cyan-50: #edfaf8;
+	--color-bearmetal-cyan-100: #c2f0ea;
+	--color-bearmetal-cyan-200: #80dfd1;
+	--color-bearmetal-cyan-300: #3abfad;
+	--color-bearmetal-cyan-400: #009688;
+	--color-bearmetal-cyan-500: #005c52; /* ← identity */
+	--color-bearmetal-cyan-600: #004a42;
+	--color-bearmetal-cyan-700: #003830;
+	--color-bearmetal-cyan-800: #002420;
+	--color-bearmetal-cyan-900: #001210;
+	--color-bearmetal-cyan-950: #00080a;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Cyan Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-cyan-muted-50: #eef7f5;
+	--color-bearmetal-cyan-muted-100: #bce0d8;
+	--color-bearmetal-cyan-muted-200: #82c0b4;
+	--color-bearmetal-cyan-muted-300: #4e9e90;
+	--color-bearmetal-cyan-muted-400: #287870;
+	--color-bearmetal-cyan-muted-500: #184e48;
+	--color-bearmetal-cyan-muted-600: #123e3a;
+	--color-bearmetal-cyan-muted-700: #0c2e2c;
+	--color-bearmetal-cyan-muted-800: #081e1c;
+	--color-bearmetal-cyan-muted-900: #041010;
+	--color-bearmetal-cyan-muted-950: #020808;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Magenta
+   ---------------------------------------------------------- */
+	--color-bearmetal-magenta-50: #fef0f8;
+	--color-bearmetal-magenta-100: #fac8e8;
+	--color-bearmetal-magenta-200: #f090cc;
+	--color-bearmetal-magenta-300: #d855a0;
+	--color-bearmetal-magenta-400: #aa2070;
+	--color-bearmetal-magenta-500: #5c0038; /* ← identity */
+	--color-bearmetal-magenta-600: #4a002e;
+	--color-bearmetal-magenta-700: #380022;
+	--color-bearmetal-magenta-800: #250016;
+	--color-bearmetal-magenta-900: #14000c;
+	--color-bearmetal-magenta-950: #0a0006;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Magenta Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-magenta-muted-50: #fbf1f5;
+	--color-bearmetal-magenta-muted-100: #e8cdd8;
+	--color-bearmetal-magenta-muted-200: #c99ab2;
+	--color-bearmetal-magenta-muted-300: #a86888;
+	--color-bearmetal-magenta-muted-400: #7e3c60;
+	--color-bearmetal-magenta-muted-500: #4a2038;
+	--color-bearmetal-magenta-muted-600: #3c1a2e;
+	--color-bearmetal-magenta-muted-700: #2e1424;
+	--color-bearmetal-magenta-muted-800: #1e0c18;
+	--color-bearmetal-magenta-muted-900: #100810;
+	--color-bearmetal-magenta-muted-950: #080408;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Chartreuse
+   ---------------------------------------------------------- */
+	--color-bearmetal-chartreuse-50: #f2faec;
+	--color-bearmetal-chartreuse-100: #d4f0b4;
+	--color-bearmetal-chartreuse-200: #a8d870;
+	--color-bearmetal-chartreuse-300: #72b030;
+	--color-bearmetal-chartreuse-400: #4a8800;
+	--color-bearmetal-chartreuse-500: #2c5c00; /* ← identity */
+	--color-bearmetal-chartreuse-600: #224a00;
+	--color-bearmetal-chartreuse-700: #183800;
+	--color-bearmetal-chartreuse-800: #0e2400;
+	--color-bearmetal-chartreuse-900: #071200;
+	--color-bearmetal-chartreuse-950: #030800;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Chartreuse Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-chartreuse-muted-50: #f2f6ee;
+	--color-bearmetal-chartreuse-muted-100: #cee0b8;
+	--color-bearmetal-chartreuse-muted-200: #a2be80;
+	--color-bearmetal-chartreuse-muted-300: #789650;
+	--color-bearmetal-chartreuse-muted-400: #507030;
+	--color-bearmetal-chartreuse-muted-500: #304a18;
+	--color-bearmetal-chartreuse-muted-600: #263c12;
+	--color-bearmetal-chartreuse-muted-700: #1c2e0e;
+	--color-bearmetal-chartreuse-muted-800: #121e08;
+	--color-bearmetal-chartreuse-muted-900: #0a1004;
+	--color-bearmetal-chartreuse-muted-950: #040802;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Brick
+   ---------------------------------------------------------- */
+	--color-bearmetal-brick-50: #faf2f0;
+	--color-bearmetal-brick-100: #eaccc6;
+	--color-bearmetal-brick-200: #cc9890;
+	--color-bearmetal-brick-300: #a86860;
+	--color-bearmetal-brick-400: #7e3c34;
+	--color-bearmetal-brick-500: #4a1c18; /* ← identity */
+	--color-bearmetal-brick-600: #3c1612;
+	--color-bearmetal-brick-700: #2e100c;
+	--color-bearmetal-brick-800: #1e0a08;
+	--color-bearmetal-brick-900: #100604;
+	--color-bearmetal-brick-950: #080402;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Danger
+   ---------------------------------------------------------- */
+	--color-bearmetal-danger-50: #fdf0f4;
+	--color-bearmetal-danger-100: #f8d6e3;
+	--color-bearmetal-danger-200: #f0a8c2;
+	--color-bearmetal-danger-300: #d96690;
+	--color-bearmetal-danger-400: #b03060;
+	--color-bearmetal-danger-500: #5c0026; /* ← identity */
+	--color-bearmetal-danger-600: #4a001e;
+	--color-bearmetal-danger-700: #380016;
+	--color-bearmetal-danger-800: #25000e;
+	--color-bearmetal-danger-900: #140008;
+	--color-bearmetal-danger-950: #0a0004;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Danger Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-danger-muted-50: #faf2f2;
+	--color-bearmetal-danger-muted-100: #eaccca;
+	--color-bearmetal-danger-muted-200: #cc989a;
+	--color-bearmetal-danger-muted-300: #a8686c;
+	--color-bearmetal-danger-muted-400: #7e3c40;
+	--color-bearmetal-danger-muted-500: #4a1c20;
+	--color-bearmetal-danger-muted-600: #3c1618;
+	--color-bearmetal-danger-muted-700: #2e1012;
+	--color-bearmetal-danger-muted-800: #1e0a0c;
+	--color-bearmetal-danger-muted-900: #100606;
+	--color-bearmetal-danger-muted-950: #080404;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Success
+   ---------------------------------------------------------- */
+	--color-bearmetal-success-50: #f0faf1;
+	--color-bearmetal-success-100: #d6f5d8;
+	--color-bearmetal-success-200: #a8e8ac;
+	--color-bearmetal-success-300: #6bcf72;
+	--color-bearmetal-success-400: #2ea838;
+	--color-bearmetal-success-500: #005c08; /* ← identity */
+	--color-bearmetal-success-600: #004d07;
+	--color-bearmetal-success-700: #003d05;
+	--color-bearmetal-success-800: #002803;
+	--color-bearmetal-success-900: #001602;
+	--color-bearmetal-success-950: #000a01;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Success Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-success-muted-50: #eff5ef;
+	--color-bearmetal-success-muted-100: #c4dcc4;
+	--color-bearmetal-success-muted-200: #92bc92;
+	--color-bearmetal-success-muted-300: #609460;
+	--color-bearmetal-success-muted-400: #326e32;
+	--color-bearmetal-success-muted-500: #1c481e;
+	--color-bearmetal-success-muted-600: #163c18;
+	--color-bearmetal-success-muted-700: #102e12;
+	--color-bearmetal-success-muted-800: #0a1e0c;
+	--color-bearmetal-success-muted-900: #061008;
+	--color-bearmetal-success-muted-950: #020802;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Warning
+   ---------------------------------------------------------- */
+	--color-bearmetal-warning-50: #fdf9ee;
+	--color-bearmetal-warning-100: #faefc8;
+	--color-bearmetal-warning-200: #f5dc88;
+	--color-bearmetal-warning-300: #e8c030;
+	--color-bearmetal-warning-400: #a88800;
+	--color-bearmetal-warning-500: #3d2e00; /* ← identity */
+	--color-bearmetal-warning-600: #332600;
+	--color-bearmetal-warning-700: #261c00;
+	--color-bearmetal-warning-800: #181100;
+	--color-bearmetal-warning-900: #0d0900;
+	--color-bearmetal-warning-950: #070400;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Warning Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-warning-muted-50: #f8f4ec;
+	--color-bearmetal-warning-muted-100: #e0d4a0;
+	--color-bearmetal-warning-muted-200: #c0b068;
+	--color-bearmetal-warning-muted-300: #988840;
+	--color-bearmetal-warning-muted-400: #706220;
+	--color-bearmetal-warning-muted-500: #403e10;
+	--color-bearmetal-warning-muted-600: #34320c;
+	--color-bearmetal-warning-muted-700: #282608;
+	--color-bearmetal-warning-muted-800: #1a1804;
+	--color-bearmetal-warning-muted-900: #0e0c02;
+	--color-bearmetal-warning-muted-950: #060602;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Info
+   ---------------------------------------------------------- */
+	--color-bearmetal-info-50: #eef4fd;
+	--color-bearmetal-info-100: #cce0f8;
+	--color-bearmetal-info-200: #96c4f0;
+	--color-bearmetal-info-300: #4e9add;
+	--color-bearmetal-info-400: #1a6ab8;
+	--color-bearmetal-info-500: #001f4a; /* ← identity */
+	--color-bearmetal-info-600: #001838;
+	--color-bearmetal-info-700: #001028;
+	--color-bearmetal-info-800: #000a18;
+	--color-bearmetal-info-900: #00050e;
+	--color-bearmetal-info-950: #000208;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Info Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-info-muted-50: #eff4f8;
+	--color-bearmetal-info-muted-100: #bcd0e4;
+	--color-bearmetal-info-muted-200: #84a8cc;
+	--color-bearmetal-info-muted-300: #5080a8;
+	--color-bearmetal-info-muted-400: #285878;
+	--color-bearmetal-info-muted-500: #143448;
+	--color-bearmetal-info-muted-600: #102a3a;
+	--color-bearmetal-info-muted-700: #0c202c;
+	--color-bearmetal-info-muted-800: #08141c;
+	--color-bearmetal-info-muted-900: #040c10;
+	--color-bearmetal-info-muted-950: #020608;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Orange
+   ---------------------------------------------------------- */
+	--color-bearmetal-orange-50: #fef4ec;
+	--color-bearmetal-orange-100: #fcdcb0;
+	--color-bearmetal-orange-200: #f5a855;
+	--color-bearmetal-orange-300: #e88a30;
+	--color-bearmetal-orange-400: #d96810;
+	--color-bearmetal-orange-500: #b85500; /* ← identity */
+	--color-bearmetal-orange-600: #9c4400;
+	--color-bearmetal-orange-700: #742f00;
+	--color-bearmetal-orange-800: #5a2800;
+	--color-bearmetal-orange-900: #2c1200;
+	--color-bearmetal-orange-950: #160900;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Orange Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-orange-muted-50: #f8f2ec;
+	--color-bearmetal-orange-muted-100: #e4cca8;
+	--color-bearmetal-orange-muted-200: #c8a472;
+	--color-bearmetal-orange-muted-300: #a87a48;
+	--color-bearmetal-orange-muted-400: #805428;
+	--color-bearmetal-orange-muted-500: #4e3418;
+	--color-bearmetal-orange-muted-600: #3e2a12;
+	--color-bearmetal-orange-muted-700: #2e1e0c;
+	--color-bearmetal-orange-muted-800: #1e1408;
+	--color-bearmetal-orange-muted-900: #100a04;
+	--color-bearmetal-orange-muted-950: #080402;
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Purple Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-muted-50: #f2eef8;
+	--color-bearmetal-muted-100: #dcd0ee;
+	--color-bearmetal-muted-200: #bca8d8;
+	--color-bearmetal-muted-300: #9878b8;
+	--color-bearmetal-muted-400: #6e4890;
+	--color-bearmetal-muted-500: #442868; /* ← identity */
+	--color-bearmetal-muted-600: #3a2050;
+	--color-bearmetal-muted-700: #281838;
+	--color-bearmetal-muted-800: #1a1028;
+	--color-bearmetal-muted-900: #0e0814;
+	--color-bearmetal-muted-950: #06040a;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Indigo
+   ---------------------------------------------------------- */
+	--color-bearmetal-indigo-50: #eeeeff;
+	--color-bearmetal-indigo-100: #ccd4f8;
+	--color-bearmetal-indigo-200: #99aaee;
+	--color-bearmetal-indigo-300: #6677d8;
+	--color-bearmetal-indigo-400: #3344b0;
+	--color-bearmetal-indigo-500: #0f1a60; /* ← identity */
+	--color-bearmetal-indigo-600: #0c1448;
+	--color-bearmetal-indigo-700: #080d30;
+	--color-bearmetal-indigo-800: #040618;
+	--color-bearmetal-indigo-900: #02030c;
+	--color-bearmetal-indigo-950: #010106;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Yellow
+   ---------------------------------------------------------- */
+	--color-bearmetal-yellow-50: #fefce8;
+	--color-bearmetal-yellow-100: #faf5a0;
+	--color-bearmetal-yellow-200: #f0e040;
+	--color-bearmetal-yellow-300: #c8b800;
+	--color-bearmetal-yellow-400: #948400;
+	--color-bearmetal-yellow-500: #4a4200; /* ← identity */
+	--color-bearmetal-yellow-600: #383200;
+	--color-bearmetal-yellow-700: #262200;
+	--color-bearmetal-yellow-800: #181400;
+	--color-bearmetal-yellow-900: #0c0a00;
+	--color-bearmetal-yellow-950: #060500;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Gold
+   ---------------------------------------------------------- */
+	--color-bearmetal-gold-50: #fdf6e0;
+	--color-bearmetal-gold-100: #f5d878;
+	--color-bearmetal-gold-200: #d4a020;
+	--color-bearmetal-gold-300: #a87000;
+	--color-bearmetal-gold-400: #784800;
+	--color-bearmetal-gold-500: #3c2400; /* ← identity */
+	--color-bearmetal-gold-600: #2e1c00;
+	--color-bearmetal-gold-700: #201400;
+	--color-bearmetal-gold-800: #140c00;
+	--color-bearmetal-gold-900: #0a0600;
+	--color-bearmetal-gold-950: #050300;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Pink
+   ---------------------------------------------------------- */
+	--color-bearmetal-pink-50: #fef0f4;
+	--color-bearmetal-pink-100: #fac8d4;
+	--color-bearmetal-pink-200: #f090a8;
+	--color-bearmetal-pink-300: #d85878;
+	--color-bearmetal-pink-400: #aa2848;
+	--color-bearmetal-pink-500: #580020; /* ← identity */
+	--color-bearmetal-pink-600: #420018;
+	--color-bearmetal-pink-700: #2c0010;
+	--color-bearmetal-pink-800: #1a000a;
+	--color-bearmetal-pink-900: #0e0006;
+	--color-bearmetal-pink-950: #060002;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Indigo Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-indigo-muted-50: #eeeef6;
+	--color-bearmetal-indigo-muted-100: #c8cce8;
+	--color-bearmetal-indigo-muted-200: #9298cc;
+	--color-bearmetal-indigo-muted-300: #6668a8;
+	--color-bearmetal-indigo-muted-400: #3c4080;
+	--color-bearmetal-indigo-muted-500: #1e2248; /* ← identity */
+	--color-bearmetal-indigo-muted-600: #181a38;
+	--color-bearmetal-indigo-muted-700: #101228;
+	--color-bearmetal-indigo-muted-800: #0a0c1a;
+	--color-bearmetal-indigo-muted-900: #06080e;
+	--color-bearmetal-indigo-muted-950: #030408;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Yellow Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-yellow-muted-50: #faf8e8;
+	--color-bearmetal-yellow-muted-100: #ede8a8;
+	--color-bearmetal-yellow-muted-200: #d4c860;
+	--color-bearmetal-yellow-muted-300: #a8a030;
+	--color-bearmetal-yellow-muted-400: #787010;
+	--color-bearmetal-yellow-muted-500: #3c3a10; /* ← identity */
+	--color-bearmetal-yellow-muted-600: #2e2c0c;
+	--color-bearmetal-yellow-muted-700: #201e08;
+	--color-bearmetal-yellow-muted-800: #141204;
+	--color-bearmetal-yellow-muted-900: #0a0802;
+	--color-bearmetal-yellow-muted-950: #050401;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Gold Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-gold-muted-50: #f8f0e0;
+	--color-bearmetal-gold-muted-100: #e8d090;
+	--color-bearmetal-gold-muted-200: #c4a448;
+	--color-bearmetal-gold-muted-300: #987428;
+	--color-bearmetal-gold-muted-400: #6c4e10;
+	--color-bearmetal-gold-muted-500: #342808; /* ← identity */
+	--color-bearmetal-gold-muted-600: #281e06;
+	--color-bearmetal-gold-muted-700: #1c1604;
+	--color-bearmetal-gold-muted-800: #100e02;
+	--color-bearmetal-gold-muted-900: #080602;
+	--color-bearmetal-gold-muted-950: #040301;
+
+	/* ----------------------------------------------------------
+   COLOR — BearMetal Pink Muted
+   ---------------------------------------------------------- */
+	--color-bearmetal-pink-muted-50: #fbf0f2;
+	--color-bearmetal-pink-muted-100: #eacdd2;
+	--color-bearmetal-pink-muted-200: #cc98a4;
+	--color-bearmetal-pink-muted-300: #a86878;
+	--color-bearmetal-pink-muted-400: #7e3c4c;
+	--color-bearmetal-pink-muted-500: #461e28; /* ← identity */
+	--color-bearmetal-pink-muted-600: #36181e;
+	--color-bearmetal-pink-muted-700: #261016;
+	--color-bearmetal-pink-muted-800: #180a0e;
+	--color-bearmetal-pink-muted-900: #0c0608;
+	--color-bearmetal-pink-muted-950: #060304;
 	/* ----------------------------------------------------------
 	   COLOR — Semantic
 	   ---------------------------------------------------------- */
-	--color-success-text: var(--color-brand-success-500);
-	--color-success-bg: var(--color-brand-success-50);
-	--color-success-light: var(--color-brand-success-100);
-	--color-success: var(--color-brand-success-500);
-	--color-success-vibrant: var(--color-brand-success-400);
-	--color-success-dark: var(--color-brand-success-700);
+	--color-success-text: var(--color-bearmetal-success-500);
+	--color-success-bg: var(--color-bearmetal-success-50);
+	--color-success-light: var(--color-bearmetal-success-100);
+	--color-success: var(--color-bearmetal-success-500);
+	--color-success-vibrant: var(--color-bearmetal-success-400);
+	--color-success-dark: var(--color-bearmetal-success-700);
 
-	--color-warning-text: var(--color-brand-warning-500);
-	--color-warning-bg: var(--color-brand-warning-50);
-	--color-warning-light: var(--color-brand-warning-100);
-	--color-warning: var(--color-brand-warning-500);
-	--color-warning-vibrant: var(--color-brand-warning-400);
-	--color-warning-dark: var(--color-brand-warning-700);
+	--color-warning-text: var(--color-bearmetal-warning-500);
+	--color-warning-bg: var(--color-bearmetal-warning-50);
+	--color-warning-light: var(--color-bearmetal-warning-100);
+	--color-warning: var(--color-bearmetal-warning-500);
+	--color-warning-vibrant: var(--color-bearmetal-warning-400);
+	--color-warning-dark: var(--color-bearmetal-warning-700);
 
-	--color-danger-text: var(--color-brand-danger-500);
-	--color-danger-bg: var(--color-brand-danger-50);
-	--color-danger-light: var(--color-brand-danger-100);
-	--color-danger: var(--color-brand-danger-500);
-	--color-danger-vibrant: var(--color-brand-danger-400);
-	--color-danger-dark: var(--color-brand-danger-700);
+	--color-danger-text: var(--color-bearmetal-danger-500);
+	--color-danger-bg: var(--color-bearmetal-danger-50);
+	--color-danger-light: var(--color-bearmetal-danger-100);
+	--color-danger: var(--color-bearmetal-danger-500);
+	--color-danger-vibrant: var(--color-bearmetal-danger-400);
+	--color-danger-dark: var(--color-bearmetal-danger-700);
 
-	--color-info-text: var(--color-brand-info-500);
-	--color-info-bg: var(--color-brand-info-50);
-	--color-info-light: var(--color-brand-info-100);
-	--color-info: var(--color-brand-info-500);
-	--color-info-vibrant: var(--color-brand-info-400);
-	--color-info-dark: var(--color-brand-info-700);
+	--color-info-text: var(--color-bearmetal-info-500);
+	--color-info-bg: var(--color-bearmetal-info-50);
+	--color-info-light: var(--color-bearmetal-info-100);
+	--color-info: var(--color-bearmetal-info-500);
+	--color-info-vibrant: var(--color-bearmetal-info-400);
+	--color-info-dark: var(--color-bearmetal-info-700);
 
-	--color-orange-text: var(--color-brand-orange-800);
-	--color-orange-bg: var(--color-brand-orange-50);
-	--color-orange-light: var(--color-brand-orange-100);
-	--color-orange: var(--color-brand-orange-500);
-	--color-orange-vibrant: var(--color-brand-orange-400);
-	--color-orange-dark: var(--color-brand-orange-800);
+	--color-orange-text: var(--color-bearmetal-orange-800);
+	--color-orange-bg: var(--color-bearmetal-orange-50);
+	--color-orange-light: var(--color-bearmetal-orange-100);
+	--color-orange: var(--color-bearmetal-orange-500);
+	--color-orange-vibrant: var(--color-bearmetal-orange-400);
+	--color-orange-dark: var(--color-bearmetal-orange-800);
 
 	/* ----------------------------------------------------------
 	   COLOR — Surface / Background aliases
 	   ---------------------------------------------------------- */
-	--color-bg: var(--color-brand-grey-50);
-	--color-bg-subtle: var(--color-brand-grey-100);
-	--color-bg-muted: var(--color-brand-grey-200);
-	--color-bg-emphasis: var(--color-brand-grey-300);
+	--color-bg: var(--color-bearmetal-grey-50);
+	--color-bg-subtle: var(--color-bearmetal-grey-100);
+	--color-bg-muted: var(--color-bearmetal-grey-200);
+	--color-bg-emphasis: var(--color-bearmetal-grey-300);
 
-	--color-surface: var(--color-brand-grey-50);
-	--color-surface-raised: var(--color-brand-grey-100);
-	--color-surface-overlay: var(--color-brand-grey-50);
+	--color-surface: var(--color-bearmetal-grey-50);
+	--color-surface-raised: var(--color-bearmetal-grey-100);
+	--color-surface-overlay: var(--color-bearmetal-grey-50);
 
 	/* ----------------------------------------------------------
 	   COLOR — Text aliases
 	   ---------------------------------------------------------- */
-	--color-text: var(--color-brand-grey-950);
-	--color-text-subtle: var(--color-brand-grey-700);
-	--color-text-muted: var(--color-brand-grey-600);
-	--color-text-disabled: var(--color-neutral-300);
-	--color-text-inverse: var(--color-neutral-0);
-	--color-text-on-brand: var(--color-neutral-0);
+	--color-text: var(--color-bearmetal-grey-950);
+	--color-text-subtle: var(--color-bearmetal-grey-700);
+	--color-text-muted: var(--color-bearmetal-grey-600);
+	--color-text-disabled: var(--color-bearmetal-pebble-300);
+	--color-text-inverse: var(--color-bearmetal-pebble-0);
+	--color-text-on-brand: var(--color-bearmetal-pebble-0);
 
 	/* ----------------------------------------------------------
 	   COLOR — Border aliases
 	   ---------------------------------------------------------- */
-	--color-border: var(--color-brand-grey-200);
-	--color-border-strong: var(--color-brand-grey-300);
-	--color-border-subtle: var(--color-brand-grey-100);
-	--color-border-focus: var(--color-brand-info-300);
+	--color-border: var(--color-bearmetal-grey-200);
+	--color-border-strong: var(--color-bearmetal-grey-300);
+	--color-border-subtle: var(--color-bearmetal-grey-100);
+	--color-border-focus: var(--color-bearmetal-info-300);
 
 	/* ----------------------------------------------------------
 	   COLOR — Interactive aliases
 	   ---------------------------------------------------------- */
-	--color-interactive: var(--color-brand-400);
-	--color-interactive-hover: var(--color-brand-600);
-	--color-interactive-active: var(--color-brand-700);
-	--color-interactive-disabled: var(--color-neutral-300);
-	--color-interactive-subtle: var(--color-brand-50);
+	--color-interactive: var(--color-bearmetal-400);
+	--color-interactive-hover: var(--color-bearmetal-500);
+	--color-interactive-active: var(--color-bearmetal-700);
+	--color-interactive-disabled: var(--color-bearmetal-pebble-300);
+	--color-interactive-subtle: var(--color-bearmetal-50);
 
 	/* ----------------------------------------------------------
 	   TYPOGRAPHY — Font families
@@ -223,8 +640,8 @@
 		Helvetica, Arial, sans-serif, "Apple Color Emoji";
 	--font-serif: "Georgia", "Times New Roman", Times, serif;
 	--font-mono:
-		"JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "Courier New",
-		monospace;
+		"JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace,
+		"Courier New", monospace;
 
 	--font-display: var(--font-sans); /* override with a display face */
 	--font-body: var(--font-sans);
@@ -340,7 +757,7 @@
 		0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 	--shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 	--shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
-	--shadow-focus: 0 0 0 3px rgb(from var(--color-brand-500) r g b / 0.35);
+	--shadow-focus: 0 0 0 3px rgb(from var(--color-bearmetal-600) r g b / 0.35);
 
 	/* ----------------------------------------------------------
 	   Z-INDEX
@@ -471,33 +888,33 @@
 	--btn-ghost-border: transparent;
 
 	/* variant — danger */
-	--btn-danger-bg: var(--color-brand-danger-300);
+	--btn-danger-bg: var(--color-bearmetal-danger-300);
 	--btn-danger-bg-hover: var(--color-danger-dark);
-	--btn-danger-color: var(--color-neutral-0);
+	--btn-danger-color: var(--color-bearmetal-pebble-0);
 	--btn-danger-border: transparent;
 
 	/* variant — warning */
-	--btn-warning-bg: var(--color-brand-warning-300);
+	--btn-warning-bg: var(--color-bearmetal-warning-300);
 	--btn-warning-bg-hover: var(--color-warning-dark);
-	--btn-warning-color: var(--color-neutral-0);
+	--btn-warning-color: var(--color-bearmetal-pebble-0);
 	--btn-warning-border: transparent;
 
 	/* variant — info */
-	--btn-info-bg: var(--color-brand-info-300);
+	--btn-info-bg: var(--color-bearmetal-info-300);
 	--btn-info-bg-hover: var(--color-info-dark);
-	--btn-info-color: var(--color-neutral-0);
+	--btn-info-color: var(--color-bearmetal-pebble-0);
 	--btn-info-border: transparent;
 
 	/* variant — success */
-	--btn-success-bg: var(--color-brand-success-300);
+	--btn-success-bg: var(--color-bearmetal-success-300);
 	--btn-success-bg-hover: var(--color-success-dark);
-	--btn-success-color: var(--color-neutral-0);
+	--btn-success-color: var(--color-bearmetal-pebble-0);
 	--btn-success-border: transparent;
 
 	/* variant — orange */
-	--btn-orange-bg: var(--color-brand-orange-200);
+	--btn-orange-bg: var(--color-bearmetal-orange-200);
 	--btn-orange-bg-hover: var(--color-orange-dark);
-	--btn-orange-color: var(--color-neutral-0);
+	--btn-orange-color: var(--color-bearmetal-pebble-0);
 	--btn-orange-border: transparent;
 
 	/* ----------------------------------------------------------
@@ -512,7 +929,7 @@
 	--input-color: var(--color-text);
 	--input-color-placeholder: var(--color-text-muted);
 	--input-border: var(--color-border-strong);
-	--input-border-hover: var(--color-neutral-400);
+	--input-border-hover: var(--color-bearmetal-pebble-400);
 	--input-border-focus: var(--color-border-focus);
 	--input-border-error: var(--color-danger);
 	--input-border-width: var(--border-1);
@@ -563,9 +980,9 @@
 	/* ----------------------------------------------------------
 	   COMPONENT TOKENS — Toast / Notification
 	   ---------------------------------------------------------- */
-	--toast-bg: var(--color-neutral-200);
-	--toast-color: var(--color-neutral-900);
-	--toast-border: var(--color-neutral-400);
+	--toast-bg: var(--color-bearmetal-pebble-200);
+	--toast-color: var(--color-bearmetal-pebble-900);
+	--toast-border: var(--color-bearmetal-pebble-400);
 	--toast-border-radius: var(--radius-lg);
 	--toast-shadow: var(--shadow-lg);
 	--toast-padding-y: var(--space-3);
@@ -576,8 +993,8 @@
 	/* ----------------------------------------------------------
 	   COMPONENT TOKENS — Tooltip
 	   ---------------------------------------------------------- */
-	--tooltip-bg: var(--color-neutral-800);
-	--tooltip-color: var(--color-neutral-0);
+	--tooltip-bg: var(--color-bearmetal-pebble-800);
+	--tooltip-color: var(--color-bearmetal-pebble-0);
 	--tooltip-font-size: var(--text-xs);
 	--tooltip-padding-y: var(--space-1);
 	--tooltip-padding-x: var(--space-2);
@@ -634,10 +1051,10 @@
 	--avatar-size-lg: var(--space-14);
 	--avatar-size-xl: var(--space-16);
 	--avatar-radius: var(--radius-full);
-	--avatar-border: var(--color-neutral-0);
+	--avatar-border: var(--color-bearmetal-pebble-0);
 	--avatar-border-width: 2px;
-	--avatar-bg: var(--color-brand-100);
-	--avatar-color: var(--color-brand-700);
+	--avatar-bg: var(--color-bearmetal-100);
+	--avatar-color: var(--color-bearmetal-700);
 	--avatar-font-weight: var(--weight-semibold);
 
 	/* ----------------------------------------------------------
@@ -716,9 +1133,9 @@
 	/* ----------------------------------------------------------
 	   COMPONENT TOKENS — Toggle / Switch
 	   ---------------------------------------------------------- */
-	--toggle-bg-off: var(--color-neutral-300);
+	--toggle-bg-off: var(--color-bearmetal-pebble-300);
 	--toggle-bg-on: var(--color-interactive);
-	--toggle-thumb-bg: var(--color-neutral-0);
+	--toggle-thumb-bg: var(--color-bearmetal-pebble-0);
 	--toggle-thumb-shadow: var(--shadow-sm);
 	--toggle-width: 2.75rem;
 	--toggle-height: 1.5rem;
@@ -731,11 +1148,11 @@
 	   ---------------------------------------------------------- */
 	--check-size: 1rem;
 	--check-border: var(--color-border-strong);
-	--check-border-hover: var(--color-brand-400);
+	--check-border-hover: var(--color-bearmetal-400);
 	--check-bg: var(--color-surface);
 	--check-bg-checked: var(--color-interactive);
 	--check-border-checked: var(--color-interactive);
-	--check-color: var(--color-neutral-0);
+	--check-color: var(--color-bearmetal-pebble-0);
 	--check-radius: var(--radius-base);
 	--radio-radius: var(--radius-full);
 	--check-transition: var(--transition-colors);
@@ -807,43 +1224,43 @@
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--color-bg: var(--color-brand-grey-950);
-		--color-bg-subtle: var(--color-brand-grey-900);
-		--color-bg-muted: var(--color-brand-grey-800);
-		--color-bg-emphasis: var(--color-brand-grey-700);
+		--color-bg: var(--color-bearmetal-grey-950);
+		--color-bg-subtle: var(--color-bearmetal-grey-900);
+		--color-bg-muted: var(--color-bearmetal-grey-800);
+		--color-bg-emphasis: var(--color-bearmetal-grey-700);
 
-		--color-surface: var(--color-brand-grey-900);
-		--color-surface-raised: var(--color-brand-grey-800);
-		--color-surface-overlay: var(--color-brand-grey-900);
+		--color-surface: var(--color-bearmetal-grey-900);
+		--color-surface-raised: var(--color-bearmetal-grey-800);
+		--color-surface-overlay: var(--color-bearmetal-grey-900);
 
-		--color-text: var(--color-brand-grey-50);
-		--color-text-subtle: var(--color-brand-100);
-		--color-text-muted: var(--color-brand-grey-500);
-		--color-text-disabled: var(--color-brand-grey-700);
+		--color-text: var(--color-bearmetal-grey-50);
+		--color-text-subtle: var(--color-bearmetal-100);
+		--color-text-muted: var(--color-bearmetal-grey-500);
+		--color-text-disabled: var(--color-bearmetal-grey-700);
 
-		--color-border: var(--color-brand-grey-800);
-		--color-border-strong: var(--color-brand-grey-700);
-		--color-border-subtle: var(--color-brand-grey-900);
+		--color-border: var(--color-bearmetal-grey-800);
+		--color-border-strong: var(--color-bearmetal-grey-700);
+		--color-border-subtle: var(--color-bearmetal-grey-900);
 
-		--color-interactive: var(--color-brand-500);
-		--color-interactive-hover: var(--color-brand-700);
+		--color-interactive: var(--color-bearmetal-600);
+		--color-interactive-hover: var(--color-bearmetal-700);
 
-		--toast-bg: var(--color-brand-grey-800);
-		--toast-color: var(--color-brand-grey-0);
-		--toast-border: var(--color-brand-grey-700);
+		--toast-bg: var(--color-bearmetal-grey-800);
+		--toast-color: var(--color-bearmetal-grey-0);
+		--toast-border: var(--color-bearmetal-grey-700);
 		--modal-backdrop: rgb(0 0 0 / 0.7);
 
-		--color-success-text: var(--color-brand-success-50);
-		--color-danger-text: var(--color-brand-danger-50);
-		--color-info-text: var(--color-brand-info-50);
-		--color-warning-text: var(--color-brand-warning-50);
-		--color-orange-text: var(--color-brand-orange-50);
+		--color-success-text: var(--color-bearmetal-success-50);
+		--color-danger-text: var(--color-bearmetal-danger-50);
+		--color-info-text: var(--color-bearmetal-info-50);
+		--color-warning-text: var(--color-bearmetal-warning-50);
+		--color-orange-text: var(--color-bearmetal-orange-50);
 
-		--color-success-bg: var(--color-brand-success-500);
-		--color-danger-bg: var(--color-brand-danger-500);
-		--color-info-bg: var(--color-brand-info-500);
-		--color-warning-bg: var(--color-brand-warning-500);
-		--color-orange-bg: var(--color-brand-orange-600);
+		--color-success-bg: var(--color-bearmetal-success-500);
+		--color-danger-bg: var(--color-bearmetal-danger-500);
+		--color-info-bg: var(--color-bearmetal-info-500);
+		--color-warning-bg: var(--color-bearmetal-warning-500);
+		--color-orange-bg: var(--color-bearmetal-orange-600);
 
 		--btn-danger-bg: var(--color-danger);
 		--btn-warning-bg: var(--color-warning);
@@ -855,41 +1272,41 @@
 
 /* Manual dark mode class (for JS-toggled themes) */
 [data-theme="dark"] {
-	--color-bg: var(--color-brand-grey-950);
-	--color-bg-subtle: var(--color-brand-grey-900);
-	--color-bg-muted: var(--color-brand-grey-800);
-	--color-bg-emphasis: var(--color-brand-grey-700);
+	--color-bg: var(--color-bearmetal-grey-950);
+	--color-bg-subtle: var(--color-bearmetal-grey-900);
+	--color-bg-muted: var(--color-bearmetal-grey-800);
+	--color-bg-emphasis: var(--color-bearmetal-grey-700);
 
-	--color-surface: var(--color-brand-grey-900);
-	--color-surface-raised: var(--color-brand-grey-800);
-	--color-surface-overlay: var(--color-brand-grey-900);
+	--color-surface: var(--color-bearmetal-grey-900);
+	--color-surface-raised: var(--color-bearmetal-grey-800);
+	--color-surface-overlay: var(--color-bearmetal-grey-900);
 
-	--color-text: var(--color-brand-grey-50);
-	--color-text-subtle: var(--color-brand-grey-400);
-	--color-text-muted: var(--color-brand-grey-500);
-	--color-text-disabled: var(--color-brand-grey-700);
+	--color-text: var(--color-bearmetal-grey-50);
+	--color-text-subtle: var(--color-bearmetal-grey-400);
+	--color-text-muted: var(--color-bearmetal-grey-500);
+	--color-text-disabled: var(--color-bearmetal-grey-700);
 
-	--color-border: var(--color-brand-grey-800);
-	--color-border-strong: var(--color-brand-grey-700);
-	--color-border-subtle: var(--color-brand-grey-900);
+	--color-border: var(--color-bearmetal-grey-800);
+	--color-border-strong: var(--color-bearmetal-grey-700);
+	--color-border-subtle: var(--color-bearmetal-grey-900);
 
-	--color-interactive: var(--color-brand-500);
-	--color-interactive-hover: var(--color-brand-700);
+	--color-interactive: var(--color-bearmetal-600);
+	--color-interactive-hover: var(--color-bearmetal-700);
 
-	--toast-bg: var(--color-brand-grey-800);
-	--toast-color: var(--color-brand-grey-0);
-	--toast-border: var(--color-brand-grey-700);
+	--toast-bg: var(--color-bearmetal-grey-800);
+	--toast-color: var(--color-bearmetal-grey-0);
+	--toast-border: var(--color-bearmetal-grey-700);
 	--modal-backdrop: rgb(0 0 0 / 0.7);
 
-	--color-success-text: var(--color-brand-success-50);
-	--color-danger-text: var(--color-brand-danger-50);
-	--color-info-text: var(--color-brand-info-50);
-	--color-warning-text: var(--color-brand-warning-50);
+	--color-success-text: var(--color-bearmetal-success-50);
+	--color-danger-text: var(--color-bearmetal-danger-50);
+	--color-info-text: var(--color-bearmetal-info-50);
+	--color-warning-text: var(--color-bearmetal-warning-50);
 
-	--color-success-bg: var(--color-brand-success-500);
-	--color-danger-bg: var(--color-brand-danger-500);
-	--color-info-bg: var(--color-brand-info-500);
-	--color-warning-bg: var(--color-brand-warning-500);
+	--color-success-bg: var(--color-bearmetal-success-500);
+	--color-danger-bg: var(--color-bearmetal-danger-500);
+	--color-info-bg: var(--color-bearmetal-info-500);
+	--color-warning-bg: var(--color-bearmetal-warning-500);
 
 	--btn-danger-bg: var(--color-danger);
 	--btn-warning-bg: var(--color-warning);
@@ -898,45 +1315,45 @@
 }
 
 [data-theme="light"] {
-	--color-bg: var(--color-brand-grey-50);
-	--color-bg-subtle: var(--color-brand-grey-100);
-	--color-bg-muted: var(--color-brand-grey-200);
-	--color-bg-emphasis: var(--color-brand-grey-300);
+	--color-bg: var(--color-bearmetal-grey-50);
+	--color-bg-subtle: var(--color-bearmetal-grey-100);
+	--color-bg-muted: var(--color-bearmetal-grey-200);
+	--color-bg-emphasis: var(--color-bearmetal-grey-300);
 
-	--color-surface: var(--color-brand-grey-50);
-	--color-surface-raised: var(--color-brand-grey-100);
-	--color-surface-overlay: var(--color-brand-grey-50);
+	--color-surface: var(--color-bearmetal-grey-50);
+	--color-surface-raised: var(--color-bearmetal-grey-100);
+	--color-surface-overlay: var(--color-bearmetal-grey-50);
 
-	--color-text: var(--color-brand-grey-900);
-	--color-text-subtle: var(--color-brand-grey-600);
-	--color-text-muted: var(--color-brand-grey-400);
-	--color-text-disabled: var(--color-brand-grey-300);
+	--color-text: var(--color-bearmetal-grey-900);
+	--color-text-subtle: var(--color-bearmetal-grey-600);
+	--color-text-muted: var(--color-bearmetal-grey-400);
+	--color-text-disabled: var(--color-bearmetal-grey-300);
 
-	--color-border: var(--color-brand-grey-200);
-	--color-border-strong: var(--color-brand-grey-300);
-	--color-border-subtle: var(--color-brand-grey-100);
+	--color-border: var(--color-bearmetal-grey-200);
+	--color-border-strong: var(--color-bearmetal-grey-300);
+	--color-border-subtle: var(--color-bearmetal-grey-100);
 
-	--color-interactive: var(--color-brand-400);
-	--color-interactive-hover: var(--color-brand-600);
+	--color-interactive: var(--color-bearmetal-400);
+	--color-interactive-hover: var(--color-bearmetal-500);
 
-	--toast-bg: var(--color-neutral-200);
-	--toast-color: var(--color-neutral-900);
-	--toast-border: var(--color-neutral-400);
+	--toast-bg: var(--color-bearmetal-pebble-200);
+	--toast-color: var(--color-bearmetal-pebble-900);
+	--toast-border: var(--color-bearmetal-pebble-400);
 
-	--color-success-text: var(--color-brand-success-500);
-	--color-danger-text: var(--color-brand-danger-500);
-	--color-info-text: var(--color-brand-info-500);
-	--color-warning-text: var(--color-brand-warning-500);
+	--color-success-text: var(--color-bearmetal-success-500);
+	--color-danger-text: var(--color-bearmetal-danger-500);
+	--color-info-text: var(--color-bearmetal-info-500);
+	--color-warning-text: var(--color-bearmetal-warning-500);
 
-	--color-success-bg: var(--color-brand-success-50);
-	--color-danger-bg: var(--color-brand-danger-50);
-	--color-info-bg: var(--color-brand-info-50);
-	--color-warning-bg: var(--color-brand-warning-50);
+	--color-success-bg: var(--color-bearmetal-success-50);
+	--color-danger-bg: var(--color-bearmetal-danger-50);
+	--color-info-bg: var(--color-bearmetal-info-50);
+	--color-warning-bg: var(--color-bearmetal-warning-50);
 
-	--btn-danger-bg: var(--color-brand-danger-300);
-	--btn-warning-bg: var(--color-brand-warning-300);
-	--btn-info-bg: var(--color-brand-info-300);
-	--btn-success-bg: var(--color-brand-success-300);
+	--btn-danger-bg: var(--color-bearmetal-danger-300);
+	--btn-warning-bg: var(--color-bearmetal-warning-300);
+	--btn-info-bg: var(--color-bearmetal-info-300);
+	--btn-success-bg: var(--color-bearmetal-success-300);
 }
 
 /* ============================================================
@@ -1072,7 +1489,7 @@ ul {
 }
 
 span.highlight {
-	background-color: var(--color-brand-400);
+	background-color: var(--color-bearmetal-400);
 	color: var(--color-text-subtle);
 	display: inline-block;
 	padding: 0 var(--space-0-5);
