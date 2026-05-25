@@ -1,7 +1,14 @@
+/**
+ * String utilities: HTML escaping, indentation, box drawing, and tagged template literals.
+ * @module
+ */
+
 import { escapeHtml } from "./htmlEscape.ts";
+export * from "./box.ts";
 export * from "./htmlEscape.ts";
 export * from "./indentation.ts";
 
+/** Tagged template that concatenates values as-is — provides syntax highlighting in editors. */
 export function css(
 	strings: TemplateStringsArray,
 	...values: (string | number | boolean)[]
@@ -16,6 +23,7 @@ export function css(
 	return result;
 }
 
+/** Tagged template that auto-escapes string interpolations via {@link escapeHtml}. */
 export function html(
 	strings: TemplateStringsArray,
 	...values: (string | number | boolean)[]

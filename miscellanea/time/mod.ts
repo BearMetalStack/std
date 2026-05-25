@@ -1,3 +1,8 @@
+/**
+ * Human-readable time string parsing and conversion to milliseconds.
+ * @module
+ */
+
 enum Time {
   second,
   minute,
@@ -39,6 +44,7 @@ const Aliases: Record<TimeKey, Time> = {
   y: Time.year,
 };
 
+/** A duration expressed as a number followed by a unit: `ms` `s` `m` `h` `d` `w` `y`. */
 export type TimeString = `${number}${TimeKey}`;
 
 function parseTimeString(ts: TimeString) {
@@ -47,6 +53,10 @@ function parseTimeString(ts: TimeString) {
   return [Number(time), Aliases[key as TimeKey]];
 }
 
+/**
+ * Converts a {@link TimeString} to its equivalent value in milliseconds.
+ * @example timeStringToMillis("2h") // 7_200_000
+ */
 export function timeStringToMillis(ts: TimeString): number {
   const [time, key] = parseTimeString(ts);
   const stack = key === Time.year

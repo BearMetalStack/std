@@ -1,3 +1,13 @@
+/**
+ * Path joining and classification utilities.
+ * @module
+ */
+
+/**
+ * Joins path segments and resolves `.`, `..`, and glob `*` wildcards.
+ * Preserves a leading `/` if the first segment is absolute.
+ * @example joinPath("/foo", "../bar", "./baz") // "/bar/baz"
+ */
 export function joinPath(...paths: string[]): string {
   const leading = paths[0]?.startsWith("/") ?? false;
   const segments = paths.flatMap((p) => p.split("/")).reduce((a, b) => {
@@ -8,6 +18,7 @@ export function joinPath(...paths: string[]): string {
   return (leading ? "/" : "") + segments.join("/");
 }
 
+/** Returns `true` only for paths starting with `./` or `../` (not bare names or absolute paths). */
 export function isRelativePath(path: string): boolean {
   return !path.startsWith("/") &&
     (path.startsWith("./") || path.startsWith("../"));

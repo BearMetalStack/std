@@ -1,3 +1,12 @@
+/**
+ * Object utilities.
+ * @module
+ */
+
+/**
+ * Recursively merges `override` into a deep clone of `base`.
+ * Plain objects are merged; arrays and primitives are replaced.
+ */
 export function deepMerge<T extends Record<string, unknown>>(base: T, override: Partial<T>): T {
 	const result = structuredClone(base) as Record<string, unknown>;
 	for (const [key, value] of Object.entries(override)) {
