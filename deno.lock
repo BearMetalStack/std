@@ -37,11 +37,6 @@
       "jsr:@std/testing@1"
     ],
     "members": {
-      "cog": {
-        "dependencies": [
-          "jsr:@std/assert@1"
-        ]
-      },
       "db": {
         "dependencies": [
           "jsr:@db/postgres@~0.19.5"

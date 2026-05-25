@@ -9,6 +9,10 @@
 		"workspace:bump-versions": {
 			"command": "deno run -P=bump version_bump.ts",
 			"description": "Bumps versions of packages that have had changes since last bump"
+		},
+		"bm:drip": {
+			"description": "Generates theme completions and CSS",
+			"command": "deno run -RW drip/mod.ts"
 		}
 	},
 	"permissions": {

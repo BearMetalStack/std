@@ -3,4 +3,5 @@ dist/
 prod/
 .wrangler/
 
-temp*
+temp.*
+temp/

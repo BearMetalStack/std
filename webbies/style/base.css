@@ -611,8 +611,8 @@
 	--color-text-subtle: var(--color-bearmetal-grey-700);
 	--color-text-muted: var(--color-bearmetal-grey-600);
 	--color-text-disabled: var(--color-bearmetal-pebble-300);
-	--color-text-inverse: var(--color-bearmetal-pebble-0);
-	--color-text-on-brand: var(--color-bearmetal-pebble-0);
+	--color-text-inverse: var(--color-bearmetal-pebble-50);
+	--color-text-on-brand: var(--color-bearmetal-pebble-50);
 
 	/* ----------------------------------------------------------
 	   COLOR — Border aliases
@@ -890,31 +890,31 @@
 	/* variant — danger */
 	--btn-danger-bg: var(--color-bearmetal-danger-300);
 	--btn-danger-bg-hover: var(--color-danger-dark);
-	--btn-danger-color: var(--color-bearmetal-pebble-0);
+	--btn-danger-color: var(--color-bearmetal-pebble-50);
 	--btn-danger-border: transparent;
 
 	/* variant — warning */
 	--btn-warning-bg: var(--color-bearmetal-warning-300);
 	--btn-warning-bg-hover: var(--color-warning-dark);
-	--btn-warning-color: var(--color-bearmetal-pebble-0);
+	--btn-warning-color: var(--color-bearmetal-pebble-50);
 	--btn-warning-border: transparent;
 
 	/* variant — info */
 	--btn-info-bg: var(--color-bearmetal-info-300);
 	--btn-info-bg-hover: var(--color-info-dark);
-	--btn-info-color: var(--color-bearmetal-pebble-0);
+	--btn-info-color: var(--color-bearmetal-pebble-50);
 	--btn-info-border: transparent;
 
 	/* variant — success */
 	--btn-success-bg: var(--color-bearmetal-success-300);
 	--btn-success-bg-hover: var(--color-success-dark);
-	--btn-success-color: var(--color-bearmetal-pebble-0);
+	--btn-success-color: var(--color-bearmetal-pebble-50);
 	--btn-success-border: transparent;
 
 	/* variant — orange */
 	--btn-orange-bg: var(--color-bearmetal-orange-200);
 	--btn-orange-bg-hover: var(--color-orange-dark);
-	--btn-orange-color: var(--color-bearmetal-pebble-0);
+	--btn-orange-color: var(--color-bearmetal-pebble-50);
 	--btn-orange-border: transparent;
 
 	/* ----------------------------------------------------------
@@ -994,7 +994,7 @@
 	   COMPONENT TOKENS — Tooltip
 	   ---------------------------------------------------------- */
 	--tooltip-bg: var(--color-bearmetal-pebble-800);
-	--tooltip-color: var(--color-bearmetal-pebble-0);
+	--tooltip-color: var(--color-bearmetal-pebble-50);
 	--tooltip-font-size: var(--text-xs);
 	--tooltip-padding-y: var(--space-1);
 	--tooltip-padding-x: var(--space-2);
@@ -1051,7 +1051,7 @@
 	--avatar-size-lg: var(--space-14);
 	--avatar-size-xl: var(--space-16);
 	--avatar-radius: var(--radius-full);
-	--avatar-border: var(--color-bearmetal-pebble-0);
+	--avatar-border: var(--color-bearmetal-pebble-50);
 	--avatar-border-width: 2px;
 	--avatar-bg: var(--color-bearmetal-100);
 	--avatar-color: var(--color-bearmetal-700);
@@ -1135,7 +1135,7 @@
 	   ---------------------------------------------------------- */
 	--toggle-bg-off: var(--color-bearmetal-pebble-300);
 	--toggle-bg-on: var(--color-interactive);
-	--toggle-thumb-bg: var(--color-bearmetal-pebble-0);
+	--toggle-thumb-bg: var(--color-bearmetal-pebble-50);
 	--toggle-thumb-shadow: var(--shadow-sm);
 	--toggle-width: 2.75rem;
 	--toggle-height: 1.5rem;
@@ -1152,7 +1152,7 @@
 	--check-bg: var(--color-surface);
 	--check-bg-checked: var(--color-interactive);
 	--check-border-checked: var(--color-interactive);
-	--check-color: var(--color-bearmetal-pebble-0);
+	--check-color: var(--color-bearmetal-pebble-50);
 	--check-radius: var(--radius-base);
 	--radio-radius: var(--radius-full);
 	--check-transition: var(--transition-colors);
@@ -1246,7 +1246,7 @@
 		--color-interactive-hover: var(--color-bearmetal-700);
 
 		--toast-bg: var(--color-bearmetal-grey-800);
-		--toast-color: var(--color-bearmetal-grey-0);
+		--toast-color: var(--color-bearmetal-grey-50);
 		--toast-border: var(--color-bearmetal-grey-700);
 		--modal-backdrop: rgb(0 0 0 / 0.7);
 
@@ -1294,7 +1294,7 @@
 	--color-interactive-hover: var(--color-bearmetal-700);
 
 	--toast-bg: var(--color-bearmetal-grey-800);
-	--toast-color: var(--color-bearmetal-grey-0);
+	--toast-color: var(--color-bearmetal-grey-50);
 	--toast-border: var(--color-bearmetal-grey-700);
 	--modal-backdrop: rgb(0 0 0 / 0.7);
 

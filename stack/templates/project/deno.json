@@ -1,0 +1,15 @@
+{
+	"name": "$projectName",
+	"version": "0.0.0",
+	"license": "MIT",
+	"tasks": {
+		"bm:bootstrap": {
+			"description": "Bootstrap the BearMetal stack.",
+			"dependencies": ["bm:drip"]
+		},
+		"bm:drip": {
+			"description": "Generates theme completions and CSS",
+			"command": "deno run jsr:@bearmetal/drip"
+		}
+	}
+}
