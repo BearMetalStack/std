@@ -17,39 +17,36 @@
  * ```
  */
 
+import { escapeHtml } from "@bearmetal/miscellanea";
 import { Module } from "../module.ts";
 
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 export class ForagerModule extends Module<{}> {
-  constructor({ path = "/_forager" }: { path?: string } = {}) {
-    super();
-    this.route(path).get(() => this.#render());
-  }
+	constructor({ path = "/_forager" }: { path?: string } = {}) {
+		super();
+		this.route(path).get(() => this.#render());
+	}
 
-  #render(): Response {
-    if (!this.parent) {
-      return new Response("ForagerModule is not mounted on a router.", {
-        status: 500,
-      });
-    }
+	#render(): Response {
+		if (!this.parent) {
+			return new Response("ForagerModule is not mounted on a router.", {
+				status: 500,
+			});
+		}
 
-    const rows = [...this.parent.routeRegistry]
-      .filter(([, entry]) => entry.methods.length > 0)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([path, entry]) =>
-        `      <tr><td>${esc(path)}</td><td>${
-          esc(entry.methods.join(", "))
-        }</td><td>${
-          JSON.stringify(entry.schemas[entry.methods[1]]?.toJSONSchema()) ??
-            "No docs"
-        }</td></tr>`
-      )
-      .join("\n");
+		const rows = [...this.parent.routeRegistry]
+			.filter(([, entry]) => entry.methods.length > 0)
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([path, entry]) =>
+				`      <tr><td>${escapeHtml(path)}</td><td>${
+					escapeHtml(entry.methods.join(", "))
+				}</td><td>${
+					JSON.stringify(entry.schemas[entry.methods[1]]?.toJSONSchema()) ??
+						"No docs"
+				}</td></tr>`
+			)
+			.join("\n");
 
-    const html = `<!DOCTYPE html>
+		const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -78,8 +75,8 @@ ${rows}
 </body>
 </html>`;
 
-    return new Response(html, {
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
-  }
+		return new Response(html, {
+			headers: { "Content-Type": "text/html; charset=utf-8" },
+		});
+	}
 }
