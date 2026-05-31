@@ -1,5 +1,6 @@
 export * from "./generate.ts";
 export * from "./types.ts";
+export * from "./inject.ts";
 
 import type { Theme } from "./types.ts";
 import { cssFromJson } from "./generate.ts";

@@ -1,4 +1,4 @@
-import { html } from "@lib/tags.ts";
+import { html } from "@bearmetal/miscellanea";
 import { joinPath } from "@bearmetal/miscellanea";
 import { registerElement } from "@lib/registerElements.ts";
 

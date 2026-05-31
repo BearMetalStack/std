@@ -1,5 +1,5 @@
 {
-	"name": "drip",
+	"name": "@bearmetal/drip",
 	"version": "0.0.0",
 	"exports": "./mod.ts",
 	"tasks": {

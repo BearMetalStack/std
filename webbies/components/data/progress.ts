@@ -1,4 +1,4 @@
-import { injectStyle } from "@lib/injectStyle.ts";
+import { injectStyle } from "@bearmetal/drip";
 import { css } from "@bearmetal/miscellanea";
 import { registerElement } from "@lib/registerElements.ts";
 

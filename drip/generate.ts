@@ -70,6 +70,28 @@ export function cssFromJson(
 	].join("\n");
 }
 
+/** Lightweight CSS for runtime injection — no disclaimer, no @property, variants scoped to selector. */
+export function themeCSS(theme: Theme, selector: string): string {
+	const kvs: SectionedTokens = [];
+	for (const [key, value] of Object.entries(theme)) {
+		if (key.startsWith("#")) continue;
+		kvs.push(...constructTokens(value as Theme, getSyntaxByName(key), `--${key}-`));
+	}
+	const props = kvs
+		.filter((pair): pair is [string, string, PropertyType] => typeof pair === "object")
+		.map(([key, value]) =>
+			`\t${key}: ${
+				value.startsWith("$")
+					? `var(${value.replace("$", "").replace(/__/g, ".").trim()})`
+					: value.replace(/__/g, ".").trim()
+			};`
+		)
+		.join("\n");
+	const varBlock = `${selector} {\n${props}\n}`;
+	const variantBlock = buildVariantsCss(theme, selector);
+	return [varBlock, variantBlock].filter(Boolean).join("\n\n");
+}
+
 const skipKeys = ["$calc"];
 
 function constructTokens<T extends Theme>(

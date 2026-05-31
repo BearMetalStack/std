@@ -1,4 +1,4 @@
-import { css } from "@lib/tags.ts";
+import { css } from "@bearmetal/miscellanea";
 import { PopoverBase } from "./base.ts";
 import { registerElement } from "@lib/registerElements.ts";
 

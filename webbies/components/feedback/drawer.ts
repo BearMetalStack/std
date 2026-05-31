@@ -1,6 +1,6 @@
-import { css } from "@lib/tags.ts";
+import { css } from "@bearmetal/miscellanea";
 import { registerElement } from "@lib/registerElements.ts";
-import { injectStyle } from "@lib/injectStyle.ts";
+import { injectStyle } from "@bearmetal/drip";
 
 const DURATION = 200;
 injectStyle(

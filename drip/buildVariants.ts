@@ -2,7 +2,7 @@ import { emitCalcCSS } from "./calc.ts";
 import type { CalcNode, Theme, Variant } from "./types.ts";
 import { indent } from "@bearmetal/miscellanea";
 
-export function buildVariantsCss(theme: Theme) {
+export function buildVariantsCss(theme: Theme, selector: string = ":root") {
 	const variants = theme["#variants"]?.sort((a, b) => {
 		if (a.default && !b.default) return -1;
 		if (!a.default && b.default) return 1;
@@ -13,9 +13,9 @@ export function buildVariantsCss(theme: Theme) {
 	});
 	return variants.flatMap((v) => {
 		const sections: string[] = [];
-		if (v.default) sections.push(`:root {\n${v.__compiled}\n}`);
-		if (v.media) sections.push(`@media ${v.media} {\n${indent(`:root {\n${v.__compiled}\n}`)}\n}`);
-		sections.push(`:root[data-theme="${v.name}"] {\n${v.__compiled}\n}`);
+		if (v.default) sections.push(`${selector} {\n${v.__compiled}\n}`);
+		if (v.media) sections.push(`@media ${v.media} {\n${indent(`${selector} {\n${v.__compiled}\n}`)}\n}`);
+		sections.push(`${selector}[data-theme="${v.name}"] {\n${v.__compiled}\n}`);
 		return sections;
 	}).join("\n\n");
 }

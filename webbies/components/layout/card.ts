@@ -1,5 +1,5 @@
-import { css, html } from "@lib/tags.ts";
-import { injectStyle } from "@lib/injectStyle.ts";
+import { css, html } from "@bearmetal/miscellanea";
+import { injectStyle } from "@bearmetal/drip";
 import { registerElement } from "@lib/registerElements.ts";
 
 injectStyle("bm-card", css`

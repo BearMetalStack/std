@@ -1,12 +1,12 @@
 import { BaseComponent } from "@lib/BaseComponent.ts";
-import { css, html } from "@lib/tags.ts";
-import { injectStyle } from "@lib/injectStyle.ts";
+import { css, html } from "@bearmetal/miscellanea";
+import { injectStyle } from "@bearmetal/drip";
 import { registerElement } from "@lib/registerElements.ts";
 
 injectStyle(
 	"bm-table",
 	css`
-		bm-table table {
+		table {
 			border-radius: var(--radius-lg);
 			background-color: var(--color-bg-subtle);
 			overflow: clip;

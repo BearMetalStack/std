@@ -1,5 +1,5 @@
-import { html, css } from "@lib/tags.ts";
-import { injectStyle } from "@lib/injectStyle.ts";
+import { html, css } from "@bearmetal/miscellanea";
+import { injectStyle } from "@bearmetal/drip";
 import { registerElement } from "@lib/registerElements.ts";
 
 injectStyle("bm-breadcrumb", css`

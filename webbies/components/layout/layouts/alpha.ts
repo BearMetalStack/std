@@ -1,4 +1,4 @@
-import { css, html } from "@lib/tags.ts";
+import { css, html } from "@bearmetal/miscellanea";
 import { BaseComponent } from "@lib/BaseComponent.ts";
 import { registerElement } from "@lib/registerElements.ts";
 

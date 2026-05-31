@@ -1,5 +1,5 @@
 import { registerElement } from "@lib/registerElements.ts";
-import { html } from "@lib/tags.ts";
+import { html } from "@bearmetal/miscellanea";
 
 export class PopoverBase extends HTMLElement {
 	constructor() {

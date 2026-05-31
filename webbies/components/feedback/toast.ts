@@ -4,7 +4,7 @@ import {
 	type TimeString,
 	timeStringToMillis,
 } from "@bearmetal/miscellanea";
-import { injectStyle } from "@lib/injectStyle.ts";
+import { injectStyle } from "@bearmetal/drip";
 import { registerElements } from "@lib/registerElements.ts";
 
 injectStyle(
