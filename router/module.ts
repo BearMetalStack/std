@@ -6,16 +6,11 @@
  * Mount it on a Router (or another Module) with `.use()` to merge its routes
  * and automatically register its services on the parent.
  */
+// deno-lint-ignore-file no-explicit-any ban-unused-ignore ban-types
 
 import { joinPath } from "@bearmetal/miscellanea";
 import { type Infer, Schema } from "./schema.ts";
-import type {
-  RouterHandler,
-  Service,
-  ServiceActions,
-  ServiceToken,
-  StateType,
-} from "./types.ts";
+import type { RouterHandler, Service, ServiceActions, ServiceToken, StateType } from "./types.ts";
 
 // ─── Internal type utilities ──────────────────────────────────────────────────
 
@@ -25,19 +20,21 @@ export type Merge<A, B> = Omit<A, keyof B> & B;
 type PartialMethodStates = Partial<Record<Method, StateType>>;
 
 type SetMethodMerge<
-  MD extends PartialMethodStates,
-  M extends Method,
-  K extends StateType,
+	MD extends PartialMethodStates,
+	M extends Method,
+	K extends StateType,
 > =
-  & Omit<MD, M>
-  & { [P in M]: Merge<MD[P] extends StateType ? MD[P] : StateType, K> };
+	& Omit<MD, M>
+	& { [P in M]: Merge<MD[P] extends StateType ? MD[P] : StateType, K> };
 
 type MethodStates<Base extends StateType, MD extends PartialMethodStates> = {
-  [M in Method]: Merge<Base, MD[M] extends StateType ? MD[M] : StateType>;
+	[M in Method]: Merge<Base, MD[M] extends StateType ? MD[M] : StateType>;
 };
 
-type SchemaHandler<TState extends StateType, S extends Schema<unknown>> =
-  RouterHandler<TState, Infer<S>>;
+type SchemaHandler<TState extends StateType, S extends Schema<unknown>> = RouterHandler<
+	TState,
+	Infer<S>
+>;
 
 // deno-lint-ignore no-explicit-any
 export type AnyHandler = RouterHandler<any, any>;
@@ -45,13 +42,13 @@ export type AnyHandler = RouterHandler<any, any>;
 // ─── Internal route storage ───────────────────────────────────────────────────
 
 export type RouteConfig<T extends StateType> = {
-  handlers: { [method: string]: AnyHandler[] };
-  /** Request body schemas keyed by uppercase HTTP method. */
-  schemas: { [method: string]: Schema<unknown> };
-  /** Response schemas per method and status — for documentation generation. */
-  responseSchemas: { [method: string]: { [status: number]: Schema<unknown> } };
-  pattern: URLPattern;
-  _phantom?: T;
+	handlers: { [method: string]: AnyHandler[] };
+	/** Request body schemas keyed by uppercase HTTP method. */
+	schemas: { [method: string]: Schema<unknown> };
+	/** Response schemas per method and status — for documentation generation. */
+	responseSchemas: { [method: string]: { [status: number]: Schema<unknown> } };
+	pattern: URLPattern;
+	_phantom?: T;
 };
 
 /**
@@ -59,15 +56,15 @@ export type RouteConfig<T extends StateType> = {
  * Returned by `module.routeRegistry` — safe to read, cannot mutate the live registry.
  */
 export type ReadonlyRouteEntry = {
-  readonly pattern: URLPattern;
-  /** Registered HTTP methods (uppercase). Does not include the internal middleware key. */
-  readonly methods: readonly string[];
-  /** Request body schemas, keyed by uppercase method. */
-  readonly schemas: Readonly<{ [method: string]: Schema<unknown> }>;
-  /** Response schemas per method and status code. */
-  readonly responseSchemas: Readonly<{
-    [method: string]: Readonly<{ [status: number]: Schema<unknown> }>;
-  }>;
+	readonly pattern: URLPattern;
+	/** Registered HTTP methods (uppercase). Does not include the internal middleware key. */
+	readonly methods: readonly string[];
+	/** Request body schemas, keyed by uppercase method. */
+	readonly schemas: Readonly<{ [method: string]: Schema<unknown> }>;
+	/** Response schemas per method and status code. */
+	readonly responseSchemas: Readonly<{
+		[method: string]: Readonly<{ [status: number]: Schema<unknown> }>;
+	}>;
 };
 
 export const GET = "GET";
@@ -80,71 +77,71 @@ export const _use = "_use";
 export const allMethods = [GET, POST, PUT, PATCH, DELETE, OPTIONS, _use];
 
 export function fixPath(path: string): string {
-  return path.startsWith("/") ? path : `/${path}`;
+	return path.startsWith("/") ? path : `/${path}`;
 }
 
 // ─── RouteConfigurator ────────────────────────────────────────────────────────
 
 export type RouteConfigurator<
-  Base extends StateType = StateType,
-  MD extends PartialMethodStates = PartialMethodStates,
+	Base extends StateType = StateType,
+	MD extends PartialMethodStates = PartialMethodStates,
 > = {
-  use<K extends StateType = Base>(
-    ...handlers: RouterHandler<Merge<Base, K>>[] | Module<any>[]
-  ): RouteConfigurator<Merge<Base, K>, MD>;
+	use<K extends StateType = Base>(
+		...handlers: RouterHandler<Merge<Base, K>>[] | Module<any>[]
+	): RouteConfigurator<Merge<Base, K>, MD>;
 
-  get<S extends Schema<unknown>>(
-    schema: S,
-    ...handlers: SchemaHandler<MethodStates<Base, MD>["get"], S>[]
-  ): RouteConfigurator<Base, MD>;
-  get<K extends StateType = MethodStates<Base, MD>["get"]>(
-    ...handlers: RouterHandler<Merge<MethodStates<Base, MD>["get"], K>>[]
-  ): RouteConfigurator<Base, SetMethodMerge<MD, "get", K>>;
+	get<S extends Schema<unknown>>(
+		schema: S,
+		...handlers: SchemaHandler<MethodStates<Base, MD>["get"], S>[]
+	): RouteConfigurator<Base, MD>;
+	get<K extends StateType = MethodStates<Base, MD>["get"]>(
+		...handlers: RouterHandler<Merge<MethodStates<Base, MD>["get"], K>>[]
+	): RouteConfigurator<Base, SetMethodMerge<MD, "get", K>>;
 
-  post<S extends Schema<unknown>>(
-    schema: S,
-    ...handlers: SchemaHandler<MethodStates<Base, MD>["post"], S>[]
-  ): RouteConfigurator<Base, MD>;
-  post<K extends StateType = MethodStates<Base, MD>["post"]>(
-    ...handlers: RouterHandler<Merge<MethodStates<Base, MD>["post"], K>>[]
-  ): RouteConfigurator<Base, SetMethodMerge<MD, "post", K>>;
+	post<S extends Schema<unknown>>(
+		schema: S,
+		...handlers: SchemaHandler<MethodStates<Base, MD>["post"], S>[]
+	): RouteConfigurator<Base, MD>;
+	post<K extends StateType = MethodStates<Base, MD>["post"]>(
+		...handlers: RouterHandler<Merge<MethodStates<Base, MD>["post"], K>>[]
+	): RouteConfigurator<Base, SetMethodMerge<MD, "post", K>>;
 
-  put<S extends Schema<unknown>>(
-    schema: S,
-    ...handlers: SchemaHandler<MethodStates<Base, MD>["put"], S>[]
-  ): RouteConfigurator<Base, MD>;
-  put<K extends StateType = MethodStates<Base, MD>["put"]>(
-    ...handlers: RouterHandler<Merge<MethodStates<Base, MD>["put"], K>>[]
-  ): RouteConfigurator<Base, SetMethodMerge<MD, "put", K>>;
+	put<S extends Schema<unknown>>(
+		schema: S,
+		...handlers: SchemaHandler<MethodStates<Base, MD>["put"], S>[]
+	): RouteConfigurator<Base, MD>;
+	put<K extends StateType = MethodStates<Base, MD>["put"]>(
+		...handlers: RouterHandler<Merge<MethodStates<Base, MD>["put"], K>>[]
+	): RouteConfigurator<Base, SetMethodMerge<MD, "put", K>>;
 
-  delete<S extends Schema<unknown>>(
-    schema: S,
-    ...handlers: SchemaHandler<MethodStates<Base, MD>["delete"], S>[]
-  ): RouteConfigurator<Base, MD>;
-  delete<K extends StateType = MethodStates<Base, MD>["delete"]>(
-    ...handlers: RouterHandler<Merge<MethodStates<Base, MD>["delete"], K>>[]
-  ): RouteConfigurator<Base, SetMethodMerge<MD, "delete", K>>;
+	delete<S extends Schema<unknown>>(
+		schema: S,
+		...handlers: SchemaHandler<MethodStates<Base, MD>["delete"], S>[]
+	): RouteConfigurator<Base, MD>;
+	delete<K extends StateType = MethodStates<Base, MD>["delete"]>(
+		...handlers: RouterHandler<Merge<MethodStates<Base, MD>["delete"], K>>[]
+	): RouteConfigurator<Base, SetMethodMerge<MD, "delete", K>>;
 
-  patch<S extends Schema<unknown>>(
-    schema: S,
-    ...handlers: SchemaHandler<MethodStates<Base, MD>["patch"], S>[]
-  ): RouteConfigurator<Base, MD>;
-  patch<K extends StateType = MethodStates<Base, MD>["patch"]>(
-    ...handlers: RouterHandler<Merge<MethodStates<Base, MD>["patch"], K>>[]
-  ): RouteConfigurator<Base, SetMethodMerge<MD, "patch", K>>;
+	patch<S extends Schema<unknown>>(
+		schema: S,
+		...handlers: SchemaHandler<MethodStates<Base, MD>["patch"], S>[]
+	): RouteConfigurator<Base, MD>;
+	patch<K extends StateType = MethodStates<Base, MD>["patch"]>(
+		...handlers: RouterHandler<Merge<MethodStates<Base, MD>["patch"], K>>[]
+	): RouteConfigurator<Base, SetMethodMerge<MD, "patch", K>>;
 
-  options<S extends Schema<unknown>>(
-    schema: S,
-    ...handlers: SchemaHandler<MethodStates<Base, MD>["options"], S>[]
-  ): RouteConfigurator<Base, MD>;
-  options<K extends StateType = MethodStates<Base, MD>["options"]>(
-    ...handlers: RouterHandler<Merge<MethodStates<Base, MD>["options"], K>>[]
-  ): RouteConfigurator<Base, SetMethodMerge<MD, "options", K>>;
+	options<S extends Schema<unknown>>(
+		schema: S,
+		...handlers: SchemaHandler<MethodStates<Base, MD>["options"], S>[]
+	): RouteConfigurator<Base, MD>;
+	options<K extends StateType = MethodStates<Base, MD>["options"]>(
+		...handlers: RouterHandler<Merge<MethodStates<Base, MD>["options"], K>>[]
+	): RouteConfigurator<Base, SetMethodMerge<MD, "options", K>>;
 
-  responds(
-    method: Method,
-    schemas: { [status: number]: Schema<unknown> },
-  ): RouteConfigurator<Base, MD>;
+	responds(
+		method: Method,
+		schemas: { [status: number]: Schema<unknown> },
+	): RouteConfigurator<Base, MD>;
 };
 
 // ─── Module ───────────────────────────────────────────────────────────────────
@@ -159,22 +156,21 @@ export type RouteConfigurator<
  * check against `Module<any>`.
  */
 export interface AnyModule<TState extends StateType = StateType> {
-  readonly rawRoutes: Iterable<[string, RouteConfig<StateType>]>;
-  readonly rawServices: Iterable<[string, Service]>;
-  _startCallbacks?: (() => Promise<void>)[];
-  // deno-lint-ignore no-explicit-any
-  _setParent?(parent: any): void;
+	readonly rawRoutes: Iterable<[string, RouteConfig<StateType>]>;
+	readonly rawServices: Iterable<[string, Service]>;
+	_startCallbacks?: (() => Promise<void>)[];
+	// deno-lint-ignore no-explicit-any
+	_setParent?(parent: any): void;
 }
 
 /** Duck-type guard — true for any object that looks like a Module. */
 export function isAnyModule(x: unknown): x is AnyModule<any> {
-  return x !== null && typeof x === "object" && "rawRoutes" in x &&
-    "rawServices" in x;
+	return x !== null && typeof x === "object" && "rawRoutes" in x &&
+		"rawServices" in x;
 }
 
 /** Extracts the state type contribution from a Module. */
-export type ModuleStateOf<M extends AnyModule<any>> = M extends
-  AnyModule<infer T> ? T : never;
+export type ModuleStateOf<M extends AnyModule<any>> = M extends AnyModule<infer T> ? T : never;
 
 /**
  * A self-contained bundle of routes, middleware, and services.
@@ -199,255 +195,259 @@ export type ModuleStateOf<M extends AnyModule<any>> = M extends
  * ```
  */
 export class Module<TState extends StateType = {}> {
-  protected routes: Map<string, RouteConfig<StateType>> = new Map();
-  protected _services: Map<string, Service> = new Map();
-  protected trailingSlash = false;
-  // deno-lint-ignore no-explicit-any
-  #parent: Module<any> | null = null;
-  // deno-lint-ignore no-explicit-any
-  #adoptedCallbacks: ((parent: Module<any>) => boolean | void)[] = [];
-  // deno-lint-ignore no-explicit-any
-  protected _pendingCallbacks: ((parent: Module<any>) => boolean | void)[] = [];
-  protected _startCallbacks: (() => Promise<void>)[] = [];
+	protected routes: Map<string, RouteConfig<StateType>> = new Map();
+	protected _services: Map<string, Service> = new Map();
+	protected trailingSlash = false;
+	// deno-lint-ignore no-explicit-any
+	#parent: Module<any> | null = null;
+	// deno-lint-ignore no-explicit-any
+	#adoptedCallbacks: ((parent: Module<any>) => boolean | void)[] = [];
+	// deno-lint-ignore no-explicit-any
+	protected _pendingCallbacks: ((parent: Module<any>) => boolean | void)[] = [];
+	protected _startCallbacks: (() => Promise<void>)[] = [];
 
-  /**
-   * The Router (or Module) this module was mounted on, or `null` if not yet mounted.
-   * Set automatically when `.use(module)` is called on a parent.
-   */
-  // deno-lint-ignore no-explicit-any
-  get parent(): Module<any> | null {
-    return this.#parent;
-  }
+	/**
+	 * The Router (or Module) this module was mounted on, or `null` if not yet mounted.
+	 * Set automatically when `.use(module)` is called on a parent.
+	 */
+	// deno-lint-ignore no-explicit-any
+	get parent(): Module<any> | null {
+		return this.#parent;
+	}
 
-  /**
-   * Register a callback to be invoked when this module is mounted on a parent.
-   * Return `false` to defer — the callback will be retried as the module tree is
-   * assembled, with progressively higher ancestors, and once more when the router
-   * is consumed by `handle`. Any callback still returning `false` at that point
-   * throws at startup, not at request time.
-   */
-  // deno-lint-ignore no-explicit-any
-  onAdopted(callback: (parent: Module<any>) => boolean | void): this {
-    this.#adoptedCallbacks.push(callback);
-    return this;
-  }
+	/**
+	 * Register a callback to be invoked when this module is mounted on a parent.
+	 * Return `false` to defer — the callback will be retried as the module tree is
+	 * assembled, with progressively higher ancestors, and once more when the router
+	 * is consumed by `handle`. Any callback still returning `false` at that point
+	 * throws at startup, not at request time.
+	 */
+	// deno-lint-ignore no-explicit-any
+	onAdopted(callback: (parent: Module<any>) => boolean | void): this {
+		this.#adoptedCallbacks.push(callback);
+		return this;
+	}
 
-  /**
-   * Look up a service registered on this module (or accumulated from its children).
-   * Same interface as `ctx.getService()`. In `onAdopted` callbacks, call this on
-   * the `parent` argument — returning `false` if it throws lets the callback bubble
-   * up to a higher ancestor where the service may be registered.
-   */
-  getService<T extends ServiceActions>(
-    name: string | ServiceToken<T>,
-  ): Service<T> {
-    const svc = this._services.get(name as string);
-    if (!svc) throw new Error(`Service "${String(name)}" not registered`);
-    return svc as Service<T>;
-  }
+	/**
+	 * Look up a service registered on this module (or accumulated from its children).
+	 * Same interface as `ctx.getService()`. In `onAdopted` callbacks, call this on
+	 * the `parent` argument — returning `false` if it throws lets the callback bubble
+	 * up to a higher ancestor where the service may be registered.
+	 */
+	getService<T extends ServiceActions>(
+		name: string | ServiceToken<T>,
+	): Service<T> {
+		const svc = this._services.get(name as string);
+		if (!svc) throw new Error(`Service "${String(name)}" not registered`);
+		return svc as Service<T>;
+	}
 
-  /** @internal Called by the parent when this module is mounted. */
-  // deno-lint-ignore no-explicit-any
-  protected _setParent(parent: Module<any>): void {
-    this.#parent = parent;
-    const toRun = [...this.#adoptedCallbacks, ...this._pendingCallbacks];
-    this._pendingCallbacks = [];
-    for (const cb of toRun) {
-      if (cb(parent) === false) parent._pendingCallbacks.push(cb);
-    }
-  }
+	/** @internal Called by the parent when this module is mounted. */
+	// deno-lint-ignore no-explicit-any
+	protected _setParent(parent: Module<any>): void {
+		this.#parent = parent;
+		const toRun = [...this.#adoptedCallbacks, ...this._pendingCallbacks];
+		this._pendingCallbacks = [];
+		for (const cb of toRun) {
+			if (cb(parent) === false) parent._pendingCallbacks.push(cb);
+		}
+	}
 
-  /**
-   * Register an async callback to run once at startup, after all modules are mounted.
-   * Called by `router.ready()`, or automatically on the first request if `ready()` was
-   * not awaited. Runs after all `onAdopted` dependencies are resolved.
-   *
-   * Use this for async initialization that must complete before serving — migrations,
-   * cache warming, etc. Close over module-scoped variables set by `onAdopted`.
-   */
-  onStart(callback: () => Promise<void>): this {
-    this._startCallbacks.push(callback);
-    return this;
-  }
+	/**
+	 * Register an async callback to run once at startup, after all modules are mounted.
+	 * Called by `router.ready()`, or automatically on the first request if `ready()` was
+	 * not awaited. Runs after all `onAdopted` dependencies are resolved.
+	 *
+	 * Use this for async initialization that must complete before serving — migrations,
+	 * cache warming, etc. Close over module-scoped variables set by `onAdopted`.
+	 */
+	onStart(callback: () => Promise<void>): this {
+		this._startCallbacks.push(callback);
+		return this;
+	}
 
-  /** @internal Run all deferred callbacks one final time. Called by Router.ready(). */
-  protected _consumePending(): void {
-    const failed: ((parent: Module<any>) => boolean | void)[] = [];
-    for (const cb of this._pendingCallbacks) {
-      if (cb(this) === false) failed.push(cb);
-    }
-    this._pendingCallbacks = [];
-    if (failed.length > 0) {
-      throw new Error(
-        `${failed.length} onAdopted callback(s) could not resolve — a required service may not be registered`,
-      );
-    }
-  }
+	/** @internal Run all deferred callbacks one final time. Called by Router.ready(). */
+	protected _consumePending(): void {
+		const failed: ((parent: Module<any>) => boolean | void)[] = [];
+		for (const cb of this._pendingCallbacks) {
+			if (cb(this) === false) failed.push(cb);
+		}
+		this._pendingCallbacks = [];
+		if (failed.length > 0) {
+			throw new Error(
+				`${failed.length} onAdopted callback(s) could not resolve — a required service may not be registered`,
+			);
+		}
+	}
 
-  /**
-   * Register a named service on this module.
-   * When this module is `.use()`d on a parent Router, all its services are inherited.
-   */
-  provides<T extends ServiceActions>(
-    name: string | ServiceToken<T>,
-    service: Service<T>,
-  ): this {
-    this._services.set(name as string, service as Service);
-    return this;
-  }
+	/**
+	 * Register a named service on this module.
+	 * When this module is `.use()`d on a parent Router, all its services are inherited.
+	 */
+	provides<T extends ServiceActions>(
+		name: string | ServiceToken<T>,
+		service: Service<T>,
+	): this {
+		this._services.set(name as string, service as Service);
+		return this;
+	}
 
-  /**
-   * Define a route and configure handlers per HTTP method.
-   *
-   * Pass a schema as the first argument to any method handler to automatically
-   * parse and validate the request body and type `ctx.body`.
-   */
-  route<T extends StateType = TState>(path: string): RouteConfigurator<T> {
-    path = fixPath(path);
-    const routeConfig = this.getOrCreateConfig(path);
+	/**
+	 * Define a route and configure handlers per HTTP method.
+	 *
+	 * Pass a schema as the first argument to any method handler to automatically
+	 * parse and validate the request body and type `ctx.body`.
+	 */
+	route<T extends StateType = TState>(path: string): RouteConfigurator<T> {
+		path = fixPath(path);
+		const routeConfig = this.getOrCreateConfig(path);
 
-    const addHandlers = (method: string, args: unknown[]) => {
-      if (args[0] instanceof Schema) {
-        const [schema, ...handlers] = args as [
-          Schema<unknown>,
-          ...AnyHandler[],
-        ];
-        routeConfig.schemas[method] = schema;
-        (routeConfig.handlers[method] ??= []).push(...handlers);
-      } else {
-        (routeConfig.handlers[method] ??= []).push(...(args as AnyHandler[]));
-      }
-    };
+		const addHandlers = (method: string, args: unknown[]) => {
+			if (args[0] instanceof Schema) {
+				const [schema, ...handlers] = args as [
+					Schema<unknown>,
+					...AnyHandler[],
+				];
+				routeConfig.schemas[method] = schema;
+				(routeConfig.handlers[method] ??= []).push(...handlers);
+			} else {
+				(routeConfig.handlers[method] ??= []).push(...(args as AnyHandler[]));
+			}
+		};
 
-    // deno-lint-ignore no-explicit-any
-    const configurator: any = {
-      get: (...args: unknown[]) => {
-        addHandlers(GET, args);
-        return configurator;
-      },
-      post: (...args: unknown[]) => {
-        addHandlers(POST, args);
-        return configurator;
-      },
-      put: (...args: unknown[]) => {
-        addHandlers(PUT, args);
-        return configurator;
-      },
-      patch: (...args: unknown[]) => {
-        addHandlers(PATCH, args);
-        return configurator;
-      },
-      delete: (...args: unknown[]) => {
-        addHandlers(DELETE, args);
-        return configurator;
-      },
-      options: (...args: unknown[]) => {
-        addHandlers(OPTIONS, args);
-        return configurator;
-      },
-      responds: (
-        method: Method,
-        schemas: { [status: number]: Schema<unknown> },
-      ) => {
-        routeConfig.responseSchemas[method.toUpperCase()] = schemas;
-        return configurator;
-      },
-      use: (...args: unknown[]) => {
-        for (const arg of args) {
-          if (isAnyModule(arg)) {
-            this.resolveModuleStack(path, arg);
-          } else {
-            (routeConfig.handlers[_use] ??= []).push(arg as AnyHandler);
-          }
-        }
-        return configurator;
-      },
-    };
+		// deno-lint-ignore no-explicit-any
+		const configurator: any = {
+			get: (...args: unknown[]) => {
+				addHandlers(GET, args);
+				return configurator;
+			},
+			post: (...args: unknown[]) => {
+				addHandlers(POST, args);
+				return configurator;
+			},
+			put: (...args: unknown[]) => {
+				addHandlers(PUT, args);
+				return configurator;
+			},
+			patch: (...args: unknown[]) => {
+				addHandlers(PATCH, args);
+				return configurator;
+			},
+			delete: (...args: unknown[]) => {
+				addHandlers(DELETE, args);
+				return configurator;
+			},
+			options: (...args: unknown[]) => {
+				addHandlers(OPTIONS, args);
+				return configurator;
+			},
+			responds: (
+				method: Method,
+				schemas: { [status: number]: Schema<unknown> },
+			) => {
+				routeConfig.responseSchemas[method.toUpperCase()] = schemas;
+				return configurator;
+			},
+			use: (...args: unknown[]) => {
+				for (const arg of args) {
+					if (isAnyModule(arg)) {
+						this.resolveModuleStack(path, arg);
+					} else if ("build" in (arg as object)) {
+						this.resolveModuleStack(path, (arg as ModuleBuilder).build());
+					} else {
+						(routeConfig.handlers[_use] ??= []).push(arg as AnyHandler);
+					}
+				}
+				return configurator;
+			},
+		};
 
-    return configurator;
-  }
+		return configurator;
+	}
 
-  /**
-   * Add middleware that applies to every route in this module.
-   * Runs before route-specific handlers.
-   */
-  // deno-lint-ignore no-explicit-any
-  use(handler: RouterHandler<TState>): Module<any> {
-    (this.getOrCreateConfig("/.*").handlers[_use] ??= []).push(
-      handler as AnyHandler,
-    );
-    return this;
-  }
+	/**
+	 * Add middleware that applies to every route in this module.
+	 * Runs before route-specific handlers.
+	 */
+	// deno-lint-ignore no-explicit-any
+	use(handler: RouterHandler<TState>): Module<any> {
+		(this.getOrCreateConfig("/.*").handlers[_use] ??= []).push(
+			handler as AnyHandler,
+		);
+		return this;
+	}
 
-  get rawRoutes(): MapIterator<[string, RouteConfig<StateType>]> {
-    return this.routes.entries();
-  }
+	get rawRoutes(): MapIterator<[string, RouteConfig<StateType>]> {
+		return this.routes.entries();
+	}
 
-  /**
-   * Read-only view of the route registry.
-   * Safe for introspection (e.g. OpenAPI generation) — does not expose mutable handler arrays.
-   */
-  get routeRegistry(): IteratorObject<[string, ReadonlyRouteEntry]> {
-    return this.routes.entries().map(([path, config]) => [
-      path,
-      {
-        pattern: config.pattern,
-        methods: Object.keys(config.handlers).filter((m) => m !== _use),
-        schemas: config.schemas,
-        responseSchemas: config.responseSchemas,
-      } satisfies ReadonlyRouteEntry,
-    ]);
-  }
+	/**
+	 * Read-only view of the route registry.
+	 * Safe for introspection (e.g. OpenAPI generation) — does not expose mutable handler arrays.
+	 */
+	get routeRegistry(): IteratorObject<[string, ReadonlyRouteEntry]> {
+		return this.routes.entries().map(([path, config]) => [
+			path,
+			{
+				pattern: config.pattern,
+				methods: Object.keys(config.handlers).filter((m) => m !== _use),
+				schemas: config.schemas,
+				responseSchemas: config.responseSchemas,
+			} satisfies ReadonlyRouteEntry,
+		]);
+	}
 
-  get rawServices(): MapIterator<[string, Service]> {
-    return this._services.entries();
-  }
+	get rawServices(): MapIterator<[string, Service]> {
+		return this._services.entries();
+	}
 
-  protected getOrCreateConfig<T extends StateType>(
-    path: string,
-  ): RouteConfig<T> {
-    let config = this.routes.get(path);
-    if (!config) {
-      config = {
-        handlers: {},
-        schemas: {},
-        responseSchemas: {},
-        pattern: new URLPattern({ pathname: path }),
-      };
-      this.routes.set(path, config);
-    }
-    return config as RouteConfig<T>;
-  }
+	protected getOrCreateConfig<T extends StateType>(
+		path: string,
+	): RouteConfig<T> {
+		let config = this.routes.get(path);
+		if (!config) {
+			config = {
+				handlers: {},
+				schemas: {},
+				responseSchemas: {},
+				pattern: new URLPattern({ pathname: path }),
+			};
+			this.routes.set(path, config);
+		}
+		return config as RouteConfig<T>;
+	}
 
-  // deno-lint-ignore no-explicit-any
-  protected resolveModuleStack(path: string, module: AnyModule<any>): void {
-    module._setParent?.(this);
-    for (const [routePath, thatConfig] of module.rawRoutes) {
-      const p =
-        joinPath(path, routePath).replace(
-          /\/$/,
-          this.trailingSlash ? "/" : "",
-        ) || "/";
-      const thisConfig = this.getOrCreateConfig(p);
-      for (const method of allMethods) {
-        if (thatConfig.handlers[method]) {
-          thisConfig.handlers[method] = (thisConfig.handlers[method] ?? [])
-            .concat(thatConfig.handlers[method]);
-        }
-        if (thatConfig.schemas[method]) {
-          thisConfig.schemas[method] = thatConfig.schemas[method];
-        }
-        if (thatConfig.responseSchemas[method]) {
-          thisConfig.responseSchemas[method] =
-            thatConfig.responseSchemas[method];
-        }
-      }
-    }
-    for (const [name, service] of module.rawServices) {
-      this._services.set(name, service);
-    }
-    if (module._startCallbacks) {
-      this._startCallbacks.push(...module._startCallbacks);
-    }
-  }
+	// deno-lint-ignore no-explicit-any
+	protected resolveModuleStack(path: string, module: AnyModule<any>): void {
+		module._setParent?.(this);
+		for (const [routePath, thatConfig] of module.rawRoutes) {
+			const p = joinPath(path, routePath).replace(
+				/\/$/,
+				this.trailingSlash ? "/" : "",
+			) || "/";
+			const thisConfig = this.getOrCreateConfig(p);
+			for (const method of allMethods) {
+				if (thatConfig.handlers[method]) {
+					thisConfig.handlers[method] = (thisConfig.handlers[method] ?? [])
+						.concat(thatConfig.handlers[method]);
+				}
+				if (thatConfig.schemas[method]) {
+					thisConfig.schemas[method] = thatConfig.schemas[method];
+				}
+				if (thatConfig.responseSchemas[method]) {
+					thisConfig.responseSchemas[method] = thatConfig.responseSchemas[method];
+				}
+			}
+		}
+		for (const [name, service] of module.rawServices) {
+			this._services.set(name, service);
+		}
+		if (module._startCallbacks) {
+			this._startCallbacks.push(...module._startCallbacks);
+		}
+	}
 }
+
+export type ModuleBuilder<TState extends StateType = {}> = {
+	build: () => AnyModule<TState>;
+};

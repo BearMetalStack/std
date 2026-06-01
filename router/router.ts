@@ -171,7 +171,6 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 
 	// ─── Logging ───────────────────────────────────────────────────────────────
 
-	/** @unstable relies on the Temporal API, which is not stable yet */
 	logALot(logging = true): void {
 		if (!logging) return;
 		this.use(async (ctx, next) => {

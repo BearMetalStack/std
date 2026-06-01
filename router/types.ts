@@ -5,7 +5,8 @@
 
 export type StateType = Record<string, unknown>;
 
-export type ServiceActions = Record<string, (...args: unknown[]) => unknown>;
+// deno-lint-ignore no-explicit-any
+export type ServiceActions = Record<string, (...args: any[]) => unknown>;
 
 /**
  * A branded string that carries its action types, allowing `ctx.getService()`

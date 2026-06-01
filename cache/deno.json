@@ -1,0 +1,9 @@
+{
+  "name": "@bearmetal/cache",
+  "version": "0.0.1",
+  "exports": "./mod.ts",
+  "tasks": {
+    "dev": "deno test --watch"
+  },
+  "license": "GPL-3.0-only"
+}

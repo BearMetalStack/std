@@ -1,5 +1,5 @@
 {
-  "name": "sockpuppet",
+  "name": "@bearmetal/sockpuppet",
   "version": "1.0.0",
   "exports": {
     ".": "./mod.ts",

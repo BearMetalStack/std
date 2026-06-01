@@ -29,19 +29,20 @@
  */
 import { Module, Ok } from "@bearmetal/router";
 import { HEALTH_ENDPOINT } from "./consts.ts";
+import { isDev, isEnvGranted } from "@bearmetal/miscellanea";
 
 let proxyHost: string;
 const fallbackHost = "https://dev.bear-metal.dev";
 try {
-  proxyHost = Deno.env.get("BEARMETAL_PROXY_HOST") ?? fallbackHost;
+	proxyHost = Deno.env.get("BEARMETAL_PROXY_HOST") ?? fallbackHost;
 } catch {
-  console.warn(
-    "%c[BearMetal devproxy] %cNo --allow-env permission; recommend adding --allow-env=BEARMETAL_PROXY_HOST,BEARMETAL_ENV. Falling back to " +
-      fallbackHost,
-    "color: green",
-    "color: white",
-  );
-  proxyHost = fallbackHost;
+	console.warn(
+		"%c[BearMetal devproxy] %cNo --allow-env permission; recommend adding --allow-env=BEARMETAL_PROXY_HOST,BEARMETAL_ENV. Falling back to " +
+			fallbackHost,
+		"color: green",
+		"color: white",
+	);
+	proxyHost = fallbackHost;
 }
 /**
  * Registers this local server with the dev proxy so that traffic from the
@@ -52,18 +53,18 @@ try {
  * @returns `true` if the proxy acknowledged the claim, `false` otherwise.
  */
 export async function claimDevProxy(
-  host: string,
-  port: number,
+	host: string,
+	port: number,
 ): Promise<boolean> {
-  const res = await fetch(proxyHost + "/__claim", {
-    method: "POST",
-    body: JSON.stringify({ target: host, port }),
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-  if (await res.text() === "claimed") return true;
-  return false;
+	const res = await fetch(proxyHost + "/__claim", {
+		method: "POST",
+		body: JSON.stringify({ target: host, port }),
+		headers: {
+			"Content-Type": "application/json",
+		},
+	});
+	if (await res.text() === "claimed") return true;
+	return false;
 }
 
 /**
@@ -81,32 +82,32 @@ export async function claimDevProxy(
  * @returns A configured {@link Module} ready to be mounted on a router.
  */
 export function devProxyModule(hostname: string, port: number): Module {
-  const mod = new Module();
-  let bearmEnv = "dev";
-  try {
-    bearmEnv = Deno.env.get("BEARMETAL_ENV") ?? "dev";
-  } catch {
-    console.warn(
-      "%c[BearMetal devproxy] %cNo --allow-env permission; recommend adding --allow-env=BEARMETAL_PROXY_HOST,BEARMETAL_ENV. Treating env as dev.",
-      "color: green",
-      "color: white",
-    );
-  }
-  if (bearmEnv !== "dev") return mod;
-  mod
-    .onStart(async () => {
-      await claimDevProxy(hostname, port);
-      console.log(
-        `%c[BearMetal devproxy] %cProject available at %chttps://${hostname}.${proxyHost}`,
-        "color: green",
-        "color: white",
-        "color: cyan",
-      );
-    })
-    .route(HEALTH_ENDPOINT).get(() => Ok());
-  return mod;
+	const mod = new Module();
+	// let bearmEnv = "dev";
+	// try {
+	//   bearmEnv = Deno.env.get("BEARMETAL_ENV") ?? "dev";
+	if (!isEnvGranted()) {
+		console.warn(
+			"%c[BearMetal devproxy] %cNo --allow-env permission; recommend adding --allow-env=BEARMETAL_PROXY_HOST,BEARMETAL_ENV. Treating env as dev.",
+			"color: green",
+			"color: white",
+		);
+	}
+	if (isDev()) return mod;
+	mod
+		.onStart(async () => {
+			await claimDevProxy(hostname, port);
+			console.log(
+				`%c[BearMetal devproxy] %cProject available at %chttps://${hostname}.${proxyHost}`,
+				"color: green",
+				"color: white",
+				"color: cyan",
+			);
+		})
+		.route(HEALTH_ENDPOINT).get(() => Ok());
+	return mod;
 }
 
 if (import.meta.main) {
-  claimDevProxy("bingbong", 8000);
+	claimDevProxy("bingbong", 8000);
 }
