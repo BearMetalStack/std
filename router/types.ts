@@ -5,7 +5,7 @@
 
 export type StateType = Record<string, unknown>;
 
-export type ServiceActions = Record<string, (...args: any[]) => unknown>;
+export type ServiceActions = Record<string, (...args: unknown[]) => unknown>;
 
 /**
  * A branded string that carries its action types, allowing `ctx.getService()`
@@ -14,7 +14,7 @@ export type ServiceActions = Record<string, (...args: any[]) => unknown>;
  * Create one with `createServiceToken<T>(name)`.
  */
 export type ServiceToken<T extends ServiceActions> = string & {
-  __serviceToken: T;
+	__serviceToken: T;
 };
 
 /**
@@ -34,10 +34,10 @@ export type ServiceToken<T extends ServiceActions> = string & {
  * ```
  */
 export interface Service<T extends ServiceActions = ServiceActions> {
-  invoke<K extends keyof T & string>(
-    action: K,
-    ...args: Parameters<T[K]>
-  ): ReturnType<T[K]>;
+	invoke<K extends keyof T & string>(
+		action: K,
+		...args: Parameters<T[K]>
+	): ReturnType<T[K]>;
 }
 
 /**
@@ -46,20 +46,21 @@ export interface Service<T extends ServiceActions = ServiceActions> {
  * or the inferred output of a schema when one is registered on the route.
  */
 export interface RouterContext<
-  T extends StateType = StateType,
-  TBody = string,
+	T extends StateType = StateType,
+	TBody = string,
 > {
-  url: URL;
-  params: Record<string, string | undefined>;
-  state: T;
-  request: Request;
-  /** Parsed request body. Type is `string` unless a schema is registered on the route. */
-  body: TBody;
-  /** Raw query parameters from the URL. Always available regardless of schema. */
-  query: Record<string, string>;
-  getService<T extends ServiceActions = ServiceActions>(
-    name: string | ServiceToken<T>,
-  ): Service<T>;
+	url: URL;
+	params: Record<string, string | undefined>;
+	state: T;
+	request: Request;
+	/** Parsed request body. Type is `string` unless a schema is registered on the route. */
+	body: TBody;
+	/** Raw query parameters from the URL. Always available regardless of schema. */
+	query: Record<string, string>;
+	getService<T extends ServiceActions = ServiceActions>(
+		name: string | ServiceToken<T>,
+	): Service<T>;
+	connection: Deno.ServeHandlerInfo<Deno.Addr>;
 }
 
 /**
@@ -67,6 +68,6 @@ export interface RouterContext<
  * The `next` parameter calls the next handler in the chain — omit it for terminal handlers.
  */
 export type RouterHandler<T extends StateType = StateType, TBody = string> = (
-  ctx: RouterContext<T, TBody>,
-  next: () => Promise<Response>,
+	ctx: RouterContext<T, TBody>,
+	next: () => Promise<Response>,
 ) => Promise<Response> | Response;
