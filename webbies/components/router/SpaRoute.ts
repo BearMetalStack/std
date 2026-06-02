@@ -34,8 +34,8 @@ export class SpaRoute extends HTMLElement {
 		this.innerHTML = html`
 			<p class="danger banner">
 				This bm-route (${this.getAttribute("path") ??
-					"<no path?"}) was not provided with a child template or child
-				routes. Please wrap children in a ${"<template>"} tag.
+					"<no path?"}) was not provided with a child template or child routes. Please wrap
+				children in a ${"<template>"} tag.
 			</p>
 		`;
 	}
@@ -46,9 +46,8 @@ export class SpaRoute extends HTMLElement {
 			this.innerHTML = html`
 				<p class="danger banner">
 					This bm-route (${this.getAttribute("path") ??
-						"<no path?"}) has a child template, but that template contains
-					sub-routes. This is not supported. Please move sub-routes outside of the
-					template.
+						"<no path?"}) has a child template, but that template contains sub-routes. This is
+					not supported. Please move sub-routes outside of the template.
 				</p>
 			`;
 			return true;
@@ -120,7 +119,7 @@ export class SpaRoute extends HTMLElement {
 		}
 	}
 
-	/** Direct bm-route children — from live DOM after activation, or template content before. */
+	/** Direct bm-route children - from live DOM after activation, or template content before. */
 	get directChildRoutes(): SpaRoute[] {
 		const live = Array.from(
 			this.querySelectorAll<SpaRoute>(":scope > bm-route"),
@@ -155,9 +154,8 @@ export class SpaRoute extends HTMLElement {
 			this.innerHTML = html`
 				<p class="danger banner">
 					You have manually toggled this route (${this.getAttribute("path") ??
-						"&lt;no path&gt;"}). This is not supported in
-					the API. If you must manually activate/deactivate a route, use the router's
-					.navigate() method instead.
+						"&lt;no path&gt;"}). This is not supported in the API. If you must
+					manually activate/deactivate a route, use the router's .navigate() method instead.
 				</p>
 			`;
 		}

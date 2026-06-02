@@ -70,7 +70,7 @@ export function cssFromJson(
 	].join("\n");
 }
 
-/** Lightweight CSS for runtime injection — no disclaimer, no @property, variants scoped to selector. */
+/** Lightweight CSS for runtime injection - no disclaimer, no @property, variants scoped to selector. */
 export function themeCSS(theme: Theme, selector: string): string {
 	const kvs: SectionedTokens = [];
 	for (const [key, value] of Object.entries(theme)) {

@@ -8,7 +8,7 @@ export * from "./box.ts";
 export * from "./htmlEscape.ts";
 export * from "./indentation.ts";
 
-/** Tagged template that concatenates values as-is — provides syntax highlighting in editors. */
+/** Tagged template that concatenates values as-is - provides syntax highlighting in editors. */
 export function css(
 	strings: TemplateStringsArray,
 	...values: (string | number | boolean)[]

@@ -60,7 +60,7 @@ export async function runMigrations(
 			}
 			if (!op.allowDrop) {
 				throw new Error(
-					`Hold up — ${cols} ${were} removed from the "${op.table}" schema extension. ` +
+					`Hold up - ${cols} ${were} removed from the "${op.table}" schema extension. ` +
 						`Verify you don't need to translate this data first. ` +
 						`To drop, pass allowDrop: true to extend().`,
 				);

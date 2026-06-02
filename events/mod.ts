@@ -87,12 +87,12 @@ export function raceEvent<T extends Event = Event>(
  * consuming it across an `await` boundary:
  *
  * ```ts
- * // BAD — events fired during the fetch are lost
+ * // BAD - events fired during the fetch are lost
  * const stream = eventStream(target, "data");
- * await fetch("/something");
+ * await fetch("/something"); // any event that fires while waiting will be dropped!
  * for await (const e of stream) { ... }
  *
- * // GOOD — listener registers immediately
+ * // GOOD - listener registers immediately
  * for await (const e of eventStream(target, "data")) { ... }
  * ```
  *
@@ -150,7 +150,7 @@ export async function filteredEvent<T extends Event = Event, R extends Event = T
 
 /**
  * Returns a promise that resolves with the last occurrence of `eventType` after `wait`
- * milliseconds of silence — i.e., resolves only once the event stops firing for at least
+ * milliseconds of silence - i.e., resolves only once the event stops firing for at least
  * `wait` ms.
  *
  * The listener is removed automatically on resolution.

@@ -142,7 +142,7 @@ export class PostgresConnector extends Connector {
 	async migrate(migrations: Migration[]): Promise<MigrationResult> {
 		if (isDev()) {
 			// Best-effort: proactively create the DB before the pool touches it.
-			// If the admin connection itself fails, fall through — runMigrations will
+			// If the admin connection itself fails, fall through - runMigrations will
 			// surface the real error.
 			await this.#ensureDatabaseExists().catch(() => {});
 		}

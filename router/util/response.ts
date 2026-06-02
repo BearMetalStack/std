@@ -17,7 +17,7 @@ import { Schema as SchemaClass } from "../schema.ts";
 /**
  * A `Response` subclass that carries the TypeScript type of its body (`T`) and
  * the HTTP status code as a literal type (`S`). An optional `schema` property
- * holds the Schema used to validate the body — used by documentation generators.
+ * holds the Schema used to validate the body - used by documentation generators.
  */
 export class TypedResponse<T = unknown, S extends number = number> extends Response {
 	readonly schema?: Schema<T>;

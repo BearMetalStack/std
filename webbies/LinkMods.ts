@@ -4,7 +4,7 @@
 // Walks a directory tree and ensures every .ts module is imported in the
 // nearest ancestor mod.ts. Each mod.ts is itself imported in its nearest
 // ancestor mod.ts. Only the generated section (delimited by the markers
-// below) is touched — all other content is preserved.
+// below) is touched - all other content is preserved.
 
 import { walkDir } from "@bearmetal/miscellanea/fs";
 
@@ -62,7 +62,7 @@ function spliceGenerated(existing: string, lines: string[]): string {
 		return parts.join("\n\n") + "\n";
 	}
 
-	// No existing block — append to the end of the file.
+	// No existing block - append to the end of the file.
 	const trimmed = existing.trimEnd();
 	return (trimmed ? trimmed + "\n\n" : "") + block + "\n";
 }
@@ -137,7 +137,7 @@ async function linkMods(root: string): Promise<void> {
 		}
 	}
 
-	// (a) Non-mod .ts files — start search from their own directory.
+	// (a) Non-mod .ts files - start search from their own directory.
 	for (const [dir, files] of tsFiles) {
 		const home = nearestModDir(dir);
 		if (home === null) {
@@ -151,7 +151,7 @@ async function linkMods(root: string): Promise<void> {
 		}
 	}
 
-	// (b) Child mod.ts files — start search one level above their own dir.
+	// (b) Child mod.ts files - start search one level above their own dir.
 	for (const modPath of modFiles) {
 		const modDir = modPath.slice(0, modPath.lastIndexOf("/"));
 		if (modDir === root) continue; // root mod has no parent to bubble up to

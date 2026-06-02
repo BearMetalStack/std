@@ -1,6 +1,6 @@
 export class BaseComponent extends HTMLElement {
 	// -------------------------------------------------------------------------
-	// Shadow root (optional — call useShadow() in subclass constructor)
+	// Shadow root (optional - call useShadow() in subclass constructor)
 	// -------------------------------------------------------------------------
 
 	protected useShadow(mode: ShadowRootMode = "open"): ShadowRoot {
@@ -120,7 +120,7 @@ export class BaseComponent extends HTMLElement {
 	}
 
 	// -------------------------------------------------------------------------
-	// Render — no-op after first successful render
+	// Render - no-op after first successful render
 	// -------------------------------------------------------------------------
 
 	private _tryRender(): void {

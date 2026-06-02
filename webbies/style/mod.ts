@@ -6,7 +6,7 @@ injectStyle(
 	"bm-base",
 	css`
 		/* ============================================================
-		   BearMetal Webbies — Base Stylesheet
+		   BearMetal Webbies - Base Stylesheet
 		   bearmetal-base.css
 
 		   DO NOT edit tokens here. Override them in your config file:
@@ -19,14 +19,14 @@ injectStyle(
 		   ============================================================ */
 
 		/* ============================================================
-		   SECTION 1 — TOKEN LAYER (override these in your config)
+		   SECTION 1 - TOKEN LAYER (override these in your config)
 		   ============================================================ */
 
 		:root {
 			/* interpolate-size: allow-keywords; */
 
 			/* ----------------------------------------------------------
-			   COLOR — Brand
+			   COLOR - Brand
 			   ---------------------------------------------------------- */
 			--color-bearmetal-50: #f5eeff; /* Tints, hover backgrounds */
 			--color-bearmetal-100: #e8ccff; /* Subtle fills, badge backgrounds */
@@ -34,14 +34,14 @@ injectStyle(
 			--color-bearmetal-300: #aa55ee; /* Icons on light bg, decorative */
 			--color-bearmetal-400: #7711cc; /* Large text on white, light mode links */
 			--color-bearmetal-600: #36005c; /* ← brand identity color */
-			--color-bearmetal-500: #4a0080; /* NOTE: lighter than 500 — interactive default (see docs) */
+			--color-bearmetal-500: #4a0080; /* NOTE: lighter than 500 - interactive default (see docs) */
 			--color-bearmetal-700: #290047; /* Hover state */
-			--color-bearmetal-800: #1a0030; /* Active/pressed — "vibrant" dark bg */
+			--color-bearmetal-800: #1a0030; /* Active/pressed - "vibrant" dark bg */
 			--color-bearmetal-900: #0d0018; /* Near-black */
-			--color-bearmetal-950: #060009; /* Dark mode page bg — "shadow" dark bg */
+			--color-bearmetal-950: #060009; /* Dark mode page bg - "shadow" dark bg */
 
 			/* ----------------------------------------------------------
-			   COLOR — Brand Grey
+			   COLOR - Brand Grey
 			   ---------------------------------------------------------- */
 			--color-bearmetal-grey-50: #faf8fc; /* Page background                   → --color-bg */
 			--color-bearmetal-grey-100: #f2eff6; /* Subtle surface                    → --color-bg-subtle */
@@ -56,7 +56,7 @@ injectStyle(
 			--color-bearmetal-grey-950: #100d14; /* Dark mode page bg */
 
 			/* ----------------------------------------------------------
-			   COLOR — Brand Success
+			   COLOR - Brand Success
 			   ---------------------------------------------------------- */
 			--color-bearmetal-success-50: #f0faf1; /* Success bg tint                   → --color-success-light */
 			--color-bearmetal-success-100: #d6f5d8; /* Alert background */
@@ -71,7 +71,7 @@ injectStyle(
 			--color-bearmetal-success-950: #000a01; /* Dark mode page bg (branded) */
 
 			/* ----------------------------------------------------------
-			   COLOR — Brand Danger
+			   COLOR - Brand Danger
 			   ---------------------------------------------------------- */
 			--color-bearmetal-danger-50: #fdf0f4; /* Danger bg tint                    → --color-danger-light */
 			--color-bearmetal-danger-100: #f8d6e3; /* Alert background */
@@ -86,7 +86,7 @@ injectStyle(
 			--color-bearmetal-danger-950: #0a0004; /* Dark mode page bg (branded) */
 
 			/* ----------------------------------------------------------
-			   COLOR — Brand Warning
+			   COLOR - Brand Warning
 			   ---------------------------------------------------------- */
 			--color-bearmetal-warning-50: #fdf9ee; /* Warning bg tint                   → --color-warning-light */
 			--color-bearmetal-warning-100: #faefc8; /* Alert background */
@@ -101,7 +101,7 @@ injectStyle(
 			--color-bearmetal-warning-950: #070400; /* Dark mode page bg (branded) */
 
 			/* ----------------------------------------------------------
-			   COLOR — Brand Info
+			   COLOR - Brand Info
 			   ---------------------------------------------------------- */
 			--color-bearmetal-info-50: #eef4fd; /* Info bg tint                      → --color-info-light */
 			--color-bearmetal-info-100: #cce0f8; /* Alert background */
@@ -116,7 +116,7 @@ injectStyle(
 			--color-bearmetal-info-950: #000208; /* Dark mode page bg (branded) */
 
 			/* ----------------------------------------------------------
-			   COLOR — Brand Orange
+			   COLOR - Brand Orange
 			   ---------------------------------------------------------- */
 			--color-bearmetal-orange-50: #fef4ec;
 			--color-bearmetal-orange-100: #fcdcb0;
@@ -131,7 +131,7 @@ injectStyle(
 			--color-bearmetal-orange-950: #160900;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Slate
+			   COLOR - BearMetal Slate
 			   ---------------------------------------------------------- */
 			--color-bearmetal-slate-50: #f4f6f8;
 			--color-bearmetal-slate-100: #e2e8f0;
@@ -146,7 +146,7 @@ injectStyle(
 			--color-bearmetal-slate-950: #04080c;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Pebble
+			   COLOR - BearMetal Pebble
 			   ---------------------------------------------------------- */
 			--color-bearmetal-pebble-50: #f5f4f3;
 			--color-bearmetal-pebble-100: #e4e2e0;
@@ -161,7 +161,7 @@ injectStyle(
 			--color-bearmetal-pebble-950: #060504;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Stone
+			   COLOR - BearMetal Stone
 			   ---------------------------------------------------------- */
 			--color-bearmetal-stone-50: #f7f5f2;
 			--color-bearmetal-stone-100: #e8e2d8;
@@ -176,7 +176,7 @@ injectStyle(
 			--color-bearmetal-stone-950: #060402;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Cyan
+			   COLOR - BearMetal Cyan
 			   ---------------------------------------------------------- */
 			--color-bearmetal-cyan-50: #edfaf8;
 			--color-bearmetal-cyan-100: #c2f0ea;
@@ -191,7 +191,7 @@ injectStyle(
 			--color-bearmetal-cyan-950: #00080a;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Cyan Muted
+			   COLOR - BearMetal Cyan Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-cyan-muted-50: #eef7f5;
 			--color-bearmetal-cyan-muted-100: #bce0d8;
@@ -206,7 +206,7 @@ injectStyle(
 			--color-bearmetal-cyan-muted-950: #020808;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Magenta
+			   COLOR - BearMetal Magenta
 			   ---------------------------------------------------------- */
 			--color-bearmetal-magenta-50: #fef0f8;
 			--color-bearmetal-magenta-100: #fac8e8;
@@ -221,7 +221,7 @@ injectStyle(
 			--color-bearmetal-magenta-950: #0a0006;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Magenta Muted
+			   COLOR - BearMetal Magenta Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-magenta-muted-50: #fbf1f5;
 			--color-bearmetal-magenta-muted-100: #e8cdd8;
@@ -236,7 +236,7 @@ injectStyle(
 			--color-bearmetal-magenta-muted-950: #080408;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Chartreuse
+			   COLOR - BearMetal Chartreuse
 			   ---------------------------------------------------------- */
 			--color-bearmetal-chartreuse-50: #f2faec;
 			--color-bearmetal-chartreuse-100: #d4f0b4;
@@ -251,7 +251,7 @@ injectStyle(
 			--color-bearmetal-chartreuse-950: #030800;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Chartreuse Muted
+			   COLOR - BearMetal Chartreuse Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-chartreuse-muted-50: #f2f6ee;
 			--color-bearmetal-chartreuse-muted-100: #cee0b8;
@@ -266,7 +266,7 @@ injectStyle(
 			--color-bearmetal-chartreuse-muted-950: #040802;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Brick
+			   COLOR - BearMetal Brick
 			   ---------------------------------------------------------- */
 			--color-bearmetal-brick-50: #faf2f0;
 			--color-bearmetal-brick-100: #eaccc6;
@@ -281,7 +281,7 @@ injectStyle(
 			--color-bearmetal-brick-950: #080402;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Danger Muted
+			   COLOR - BearMetal Danger Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-danger-muted-50: #faf2f2;
 			--color-bearmetal-danger-muted-100: #eaccca;
@@ -296,7 +296,7 @@ injectStyle(
 			--color-bearmetal-danger-muted-950: #080404;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Success Muted
+			   COLOR - BearMetal Success Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-success-muted-50: #eff5ef;
 			--color-bearmetal-success-muted-100: #c4dcc4;
@@ -311,7 +311,7 @@ injectStyle(
 			--color-bearmetal-success-muted-950: #020802;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Warning Muted
+			   COLOR - BearMetal Warning Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-warning-muted-50: #f8f4ec;
 			--color-bearmetal-warning-muted-100: #e0d4a0;
@@ -326,7 +326,7 @@ injectStyle(
 			--color-bearmetal-warning-muted-950: #060602;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Info Muted
+			   COLOR - BearMetal Info Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-info-muted-50: #eff4f8;
 			--color-bearmetal-info-muted-100: #bcd0e4;
@@ -341,7 +341,7 @@ injectStyle(
 			--color-bearmetal-info-muted-950: #020608;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Orange Muted
+			   COLOR - BearMetal Orange Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-orange-muted-50: #f8f2ec;
 			--color-bearmetal-orange-muted-100: #e4cca8;
@@ -356,7 +356,7 @@ injectStyle(
 			--color-bearmetal-orange-muted-950: #080402;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Purple Muted
+			   COLOR - BearMetal Purple Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-muted-50: #f2eef8;
 			--color-bearmetal-muted-100: #dcd0ee;
@@ -371,7 +371,7 @@ injectStyle(
 			--color-bearmetal-muted-950: #06040a;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Indigo
+			   COLOR - BearMetal Indigo
 			   ---------------------------------------------------------- */
 			--color-bearmetal-indigo-50: #eeeeff;
 			--color-bearmetal-indigo-100: #ccd4f8;
@@ -386,7 +386,7 @@ injectStyle(
 			--color-bearmetal-indigo-950: #010106;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Indigo Muted
+			   COLOR - BearMetal Indigo Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-indigo-muted-50: #eeeef6;
 			--color-bearmetal-indigo-muted-100: #c8cce8;
@@ -401,7 +401,7 @@ injectStyle(
 			--color-bearmetal-indigo-muted-950: #030408;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Yellow
+			   COLOR - BearMetal Yellow
 			   ---------------------------------------------------------- */
 			--color-bearmetal-yellow-50: #fefce8;
 			--color-bearmetal-yellow-100: #faf5a0;
@@ -416,7 +416,7 @@ injectStyle(
 			--color-bearmetal-yellow-950: #060500;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Yellow Muted
+			   COLOR - BearMetal Yellow Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-yellow-muted-50: #faf8e8;
 			--color-bearmetal-yellow-muted-100: #ede8a8;
@@ -431,7 +431,7 @@ injectStyle(
 			--color-bearmetal-yellow-muted-950: #050401;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Gold
+			   COLOR - BearMetal Gold
 			   ---------------------------------------------------------- */
 			--color-bearmetal-gold-50: #fdf6e0;
 			--color-bearmetal-gold-100: #f5d878;
@@ -446,7 +446,7 @@ injectStyle(
 			--color-bearmetal-gold-950: #050300;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Gold Muted
+			   COLOR - BearMetal Gold Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-gold-muted-50: #f8f0e0;
 			--color-bearmetal-gold-muted-100: #e8d090;
@@ -461,7 +461,7 @@ injectStyle(
 			--color-bearmetal-gold-muted-950: #040301;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Pink
+			   COLOR - BearMetal Pink
 			   ---------------------------------------------------------- */
 			--color-bearmetal-pink-50: #fef0f4;
 			--color-bearmetal-pink-100: #fac8d4;
@@ -476,7 +476,7 @@ injectStyle(
 			--color-bearmetal-pink-950: #060002;
 
 			/* ----------------------------------------------------------
-			   COLOR — BearMetal Pink Muted
+			   COLOR - BearMetal Pink Muted
 			   ---------------------------------------------------------- */
 			--color-bearmetal-pink-muted-50: #fbf0f2;
 			--color-bearmetal-pink-muted-100: #eacdd2;
@@ -491,7 +491,7 @@ injectStyle(
 			--color-bearmetal-pink-muted-950: #060304;
 
 			/* ----------------------------------------------------------
-			   COLOR — Semantic
+			   COLOR - Semantic
 			   ---------------------------------------------------------- */
 			--color-success-text: var(--color-bearmetal-success-500);
 			--color-success-bg: var(--color-bearmetal-success-50);
@@ -529,7 +529,7 @@ injectStyle(
 			--color-orange-dark: var(--color-bearmetal-orange-800);
 
 			/* ----------------------------------------------------------
-			   COLOR — Surface / Background aliases
+			   COLOR - Surface / Background aliases
 			   ---------------------------------------------------------- */
 			--color-bg: var(--color-bearmetal-grey-50);
 			--color-bg-subtle: var(--color-bearmetal-grey-100);
@@ -541,7 +541,7 @@ injectStyle(
 			--color-surface-overlay: var(--color-bearmetal-grey-50);
 
 			/* ----------------------------------------------------------
-			   COLOR — Text aliases
+			   COLOR - Text aliases
 			   ---------------------------------------------------------- */
 			--color-text: var(--color-bearmetal-grey-950);
 			--color-text-subtle: var(--color-bearmetal-grey-700);
@@ -551,7 +551,7 @@ injectStyle(
 			--color-text-on-brand: var(--color-bearmetal-pebble-50);
 
 			/* ----------------------------------------------------------
-			   COLOR — Border aliases
+			   COLOR - Border aliases
 			   ---------------------------------------------------------- */
 			--color-border: var(--color-bearmetal-grey-200);
 			--color-border-strong: var(--color-bearmetal-grey-300);
@@ -559,7 +559,7 @@ injectStyle(
 			--color-border-focus: var(--color-bearmetal-info-300);
 
 			/* ----------------------------------------------------------
-			   COLOR — Interactive aliases
+			   COLOR - Interactive aliases
 			   ---------------------------------------------------------- */
 			--color-interactive: var(--color-bearmetal-400);
 			--color-interactive-hover: var(--color-bearmetal-500);
@@ -568,20 +568,31 @@ injectStyle(
 			--color-interactive-subtle: var(--color-bearmetal-50);
 
 			/* ----------------------------------------------------------
-			   TYPOGRAPHY — Font families
+			   TYPOGRAPHY - Font families
 			   ---------------------------------------------------------- */
 			--font-sans:
-				"Urbanist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-				Helvetica, Arial, sans-serif, "Apple Color Emoji";
+				"Urbanist",
+				system-ui,
+				-apple-system,
+				BlinkMacSystemFont,
+				"Segoe UI",
+				Helvetica,
+				Arial,
+				sans-serif,
+				"Apple Color Emoji";
 			--font-serif: "Georgia", "Times New Roman", Times, serif;
 			--font-mono:
-				"JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace,
-				"Courier New", monospace;
+				"JetBrains Mono",
+				"Fira Code",
+				"Cascadia Code",
+				ui-monospace,
+				"Courier New",
+				monospace;
 			--font-display: var(--font-sans);
 			--font-body: var(--font-sans);
 
 			/* ----------------------------------------------------------
-			   TYPOGRAPHY — Scale (Major Third: 1.25)
+			   TYPOGRAPHY - Scale (Major Third: 1.25)
 			   ---------------------------------------------------------- */
 			--text-xs: 0.64rem;
 			--text-sm: 0.8rem;
@@ -594,7 +605,7 @@ injectStyle(
 			--text-4xl: 3.815rem;
 
 			/* ----------------------------------------------------------
-			   TYPOGRAPHY — Line heights
+			   TYPOGRAPHY - Line heights
 			   ---------------------------------------------------------- */
 			--leading-none: 1;
 			--leading-tight: 1.25;
@@ -604,7 +615,7 @@ injectStyle(
 			--leading-loose: 2;
 
 			/* ----------------------------------------------------------
-			   TYPOGRAPHY — Font weights
+			   TYPOGRAPHY - Font weights
 			   ---------------------------------------------------------- */
 			--weight-thin: 100;
 			--weight-light: 300;
@@ -616,7 +627,7 @@ injectStyle(
 			--weight-black: 900;
 
 			/* ----------------------------------------------------------
-			   TYPOGRAPHY — Letter spacing
+			   TYPOGRAPHY - Letter spacing
 			   ---------------------------------------------------------- */
 			--tracking-tighter: -0.05em;
 			--tracking-tight: -0.025em;
@@ -626,7 +637,7 @@ injectStyle(
 			--tracking-widest: 0.1em;
 
 			/* ----------------------------------------------------------
-			   SPACING — Base unit + scale
+			   SPACING - Base unit + scale
 			   ---------------------------------------------------------- */
 			--space-unit: 0.25rem;
 
@@ -735,7 +746,7 @@ injectStyle(
 			--transition-all: all var(--duration-base) var(--ease-in-out);
 
 			/* ----------------------------------------------------------
-			   LAYOUT — Breakpoints
+			   LAYOUT - Breakpoints
 			   ---------------------------------------------------------- */
 			--bp-xs: 480px;
 			--bp-sm: 640px;
@@ -745,7 +756,7 @@ injectStyle(
 			--bp-2xl: 1536px;
 
 			/* ----------------------------------------------------------
-			   LAYOUT — Container widths
+			   LAYOUT - Container widths
 			   ---------------------------------------------------------- */
 			--container-xs: 480px;
 			--container-sm: 640px;
@@ -756,20 +767,21 @@ injectStyle(
 			--container-prose: 65ch;
 
 			/* ----------------------------------------------------------
-			   LAYOUT — Grid
+			   LAYOUT - Grid
 			   ---------------------------------------------------------- */
 			--grid-cols: 12;
 			--grid-gap: var(--space-6);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Button
+			   COMPONENT TOKENS - Button
 			   ---------------------------------------------------------- */
 			--btn-font-family: var(--font-body);
 			--btn-font-weight: var(--weight-semibold);
 			--btn-letter-spacing: var(--tracking-wide);
 			--btn-border-width: var(--border-2);
 			--btn-transition:
-				var(--transition-colors), var(--transition-shadow),
+				var(--transition-colors),
+				var(--transition-shadow),
 				var(--transition-transform);
 
 			--btn-padding-y-xs: var(--space-1);
@@ -836,7 +848,7 @@ injectStyle(
 			--btn-orange-border: transparent;
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Input / Textarea / Select
+			   COMPONENT TOKENS - Input / Textarea / Select
 			   ---------------------------------------------------------- */
 			--input-font-family: var(--font-body);
 			--input-font-size: var(--text-base);
@@ -859,7 +871,7 @@ injectStyle(
 			--input-transition: var(--transition-colors), var(--transition-shadow);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Card
+			   COMPONENT TOKENS - Card
 			   ---------------------------------------------------------- */
 			--card-bg: var(--color-surface);
 			--card-border: var(--color-border);
@@ -871,7 +883,7 @@ injectStyle(
 			--card-padding-lg: var(--space-8);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Badge / Tag
+			   COMPONENT TOKENS - Badge / Tag
 			   ---------------------------------------------------------- */
 			--badge-font-size: var(--text-xs);
 			--badge-font-weight: var(--weight-semibold);
@@ -881,7 +893,7 @@ injectStyle(
 			--badge-letter-spacing: var(--tracking-wide);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Modal / Dialog
+			   COMPONENT TOKENS - Modal / Dialog
 			   ---------------------------------------------------------- */
 			--modal-bg: var(--color-surface-overlay);
 			--modal-border: var(--color-border);
@@ -896,7 +908,7 @@ injectStyle(
 			--modal-backdrop-blur: 4px;
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Toast / Notification
+			   COMPONENT TOKENS - Toast / Notification
 			   ---------------------------------------------------------- */
 			--toast-bg: var(--color-bearmetal-pebble-200);
 			--toast-color: var(--color-bearmetal-pebble-900);
@@ -909,7 +921,7 @@ injectStyle(
 			--toast-max-width: 24rem;
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Tooltip
+			   COMPONENT TOKENS - Tooltip
 			   ---------------------------------------------------------- */
 			--tooltip-bg: var(--color-bearmetal-pebble-800);
 			--tooltip-color: var(--color-bearmetal-pebble-50);
@@ -921,7 +933,7 @@ injectStyle(
 			--tooltip-max-width: 16rem;
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Table
+			   COMPONENT TOKENS - Table
 			   ---------------------------------------------------------- */
 			--table-bg: transparent;
 			--table-header-bg: var(--color-bg-subtle);
@@ -935,7 +947,7 @@ injectStyle(
 			--table-header-color: var(--color-text-subtle);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Navigation / Navbar
+			   COMPONENT TOKENS - Navigation / Navbar
 			   ---------------------------------------------------------- */
 			--nav-bg: var(--color-surface);
 			--nav-border: var(--color-border);
@@ -952,7 +964,7 @@ injectStyle(
 			--nav-item-padding-x: var(--space-3);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Sidebar
+			   COMPONENT TOKENS - Sidebar
 			   ---------------------------------------------------------- */
 			--sidebar-bg: var(--color-bg-subtle);
 			--sidebar-border: var(--color-border);
@@ -961,7 +973,7 @@ injectStyle(
 			--sidebar-padding: var(--space-4);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Avatar
+			   COMPONENT TOKENS - Avatar
 			   ---------------------------------------------------------- */
 			--avatar-size-xs: var(--space-6);
 			--avatar-size-sm: var(--space-8);
@@ -976,7 +988,7 @@ injectStyle(
 			--avatar-font-weight: var(--weight-semibold);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Progress / Spinner
+			   COMPONENT TOKENS - Progress / Spinner
 			   ---------------------------------------------------------- */
 			--progress-bg: var(--color-bg-emphasis);
 			--progress-fill: var(--color-interactive);
@@ -992,7 +1004,7 @@ injectStyle(
 			--spinner-thickness: 2px;
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Skeleton
+			   COMPONENT TOKENS - Skeleton
 			   ---------------------------------------------------------- */
 			--skeleton-bg: var(--color-bg-emphasis);
 			--skeleton-shine: var(--color-bg-muted);
@@ -1000,7 +1012,7 @@ injectStyle(
 			--skeleton-duration: 1.5s;
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Alert / Banner
+			   COMPONENT TOKENS - Alert / Banner
 			   ---------------------------------------------------------- */
 			--alert-padding-y: var(--space-3);
 			--alert-padding-x: var(--space-4);
@@ -1029,13 +1041,13 @@ injectStyle(
 			--alert-orange-color: var(--color-orange-dark);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Divider
+			   COMPONENT TOKENS - Divider
 			   ---------------------------------------------------------- */
 			--divider-color: var(--color-border);
 			--divider-width: var(--border-1);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Tabs
+			   COMPONENT TOKENS - Tabs
 			   ---------------------------------------------------------- */
 			--tab-bar-border: var(--color-border);
 			--tab-item-color: var(--color-text-subtle);
@@ -1049,7 +1061,7 @@ injectStyle(
 			--tab-padding-x: var(--space-4);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Toggle / Switch
+			   COMPONENT TOKENS - Toggle / Switch
 			   ---------------------------------------------------------- */
 			--toggle-bg-off: var(--color-bearmetal-pebble-300);
 			--toggle-bg-on: var(--color-interactive);
@@ -1062,7 +1074,7 @@ injectStyle(
 			--toggle-transition: var(--transition-colors), var(--transition-transform);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Checkbox & Radio
+			   COMPONENT TOKENS - Checkbox & Radio
 			   ---------------------------------------------------------- */
 			--check-size: 1rem;
 			--check-border: var(--color-border-strong);
@@ -1076,7 +1088,7 @@ injectStyle(
 			--check-transition: var(--transition-colors);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Dropdown / Select Menu
+			   COMPONENT TOKENS - Dropdown / Select Menu
 			   ---------------------------------------------------------- */
 			--dropdown-bg: var(--color-surface-overlay);
 			--dropdown-border: var(--color-border);
@@ -1093,7 +1105,7 @@ injectStyle(
 			--dropdown-item-color-active: var(--color-interactive);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Breadcrumb
+			   COMPONENT TOKENS - Breadcrumb
 			   ---------------------------------------------------------- */
 			--breadcrumb-font-size: var(--text-sm);
 			--breadcrumb-color: var(--color-text-subtle);
@@ -1101,7 +1113,7 @@ injectStyle(
 			--breadcrumb-separator-color: var(--color-text-muted);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Pagination
+			   COMPONENT TOKENS - Pagination
 			   ---------------------------------------------------------- */
 			--pagination-item-size: var(--space-8);
 			--pagination-item-radius: var(--radius-md);
@@ -1115,7 +1127,7 @@ injectStyle(
 			--pagination-item-font-weight: var(--weight-medium);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Form Field (label + input wrapper)
+			   COMPONENT TOKENS - Form Field (label + input wrapper)
 			   ---------------------------------------------------------- */
 			--field-label-font-size: var(--text-sm);
 			--field-label-font-weight: var(--weight-medium);
@@ -1128,7 +1140,7 @@ injectStyle(
 			--field-gap: var(--space-4);
 
 			/* ----------------------------------------------------------
-			   COMPONENT TOKENS — Empty State
+			   COMPONENT TOKENS - Empty State
 			   ---------------------------------------------------------- */
 			--empty-icon-color: var(--color-text-muted);
 			--empty-title-color: var(--color-text);
@@ -1137,7 +1149,7 @@ injectStyle(
 		}
 
 		/* ============================================================
-		   SECTION 2 — DARK MODE
+		   SECTION 2 - DARK MODE
 		   ============================================================ */
 
 		@media (prefers-color-scheme: dark) {
@@ -1274,7 +1286,7 @@ injectStyle(
 		}
 
 		/* ============================================================
-		   SECTION 3 — RESET / BASE STYLES
+		   SECTION 3 - RESET / BASE STYLES
 		   ============================================================ */
 
 		*,
@@ -1358,12 +1370,24 @@ injectStyle(
 			color: var(--color-text);
 		}
 
-		h1 { font-size: var(--text-3xl); }
-		h2 { font-size: var(--text-2xl); }
-		h3 { font-size: var(--text-xl); }
-		h4 { font-size: var(--text-lg); }
-		h5 { font-size: var(--text-md); }
-		h6 { font-size: var(--text-base); }
+		h1 {
+			font-size: var(--text-3xl);
+		}
+		h2 {
+			font-size: var(--text-2xl);
+		}
+		h3 {
+			font-size: var(--text-xl);
+		}
+		h4 {
+			font-size: var(--text-lg);
+		}
+		h5 {
+			font-size: var(--text-md);
+		}
+		h6 {
+			font-size: var(--text-base);
+		}
 
 		code,
 		kbd,
@@ -1430,7 +1454,7 @@ injectStyle(
 		}
 
 		/* ============================================================
-		   SECTION 4 — UTILITY HELPERS
+		   SECTION 4 - UTILITY HELPERS
 		   ============================================================ */
 
 		.container {
@@ -1467,8 +1491,12 @@ injectStyle(
 		}
 
 		@keyframes bm-shimmer {
-			0% { background-position: 200% center; }
-			100% { background-position: -200% center; }
+			0% {
+				background-position: 200% center;
+			}
+			100% {
+				background-position: -200% center;
+			}
 		}
 
 		.skeleton {
@@ -1485,7 +1513,9 @@ injectStyle(
 		}
 
 		@keyframes bm-spin {
-			to { transform: rotate(360deg); }
+			to {
+				transform: rotate(360deg);
+			}
 		}
 
 		.spinner {
@@ -1498,11 +1528,22 @@ injectStyle(
 			animation: bm-spin 0.7s linear infinite;
 		}
 
-		.spinner--sm { width: var(--spinner-size-sm); height: var(--spinner-size-sm); }
-		.spinner--lg { width: var(--spinner-size-lg); height: var(--spinner-size-lg); }
-		.spinner--xl { width: var(--spinner-size-xl); height: var(--spinner-size-xl); }
+		.spinner--sm {
+			width: var(--spinner-size-sm);
+			height: var(--spinner-size-sm);
+		}
+		.spinner--lg {
+			width: var(--spinner-size-lg);
+			height: var(--spinner-size-lg);
+		}
+		.spinner--xl {
+			width: var(--spinner-size-xl);
+			height: var(--spinner-size-xl);
+		}
 
-		.flex { display: flex; }
+		.flex {
+			display: flex;
+		}
 	`,
 );
 
@@ -1526,11 +1567,21 @@ injectStyle(
 			box-shadow: var(--input-shadow);
 			transition: var(--input-transition);
 
-			&.small { font-size: var(--input-font-size-sm); }
-			&.large { font-size: var(--input-font-size-lg); }
-			&:focus { border-color: var(--input-border-focus); }
-			&:hover { border-color: var(--input-border-hover); }
-			&:invalid { border-color: var(--input-border-error); }
+			&.small {
+				font-size: var(--input-font-size-sm);
+			}
+			&.large {
+				font-size: var(--input-font-size-lg);
+			}
+			&:focus {
+				border-color: var(--input-border-focus);
+			}
+			&:hover {
+				border-color: var(--input-border-hover);
+			}
+			&:invalid {
+				border-color: var(--input-border-error);
+			}
 		}
 
 		fieldset {
@@ -1657,8 +1708,12 @@ injectStyle(
 				box-shadow: var(--btn-orange-shadow);
 			}
 
-			&:active { border-color: var(--btn-active-border); }
-			&:hover { background-color: var(--btn-hover-color); }
+			&:active {
+				border-color: var(--btn-active-border);
+			}
+			&:hover {
+				background-color: var(--btn-hover-color);
+			}
 		}
 
 		body.rave-mode *:not(:has(*)) {
@@ -1780,24 +1835,55 @@ injectStyle(
 		}
 
 		@keyframes woom {
-			0% { border-radius: 0; transform: scale(100%); }
-			50% { border-radius: 50%; transform: scale(100%); }
-			100% { border-radius: 50%; transform: scale(0); }
+			0% {
+				border-radius: 0;
+				transform: scale(100%);
+			}
+			50% {
+				border-radius: 50%;
+				transform: scale(100%);
+			}
+			100% {
+				border-radius: 50%;
+				transform: scale(0);
+			}
 		}
 		@keyframes woop {
-			0% { corner-shape: scoop; }
-			25% { corner-shape: bevel; }
-			50% { corner-shape: notch; }
-			75% { corner-shape: round; }
-			100% { corner-shape: scoop; }
+			0% {
+				corner-shape: scoop;
+			}
+			25% {
+				corner-shape: bevel;
+			}
+			50% {
+				corner-shape: notch;
+			}
+			75% {
+				corner-shape: round;
+			}
+			100% {
+				corner-shape: scoop;
+			}
 		}
 		@keyframes woob {
-			0% { background-color: darkmagenta; }
-			10% { background-color: crimson; }
-			30% { background-color: darkblue; }
-			60% { background-color: darkorange; }
-			90% { background-color: brown; }
-			100% { background-color: darkmagenta; }
+			0% {
+				background-color: darkmagenta;
+			}
+			10% {
+				background-color: crimson;
+			}
+			30% {
+				background-color: darkblue;
+			}
+			60% {
+				background-color: darkorange;
+			}
+			90% {
+				background-color: brown;
+			}
+			100% {
+				background-color: darkmagenta;
+			}
 		}
 
 		bm-grid.bg {
@@ -1814,16 +1900,28 @@ injectStyle(
 		}
 
 		@keyframes gloop-spin {
-			from { rotate: 0deg; }
-			to { rotate: 360deg; }
+			from {
+				rotate: 0deg;
+			}
+			to {
+				rotate: 360deg;
+			}
 		}
 		@keyframes gloop-grow {
-			from { scale: 150%; }
-			to { scale: 200%; }
+			from {
+				scale: 150%;
+			}
+			to {
+				scale: 200%;
+			}
 		}
 		@keyframes gloop-shift {
-			from { translate: 0 0; }
-			to { translate: 0 -50%; }
+			from {
+				translate: 0 0;
+			}
+			to {
+				translate: 0 -50%;
+			}
 		}
 	`,
 );

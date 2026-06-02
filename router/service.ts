@@ -6,7 +6,7 @@
 import type { Service, ServiceActions, ServiceToken } from "./types.ts";
 
 /**
- * Create a typed service token — a branded string that carries action types
+ * Create a typed service token - a branded string that carries action types
  * so `ctx.getService()` can infer them without an explicit type parameter.
  *
  * @example
@@ -20,9 +20,9 @@ import type { Service, ServiceActions, ServiceToken } from "./types.ts";
  * ```
  */
 export function createServiceToken<T extends ServiceActions>(
-  name: string,
+	name: string,
 ): ServiceToken<T> {
-  return name as ServiceToken<T>;
+	return name as ServiceToken<T>;
 }
 
 /**
@@ -38,11 +38,11 @@ export function createServiceToken<T extends ServiceActions>(
  * ```
  */
 export function createService<T extends ServiceActions>(actions: T): Service<T> {
-  return {
-    invoke(action, ...args) {
-      const fn = actions[action];
-      if (!fn) throw new Error(`Action "${String(action)}" not found on service`);
-      return fn(...args) as ReturnType<T[typeof action]>;
-    },
-  };
+	return {
+		invoke(action, ...args) {
+			const fn = actions[action];
+			if (!fn) throw new Error(`Action "${String(action)}" not found on service`);
+			return fn(...args) as ReturnType<T[typeof action]>;
+		},
+	};
 }

@@ -161,7 +161,7 @@ function fillRow(
 // Persistent section builders
 // ---------------------------------------------------------------------------
 
-/** Build a thead — persists across renders, mutated in place on sort change. */
+/** Build a thead - persists across renders, mutated in place on sort change. */
 function buildHead(
 	columns: [key: string, title: string][],
 	onSort: (key: string) => void,
@@ -198,7 +198,7 @@ function updateHeadSort(
 	}
 }
 
-/** Build a tfoot — persists across renders, mutated in place on page change. */
+/** Build a tfoot - persists across renders, mutated in place on page change. */
 function buildFoot(
 	colSpan: number,
 	onPage: (delta: number) => void,
@@ -306,7 +306,7 @@ export class Table extends BaseComponent {
 		}
 	}
 
-	/** Public API — set data programmatically. */
+	/** Public API - set data programmatically. */
 	setData<T extends Row>(data: T[]): void {
 		this._setData(data);
 	}
@@ -382,7 +382,7 @@ export class Table extends BaseComponent {
 		);
 	}
 
-	/** Full rebuild — only called when data or page-size changes. */
+	/** Full rebuild - only called when data or page-size changes. */
 	private _buildTable(): void {
 		if (!this._data.length) return;
 
@@ -421,7 +421,7 @@ export class Table extends BaseComponent {
 		this.appendChild(table);
 	}
 
-	/** Partial update — only swaps tbody, thead and tfoot mutated in place. */
+	/** Partial update - only swaps tbody, thead and tfoot mutated in place. */
 	private _renderBody(): void {
 		if (!this._table) return;
 		const tbody = this._table.querySelector("tbody");

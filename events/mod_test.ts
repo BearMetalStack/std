@@ -106,7 +106,7 @@ Deno.test("eventStream removes listener on close", async () => {
 
 	await gen.return(undefined);
 
-	// Listener removed by finally block — this event should not appear
+	// Listener removed by finally block - this event should not appear
 	target.dispatchEvent(new CustomEvent("data", { detail: 2 }));
 
 	assertEquals(received, [1]);

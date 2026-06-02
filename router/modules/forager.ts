@@ -1,6 +1,6 @@
 /**
  * @module
- * Forager — a built-in Forager (route explorer) module for BearMetal Router.
+ * Forager - a built-in Forager (route explorer) module for BearMetal Router.
  *
  * Mounts a single route that renders an HTML page listing all registered
  * routes and their HTTP methods. Intended as a starting point for a full

@@ -1,6 +1,6 @@
 /**
  * @module
- * BearMetal Router — Module system.
+ * BearMetal Router - Module system.
  *
  * A Module is a self-contained bundle of routes, middleware, and services.
  * Mount it on a Router (or another Module) with `.use()` to merge its routes
@@ -45,7 +45,7 @@ export type RouteConfig<T extends StateType> = {
 	handlers: { [method: string]: AnyHandler[] };
 	/** Request body schemas keyed by uppercase HTTP method. */
 	schemas: { [method: string]: Schema<unknown> };
-	/** Response schemas per method and status — for documentation generation. */
+	/** Response schemas per method and status - for documentation generation. */
 	responseSchemas: { [method: string]: { [status: number]: Schema<unknown> } };
 	pattern: URLPattern;
 	_phantom?: T;
@@ -53,7 +53,7 @@ export type RouteConfig<T extends StateType> = {
 
 /**
  * Read-only view of a registered route's documentation metadata.
- * Returned by `module.routeRegistry` — safe to read, cannot mutate the live registry.
+ * Returned by `module.routeRegistry` - safe to read, cannot mutate the live registry.
  */
 export type ReadonlyRouteEntry = {
 	readonly pattern: URLPattern;
@@ -149,7 +149,7 @@ export type RouteConfigurator<
 /**
  * Structural interface describing the minimum surface a Module exposes to the
  * router machinery. Using this instead of the concrete `Module<any>` class
- * lets the router accept module instances from other package versions — the
+ * lets the router accept module instances from other package versions - the
  * hard-private `#` fields on `Module` make it nominally typed, so a `Module`
  * built against a different import URL (even the same package, different
  * version) would fail an `instanceof` check and a structural assignability
@@ -163,7 +163,7 @@ export interface AnyModule<TState extends StateType = StateType> {
 	_setParent?(parent: any): void;
 }
 
-/** Duck-type guard — true for any object that looks like a Module. */
+/** Duck-type guard - true for any object that looks like a Module. */
 export function isAnyModule(x: unknown): x is AnyModule<any> {
 	return x !== null && typeof x === "object" && "rawRoutes" in x &&
 		"rawServices" in x;
@@ -217,7 +217,7 @@ export class Module<TState extends StateType = {}> {
 
 	/**
 	 * Register a callback to be invoked when this module is mounted on a parent.
-	 * Return `false` to defer — the callback will be retried as the module tree is
+	 * Return `false` to defer - the callback will be retried as the module tree is
 	 * assembled, with progressively higher ancestors, and once more when the router
 	 * is consumed by `handle`. Any callback still returning `false` at that point
 	 * throws at startup, not at request time.
@@ -231,7 +231,7 @@ export class Module<TState extends StateType = {}> {
 	/**
 	 * Look up a service registered on this module (or accumulated from its children).
 	 * Same interface as `ctx.getService()`. In `onAdopted` callbacks, call this on
-	 * the `parent` argument — returning `false` if it throws lets the callback bubble
+	 * the `parent` argument - returning `false` if it throws lets the callback bubble
 	 * up to a higher ancestor where the service may be registered.
 	 */
 	getService<T extends ServiceActions>(
@@ -258,7 +258,7 @@ export class Module<TState extends StateType = {}> {
 	 * Called by `router.ready()`, or automatically on the first request if `ready()` was
 	 * not awaited. Runs after all `onAdopted` dependencies are resolved.
 	 *
-	 * Use this for async initialization that must complete before serving — migrations,
+	 * Use this for async initialization that must complete before serving - migrations,
 	 * cache warming, etc. Close over module-scoped variables set by `onAdopted`.
 	 */
 	onStart(callback: () => Promise<void>): this {
@@ -275,7 +275,7 @@ export class Module<TState extends StateType = {}> {
 		this._pendingCallbacks = [];
 		if (failed.length > 0) {
 			throw new Error(
-				`${failed.length} onAdopted callback(s) could not resolve — a required service may not be registered`,
+				`${failed.length} onAdopted callback(s) could not resolve - a required service may not be registered`,
 			);
 		}
 	}
@@ -383,7 +383,7 @@ export class Module<TState extends StateType = {}> {
 
 	/**
 	 * Read-only view of the route registry.
-	 * Safe for introspection (e.g. OpenAPI generation) — does not expose mutable handler arrays.
+	 * Safe for introspection (e.g. OpenAPI generation) - does not expose mutable handler arrays.
 	 */
 	get routeRegistry(): IteratorObject<[string, ReadonlyRouteEntry]> {
 		return this.routes.entries().map(([path, config]) => [

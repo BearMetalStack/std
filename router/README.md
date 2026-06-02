@@ -33,7 +33,7 @@ Handlers receive a single `ctx` object:
 | `ctx.url` | `URL` | Parsed request URL |
 | `ctx.params` | `Record<string, string \| undefined>` | URL path parameters |
 | `ctx.state` | `Record<string, unknown>` | Shared mutable state across the handler chain |
-| `ctx.body` | `string` (default) or schema output | Parsed request body — see [Validation](#validation) |
+| `ctx.body` | `string` (default) or schema output | Parsed request body - see [Validation](#validation) |
 | `ctx.query` | `Record<string, string>` | Raw URL query parameters, always present |
 
 ### Middleware
@@ -119,18 +119,18 @@ const app = new Router().use("/api", api);
 |---|---|
 | `.route(path)` | Define routes (same API as `router.route()`) |
 | `.use(handler)` | Add middleware that runs for every route in the module |
-| `.provides(name, service)` | Register a named service — inherited by the parent on `.use()` |
-| `.onAdopted(cb)` | Called when the module is mounted. Return `false` to defer until a higher ancestor is available — see [Lifecycle hooks](#lifecycle-hooks) |
-| `.onStart(cb)` | Async callback run once at startup, after all modules are mounted — see [Lifecycle hooks](#lifecycle-hooks) |
-| `.getService(name)` | Look up a service registered on this module. Useful inside `onAdopted` — throw signals "not here yet", which pairs with `return false` |
+| `.provides(name, service)` | Register a named service - inherited by the parent on `.use()` |
+| `.onAdopted(cb)` | Called when the module is mounted. Return `false` to defer until a higher ancestor is available - see [Lifecycle hooks](#lifecycle-hooks) |
+| `.onStart(cb)` | Async callback run once at startup, after all modules are mounted - see [Lifecycle hooks](#lifecycle-hooks) |
+| `.getService(name)` | Look up a service registered on this module. Useful inside `onAdopted` - throw signals "not here yet", which pairs with `return false` |
 
 #### Lifecycle hooks
 
 Modules can declare dependencies on services provided by other modules and run async initialization before the server starts handling requests.
 
-**`onAdopted`** fires when a module is mounted. Return `false` if a required service isn't available yet — the callback will be retried with progressively higher ancestors as the tree is assembled, and once more when `ready()` is called. Any callback still returning `false` at that point throws before the server starts.
+**`onAdopted`** fires when a module is mounted. Return `false` if a required service isn't available yet - the callback will be retried with progressively higher ancestors as the tree is assembled, and once more when `ready()` is called. Any callback still returning `false` at that point throws before the server starts.
 
-**`onStart`** runs once at startup, after all `onAdopted` checks pass. Use it for async work that must complete before serving — migrations, cache warming, connection setup. Close over variables set by `onAdopted` to carry context between the two hooks.
+**`onStart`** runs once at startup, after all `onAdopted` checks pass. Use it for async work that must complete before serving - migrations, cache warming, connection setup. Close over variables set by `onAdopted` to carry context between the two hooks.
 
 ```ts
 function authModule() {
@@ -139,7 +139,7 @@ function authModule() {
   return new Module()
     .onAdopted((parent) => {
       try { db = parent.getService<DbActions>("db"); }
-      catch { return false; } // db not registered here yet — try a higher ancestor
+      catch { return false; } // db not registered here yet - try a higher ancestor
     })
     .onStart(async () => {
       await db.invoke("migrate"); // db is guaranteed set by the time this runs
@@ -154,7 +154,7 @@ const router = new Router()
   .use(dbModule())
   .use(authModule());
 
-await router.ready();      // validates deps, runs migrations — errors throw here
+await router.ready();      // validates deps, runs migrations - errors throw here
 Deno.serve(router.handle); // starts with everything already initialized
 ```
 
@@ -181,7 +181,7 @@ const emailService = createService({
 // Directly on the router
 router.registerService("email", emailService);
 
-// Or bundled inside a module (preferred — inherited automatically on .use())
+// Or bundled inside a module (preferred - inherited automatically on .use())
 function emailModule() {
   return new Module().provides("email", emailService);
 }
@@ -199,7 +199,7 @@ router.route("/send").post(async (ctx) => {
 
 #### Typed service tokens
 
-String names lose type information at the call site. Use `createServiceToken` to create a branded token that carries the action types — no explicit type parameter needed on `getService`:
+String names lose type information at the call site. Use `createServiceToken` to create a branded token that carries the action types - no explicit type parameter needed on `getService`:
 
 ```ts
 export const emailToken = createServiceToken<{
@@ -209,7 +209,7 @@ export const emailToken = createServiceToken<{
 
 router.registerService(emailToken, emailService);
 
-// In a handler — fully typed without type annotations:
+// In a handler - fully typed without type annotations:
 const email = ctx.getService(emailToken);
 await email.invoke("send", "user@example.com", "Hello!"); // ✓ typed
 email.invoke("send", 42, "Hello!");                       // ✗ type error
@@ -293,7 +293,7 @@ User.partial()                     // make all fields optional
 
 Use `s.query()` to type and validate URL query parameters. The parsed result lands in `ctx.body` like any other schema. Use `.coerce()` on numeric and boolean fields since query values are always strings.
 
-`ctx.query` is always available as a raw `Record<string, string>` regardless of whether a schema is present — useful for untyped middleware (UTM tracking, pagination defaults, etc.).
+`ctx.query` is always available as a raw `Record<string, string>` regardless of whether a schema is present - useful for untyped middleware (UTM tracking, pagination defaults, etc.).
 
 ```ts
 const SearchQuery = s.query({
@@ -355,11 +355,11 @@ if (result.success) {
 const user = UserSchema.parse(unknownData); // throws SchemaError
 ```
 
-Each schema also implements `.toJSONSchema()` which returns a JSON Schema object — this is the foundation for future OpenAPI / Swagger documentation generation.
+Each schema also implements `.toJSONSchema()` which returns a JSON Schema object - this is the foundation for future OpenAPI / Swagger documentation generation.
 
 ### Response helpers
 
-All body-bearing response helpers return a `TypedResponse<T, Status>` — a `Response` subclass that carries the TypeScript type of the body and the HTTP status code as literal types.
+All body-bearing response helpers return a `TypedResponse<T, Status>` - a `Response` subclass that carries the TypeScript type of the body and the HTTP status code as literal types.
 
 **Objects are automatically JSON-serialized** and `Content-Type: application/json` is set. Strings produce plain text. Call with no arguments to get the default status text.
 
@@ -372,9 +372,9 @@ return Ok("hello");                     // TypedResponse<string, 200>
 // Auto-JSON (no manual JSON.stringify or Content-Type needed)
 return Ok({ id: "123", name: "Alice" }); // TypedResponse<{ id: string; name: string }, 200>
 return Created({ id: "456" });           // TypedResponse<{ id: string }, 201>
-return NotFound();                       // TypedResponse<string, 404> — "Not Found"
+return NotFound();                       // TypedResponse<string, 404> - "Not Found"
 
-// Schema overload — validates the body and attaches the schema for documentation
+// Schema overload - validates the body and attaches the schema for documentation
 return Ok(UserSchema, user);             // TypedResponse<User, 200>, throws if invalid
 ```
 
@@ -404,7 +404,7 @@ router.route("/users")
   .responds("post", { 201: UserSchema, 400: ErrorSchema });
 ```
 
-The `.responds()` call is for documentation only — it does not validate outgoing responses at runtime.
+The `.responds()` call is for documentation only - it does not validate outgoing responses at runtime.
 
 ### Static Files
 
@@ -415,7 +415,7 @@ router.serveDirectory('dirname', '/url-root');
 // Serve index.html for directory paths
 router.serveDirectory('dirWithIndexHtml', '/indexes', { showIndex: true });
 
-// SPA mode — fall back to index.html for unmatched paths
+// SPA mode - fall back to index.html for unmatched paths
 router.serveDirectory('dist', '/', { spa: true });
 ```
 

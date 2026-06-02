@@ -43,7 +43,7 @@ export interface Service<T extends ServiceActions = ServiceActions> {
 
 /**
  * @description a context object passed to every handler and middleware.
- * `TBody` reflects the parsed request body type — `string` by default,
+ * `TBody` reflects the parsed request body type - `string` by default,
  * or the inferred output of a schema when one is registered on the route.
  */
 export interface RouterContext<
@@ -66,7 +66,7 @@ export interface RouterContext<
 
 /**
  * @description a route handler or middleware function.
- * The `next` parameter calls the next handler in the chain — omit it for terminal handlers.
+ * The `next` parameter calls the next handler in the chain - omit it for terminal handlers.
  */
 export type RouterHandler<T extends StateType = StateType, TBody = string> = (
 	ctx: RouterContext<T, TBody>,

@@ -6,7 +6,7 @@
  * forwarded to it during development.
  *
  * In non-dev environments (`BEARMETAL_ENV !== "dev"`) all exports are safe to
- * call — they become no-ops so this module can be used unconditionally in
+ * call - they become no-ops so this module can be used unconditionally in
  * shared entrypoints.
  *
  * Requires `--allow-env=BEARMETAL_PROXY_HOST,BEARMETAL_ENV` and

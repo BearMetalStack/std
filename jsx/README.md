@@ -17,7 +17,7 @@ Add to your project's `deno.json`:
 }
 ```
 
-Use `@bearmetal/jsx/client` instead if you're targeting the DOM. You don't need to import anything in your `.tsx` files — the runtime is injected automatically.
+Use `@bearmetal/jsx/client` instead if you're targeting the DOM. You don't need to import anything in your `.tsx` files - the runtime is injected automatically.
 
 ## Client vs server
 

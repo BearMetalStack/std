@@ -206,7 +206,7 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 	/**
 	 * Run all `onAdopted` dependency checks and `onStart` async callbacks.
 	 * Await this before `Deno.serve` to catch startup errors immediately.
-	 * If not called, `handle` will invoke it automatically — errors then surface
+	 * If not called, `handle` will invoke it automatically - errors then surface
 	 * on the first request rather than at startup.
 	 */
 	ready(): Promise<void> {
