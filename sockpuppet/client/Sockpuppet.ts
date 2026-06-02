@@ -1,3 +1,5 @@
+import { filteredEvent } from "@bearmetal/events";
+
 import type { channelCallback, socketCallback } from "./types.ts";
 import { Channel } from "./Channel.ts";
 import { Message } from "./Message.ts";
@@ -41,18 +43,14 @@ class WebsocketClient {
 	}
 
 	#pulse() {
-		let live = 0;
-		const handler = (e: Event) => {
-			if ((e as SockpuppetPingEvent).detail.id === this.connString) live++;
-		};
-
-		bus.addEventListener("sockpuppet:pong", handler);
-		bus.dispatchEvent(new CustomEvent("sockpuppet:ping", { detail: { id: this.connString } }));
-
-		setTimeout(() => {
-			bus.removeEventListener("sockpuppet:pong", handler);
-			if (live === 0) this.#close();
-		}, 0);
+		filteredEvent(
+			bus,
+			"sockpuppet:ping",
+			"sockpuppet:pong",
+			(e: SockpuppetPingEvent) => e.detail.id === this.connString,
+		).then((r) => {
+			if (!r.length) this.#close();
+		});
 	}
 
 	#close() {

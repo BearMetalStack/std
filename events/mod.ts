@@ -143,7 +143,7 @@ export async function filteredEvent<T extends Event = Event, R extends Event = T
 	eventType: string,
 	responseType: string,
 	predicate: (event: R) => boolean,
-	detail: unknown,
+	detail?: unknown,
 ): Promise<R[]> {
 	return (await promiseEvent<T, R>(target, eventType, responseType, detail)).filter(predicate);
 }
@@ -314,7 +314,7 @@ export class BearMetalEventTarget<TMap extends EventMap> extends EventTarget {
 		eventType: T,
 		responseType: R,
 		predicate: (event: CustomEvent<TMap[R]["detail"]>) => boolean,
-		detail: TMap[T]["detail"],
+		detail?: TMap[T]["detail"],
 	): Promise<CustomEvent<TMap[R]["detail"]>[]> {
 		return filteredEvent<CustomEvent<TMap[T]["detail"]>, CustomEvent<TMap[R]["detail"]>>(
 			this,
@@ -423,7 +423,7 @@ export class BearMetalEventSource<TMap extends EventMap> extends EventSource {
 		eventType: T,
 		responseType: R,
 		predicate: (event: CustomEvent<TMap[R]["detail"]>) => boolean,
-		detail: TMap[T]["detail"],
+		detail?: TMap[T]["detail"],
 	): Promise<CustomEvent<TMap[R]["detail"]>[]> {
 		return filteredEvent<CustomEvent<TMap[T]["detail"]>, CustomEvent<TMap[R]["detail"]>>(
 			this,
