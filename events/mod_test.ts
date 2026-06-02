@@ -190,18 +190,10 @@ Deno.test("bufferEvent resolves with empty array when no events fire", async () 
 
 // pipeEvent
 
-// pipeEvent can't re-dispatch the same event object while it's still in the dispatch
-// phase, so all tests use a transform that creates a new event instance.
-
 Deno.test("pipeEvent forwards events to destination", async () => {
 	const source = new EventTarget();
 	const dest = new EventTarget();
-	const teardown = pipeEvent<CustomEvent<string>, CustomEvent<string>>(
-		source,
-		dest,
-		"test",
-		(e) => new CustomEvent(e.type, { detail: e.detail }),
-	);
+	const teardown = pipeEvent<CustomEvent<string>>(source, dest, "test");
 	const received = onceEvent<CustomEvent<string>>(dest, "test");
 	source.dispatchEvent(new CustomEvent("test", { detail: "hello" }));
 	const event = await received;
@@ -229,15 +221,10 @@ Deno.test("pipeEvent teardown stops forwarding", async () => {
 	const dest = new EventTarget();
 	let count = 0;
 	dest.addEventListener("test", () => count++);
-	const teardown = pipeEvent<CustomEvent<string>, CustomEvent<string>>(
-		source,
-		dest,
-		"test",
-		(e) => new CustomEvent(e.type, { detail: e.detail }),
-	);
-	source.dispatchEvent(new CustomEvent("test", { detail: "first" }));
+	const teardown = pipeEvent(source, dest, "test");
+	source.dispatchEvent(new Event("test"));
 	teardown();
-	source.dispatchEvent(new CustomEvent("test", { detail: "second" }));
+	source.dispatchEvent(new Event("test"));
 	await new Promise((r) => setTimeout(r, 0));
 	assertEquals(count, 1);
 });

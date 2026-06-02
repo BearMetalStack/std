@@ -81,6 +81,21 @@ export function raceEvent<T extends Event = Event>(
  * The listener is removed automatically when the generator is closed (via `return` or
  * `break` from a `for await…of` loop).
  *
+ * **Note:** the listener is not registered until the first `.next()` call (or the start
+ * of a `for await…of` loop). Any events dispatched between calling `eventStream()` and
+ * that first `.next()` will be silently dropped. Avoid storing the generator and
+ * consuming it across an `await` boundary:
+ *
+ * ```ts
+ * // BAD — events fired during the fetch are lost
+ * const stream = eventStream(target, "data");
+ * await fetch("/something");
+ * for await (const e of stream) { ... }
+ *
+ * // GOOD — listener registers immediately
+ * for await (const e of eventStream(target, "data")) { ... }
+ * ```
+ *
  * @param target - The event target to listen on.
  * @param eventType - The event type to stream.
  * @returns An async generator that yields each event as it fires.
@@ -236,8 +251,15 @@ export function pipeEvent<T extends Event = Event, R extends Event = T>(
 	transform?: (e: T) => R,
 ): () => void {
 	const handler = (e: Event) => {
-		e = transform ? transform(e as T) : e;
-		destination.dispatchEvent(e as R);
+		const out: R = transform
+			? transform(e as T)
+			: new (e.constructor as typeof CustomEvent)(e.type, {
+				bubbles: e.bubbles,
+				cancelable: e.cancelable,
+				composed: e.composed,
+				detail: (e as CustomEvent).detail,
+			}) as unknown as R;
+		destination.dispatchEvent(out);
 	};
 	target.addEventListener(eventType, handler);
 	return () => {
