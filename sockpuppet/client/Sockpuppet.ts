@@ -2,11 +2,88 @@ import type { channelCallback, socketCallback } from "./types.ts";
 import { Channel } from "./Channel.ts";
 import { Message } from "./Message.ts";
 
+const bus = new EventTarget();
+type SockpuppetPingEvent = CustomEvent<{ id: string }>;
+
+class WebsocketClient {
+	#tenants: number = 0;
+	socket: WebSocket;
+
+	constructor(private connString: string, private refreshInterval: number = 30_000) {
+		this.socket = new WebSocket(this.connString);
+		const send = this.socket.send.bind(this.socket);
+		this.socket.send = (data) => {
+			this.#refresh();
+			send(data);
+		};
+	}
+
+	#refresh() {
+		this.#checkTenants(this.refreshInterval);
+	}
+
+	acquire() {
+		this.#tenants++;
+		return this;
+	}
+
+	release() {
+		this.#tenants--;
+		this.#checkTenants(10_000);
+	}
+
+	#timer: ReturnType<typeof setTimeout> | undefined;
+	#checkTenants(delay: number) {
+		clearTimeout(this.#timer);
+		this.#timer = setTimeout(() => {
+			this.#pulse();
+		}, delay);
+	}
+
+	#pulse() {
+		let live = 0;
+		const handler = (e: Event) => {
+			if ((e as SockpuppetPingEvent).detail.id === this.connString) live++;
+		};
+
+		bus.addEventListener("sockpuppet:pong", handler);
+		bus.dispatchEvent(new CustomEvent("sockpuppet:ping", { detail: { id: this.connString } }));
+
+		setTimeout(() => {
+			bus.removeEventListener("sockpuppet:pong", handler);
+			if (live === 0) this.#close();
+		}, 0);
+	}
+
+	#close() {
+		requestClose(this.connString);
+	}
+
+	close() {
+		this.socket.close();
+	}
+}
+
+const connections = new Map<string, WebsocketClient>();
+
+function requestClose(connString: string) {
+	connections.get(connString)?.close();
+	connections.delete(connString);
+}
+
+function requestConnection(connString: string) {
+	if (connections.has(connString)) return connections.get(connString)!.acquire();
+	const conn = new WebsocketClient(connString);
+	connections.set(connString, conn);
+	return conn.acquire();
+}
+
 interface PuppetOptions {
 	keepAlive?: boolean;
 }
 export class Sockpuppet {
 	private socket: WebSocket;
+	private socketClient: WebsocketClient;
 
 	public channels: Map<string, Channel>;
 
@@ -33,8 +110,9 @@ export class Sockpuppet {
 	private messageQueue: MessageEvent<any>[] = [];
 
 	constructor(path: string, onConnect?: () => void, options?: PuppetOptions) {
-		if (isFullUrl(path)) this.socket = new WebSocket(path);
-		else this.socket = new WebSocket(`${globalThis.location.host}${path}`);
+		if (!isFullUrl(path)) path = `${globalThis.location.host}${path}`;
+		this.socketClient = requestConnection(path);
+		this.socket = this.socketClient.socket;
 
 		if (onConnect) {
 			this.socket.addEventListener("open", () => {
@@ -67,6 +145,12 @@ export class Sockpuppet {
 		this.callbacks = new Map([
 			["disconnect", []],
 		]);
+
+		bus.addEventListener("sockpuppet:ping", (e) => {
+			if ((e as SockpuppetPingEvent).detail.id === path) {
+				bus.dispatchEvent(new CustomEvent("sockpuppet:pong", { detail: { id: path } }));
+			}
+		});
 	}
 
 	public joinChannel = (
@@ -74,23 +158,22 @@ export class Sockpuppet {
 		handler: channelCallback<string>,
 	) => {
 		if (this.socket.readyState === 1) {
-			const channel = new Channel(channelId, this.socket);
-			this.channels.set(channelId, channel);
-			channel.addListener(handler);
-			this.socket.send(JSON.stringify({
-				connect_to: [channelId],
-			}));
+			this._joinChannel(channelId, handler);
 		} else {
 			this.socket.addEventListener("open", () => {
-				const channel = new Channel(channelId, this.socket);
-				this.channels.set(channelId, channel);
-				channel.addListener(handler);
-				this.socket.send(JSON.stringify({
-					connect_to: [channelId],
-				}));
+				this._joinChannel(channelId, handler);
 			});
 		}
 	};
+
+	private _joinChannel(channelId: string, handler: channelCallback<string>) {
+		const channel = new Channel(channelId, this.socket);
+		this.channels.set(channelId, channel);
+		channel.addListener(handler);
+		this.socket.send(JSON.stringify({
+			connect_to: [channelId],
+		}));
+	}
 
 	public on = (event: string, callback: socketCallback) => {
 		if (!this.callbacks.has(event)) {
