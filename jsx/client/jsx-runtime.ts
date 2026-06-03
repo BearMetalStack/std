@@ -1,23 +1,74 @@
-import { BMC, isBMC } from "../lib/bmc.ts";
+// deno-lint-ignore-file no-explicit-any
+import { type BMC, isBMC } from "../lib/bmc.ts";
+
+// -- Signal duck typing --
+
+type SignalLike<T = unknown> = { get(): T };
+
+function isSignal(value: unknown): value is SignalLike {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		typeof (value as any).get === "function"
+	);
+}
+
+// -- Effect scheduling --
+// Imported from @bearmetal/app, but typed loosely here to avoid hard dep
+
+type CleanupFn = () => void;
+type EffectFn = (fn: () => CleanupFn | void) => CleanupFn;
+
+let _effect: EffectFn | null = null;
+let _currentOwner: { registerCleanup(fn: CleanupFn): void } | null = null;
+
+export function setEffectImpl(impl: EffectFn) {
+	_effect = impl;
+}
+
+export function setCurrentOwner(
+	owner: { registerCleanup(fn: CleanupFn): void } | null,
+) {
+	_currentOwner = owner;
+}
+
+function reactiveEffect(fn: () => CleanupFn | void): void {
+	if (!_effect) return; // no signal layer loaded, skip silently
+	const cleanup = _effect(fn);
+	_currentOwner?.registerCleanup(cleanup);
+}
+
+// -- Props --
 
 function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 	for (const [key, val] of Object.entries(props)) {
 		if (key === "children") continue;
-		if (key === "class") {
-			el.className = val as string;
-		} else if (key.startsWith("on") && typeof val === "function") {
-			el.addEventListener(key.slice(2).toLowerCase(), val as EventListener);
-		} else if (typeof val === "boolean") {
-			if (val) el.setAttribute(key, "");
-		} else if (val != null) {
-			el.setAttribute(key, String(val));
+		if (isSignal(val)) {
+			reactiveEffect(() => applyProp(el, key, val.get()));
+		} else {
+			applyProp(el, key, val);
 		}
 	}
 }
 
+function applyProp(el: HTMLElement, key: string, val: unknown) {
+	if (key === "class") {
+		el.className = val as string;
+	} else if (key.startsWith("on") && typeof val === "function") {
+		el.addEventListener(key.slice(2).toLowerCase(), val as EventListener);
+	} else if (typeof val === "boolean") {
+		if (val) el.setAttribute(key, "");
+		else el.removeAttribute(key);
+	} else if (val != null) {
+		el.setAttribute(key, String(val));
+	}
+}
+
+// -- Children --
+
 type AnyChild = Node | string | null | undefined;
 
-function appendChildren(
+function _appendChildren(
 	parent: Element | DocumentFragment,
 	children: AnyChild[],
 ) {
@@ -29,13 +80,39 @@ function appendChildren(
 	}
 }
 
-function flatChildren(children: unknown): AnyChild[] {
+function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalLike) {
+	const text = document.createTextNode(String(signal.get()));
+	parent.appendChild(text);
+	reactiveEffect(() => {
+		text.data = String(signal.get());
+	});
+}
+
+function flatChildren(children: unknown): (AnyChild | SignalLike)[] {
 	if (children == null) return [];
 	if (Array.isArray(children)) {
-		return (children as AnyChild[]).flat(Infinity as 0);
+		return (children as unknown[]).flat(Infinity as 0) as (AnyChild | SignalLike)[];
 	}
-	return [children as AnyChild];
+	return [children as AnyChild | SignalLike];
 }
+
+function appendFlatChildren(
+	parent: Element | DocumentFragment,
+	children: (AnyChild | SignalLike)[],
+) {
+	for (const child of children) {
+		if (child == null) continue;
+		if (isSignal(child)) {
+			appendReactiveChild(parent, child);
+		} else {
+			parent.appendChild(
+				typeof child === "string" ? document.createTextNode(child) : child,
+			);
+		}
+	}
+}
+
+// -- JSX --
 
 export function jsx(
 	tag:
@@ -51,7 +128,7 @@ export function jsx(
 	if (isBMC(tag)) {
 		const el = document.createElement(tag.tag) as HTMLElement;
 		applyProps(el, rest);
-		appendChildren(el, flat);
+		appendFlatChildren(el, flat);
 		return el;
 	}
 
@@ -62,7 +139,7 @@ export function jsx(
 	if (tag === "template") {
 		const templateEl = document.createElement("template");
 		applyProps(templateEl, rest);
-		appendChildren(templateEl.content as unknown as DocumentFragment, flat);
+		appendFlatChildren(templateEl.content as unknown as DocumentFragment, flat);
 		return templateEl;
 	}
 
@@ -71,14 +148,16 @@ export function jsx(
 	if (raw) {
 		for (const child of flat) {
 			if (child == null) continue;
-			if (typeof child === "string") {
+			if (isSignal(child)) {
+				appendReactiveChild(el, child);
+			} else if (typeof child === "string") {
 				el.insertAdjacentHTML("beforeend", child);
 			} else {
 				el.appendChild(child);
 			}
 		}
 	} else {
-		appendChildren(el, flat);
+		appendFlatChildren(el, flat);
 	}
 	return el;
 }
@@ -89,316 +168,8 @@ export function Fragment(
 	{ children }: { children?: unknown },
 ): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	appendChildren(frag, flatChildren(children));
+	appendFlatChildren(frag, flatChildren(children));
 	return frag;
 }
 
-// Module-scoped JSX namespace (TypeScript 5.1+). No declare global - no conflict.
-export namespace JSX {
-	export type Element = globalThis.Element | DocumentFragment;
-
-	export interface ElementChildrenAttribute {
-		children: unknown;
-	}
-
-	export type Child = Element | string | number | boolean | null | undefined;
-	export type Children = Child | Child[];
-
-	export interface CommonProps {
-		class?: string;
-		id?: string;
-		style?: string | Partial<CSSStyleDeclaration>;
-		title?: string;
-		tabindex?: number;
-		hidden?: boolean;
-		children?: Children;
-		raw?: boolean;
-		[key: `data-${string}`]: string | undefined;
-		[key: `aria-${string}`]: string | boolean | undefined;
-	}
-
-	export type EventProps = {
-		[K in keyof HTMLElementEventMap as `on${Capitalize<K>}`]?: (
-			e: HTMLElementEventMap[K],
-		) => void;
-	};
-
-	export type BaseProps = CommonProps & EventProps;
-
-	export interface AnchorProps extends BaseProps {
-		href?: string;
-		target?: string;
-		rel?: string;
-		download?: string;
-	}
-	export interface ButtonProps extends BaseProps {
-		type?: "button" | "submit" | "reset";
-		disabled?: boolean;
-		name?: string;
-		value?: string;
-	}
-	export interface InputProps extends BaseProps {
-		type?: string;
-		value?: string;
-		placeholder?: string;
-		disabled?: boolean;
-		checked?: boolean;
-		required?: boolean;
-		min?: string;
-		max?: string;
-		step?: string;
-		name?: string;
-		readonly?: boolean;
-		multiple?: boolean;
-		accept?: string;
-	}
-	export interface TextareaProps extends BaseProps {
-		placeholder?: string;
-		disabled?: boolean;
-		required?: boolean;
-		rows?: number;
-		cols?: number;
-		readonly?: boolean;
-		name?: string;
-	}
-	export interface SelectProps extends BaseProps {
-		disabled?: boolean;
-		required?: boolean;
-		multiple?: boolean;
-		name?: string;
-		value?: string;
-	}
-	export interface OptionProps extends BaseProps {
-		value?: string;
-		disabled?: boolean;
-		selected?: boolean;
-	}
-	export interface FormProps extends BaseProps {
-		action?: string;
-		method?: string;
-		enctype?: string;
-		novalidate?: boolean;
-	}
-	export interface ImgProps extends BaseProps {
-		src?: string;
-		alt?: string;
-		width?: number | string;
-		height?: number | string;
-		loading?: "lazy" | "eager";
-		srcset?: string;
-		sizes?: string;
-	}
-	export interface VideoProps extends BaseProps {
-		src?: string;
-		controls?: boolean;
-		autoplay?: boolean;
-		loop?: boolean;
-		muted?: boolean;
-		poster?: string;
-		width?: number | string;
-		height?: number | string;
-	}
-	export interface AudioProps extends BaseProps {
-		src?: string;
-		controls?: boolean;
-		autoplay?: boolean;
-		loop?: boolean;
-		muted?: boolean;
-	}
-	export interface SourceProps extends BaseProps {
-		src?: string;
-		type?: string;
-		srcset?: string;
-		media?: string;
-	}
-	export interface IframeProps extends BaseProps {
-		src?: string;
-		width?: number | string;
-		height?: number | string;
-		title?: string;
-		allow?: string;
-		sandbox?: string;
-	}
-	export interface LinkProps extends BaseProps {
-		href?: string;
-		rel?: string;
-		type?: string;
-		media?: string;
-		as?: string;
-		crossorigin?: string;
-	}
-	export interface MetaProps extends BaseProps {
-		name?: string;
-		content?: string;
-		charset?: string;
-		"http-equiv"?: string;
-	}
-	export interface ScriptProps extends BaseProps {
-		src?: string;
-		type?: string;
-		async?: boolean;
-		defer?: boolean;
-		crossorigin?: string;
-	}
-	// deno-lint-ignore no-empty-interface
-	export interface TableProps extends BaseProps {}
-	export interface TdProps extends BaseProps {
-		colspan?: number;
-		rowspan?: number;
-	}
-	export interface ThProps extends BaseProps {
-		colspan?: number;
-		rowspan?: number;
-		scope?: string;
-	}
-	export interface ColProps extends BaseProps {
-		span?: number;
-	}
-	export interface LabelProps extends BaseProps {
-		for?: string;
-	}
-	export interface DetailsProps extends BaseProps {
-		open?: boolean;
-	}
-	export interface DialogProps extends BaseProps {
-		open?: boolean;
-	}
-	export interface ProgressProps extends BaseProps {
-		value?: number;
-		max?: number;
-	}
-	export interface MeterProps extends BaseProps {
-		value?: number;
-		min?: number;
-		max?: number;
-		low?: number;
-		high?: number;
-		optimum?: number;
-	}
-	export interface FieldsetProps extends BaseProps {
-		disabled?: boolean;
-	}
-	export interface TrackProps extends BaseProps {
-		src?: string;
-		kind?: string;
-		srclang?: string;
-		label?: string;
-		default?: boolean;
-	}
-	export interface CanvasProps extends BaseProps {
-		width?: number;
-		height?: number;
-	}
-	export interface OlProps extends BaseProps {
-		reversed?: boolean;
-		start?: number;
-		type?: string;
-	}
-	export interface SlotProps extends BaseProps {
-		name?: string;
-	}
-
-	export interface IntrinsicElements {
-		div: BaseProps;
-		span: BaseProps;
-		p: BaseProps;
-		section: BaseProps;
-		article: BaseProps;
-		aside: BaseProps;
-		main: BaseProps;
-		header: BaseProps;
-		footer: BaseProps;
-		nav: BaseProps;
-		h1: BaseProps;
-		h2: BaseProps;
-		h3: BaseProps;
-		h4: BaseProps;
-		h5: BaseProps;
-		h6: BaseProps;
-		ul: BaseProps;
-		ol: OlProps;
-		li: BaseProps;
-		dl: BaseProps;
-		dt: BaseProps;
-		dd: BaseProps;
-		figure: BaseProps;
-		figcaption: BaseProps;
-		blockquote: BaseProps;
-		pre: BaseProps;
-		code: BaseProps;
-		kbd: BaseProps;
-		samp: BaseProps;
-		var: BaseProps;
-		strong: BaseProps;
-		em: BaseProps;
-		small: BaseProps;
-		mark: BaseProps;
-		del: BaseProps;
-		ins: BaseProps;
-		sub: BaseProps;
-		sup: BaseProps;
-		abbr: BaseProps;
-		cite: BaseProps;
-		q: BaseProps;
-		time: BaseProps;
-		address: BaseProps;
-		hr: BaseProps;
-		br: BaseProps;
-		wbr: BaseProps;
-		summary: BaseProps;
-		a: AnchorProps;
-		button: ButtonProps;
-		input: InputProps;
-		textarea: TextareaProps;
-		select: SelectProps;
-		option: OptionProps;
-		optgroup: BaseProps;
-		form: FormProps;
-		label: LabelProps;
-		fieldset: FieldsetProps;
-		legend: BaseProps;
-		details: DetailsProps;
-		dialog: DialogProps;
-		img: ImgProps;
-		video: VideoProps;
-		audio: AudioProps;
-		source: SourceProps;
-		picture: BaseProps;
-		iframe: IframeProps;
-		canvas: CanvasProps;
-		track: TrackProps;
-		embed: BaseProps;
-		object: BaseProps;
-		table: TableProps;
-		thead: BaseProps;
-		tbody: BaseProps;
-		tfoot: BaseProps;
-		tr: BaseProps;
-		td: TdProps;
-		th: ThProps;
-		colgroup: BaseProps;
-		col: ColProps;
-		caption: BaseProps;
-		head: BaseProps;
-		body: BaseProps;
-		html: BaseProps;
-		title: BaseProps;
-		link: LinkProps;
-		meta: MetaProps;
-		script: ScriptProps;
-		style: BaseProps;
-		base: BaseProps;
-		slot: SlotProps;
-		template: BaseProps;
-		noscript: BaseProps;
-		progress: ProgressProps;
-		meter: MeterProps;
-		map: BaseProps;
-		area: BaseProps;
-		// deno-lint-ignore no-explicit-any
-		[tag: string]: any;
-	}
-
-	// deno-lint-ignore no-empty-interface
-	export interface IntrinsicAttributes {}
-}
+export * from "./types.ts";
