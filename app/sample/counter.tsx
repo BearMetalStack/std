@@ -8,6 +8,9 @@ export class MyCounter extends BmElement {
 	protected override render() {
 		this.appendChild(
 			<div>
+				<button type="button" onClick={() => this.#count.set(this.#count.get() - 1)}>
+					-
+				</button>
 				<span>{this.#count}</span>
 				<button type="button" onClick={() => this.#count.set(this.#count.get() + 1)}>
 					+

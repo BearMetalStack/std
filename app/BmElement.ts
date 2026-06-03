@@ -2,7 +2,8 @@ import { effect } from "./signals.ts"; // your effect impl from earlier
 import { BMC, setCurrentOwner, setEffectImpl } from "@bearmetal/jsx/client";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import type { ContextMap } from "./context/mod.ts";
-import { Signal } from "@signals";
+import type { Signal as Signals } from "@signals";
+const { Signal } = await import("@signals");
 
 setEffectImpl(effect);
 
@@ -17,7 +18,7 @@ export abstract class BmElement extends BMC {
 
 	#cleanups: Array<() => void> = [];
 
-	signals: Record<string, Signal.State<unknown>> = {};
+	signals: Record<string, Signals.State<unknown>> = {};
 
 	registerCleanup(fn: () => void) {
 		this.#cleanups.push(fn);
