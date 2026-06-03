@@ -19,11 +19,13 @@
 // Incoming WS messages are JSON objects: { "type": "<event>", "channel"?: "...", ...data }
 // Outgoing form messages:               { "type": "<event>", "channel"?: "...", ...formFields }
 
+import { Sockpuppet } from "@bearmetal/sockpuppet/client";
+
 import { registerElement } from "@lib/registerElements.ts";
-import { appendToContainer } from "./utils.ts";
+import { appendToContainer, swapContainer } from "./utils.ts";
 
 export class BmSockpuppet extends HTMLElement {
-	private _ws: WebSocket | null = null;
+	private _ws: Sockpuppet | null = null;
 
 	constructor() {
 		super();
@@ -35,7 +37,7 @@ export class BmSockpuppet extends HTMLElement {
 	}
 
 	disconnectedCallback() {
-		this._ws?.close();
+		this._ws?.leaveChannel(this.getAttribute("channel")!);
 		this._ws = null;
 	}
 
@@ -46,45 +48,53 @@ export class BmSockpuppet extends HTMLElement {
 
 		const channel = this.getAttribute("channel") ?? undefined;
 
+		if (!channel) throw new Error("bm-sockpuppet: channel is required");
+
 		const appendContainers = Array.from(
 			this.querySelectorAll<HTMLElement>("[data-sockpuppet-append]"),
 		);
+		const swapContainers = Array.from(
+			this.querySelectorAll<HTMLElement>("[sse-swap]"),
+		);
 
-		// TODO: replace with Sockpuppet library client
-		const ws = new WebSocket(src);
-		this._ws = ws;
+		const puppet = new Sockpuppet(src);
+		this._ws = puppet;
 
-		ws.addEventListener("message", (e: MessageEvent) => {
-			let msg: Record<string, string>;
+		puppet.joinChannel(channel, (m) => {
+			let msg: Record<string, string> | null = null;
 			try {
-				msg = JSON.parse(e.data);
+				msg = JSON.parse(m);
 			} catch {
 				return;
 			}
 
-			const type = msg["type"];
+			const type = msg!["type"];
 			if (!type) return;
-			if (channel && msg["channel"] && msg["channel"] !== channel) return;
 
 			for (const container of appendContainers) {
 				if (container.getAttribute("data-sockpuppet-append") !== type) continue;
-				appendToContainer(container, msg, "data-sockpuppet", "data-sockpuppet-max");
+				appendToContainer(container, msg!, "data-sockpuppet", "data-sockpuppet-max");
+			}
+			for (const container of swapContainers) {
+				if (container.getAttribute("sockpuppet-swap") !== type) continue;
+				swapContainer(container, msg!, "data-sse");
 			}
 		});
 
-		for (const form of this.querySelectorAll<HTMLFormElement>(
-			"[data-sockpuppet-form]",
-		)) {
+		for (
+			const form of this.querySelectorAll<HTMLFormElement>(
+				"[data-sockpuppet-form]",
+			)
+		) {
 			form.addEventListener("submit", (e) => {
 				e.preventDefault();
-				if (this._ws?.readyState !== WebSocket.OPEN) return;
 				const type = form.getAttribute("data-sockpuppet-form")!;
 				const payload: Record<string, string> = { type };
 				if (channel) payload["channel"] = channel;
 				for (const [k, v] of new FormData(form)) {
 					if (typeof v === "string") payload[k] = v;
 				}
-				this._ws.send(JSON.stringify(payload));
+				this._ws?.getChannel(channel)?.send(JSON.stringify(payload));
 				form.reset();
 			});
 		}
