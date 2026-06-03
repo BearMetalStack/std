@@ -16,7 +16,7 @@
   },
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "@bearmetal/jsx/client",
-    "jsxImportSourceTypes": "@bearmetal/jsx/client"
+    "jsxImportSource": "@bearmetal/jsx",
+    "jsxImportSourceTypes": "@bearmetal/jsx"
   }
 }

@@ -15,6 +15,12 @@ export abstract class BMC extends _Base {
 	): string {
 		return children;
 	}
+
+	static serverLoad?(
+		_props: Record<string, unknown>,
+	): Record<string, unknown> | Promise<Record<string, unknown>> {
+		return {};
+	}
 }
 
 export function isBMC(v: unknown): v is typeof BMC {

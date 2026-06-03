@@ -2,9 +2,8 @@ import { effect } from "./signals.ts"; // your effect impl from earlier
 import { BMC, setCurrentOwner, setEffectImpl } from "@bearmetal/jsx/client";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import type { ContextMap } from "./context/mod.ts";
-import { Signal } from "@bearmetal/app/signals";
+import { Signal } from "@signals";
 
-// Wire up the effect impl once at module load
 setEffectImpl(effect);
 
 export abstract class BmElement extends BMC {
@@ -18,12 +17,28 @@ export abstract class BmElement extends BMC {
 
 	#cleanups: Array<() => void> = [];
 
-	// Called by the JSX layer during render
+	signals: Record<string, Signal.State<unknown>> = {};
+
 	registerCleanup(fn: () => void) {
 		this.#cleanups.push(fn);
 	}
 
 	connectedCallback() {
+		const raw = this.dataset.serverProps;
+		if (raw) {
+			const loaded = JSON.parse(atob(raw));
+			for (const [key, value] of Object.entries(loaded)) {
+				const sig = this.signals[`$${key}`];
+				if (!sig) {
+					this.signal(value);
+					continue;
+				}
+				if (sig instanceof Signal.State) {
+					sig.set(value);
+				}
+			}
+		}
+
 		setCurrentOwner(this);
 		try {
 			this.render();
