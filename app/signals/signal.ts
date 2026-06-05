@@ -52,7 +52,6 @@ export function createSignal<T>(initialValue: T): SignalGetter<T> {
 		producerAccessed(node);
 		return node.value;
 	}) as SignalGetter<T>;
-	// deno-lint-ignore no-explicit-any
 	(getter as any)[SIGNAL] = node;
 	return getter;
 }

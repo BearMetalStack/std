@@ -1,5 +1,3 @@
-// @bearmetal/jsx/shared-types.ts
-
 import type { Html } from "@bearmetal/jsx";
 
 type SignalLike<T = unknown> = { get(): T };
@@ -13,7 +11,8 @@ export type MakeChild<Extra = never> =
 	| boolean
 	| null
 	| undefined
-	| Extra;
+	| Extra
+	| MakeChild<Extra>[];
 
 export type MakeChildren<Extra = never> = MakeChild<Extra> | MakeChild<Extra>[];
 
@@ -26,6 +25,7 @@ export interface MakeCommonProps<Extra = never> {
 	hidden?: boolean | Extra;
 	children?: MakeChildren<Extra>;
 	raw?: boolean;
+	ref?: string;
 	[key: `data-${string}`]: string | undefined;
 	[key: `aria-${string}`]: string | boolean | undefined;
 }

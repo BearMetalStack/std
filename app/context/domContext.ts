@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-explicit-any
 import type { BMC } from "@bearmetal/jsx";
 import type { ContextMap } from "./stackContext.ts";
 

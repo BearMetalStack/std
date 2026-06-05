@@ -1,4 +1,3 @@
-// @bearmetal/jsx/shared-impl.ts
 import { type BMC, isBMC } from "../lib/bmc.ts";
 
 type SignalLike = { get(): unknown };
@@ -16,16 +15,24 @@ type CleanupFn = () => void;
 type EffectFn = (fn: () => CleanupFn | void) => CleanupFn;
 
 let _effect: EffectFn | null = null;
-let _currentOwner: { registerCleanup(fn: CleanupFn): void } | null = null;
+type Owner = {
+	registerCleanup(fn: CleanupFn): void;
+	registerRef?: (ref: string, el: Element) => void;
+} | null;
+
+let _currentOwner: Owner = null;
 
 export function setEffectImpl(impl: EffectFn) {
 	_effect = impl;
 }
 
 export function setCurrentOwner(
-	owner: { registerCleanup(fn: CleanupFn): void } | null,
+	owner: Owner,
 ) {
 	_currentOwner = owner;
+}
+export function getCurrentOwner() {
+	return _currentOwner;
 }
 
 function reactiveEffect(fn: () => CleanupFn | void): void {
@@ -54,6 +61,9 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 	} else if (typeof val === "boolean") {
 		if (val) el.setAttribute(key, "");
 		else el.removeAttribute(key);
+	} else if (typeof val === "object") {
+		// deno-lint-ignore no-explicit-any
+		(el as any)[key] = val;
 	} else if (val != null) {
 		el.setAttribute(key, String(val));
 	}
@@ -62,6 +72,10 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 	for (const [key, val] of Object.entries(props)) {
 		if (key === "children") continue;
+		if (key === "ref" && typeof val === "string" && _currentOwner?.registerRef) {
+			_currentOwner.registerRef(val, el);
+			continue;
+		}
 		if (isSignal(val)) {
 			reactiveEffect(() => applyProp(el, key, val.get()));
 		} else {
@@ -71,10 +85,20 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 }
 
 function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalLike) {
-	const text = document.createTextNode(String(signal.get()));
+	const getValue = () => {
+		const v = signal.get();
+		if (v instanceof Node) return "";
+		return v == null ? "" : String(v);
+	};
+	const initial = signal.get();
+	if (initial instanceof Node) {
+		parent.appendChild(initial);
+		return;
+	}
+	const text = document.createTextNode(getValue());
 	parent.appendChild(text);
 	reactiveEffect(() => {
-		text.data = String(signal.get());
+		text.data = getValue();
 	});
 }
 

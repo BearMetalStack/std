@@ -21,6 +21,17 @@ export abstract class BMC extends _Base {
 	): Record<string, unknown> | Promise<Record<string, unknown>> {
 		return {};
 	}
+
+	get parentBMC(): BMC | null {
+		if (typeof document === "undefined") return null;
+		const self = this as unknown as HTMLElement;
+		let current = self.parentElement;
+		while (current && !isBMC(current)) {
+			current = current?.parentElement;
+		}
+
+		return current as unknown as BMC;
+	}
 }
 
 export function isBMC(v: unknown): v is typeof BMC {

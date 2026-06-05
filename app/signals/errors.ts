@@ -7,15 +7,15 @@
  */
 
 function defaultThrowError(): never {
-  throw new Error();
+	throw new Error();
 }
 
 let throwInvalidWriteToSignalErrorFn = defaultThrowError;
 
 export function throwInvalidWriteToSignalError() {
-  throwInvalidWriteToSignalErrorFn();
+	throwInvalidWriteToSignalErrorFn();
 }
 
 export function setThrowInvalidWriteToSignalError(fn: () => never): void {
-  throwInvalidWriteToSignalErrorFn = fn;
+	throwInvalidWriteToSignalErrorFn = fn;
 }

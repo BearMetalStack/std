@@ -194,7 +194,6 @@ export interface ReactiveNode {
 	 * Optional extra data for embedder of this signal library.
 	 * Sent to various callbacks as the this value.
 	 */
-	// deno-lint-ignore no-explicit-any
 	wrapper?: any;
 }
 

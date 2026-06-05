@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// deno-lint-ignore-file no-namespace no-explicit-any
+// deno-lint-ignore-file no-namespace
 
 import { computedGet, type ComputedNode, createComputed } from "./computed.ts";
 import {

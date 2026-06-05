@@ -12,12 +12,12 @@
  * @template T The type of the values to be compared.
  */
 export interface ValueEqualityComparer<T> {
-  equal(a: T, b: T): boolean;
+	equal(a: T, b: T): boolean;
 }
 
 /**
  * The default equality function used for `signal` and `computed`, which uses referential equality.
  */
 export function defaultEquals<T>(a: T, b: T) {
-  return Object.is(a, b);
+	return Object.is(a, b);
 }

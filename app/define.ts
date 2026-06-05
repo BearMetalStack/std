@@ -1,7 +1,6 @@
 import type { BMC } from "@bearmetal/jsx";
 
 type BmElementConstructor = {
-	// deno-lint-ignore no-explicit-any
 	new (...args: any[]): BMC;
 	tag: string;
 };
