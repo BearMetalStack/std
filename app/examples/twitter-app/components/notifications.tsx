@@ -1,5 +1,4 @@
-import { define } from "../../define.ts";
-import { BMElement, each } from "../../mod.ts";
+import { BMElement, define, each } from "@bearmetal/app";
 import { markAllRead, navigate, notifications, USERS } from "../store.ts";
 import type { Notification } from "../types.ts";
 import { timeAgo } from "../utils.ts";
@@ -79,11 +78,11 @@ export class TwitterNotifications extends BMElement {
 	#tabClass = (tab: "all" | "mentions") =>
 		this.computed(() => `tab-btn${this.#filter.get() === tab ? " tab-btn--active" : ""}`);
 
-	protected init() {
+	protected override init() {
 		markAllRead();
 	}
 
-	protected get template() {
+	protected override get template() {
 		return (
 			<div class="notifications-page">
 				<header class="page-header">

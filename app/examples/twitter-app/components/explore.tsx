@@ -1,5 +1,4 @@
-import { define } from "../../define.ts";
-import { BMElement, each } from "../../mod.ts";
+import { BMElement, define, each } from "@bearmetal/app";
 import { navigate, toggleLike, toggleRetweet, tweets, USERS } from "../store.ts";
 import { TRENDING } from "../data.ts";
 import type { Tweet, User } from "../types.ts";
@@ -92,7 +91,7 @@ export class TwitterExplore extends BMElement<{ search: HTMLInputElement }> {
 		return q ? `Results for "${q}"` : "Top Posts";
 	});
 
-	protected get template() {
+	protected override get template() {
 		return (
 			<div class="explore-page">
 				<header class="page-header">

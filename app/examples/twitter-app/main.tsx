@@ -1,5 +1,4 @@
-import { define } from "../define.ts";
-import { BMElement } from "../mod.ts";
+import { BMElement, define, each } from "@bearmetal/app";
 import {
 	composerOpen,
 	followedUsers,
@@ -17,7 +16,6 @@ import "./components/feed.tsx";
 import "./components/explore.tsx";
 import "./components/profile.tsx";
 import "./components/notifications.tsx";
-import { each } from "../signals.ts";
 
 function pageTagFor(r: Route): string {
 	switch (r.page) {
@@ -36,7 +34,7 @@ function pageTagFor(r: Route): string {
 export class TwitterRightPanel extends BMElement {
 	#query = this.signal("");
 
-	get template() {
+	override get template() {
 		return (
 			<aside class="right-panel">
 				<div class="right-search-wrap">
@@ -119,7 +117,7 @@ export class TwitterRightPanel extends BMElement {
 
 @define("twitter-modal")
 export class TwitterModal extends BMElement {
-	get template() {
+	override get template() {
 		return (
 			<div
 				class="modal-backdrop"
@@ -145,7 +143,7 @@ export class TwitterModal extends BMElement {
 		);
 	}
 
-	protected init() {
+	protected override init() {
 		this.addEffect(() => {
 			const open = composerOpen.get();
 			(this as unknown as HTMLElement).style.display = open ? "flex" : "none";
@@ -159,7 +157,7 @@ export class TwitterModal extends BMElement {
 
 @define("twitter-app")
 export class TwitterApp extends BMElement<{ main: HTMLElement }> {
-	protected init() {
+	protected override init() {
 		this.addEffect(() => startLiveFeed());
 		let currentPageEl: HTMLElement | null = null;
 
@@ -189,7 +187,7 @@ export class TwitterApp extends BMElement<{ main: HTMLElement }> {
 		});
 	}
 
-	get template() {
+	override get template() {
 		return (
 			<div class="app-layout">
 				<twitter-sidebar />

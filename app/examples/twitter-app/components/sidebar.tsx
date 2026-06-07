@@ -1,5 +1,4 @@
-import { define } from "../../define.ts";
-import { BMElement } from "../../mod.ts";
+import { BMElement, define } from "@bearmetal/app";
 import { composerOpen, currentUser, navigate, route, unreadCount } from "../store.ts";
 import type { Route } from "../types.ts";
 
@@ -27,7 +26,7 @@ export class TwitterSidebar extends BMElement {
 		return n > 99 ? "99+" : String(n);
 	});
 
-	protected get template() {
+	protected override get template() {
 		const user = currentUser.get();
 		return (
 			<aside class="sidebar">

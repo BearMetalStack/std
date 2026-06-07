@@ -1,5 +1,4 @@
-import { define } from "../../define.ts";
-import { BMElement, each } from "../../mod.ts";
+import { BMElement, define, each } from "@bearmetal/app";
 import {
 	composerOpen,
 	currentUser,
