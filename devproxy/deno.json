@@ -1,13 +1,16 @@
 {
 	"name": "@bearmetal/devproxy",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"exports": "./mod.ts",
 	"tasks": {
 		"dev": "deno test -P --watch"
 	},
 	"permissions": {
 		"default": {
-			"env": ["BEARMETAL_PROXY_HOST", "BEARMETAL_ENV"]
+			"env": [
+				"BEARMETAL_PROXY_HOST",
+				"BEARMETAL_ENV"
+			]
 		}
 	},
 	"license": "GPL-3.0-only"

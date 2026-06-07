@@ -1,21 +1,24 @@
 {
-  "name": "@bearmetal/jsx",
-  "version": "0.0.8",
-  "license": "GPL-3.0-only",
-  "tasks": {
-    "dev": "deno run --watch main.ts",
-    "check": "deno check mod.ts client/mod.ts client/jsx-runtime.ts server/mod.ts server/jsx-runtime.ts"
-  },
-  "exports": {
-    ".": "./mod.ts",
-    "./client": "./client/mod.ts",
-    "./client/jsx-runtime": "./client/jsx-runtime.ts",
-    "./server": "./server/mod.ts",
-    "./server/jsx-runtime": "./server/jsx-runtime.ts",
-    "./jsx-runtime": "./jsx-runtime.ts"
-  },
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "lib": ["dom", "esnext"]
-  }
+	"name": "@bearmetal/jsx",
+	"version": "0.0.9",
+	"license": "GPL-3.0-only",
+	"tasks": {
+		"dev": "deno run --watch main.ts",
+		"check": "deno check mod.ts client/mod.ts client/jsx-runtime.ts server/mod.ts server/jsx-runtime.ts"
+	},
+	"exports": {
+		".": "./mod.ts",
+		"./client": "./client/mod.ts",
+		"./client/jsx-runtime": "./client/jsx-runtime.ts",
+		"./server": "./server/mod.ts",
+		"./server/jsx-runtime": "./server/jsx-runtime.ts",
+		"./jsx-runtime": "./jsx-runtime.ts"
+	},
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"lib": [
+			"dom",
+			"esnext"
+		]
+	}
 }

@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/auth",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"exports": "./mod.ts",
 	"tasks": {
 		"dev": "deno run -P=test --env-file --watch main.ts"
@@ -18,11 +18,14 @@
 				"BEARMETAL_PROXY_HOST",
 				"BEARMETAL_ENV"
 			],
-			"net": ["dev.bear-metal.dev", "0.0.0.0:3000", "localhost:5432"]
+			"net": [
+				"dev.bear-metal.dev",
+				"0.0.0.0:3000",
+				"localhost:5432"
+			]
 		}
 	},
 	"license": "GPL-3.0-only",
-
 	"compilerOptions": {
 		"jsx": "react-jsx",
 		"jsxImportSource": "@bearmetal/jsx/server"

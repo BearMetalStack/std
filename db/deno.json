@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/db",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.d.ts",
@@ -17,6 +17,8 @@
 		"@migrations": "./migrations/mod.ts"
 	},
 	"compilerOptions": {
-		"types": ["./types.d.ts"]
+		"types": [
+			"./types.d.ts"
+		]
 	}
 }

@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/webbies",
-	"version": "0.0.2-dev.1",
+	"version": "0.0.NaN",
 	"license": "GPL-3.0-only",
 	"tasks": {
 		"dev": "deno -A --watch=components LinkMods.ts ./components & deno bundle --watch --platform=browser --sourcemap=inline public/index.html --outdir dist & deno run -NR --watch server.ts"
@@ -19,7 +19,10 @@
 		"jsxImportSource": "@bearmetal/jsx/client"
 	},
 	"publish": {
-		"exclude": ["./prod", "./dist"]
+		"exclude": [
+			"./prod",
+			"./dist"
+		]
 	},
 	"exports": {
 		".": "./mod.ts",
