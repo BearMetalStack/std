@@ -24,7 +24,7 @@ export function cssFromJson(
 	theme: Theme,
 	scope: string = ":root",
 	fullFat: boolean = true,
-) {
+): string {
 	const kvs: SectionedTokens = [];
 	for (const [key, value] of Object.entries(theme)) {
 		if (key.startsWith("#")) continue;

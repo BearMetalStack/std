@@ -7,6 +7,8 @@ import {
 	rainbowPalette,
 	random,
 } from "@bearmetal/miscellanea";
+import { ansiTruecolor, writeRow } from "@bearmetal/cli";
+
 import {
 	bloody,
 	cyber,
@@ -23,7 +25,7 @@ import {
 	vineskull,
 } from "./art/mod.ts";
 
-export function combineAscii(ascii1: string, ascii2: string, spacing = 4) {
+export function combineAscii(ascii1: string, ascii2: string, spacing = 4): string {
 	ascii1 = justify(ascii1);
 	ascii2 = justify(ascii2);
 	const a1Lines = ascii1.split("\n");
@@ -51,7 +53,7 @@ export function renderTitleAscii(
 		background?: string;
 		pride?: boolean;
 	} = {},
-) {
+): [string, string] {
 	let notPridable = false;
 	let bold = false;
 	switch (ascii) {
@@ -112,27 +114,6 @@ export function renderTitleAscii(
 
 	console.log(`%c${ascii}`, `color: ${color}; background-color: ${background};`);
 	return [color, background];
-}
-
-function ansiTruecolor(hex: string, bg = true): string {
-	const r = parseInt(hex.slice(1, 3), 16);
-	const g = parseInt(hex.slice(3, 5), 16);
-	const b = parseInt(hex.slice(5, 7), 16);
-	return `\x1b[${bg ? 48 : 38};2;${r};${g};${b}m`;
-}
-
-const bold = "\x1b[1m";
-const reset = "\x1b[0m";
-const encoder = new TextEncoder();
-
-function writeRow(chars: string[], colors: string[], opts?: { bold?: boolean; fg?: string }) {
-	let row = "";
-	for (let i = 0; i < chars.length; i++) {
-		row += ansiTruecolor(opts?.fg ?? "#ffffff", false) + ansiTruecolor(colors[i % colors.length]) +
-			(opts?.bold ? bold : "") + chars[i];
-	}
-	row += reset + "\n";
-	Deno.stdout.writeSync(encoder.encode(row));
 }
 
 export function selectSet(): string[] {

@@ -125,8 +125,3 @@ export const cyber = `
     |_____] |______ |_____| |_____/ |  |  | |______    |    |_____| |
     |_____] |______ |     | |    \\_ |  |  | |______    |    |     | |_____
  `;
-
-export const sets = {
-	spooky: [bloody, poison],
-	def: [cyber, fender, stp, slrel, blur, doh, graffiti, tmplr, dcp1],
-};
