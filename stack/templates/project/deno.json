@@ -1,15 +1,30 @@
 {
-	"name": "$projectName",
-	"version": "0.0.0",
-	"license": "MIT",
-	"tasks": {
-		"bm:bootstrap": {
-			"description": "Bootstrap the BearMetal stack.",
-			"dependencies": ["bm:drip"]
-		},
-		"bm:drip": {
-			"description": "Generates theme completions and CSS",
-			"command": "deno run jsr:@bearmetal/drip"
-		}
-	}
+    "name": "$projectName",
+    "version": "0.0.0",
+    "license": "MIT",
+    "tasks": {
+        "bm:bootstrap": {
+            "description": "Bootstrap the BearMetal stack.",
+            "dependencies": ["bm:drip"]
+        },
+        "bm:drip": {
+            "description": "Generates theme completions and CSS",
+            "command": "deno run jsr:@bearmetal/drip"
+        },
+        "bm:dev": {
+            "description": "Starts the dev server",
+            "command": "deno run -P=dev main.ts"
+        }
+    },
+    "permissions": {
+        "dev": {
+            "read": true,
+            "net": true
+        }
+    },
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "jsxImportSource": "@bearmetal/jsx",
+        "lib": ["deno.ns", "deno.window", "node", "dom"]
+    }
 }

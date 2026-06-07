@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+
+        <script type="module" src="index.tsx"></script>
+
+        <style>
+            @property --translate-x {
+                syntax: "<number>";
+                initial-value: 0;
+                inherits: false;
+            }
+            @property --translate-y {
+                syntax: "<number>";
+                initial-value: 0;
+                inherits: false;
+            }
+            :root {
+                overflow: hidden;
+            }
+            html {
+                width: 100vw;
+                height: 100vh;
+                margin: 0;
+            }
+            h1 {
+                height: fit-content;
+                width: fit-content;
+                margin: 0;
+                translate: calc((100vw - 12ch) * var(--translate-x))
+                    calc((100vh - 1em) * var(--translate-y));
+
+                animation:
+                    x 6400ms linear infinite alternate both,
+                    y 3600ms linear infinite alternate both;
+            }
+
+            @keyframes x {
+                from {
+                    --translate-x: 0;
+                }
+                to {
+                    --translate-x: 1;
+                }
+            }
+
+            @keyframes y {
+                from {
+                    --translate-y: 0;
+                }
+                to {
+                    --translate-y: 1;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Hello, Emma!</h1>
+    </body>
+</html>

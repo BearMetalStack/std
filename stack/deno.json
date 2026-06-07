@@ -1,5 +1,14 @@
 {
-  "tasks": {
-    "dev": "deno run --watch main.ts"
-  }
+    "name": "@bearmetal/stack",
+    "version": "0.0.1",
+    "license": "GPL-3.0-only",
+    "exports": {
+        "./create": "./create.ts"
+    },
+    "tasks": {
+        "dev": "deno run --watch main.ts"
+    },
+    "fmt": {
+        "useTabs": true
+    }
 }

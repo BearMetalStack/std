@@ -156,7 +156,7 @@ export type RouteConfigurator<
  * check against `Module<any>`.
  */
 export interface AnyModule<TState extends StateType = StateType> {
-	readonly rawRoutes: Iterable<[string, RouteConfig<StateType>]>;
+	readonly rawRoutes: Iterable<[string, RouteConfig<TState>]>;
 	readonly rawServices: Iterable<[string, Service]>;
 	_startCallbacks?: (() => Promise<void>)[];
 	// deno-lint-ignore no-explicit-any
@@ -203,8 +203,8 @@ export class Module<TState extends StateType = {}> {
 	// deno-lint-ignore no-explicit-any
 	#adoptedCallbacks: ((parent: Module<any>) => boolean | void)[] = [];
 	// deno-lint-ignore no-explicit-any
-	protected _pendingCallbacks: ((parent: Module<any>) => boolean | void)[] = [];
-	protected _startCallbacks: (() => Promise<void>)[] = [];
+	_pendingCallbacks: ((parent: Module<any>) => boolean | void)[] = [];
+	_startCallbacks: (() => Promise<void>)[] = [];
 
 	/**
 	 * The Router (or Module) this module was mounted on, or `null` if not yet mounted.
@@ -244,7 +244,7 @@ export class Module<TState extends StateType = {}> {
 
 	/** @internal Called by the parent when this module is mounted. */
 	// deno-lint-ignore no-explicit-any
-	protected _setParent(parent: Module<any>): void {
+	_setParent(parent: Module<any>): void {
 		this.#parent = parent;
 		const toRun = [...this.#adoptedCallbacks, ...this._pendingCallbacks];
 		this._pendingCallbacks = [];

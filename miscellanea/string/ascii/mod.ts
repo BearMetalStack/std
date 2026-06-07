@@ -1,0 +1,160 @@
+import {
+	boxIn,
+	center,
+	centerKeepAligned,
+	justify,
+	longestLine,
+	rainbowPalette,
+	random,
+} from "@bearmetal/miscellanea";
+import {
+	bloody,
+	cyber,
+	doh,
+	fender,
+	graffiti,
+	heart,
+	love,
+	poison,
+	sets,
+	slrel,
+	stp,
+	tmplr,
+	vineskull,
+} from "./art/mod.ts";
+
+export function combineAscii(ascii1: string, ascii2: string, spacing = 4) {
+	ascii1 = justify(ascii1);
+	ascii2 = justify(ascii2);
+	const a1Lines = ascii1.split("\n");
+	const a2Lines = ascii2.split("\n");
+	const lineCount = Math.max(a1Lines.length, a2Lines.length);
+	if (a1Lines.length !== lineCount) {
+		a1Lines.unshift(...Array(Math.floor((lineCount - a1Lines.length) / 2)).fill(""));
+	}
+	if (a2Lines.length !== lineCount) {
+		a2Lines.unshift(...Array(Math.floor((lineCount - a2Lines.length) / 2)).fill(""));
+	}
+	let accum = "";
+	for (let i = 0; i < lineCount; i++) {
+		accum += justify(a1Lines[i] ?? "", longestLine(ascii1)) + "".padEnd(spacing) +
+			justify(a2Lines[i] ?? "", longestLine(ascii2)) + "\n";
+	}
+	return accum;
+}
+
+export function renderTitleAscii(
+	ascii: string,
+	{ maxWidth = longestLine(ascii), color = "white", background = "#0d0018", pride }: {
+		maxWidth?: number;
+		color?: string;
+		background?: string;
+		pride?: boolean;
+	} = {},
+) {
+	let notPridable = false;
+	let bold = false;
+	switch (ascii) {
+		case bloody:
+			notPridable = true;
+			color = "red", background = "black";
+			break;
+		case poison:
+			notPridable = true;
+			color = "#a8d870", background = "#071200";
+			ascii = combineAscii(poison, random(vineskull));
+			break;
+		case tmplr:
+			ascii = boxIn(
+				ascii.replace(/^\n/, "").replace(/^\s+/gm, "").split("\n").slice(0, -1).join("\n"),
+			);
+			break;
+		case fender:
+		case stp:
+		case slrel:
+		case doh:
+		case graffiti:
+		case cyber:
+			bold = true;
+			break;
+	}
+
+	// maxWidth = maxWidth === Infinity ? longestLine(ascii) : maxWidth;
+	if (pride && !notPridable) ascii = combineAscii(ascii, random(love, heart), 8);
+	ascii = centerKeepAligned(ascii.replace(/^\n/, ""), maxWidth);
+	if (pride && !notPridable) {
+		// ascii = ascii.replace(
+		// 	/[\n\s]*?$/,
+		// );
+		const colors = rainbowPalette(168, .5, .3);
+		for (const row of ascii.split("\n")) {
+			// if (!row.trim().length) continue;
+			writeRow(row.split(""), colors, { bold });
+			colors.push(colors.shift()!, colors.shift()!);
+		}
+		writeRow(
+			center("Happy Pride Month to my fellow strays, gays and theys!", maxWidth).split(""),
+			colors,
+		);
+		const transColors = ["#5BCEFA", "#F5A9B8", "#FFFFFF", "#F5A9B8", "#5BCEFA"].flatMap((e) =>
+			Array.from({ length: Math.round(maxWidth / 5) }, () => e)
+		);
+		for (
+			const row of center(
+				"Trans rights are human rights\nWe will not go away\nWe will not be forgotten",
+				maxWidth,
+			).split("\n")
+		) {
+			writeRow(row.split(""), transColors, { fg: "#000000" });
+		}
+		return [color, background];
+	}
+
+	console.log(`%c${ascii}`, `color: ${color}; background-color: ${background};`);
+	return [color, background];
+}
+
+function ansiTruecolor(hex: string, bg = true): string {
+	const r = parseInt(hex.slice(1, 3), 16);
+	const g = parseInt(hex.slice(3, 5), 16);
+	const b = parseInt(hex.slice(5, 7), 16);
+	return `\x1b[${bg ? 48 : 38};2;${r};${g};${b}m`;
+}
+
+const bold = "\x1b[1m";
+const reset = "\x1b[0m";
+const encoder = new TextEncoder();
+
+function writeRow(chars: string[], colors: string[], opts?: { bold?: boolean; fg?: string }) {
+	let row = "";
+	for (let i = 0; i < chars.length; i++) {
+		row += ansiTruecolor(opts?.fg ?? "#ffffff", false) + ansiTruecolor(colors[i % colors.length]) +
+			(opts?.bold ? bold : "") + chars[i];
+	}
+	row += reset + "\n";
+	Deno.stdout.writeSync(encoder.encode(row));
+}
+
+export function selectSet(): string[] {
+	const now = Temporal.Now.plainDateISO();
+	if (now.month === 10) return sets.spooky;
+	return sets.def;
+}
+
+if (import.meta.main) {
+	let set: string[] = [];
+	set = selectSet();
+	const pride = Temporal.Now.plainDateISO().month === 6;
+	let title = random(...set);
+	while (longestLine(title) > Deno.consoleSize().columns) {
+		title = set[Math.floor(Math.random() * set.length)];
+	}
+	renderTitleAscii(title, {
+		pride,
+		maxWidth: Deno.consoleSize().columns,
+	});
+	// if (!all.length || !confirm("")) break;
+	Deno.stdout.writeSync(new TextEncoder().encode(ansiTruecolor("#0d0018")));
+}
+
+export * from "./art/mod.ts";

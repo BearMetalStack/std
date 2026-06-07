@@ -7,6 +7,7 @@ import { escapeHtml } from "./htmlEscape.ts";
 export * from "./box.ts";
 export * from "./htmlEscape.ts";
 export * from "./indentation.ts";
+export * from "./ascii/mod.ts";
 
 /** Tagged template that concatenates values as-is - provides syntax highlighting in editors. */
 export function css(
