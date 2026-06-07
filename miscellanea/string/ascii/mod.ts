@@ -7,7 +7,7 @@ import {
 	rainbowPalette,
 	random,
 } from "@bearmetal/miscellanea";
-import { ansiTruecolor, writeRow } from "@bearmetal/cli";
+import { writeRow } from "@bearmetal/cli";
 
 import {
 	bloody,
@@ -120,22 +120,6 @@ export function selectSet(): string[] {
 	const now = Temporal.Now.plainDateISO();
 	if (now.month === 10) return sets.spooky;
 	return sets.def;
-}
-
-if (import.meta.main) {
-	let set: string[] = [];
-	set = selectSet();
-	const pride = Temporal.Now.plainDateISO().month === 6;
-	let title = random(...set);
-	while (longestLine(title) > Deno.consoleSize().columns) {
-		title = set[Math.floor(Math.random() * set.length)];
-	}
-	renderTitleAscii(title, {
-		pride,
-		maxWidth: Deno.consoleSize().columns,
-	});
-	// if (!all.length || !confirm("")) break;
-	Deno.stdout.writeSync(new TextEncoder().encode(ansiTruecolor("#0d0018")));
 }
 
 export * from "./art/mod.ts";

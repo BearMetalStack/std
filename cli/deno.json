@@ -5,5 +5,8 @@
     "tasks": {
         "dev": "deno test --watch"
     },
-    "license": "GPL-3.0-only"
+    "license": "GPL-3.0-only",
+    "compilerOptions": {
+        "lib": ["deno.window", "deno.ns", "node"]
+    }
 }

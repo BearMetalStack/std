@@ -29,7 +29,7 @@
  */
 import { Module, Ok } from "@bearmetal/router";
 import { HEALTH_ENDPOINT } from "./consts.ts";
-import { isDev, isEnvGranted } from "@bearmetal/miscellanea";
+import { isDev, isEnvGranted } from "@bearmetal/miscellanea/environment";
 
 let proxyHost: string;
 const fallbackHost = "https://dev.bear-metal.dev";

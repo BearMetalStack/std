@@ -1,7 +1,7 @@
 import type { Pool } from "@db/postgres";
 import type { Migration, MigrationOp, MigrationResult } from "./ops.ts";
 import { opToStatements, schemaToPostgresType } from "./ddl.ts";
-import { isProd } from "@bearmetal/miscellanea";
+import { isProd } from "@bearmetal/miscellanea/environment";
 
 const ENSURE_MIGRATIONS_TABLE = `
   CREATE TABLE IF NOT EXISTS _migrations (

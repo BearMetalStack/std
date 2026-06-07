@@ -10,7 +10,7 @@ import {
 } from "@lib/SqlBuilder.ts";
 import { runMigrations } from "@migrations";
 import type { Migration, MigrationResult } from "@migrations";
-import { isDev } from "@bearmetal/miscellanea";
+import { isDev } from "@bearmetal/miscellanea/environment";
 
 function resolveIdentifier(id: TableIdentifier): string {
 	return typeof id === "string" ? id : id.name;

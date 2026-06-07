@@ -72,7 +72,7 @@ export class PopoverBase extends HTMLElement {
 		`;
 	}
 
-	#timer: number | null = null;
+	#timer: ReturnType<typeof setTimeout> | null = null;
 	#overTrigger = false;
 	#overContent = false;
 

@@ -5,7 +5,7 @@ import { schemaHash } from "@lib/hash.ts";
 import type { Migration, MigrationResult } from "@migrations";
 import { m } from "@migrations";
 import type { DBOptions, PostgresOptions, Queryable, TableIdentifier } from "./types.d.ts";
-import { isProd } from "@bearmetal/miscellanea";
+import { isProd } from "@bearmetal/miscellanea/environment";
 
 export { type Infer, ObjectSchema, s, type SchemaShape } from "@bearmetal/forge";
 export { m, type Migration, type MigrationOp, type MigrationResult } from "@migrations";

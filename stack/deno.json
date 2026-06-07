@@ -12,13 +12,7 @@
         "useTabs": true
     },
     "compilerOptions": {
-        "lib": [
-            "deno.window",
-            "deno.unstable",
-            "node",
-            "esnext",
-            "dom.asynciterable"
-        ]
+        "lib": ["deno.window", "deno.unstable", "node"]
     },
     "lint": {
         "rules": {
