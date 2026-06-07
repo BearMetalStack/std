@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 const target = Deno.args[0];
 const out = Deno.args[1];
 

@@ -1,4 +1,4 @@
-import { Token } from "./lexer.ts";
+import type { Token } from "./lexer.ts";
 
 export type Node =
 	| { type: "root"; children: Node[] }

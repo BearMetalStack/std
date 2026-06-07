@@ -14,7 +14,7 @@ function isSignal(S: unknown): S is Signals.State<unknown> | Signals.Computed<un
 
 export abstract class BMElement<TRefs extends Record<string, Element> = Record<string, Element>>
 	extends BMC {
-	static register() {
+	static register(): typeof BMElement | undefined {
 		if (typeof customElements === "undefined") return;
 		if (!this.tag) throw new Error(`${this.name} must define a static tag`);
 		if (customElements.get(this.tag)) return;
@@ -34,15 +34,15 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 		});
 	}
 
-	registerRef(name: string, el: Element) {
+	registerRef(name: string, el: Element): void {
 		this.#refs.set(name, el);
 	}
 
-	registerCleanup(fn: () => void) {
+	registerCleanup(fn: () => void): void {
 		this.#cleanups.push(fn);
 	}
 
-	connectedCallback() {
+	connectedCallback(): void {
 		const raw = this.dataset.serverProps;
 		if (raw) {
 			const loaded = JSON.parse(atob(raw));
@@ -88,7 +88,7 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 		}
 	}
 
-	disconnectedCallback() {
+	disconnectedCallback(): void {
 		for (const cleanup of this.#cleanups) cleanup();
 		this.#cleanups = [];
 	}
@@ -123,27 +123,27 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 	 */
 	protected init(): void {}
 
-	protected addEffect(fn: () => (() => void) | void) {
+	protected addEffect(fn: () => (() => void) | void): void {
 		this.#cleanups.push(effect(fn));
 	}
 
-	protected signal<T>(initialValue: T) {
+	protected signal<T>(initialValue: T): Signals.State<T> {
 		return new Signal.State(initialValue);
 	}
 
-	protected computed<T>(fn: () => T) {
+	protected computed<T>(fn: () => T): Signals.Computed<T> {
 		return new Signal.Computed(fn);
 	}
 
-	provide<K extends keyof ContextMap>(key: K, value: ContextMap[K]) {
+	provide<K extends keyof ContextMap>(key: K, value: ContextMap[K]): void {
 		provide(this, key, value);
 	}
 
-	inject<K extends keyof ContextMap>(key: K) {
+	inject<K extends keyof ContextMap>(key: K): ContextMap[K] | undefined {
 		return inject(this.parentElement ?? this, key);
 	}
 
-	injectOrThrow<K extends keyof ContextMap>(key: K) {
+	injectOrThrow<K extends keyof ContextMap>(key: K): ContextMap[K] {
 		return injectOrThrow(this.parentElement ?? this, key);
 	}
 }

@@ -1,5 +1,5 @@
 import { MarkdownLexer } from "./lexer.ts";
-import { MarkdownTreeBuilder, Node } from "./tree.ts";
+import { MarkdownTreeBuilder, type Node } from "./tree.ts";
 
 const blockTypes = new Set([
 	"heading",
@@ -22,9 +22,7 @@ export async function markdownToHtml(md: string) {
 	treeBuilder.traverse(
 		(n) => {
 			if (n.type === "link") {
-				html += `<a href="${n.href}"${
-					n.title ? ` title="${n.title}"` : ""
-				}>${n.text}</a>`;
+				html += `<a href="${n.href}"${n.title ? ` title="${n.title}"` : ""}>${n.text}</a>`;
 				return false;
 			}
 			if (n.type === "image") {
@@ -99,9 +97,7 @@ function openTag(n: Node): string {
 				styles.fill("text-align:center");
 			}
 			row += `<tr>${
-				n.columns.map((e, i) =>
-					`<${datumTag} style="${styles[i]}">${e}</${datumTag}>`
-				).join("")
+				n.columns.map((e, i) => `<${datumTag} style="${styles[i]}">${e}</${datumTag}>`).join("")
 			}</tr>`;
 			if (tableContext?.head) {
 				row += "</thead>";
@@ -116,9 +112,7 @@ function openTag(n: Node): string {
 		case "listitem":
 			return `<li${n.style ? ' class="none"' : ""}>`;
 		case "checkitem":
-			return `<li><input type="checkbox" disabled${
-				n.checked ? " checked" : ""
-			}>`;
+			return `<li><input type="checkbox" disabled${n.checked ? " checked" : ""}>`;
 		case "lineitem":
 			return "<p>";
 		case "bold":

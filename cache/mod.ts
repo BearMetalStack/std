@@ -1,5 +1,6 @@
 import { isModification, Module } from "@bearmetal/router";
-import { escapeRegex, isDev } from "@bearmetal/miscellanea";
+import { escapeRegex } from "@bearmetal/miscellanea";
+import { isDev } from "@bearmetal/miscellanea/environment";
 
 let inMem: Map<string, unknown>;
 
@@ -47,16 +48,16 @@ export class Cache implements CacheProvider {
 			this.provider = connectProvider(this.options);
 		}
 	}
-	async has(key: CacheKey) {
+	async has(key: CacheKey): Promise<boolean> {
 		return await this.provider.has(key);
 	}
-	async get(key: CacheKey) {
+	async get(key: CacheKey): Promise<unknown> {
 		return await this.provider.get(key);
 	}
-	set(key: CacheKey, value: unknown) {
+	set(key: CacheKey, value: unknown): void {
 		this.provider.set(key, value);
 	}
-	delete(key: CacheKey) {
+	delete(key: CacheKey): void {
 		this.provider.delete(key);
 	}
 
@@ -64,7 +65,7 @@ export class Cache implements CacheProvider {
 		return await this.provider.get(key) as T ?? null;
 	}
 
-	async invalidate(keyOrPattern: string | RegExp) {
+	async invalidate(keyOrPattern: string | RegExp): Promise<void> {
 		if (keyOrPattern instanceof RegExp) {
 			if (this.provider instanceof Map) {
 				for (const key of this.provider.keys()) {

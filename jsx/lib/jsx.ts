@@ -22,16 +22,16 @@ type Owner = {
 
 let _currentOwner: Owner = null;
 
-export function setEffectImpl(impl: EffectFn) {
+export function setEffectImpl(impl: EffectFn): void {
 	_effect = impl;
 }
 
 export function setCurrentOwner(
 	owner: Owner,
-) {
+): void {
 	_currentOwner = owner;
 }
-export function getCurrentOwner() {
+export function getCurrentOwner(): Owner {
 	return _currentOwner;
 }
 
@@ -194,7 +194,7 @@ const voidElements = new Set([
 ]);
 
 // Html import is dynamic so server impl can be used without it on client
-type HtmlLike = { raw: string; toString(): string };
+export type HtmlLike = { raw: string; toString(): string };
 type HtmlCtor = new (raw: string) => HtmlLike;
 
 export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string) {

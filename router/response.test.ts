@@ -1,5 +1,6 @@
-import { assertEquals, assertInstanceOf, assertThrows } from "jsr:@std/assert";
-import { describe, it } from "jsr:@std/testing/bdd";
+// deno-lint-ignore-file no-explicit-any
+import { assertEquals, assertInstanceOf, assertThrows } from "@std/assert";
+import { describe, it } from "@std/testing/bdd";
 import {
 	Accepted,
 	BadGateway,
@@ -183,7 +184,6 @@ describe("response helpers - four call forms", () => {
 
 		it("throws SchemaError when data fails validation", () => {
 			assertThrows(
-				// deno-lint-ignore no-explicit-any
 				() => Ok(UserSchema, { id: 99 } as any),
 				SchemaError,
 			);
@@ -291,7 +291,7 @@ describe("response helpers in route handlers", () => {
 		const router = new Router();
 		router.route("/test").get(() => Ok({ hello: "world" }));
 
-		const res = await router.handle(new Request("http://localhost/test"));
+		const res = await router.handle(new Request("http://localhost/test"), {} as any);
 		assertEquals(res.status, 200);
 		assertEquals(res.headers.get("Content-Type"), "application/json");
 		assertEquals(await res.json(), { hello: "world" });
@@ -304,6 +304,7 @@ describe("response helpers in route handlers", () => {
 
 		const res = await router.handle(
 			new Request("http://localhost/items", { method: "POST" }),
+			{} as any,
 		);
 		assertEquals(res.status, 201);
 		assertEquals(await res.json(), { id: "abc" });
@@ -313,11 +314,10 @@ describe("response helpers in route handlers", () => {
 		const router = new Router();
 		const Schema = s.object({ id: s.string() });
 		router.route("/bad").get(
-			// deno-lint-ignore no-explicit-any
 			() => Ok(Schema, { id: 99 } as any),
 		);
 
-		const res = await router.handle(new Request("http://localhost/bad"));
+		const res = await router.handle(new Request("http://localhost/bad"), {} as any);
 		// SchemaError thrown inside handler → caught by router → 500
 		assertEquals(res.status, 500);
 	});
@@ -363,7 +363,7 @@ describe(".responds() - route response schema declaration", () => {
 			.get(() => Ok("pong"))
 			.responds("get", { 200: s.string() });
 
-		const res = await router.handle(new Request("http://localhost/ping"));
+		const res = await router.handle(new Request("http://localhost/ping"), {} as any);
 		assertEquals(res.status, 200);
 		assertEquals(await res.text(), "pong");
 	});

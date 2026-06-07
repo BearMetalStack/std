@@ -31,7 +31,7 @@ export function withContext<T>(context: ContextStore, fn: () => T): T {
 	}
 }
 
-export const ctx = new Proxy({} as ContextMap, {
+export const ctx: ContextMap = new Proxy({} as ContextMap, {
 	get(_, prop: string) {
 		for (let i = contextStack.length - 1; i >= 0; i--) {
 			if (prop in contextStack[i]) return contextStack[i][prop];

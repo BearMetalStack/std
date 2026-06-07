@@ -1,5 +1,5 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert";
-import { describe, it } from "jsr:@std/testing/bdd";
+import { assertEquals, assertThrows } from "@std/assert";
+import { describe, it } from "@std/testing/bdd";
 import {
 	ArraySchema,
 	BooleanSchema,
@@ -11,7 +11,7 @@ import {
 	ObjectSchema,
 	OptionalSchema,
 	s,
-	Schema,
+	type Schema,
 	SchemaError,
 	StringSchema,
 } from "./schema.ts";

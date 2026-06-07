@@ -5,7 +5,9 @@ import { registerElement } from "@lib/registerElements.ts";
 injectStyle(
 	"bm-modal",
 	css`
-		bm-modal { display: contents; }
+		bm-modal {
+			display: contents;
+		}
 	`,
 );
 
@@ -22,9 +24,15 @@ const shadowStyles = css`
 		position: relative;
 	}
 
-	:host([sm]) dialog { max-width: var(--modal-max-width-sm); }
-	:host([lg]) dialog { max-width: var(--modal-max-width-lg); }
-	:host([xl]) dialog { max-width: var(--modal-max-width-xl); }
+	:host([sm]) dialog {
+		max-width: var(--modal-max-width-sm);
+	}
+	:host([lg]) dialog {
+		max-width: var(--modal-max-width-lg);
+	}
+	:host([xl]) dialog {
+		max-width: var(--modal-max-width-xl);
+	}
 
 	dialog::backdrop {
 		background: var(--modal-backdrop);
@@ -54,7 +62,9 @@ export class Modal extends HTMLElement {
 		const closeBtn = document.createElement("button");
 		closeBtn.setAttribute("data-dismiss", "");
 		closeBtn.classList.add("icon", "ghost", "xs");
-		closeBtn.innerHTML = html`<bm-icon icon="x">Close</bm-icon>`;
+		closeBtn.innerHTML = html`
+			<bm-icon icon="x">Close</bm-icon>
+		`;
 		closeBtn.addEventListener("click", () => this.close());
 
 		this.#dialog.append(closeBtn, document.createElement("slot"));
@@ -66,10 +76,12 @@ export class Modal extends HTMLElement {
 
 		this.#dialog.addEventListener("close", () => {
 			const returnValue = this.#dialog.returnValue;
-			this.dispatchEvent(new CustomEvent("bm-close", {
-				bubbles: true,
-				detail: { returnValue },
-			}));
+			this.dispatchEvent(
+				new CustomEvent("bm-close", {
+					bubbles: true,
+					detail: { returnValue },
+				}),
+			);
 			for (const resolve of this.#resolvers.splice(0)) {
 				resolve(returnValue);
 			}
@@ -84,7 +96,7 @@ export class Modal extends HTMLElement {
 		this.#dialog.close(returnValue);
 	}
 
-	get returnValue() {
+	get returnValue(): string {
 		return this.#dialog.returnValue;
 	}
 

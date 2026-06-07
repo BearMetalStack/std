@@ -1,39 +1,36 @@
 {
-	"name": "@bearmetal/webbies",
-	"version": "0.0.NaN",
-	"license": "GPL-3.0-only",
-	"tasks": {
-		"dev": "deno -A --watch=components LinkMods.ts ./components & deno bundle --watch --platform=browser --sourcemap=inline public/index.html --outdir dist & deno run -NR --watch server.ts"
-	},
-	"compilerOptions": {
-		"lib": [
-			"dom",
-			"dom.asynciterable",
-			"dom.iterable",
-			"esnext",
-			"deno.ns",
-			"deno.window",
-			"deno.unstable"
-		],
-		"jsx": "react-jsx",
-		"jsxImportSource": "@bearmetal/jsx/client"
-	},
-	"publish": {
-		"exclude": [
-			"./prod",
-			"./dist"
-		]
-	},
-	"exports": {
-		".": "./mod.ts",
-		"./types": "./types.ts"
-	},
-	"imports": {
-		"@lib/": "./lib/",
-		"@/": "./",
-		"@style": "./style/mod.ts"
-	},
-	"fmt": {
-		"useTabs": true
-	}
+    "name": "@bearmetal/webbies",
+    "version": "0.0.2",
+    "license": "GPL-3.0-only",
+    "tasks": {
+        "dev": "deno -A --watch=components LinkMods.ts ./components & deno bundle --watch --platform=browser --sourcemap=inline public/index.html --outdir dist & deno run -NR --watch server.ts"
+    },
+    "compilerOptions": {
+        "lib": [
+            "dom",
+            "dom.asynciterable",
+            "dom.iterable",
+            "esnext",
+            "deno.ns",
+            "deno.window",
+            "deno.unstable"
+        ],
+        "jsx": "react-jsx",
+        "jsxImportSource": "@bearmetal/jsx/client"
+    },
+    "publish": {
+        "exclude": ["./prod", "./dist"]
+    },
+    "exports": {
+        ".": "./mod.ts",
+        "./types": "./types.ts"
+    },
+    "imports": {
+        "@lib/": "./lib/",
+        "@/": "./",
+        "@style": "./style/mod.ts"
+    },
+    "fmt": {
+        "useTabs": true
+    }
 }

@@ -51,7 +51,7 @@ export function createEffect(init: () => CleanupFn | void): CleanupFn {
 	return cleanup;
 }
 
-export function createSignal(init: unknown) {
+export function createSignal(init: unknown): Signal.State<unknown> {
 	return new Signal.State(init);
 }
 
@@ -71,7 +71,7 @@ export function each<T>(
 	signal: Signal.State<T[] | Set<T>> | Signal.Computed<T[] | Set<T>>,
 	render: (item: T, index: number) => Element | JSX.Element | null,
 	key: (item: T) => string | number,
-) {
+): HTMLSlotElement {
 	const anchor = document.createElement("slot");
 
 	const stop = reconcile(anchor, signal, render as (i: T, ii: number) => Element, key);

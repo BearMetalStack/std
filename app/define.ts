@@ -5,7 +5,9 @@ type BmElementConstructor = {
 	tag: string;
 };
 
-export function define(tag: string) {
+export function define(
+	tag: string,
+): <T extends BmElementConstructor>(target: T, context: ClassDecoratorContext) => void {
 	return function <T extends BmElementConstructor>(
 		target: T,
 		context: ClassDecoratorContext,
