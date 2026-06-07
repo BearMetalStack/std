@@ -4,16 +4,16 @@ import type Channel from "./Channel.ts";
 export default class Sender {
 	private packetQueue: { packet: Packet; channel: Channel; clientToSendTo?: string }[] = [];
 
-	private ready = true;
+	private ready: boolean = true;
 
-	public add = (packet: Packet, channel: Channel, clientToSendTo?: string) => {
+	public add = (packet: Packet, channel: Channel, clientToSendTo?: string): void => {
 		this.packetQueue.push({ packet, channel, clientToSendTo });
 		this.send();
 	};
 
-	public hasPackets = () => !!this.packetQueue.length;
+	public hasPackets = (): boolean => !!this.packetQueue.length;
 
-	private send = async () => {
+	private send = async (): Promise<void> => {
 		if (this.ready && this.packetQueue.length) {
 			this.ready = false;
 

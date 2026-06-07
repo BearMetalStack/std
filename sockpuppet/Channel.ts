@@ -2,7 +2,7 @@ import type { disconnectCallback, packetCallback } from "./types.ts";
 
 export default class Channel {
 	public id: string;
-	public createdAt = Date.now();
+	public createdAt: number = Date.now();
 	public lastMessage?: number;
 
 	public listeners: Map<string, WebSocket>;
@@ -29,8 +29,9 @@ export default class Channel {
 		});
 	}
 
-	public addListener = (callback: packetCallback) =>
+	public addListener = (callback: packetCallback): number =>
 		this.callbacks.push(callback, this.callbacks.pop()!);
 
-	public onDisconnect = (callback: disconnectCallback) => this.disconnectCallbacks.push(callback);
+	public onDisconnect = (callback: disconnectCallback): number =>
+		this.disconnectCallbacks.push(callback);
 }

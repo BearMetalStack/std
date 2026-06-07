@@ -89,20 +89,20 @@ export class Sockpuppet {
 
 	private initialPing?: NodeJS.Timeout;
 
-	private keepAlive = true;
+	private keepAlive: boolean = true;
 
 	private _versionMismatch?: boolean;
-	get versionMismatch() {
+	get versionMismatch(): boolean | undefined {
 		return this._versionMismatch;
 	}
-	private _handshakeAccepted = false;
-	get handshakeAccepted() {
+	private _handshakeAccepted: boolean = false;
+	get handshakeAccepted(): boolean {
 		return this._handshakeAccepted;
 	}
-	private handshakeCheckDelay = 4000;
-	private socketReady = false;
+	private handshakeCheckDelay: number = 4000;
+	private socketReady: boolean = false;
 
-	static readonly puppetVersion = "0.6";
+	static readonly puppetVersion: string = "0.6";
 
 	// deno-lint-ignore no-explicit-any
 	private messageQueue: MessageEvent<any>[] = [];
@@ -154,7 +154,7 @@ export class Sockpuppet {
 	public joinChannel = (
 		channelId: string,
 		handler: channelCallback<string>,
-	) => {
+	): void => {
 		if (this.socket.readyState === 1) {
 			this._joinChannel(channelId, handler);
 		} else {
@@ -164,7 +164,7 @@ export class Sockpuppet {
 		}
 	};
 
-	private _joinChannel(channelId: string, handler: channelCallback<string>) {
+	private _joinChannel(channelId: string, handler: channelCallback<string>): void {
 		const channel = new Channel(channelId, this.socket);
 		this.channels.set(channelId, channel);
 		channel.addListener(handler);
@@ -173,17 +173,17 @@ export class Sockpuppet {
 		}));
 	}
 
-	public on = (event: string, callback: socketCallback) => {
+	public on = (event: string, callback: socketCallback): void => {
 		if (!this.callbacks.has(event)) {
 			this.callbacks.set(event, []).get;
 		}
 		this.callbacks.get(event)?.push(callback);
 	};
 
-	public onDisconnect = (callback: socketCallback) =>
+	public onDisconnect = (callback: socketCallback): number | undefined =>
 		this.callbacks.get("disconnect")?.push(callback);
 
-	private handleMessage = (message: MessageEvent<string>) => {
+	private handleMessage = (message: MessageEvent<string>): void => {
 		// Handle any events
 		switch (message.data) {
 			case "open":
@@ -207,7 +207,7 @@ export class Sockpuppet {
 		}
 	};
 
-	private processQueue() {
+	private processQueue(): void {
 		let message = this.messageQueue.shift();
 		while (message) {
 			try {
@@ -221,7 +221,7 @@ export class Sockpuppet {
 		}
 	}
 
-	private handleEvents = (message: Message) => {
+	private handleEvents = (message: Message): void => {
 		switch (message.event) {
 			case "leave":
 				this.deleteChannel(message.to);
@@ -247,12 +247,12 @@ export class Sockpuppet {
 		this.channels.get(message.to)?.execListeners(message.message);
 	};
 
-	public leaveChannel = (channelId: string) =>
+	public leaveChannel = (channelId: string): void =>
 		this.socket.send(JSON.stringify({
 			disconnect_from: [channelId],
 		}));
 
-	private deleteChannel = (channelId: string) => {
+	private deleteChannel = (channelId: string): void => {
 		const channel = this.channels.get(channelId);
 		if (channel) {
 			channel.execLeaveListeners();
@@ -260,9 +260,10 @@ export class Sockpuppet {
 		}
 	};
 
-	public getChannel = (channelId: string) => this.channels.get(channelId);
+	public getChannel = (channelId: string): Channel<string> | undefined =>
+		this.channels.get(channelId);
 
-	public createChannel = (channelId: string) =>
+	public createChannel = (channelId: string): Promise<Message> =>
 		new Promise<Message>((res, rej) => {
 			this.socket.send(JSON.stringify({
 				create_channel: channelId,

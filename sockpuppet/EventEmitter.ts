@@ -22,7 +22,7 @@ export default class EventEmitter {
 		this.id = id || "Server";
 	}
 
-	public _createNewChannel = (channelId?: string) => {
+	public _createNewChannel = (channelId?: string): Channel => {
 		if (!channelId) {
 			channelId = crypto.randomUUID();
 		}
@@ -42,11 +42,11 @@ export default class EventEmitter {
 	 * @param channelNameRule channelNameRule is used to construct a RegExp to test channel names to add the callback to
 	 * @param callback callback to be called before any channel listeners are called
 	 */
-	public use = (channelNameRule: string, callback: packetCallback) => {
+	public use = (channelNameRule: string, callback: packetCallback): void => {
 		this.channelMiddleware.set(channelNameRule, callback);
 	};
 
-	public closeChannel = (channelId: string) => {
+	public closeChannel = (channelId: string): void => {
 		for (const client of this.clients.values()) {
 			client.socket.send(`${channelId} closed.`);
 		}
@@ -54,7 +54,7 @@ export default class EventEmitter {
 		this.refreshChannels();
 	};
 
-	public createClient = (clientId: string, clientSocket: WebSocket) => {
+	public createClient = (clientId: string, clientSocket: WebSocket): Client => {
 		if (!this.clients.get(clientId)) {
 			const client = new Client(clientId, clientSocket);
 			this.clients.set(clientId, client);
@@ -64,7 +64,7 @@ export default class EventEmitter {
 		}
 	};
 
-	public addClientToChannel = (channelId: string, clientId: string) => {
+	public addClientToChannel = (channelId: string, clientId: string): void => {
 		const channel: Channel | undefined = this.channels.get(channelId);
 		if (!channel) throw new Error(`Channel "${channelId}; does not exist.`);
 		const client: Client | undefined = this.clients.get(clientId);
@@ -75,7 +75,7 @@ export default class EventEmitter {
 		this.refreshChannels();
 	};
 
-	public removeClientFromChannel = (channelId: string, clientId: string) => {
+	public removeClientFromChannel = (channelId: string, clientId: string): void => {
 		const channel: Channel | undefined = this.channels.get(channelId);
 		if (!channel) throw new Error(`Channel "${channelId}; does not exist.`);
 		const client = this.clients.get(clientId);
@@ -92,7 +92,7 @@ export default class EventEmitter {
 		this.refreshChannels();
 	};
 
-	public removeClient = (clientId: string) => {
+	public removeClient = (clientId: string): void => {
 		for (const channel of this.channels.values()) {
 			channel.listeners.delete(clientId);
 		}
@@ -102,27 +102,28 @@ export default class EventEmitter {
 	};
 
 	public connectCallbacks: (packetCallback)[] = [];
-	public onConnect = (callback: packetCallback) => this.connectCallbacks.push(callback);
+	public onConnect = (callback: packetCallback): number => this.connectCallbacks.push(callback);
 
 	public disconnectCallbacks: disconnectCallback[] = [];
-	public onDisconnect = (callback: disconnectCallback) => this.disconnectCallbacks.push(callback);
+	public onDisconnect = (callback: disconnectCallback): number =>
+		this.disconnectCallbacks.push(callback);
 
-	public getClients = () => this.clients;
-	public getChannels = () => this.channels;
-	public getChannel = (channelId: string) => this.channels.get(channelId);
+	public getClients = (): Map<string, Client> => this.clients;
+	public getChannels = (): Map<string, Channel> => this.channels;
+	public getChannel = (channelId: string): Channel | undefined => this.channels.get(channelId);
 
-	public to = (channelId: string, message: unknown, clientToSendTo?: string) => {
+	public to = (channelId: string, message: unknown, clientToSendTo?: string): void => {
 		this.queuePacket(new Packet(this, channelId, message), clientToSendTo);
 	};
 
-	public queuePacket = (packet: Packet, clientToSendTo?: string) => {
+	public queuePacket = (packet: Packet, clientToSendTo?: string): void => {
 		const channel = this.channels.get(packet.to);
 		if (channel) {
 			this.sender.add(packet, channel, clientToSendTo);
 		} else throw new Error(`Channel "${packet.to}" does not exist!`);
 	};
 
-	public refreshChannels = () => {
+	public refreshChannels = (): void => {
 		const channels = Array.from(this.channels.values()).map((c) => ({
 			id: c.id,
 			listeners: c.listeners.size,

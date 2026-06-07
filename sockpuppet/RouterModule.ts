@@ -59,14 +59,15 @@ export function sockpuppetModule(
 	});
 
 	const builderActions: BuilderActions = {
-		build() {
+		// deno-lint-ignore ban-types
+		build(): Module<{}> {
 			return mod;
 		},
-		addMiddleware(channelPattern: string, middleware: packetCallback) {
+		addMiddleware(channelPattern: string, middleware: packetCallback): BuilderActions {
 			puppet.channelMiddleware.set(channelPattern, middleware);
 			return builderActions;
 		},
-		permanentChannel(channelId: string) {
+		permanentChannel(channelId: string): BuilderActions {
 			puppet.createChannel(channelId);
 			return builderActions;
 		},
@@ -91,12 +92,12 @@ export class SocketServer extends EventEmitter implements ISocketServer {
 
 	public transmitter: Transmitter;
 
-	private startTime = Date.now();
-	private totalMessages = 0;
-	static dashVersion = "1";
-	static readonly puppetVersion = "0.6";
+	private startTime: number = Date.now();
+	private totalMessages: number = 0;
+	static dashVersion: string = "1";
+	static readonly puppetVersion: string = "0.6";
 
-	requestHandler(req: Request, _ctx: Deno.ServeHandlerInfo<Deno.Addr>) {
+	requestHandler(req: Request, _ctx: Deno.ServeHandlerInfo<Deno.Addr>): Response {
 		if (req.headers.get("upgrade") === "websocket") {
 			try {
 				const { response, socket } = Deno.upgradeWebSocket(req, { idleTimeout: 0 });
@@ -113,7 +114,7 @@ export class SocketServer extends EventEmitter implements ISocketServer {
 		}
 	}
 
-	handleWs = (sock: WebSocket) => {
+	handleWs = (sock: WebSocket): void => {
 		const client = this.createClient(crypto.randomUUID(), sock);
 
 		sock.onopen = () => {
@@ -144,13 +145,13 @@ export class SocketServer extends EventEmitter implements ISocketServer {
 		};
 	};
 
-	protected async handleMessageAsBinary(client: Client, message: Uint8Array) {
+	protected async handleMessageAsBinary(client: Client, message: Uint8Array): Promise<void> {
 		const decoded = JSON.parse(new TextDecoder().decode(message));
 		const packet = new Packet(client, decoded.to, decoded.message);
 		return await this.transmitter.handlePacket(packet);
 	}
 
-	protected handleMessageAsString = async (client: Client, message: string) => {
+	protected handleMessageAsString = async (client: Client, message: string): Promise<void> => {
 		switch (message) {
 			case "id":
 				client.socket.send(`Client ID: ${client.id}`);
@@ -205,7 +206,7 @@ export class SocketServer extends EventEmitter implements ISocketServer {
 		}
 	};
 
-	protected handleMessageAsJson = async (client: Client, message: string) => {
+	protected handleMessageAsJson = async (client: Client, message: string): Promise<void> => {
 		try {
 			const json = JSON.parse(message);
 
@@ -283,7 +284,7 @@ export class SocketServer extends EventEmitter implements ISocketServer {
 		}
 	};
 
-	public createChannel = (channelId: string) => {
+	public createChannel = (channelId: string): Channel => {
 		this.PermanentChannels.set(channelId, this._createNewChannel(channelId));
 		return this.PermanentChannels.get(channelId)!;
 	};

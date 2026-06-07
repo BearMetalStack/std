@@ -34,7 +34,7 @@ export default class Transmitter {
 		this.server = server;
 	}
 
-	public handlePacket = (packet: Packet) => {
+	public handlePacket = (packet: Packet): void => {
 		if (RESERVED_EVENT_NAMES.includes(packet.to)) {
 			return this.handleReservedEvent(packet);
 		}
@@ -134,12 +134,12 @@ export default class Transmitter {
 		}
 	};
 
-	public startHeartbeat(clientId: string) {
+	public startHeartbeat(clientId: string): NodeJS.Timeout {
 		const id = setInterval(() => this.ping(clientId), this.pingInterval);
 		return id;
 	}
 
-	public ping = (clientId: string) => {
+	public ping = (clientId: string): void => {
 		const client = this.server.clients.get(clientId);
 		"Heartbeat";
 		if (client) {
@@ -152,7 +152,7 @@ export default class Transmitter {
 		}
 	};
 
-	public timeoutPing = (clientId: string) => {
+	public timeoutPing = (clientId: string): void => {
 		const client = this.server.clients.get(clientId);
 		if (client) {
 			if (client.heartbeat) clearInterval(client.heartbeat);

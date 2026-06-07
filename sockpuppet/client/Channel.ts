@@ -16,7 +16,7 @@ export class Channel<T = string> {
 		this.socket = socket;
 	}
 
-	public send = (message: string, clientToSendTo?: number) =>
+	public send = (message: string, clientToSendTo?: number): void =>
 		this.socket.OPEN && this.socket.send(JSON.stringify({
 			send_packet: {
 				to: this.id,
@@ -26,12 +26,14 @@ export class Channel<T = string> {
 			},
 		}));
 
-	public addListener = (callback: channelCallback<T>) => this.callbacks.push(callback);
+	public addListener = (callback: channelCallback<T>): number => this.callbacks.push(callback);
 
-	public onJoinConfirm = (callback: channelCallback<"join">) => this.joinCallbacks.push(callback);
-	public onLeave = (callback: channelCallback<"leave">) => this.leaveCallbacks.push(callback);
+	public onJoinConfirm = (callback: channelCallback<"join">): number =>
+		this.joinCallbacks.push(callback);
+	public onLeave = (callback: channelCallback<"leave">): number =>
+		this.leaveCallbacks.push(callback);
 
-	public execListeners = (message: T) => this.callbacks.forEach((cb) => cb(message));
-	public execJoinListeners = () => this.joinCallbacks.forEach((cb) => cb("join"));
-	public execLeaveListeners = () => this.leaveCallbacks.forEach((cb) => cb("leave"));
+	public execListeners = (message: T): void => this.callbacks.forEach((cb) => cb(message));
+	public execJoinListeners = (): void => this.joinCallbacks.forEach((cb) => cb("join"));
+	public execLeaveListeners = (): void => this.leaveCallbacks.forEach((cb) => cb("leave"));
 }
