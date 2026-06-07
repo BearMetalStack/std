@@ -34,21 +34,23 @@ async function promptBump(
 	pkg: string,
 	current: string,
 ): Promise<string | null> {
-	const [major, minor, patch] = current.split(".").map(Number);
-	const [_, dev = "dev.0"] = current.split("-");
+	const [real, dev = "dev.0"] = current.split("-");
+	const [major, minor, patch] = real.split(".").map(Number);
+	const bumpBy = dev !== "dev.0" ? 0 : 1;
 	const choice = prompt(
 		`\n📦 ${pkg} has changes since ${current}\n` +
-			`  p) patch (default) → ${major}.${minor}.${patch + 1}\n` +
-			`  m) minor → ${major}.${minor + 1}.0\n` +
-			`  M) major → ${major + 1}.0.0\n` +
-			`  d) dev → ${major}.${minor}.${patch + 1}-${dev}\n` +
-			`  s) skip`,
+			`  p) patch (default) → ${major}.${minor}.${patch + bumpBy}\n` +
+			`  m) minor → ${major}.${minor + bumpBy}.0\n` +
+			`  M) major → ${major + bumpBy}.0.0\n` +
+			`  d) dev → ${major}.${minor}.${patch + bumpBy}-${dev}\n` +
+			`  s) skip\n` +
+			` => `,
 		"p",
 	)?.trim() ?? "p";
 
-	if (choice === "p") return `${major}.${minor}.${patch + 1}`;
-	if (choice === "m") return `${major}.${minor + 1}.0`;
-	if (choice === "M") return `${major + 1}.0.0`;
+	if (choice === "p") return `${major}.${minor}.${patch + bumpBy}`;
+	if (choice === "m") return `${major}.${minor + bumpBy}.0`;
+	if (choice === "M") return `${major + bumpBy}.0.0`;
 	if (choice === "d") {
 		let [devname = "dev", version = 0] = dev.split(".").map((e) => Number(e) ? e : Number(e)) as [
 			string,
