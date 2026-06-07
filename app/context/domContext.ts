@@ -29,11 +29,11 @@ export function inject<K extends keyof ContextMap>(
 ): ContextMap[K] | undefined;
 export function inject<T>(el: BMC, key: string): T | undefined;
 export function inject(el: BMC, key: string): unknown {
-	let current: BMC | null = el;
+	let current: Element | null = el;
 	while (current) {
 		const map: ProviderMap | undefined = (current as any)[PROVIDER_KEY];
 		if (map?.has(key)) return map.get(key);
-		current = current.parentBMC;
+		current = current.parentElement;
 	}
 	return undefined;
 }

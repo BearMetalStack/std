@@ -1,31 +1,54 @@
 {
-	"name": "@bearmetal/app",
-	"version": "0.1.0",
-	"exports": {
-		".": "./mod.ts",
-		"./signals": "./signals/index.ts",
-		"./context": "./context/mod.ts"
-	},
-	"tasks": {
-		"dev": "deno test --watch"
-	},
-	"license": "GPL-3.0-only",
-	"imports": {
-		"expect-type": "npm:expect-type@^1.3.0",
-		"@signals": "./signals/index.ts"
-	},
-	"compilerOptions": {
-		"jsx": "react-jsx",
-		"jsxImportSource": "@bearmetal/jsx",
-		"jsxImportSourceTypes": "@bearmetal/jsx",
-		"noImplicitOverride": false
-	},
-	"lint": {
-		"rules": {
-			"exclude": ["no-explicit-any"]
-		}
-	},
-	"fmt": {
-		"useTabs": true
-	}
+    "name": "@bearmetal/app",
+    "version": "0.1.0",
+    "exports": {
+        ".": "./mod.ts",
+        "./signals": "./signals/index.ts",
+        "./context": "./context/mod.ts"
+    },
+    "tasks": {
+        "example:counter": {
+            "command": "export EXAMPLE_DIR=./examples/counter-app && (deno task example:bundle & deno task example:serve)"
+        },
+        "example:counter:watch": {
+            "command": "bmdev ./examples/counter-app"
+        },
+        "example:twitter": {
+            "command": "export EXAMPLE_DIR=./examples/twitter-app && (deno task example:bundle & deno task example:serve)"
+        },
+        "example:twitter:watch": {
+            "command": "bmdev ./examples/twitter-app"
+        },
+        "example:kanban": {
+            "command": "export EXAMPLE_DIR=./examples/kanban-app && (deno task example:bundle & deno task example:serve)"
+        },
+        "example:kanban:watch": {
+            "command": "bmdev ./examples/kanban-app"
+        },
+        "example:bundle": {
+            "command": "deno bundle --watch --minify --sourcemap=inline --platform=browser --outdir=$EXAMPLE_DIR/dist $EXAMPLE_DIR/index.html"
+        },
+        "example:serve": {
+            "command": "bmdev $EXAMPLE_DIR/dist"
+        }
+    },
+    "license": "GPL-3.0-only",
+    "imports": {
+        "expect-type": "npm:expect-type@^1.3.0",
+        "@signals": "./signals/index.ts"
+    },
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "jsxImportSource": "@bearmetal/jsx",
+        "jsxImportSourceTypes": "@bearmetal/jsx",
+        "noImplicitOverride": false
+    },
+    "lint": {
+        "rules": {
+            "exclude": ["no-explicit-any"]
+        }
+    },
+    "fmt": {
+        "useTabs": true
+    }
 }

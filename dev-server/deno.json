@@ -1,0 +1,17 @@
+{
+    "name": "@bearmetal/dev-server",
+    "version": "0.1.0",
+    "exports": "./mod.ts",
+    "tasks": {
+        "dev": "deno run -RN --watch main.ts test",
+        "install": "deno install -fg --name bmdev --config=deno.json --allow-read --allow-net=0.0.0.0:8345 --allow-env --unstable-bundle main.ts"
+    },
+    "license": "GPL-3.0-only",
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "jsxImportSource": "@bearmetal/jsx/client"
+    },
+    "imports": {
+        "@std/path": "jsr:@std/path"
+    }
+}
