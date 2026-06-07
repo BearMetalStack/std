@@ -20,7 +20,7 @@
 import { escapeHtml } from "@bearmetal/miscellanea";
 import { Module } from "../module.ts";
 
-export class ForagerModule extends Module<{}> {
+export class ForagerModule extends Module {
 	constructor({ path = "/_forager" }: { path?: string } = {}) {
 		super();
 		this.route(path).get(() => this.#render());
@@ -40,7 +40,7 @@ export class ForagerModule extends Module<{}> {
 				`      <tr><td>${escapeHtml(path)}</td><td>${
 					escapeHtml(entry.methods.join(", "))
 				}</td><td>${
-					JSON.stringify(entry.schemas[entry.methods[1]]?.toJSONSchema()) ??
+					JSON.stringify(entry.schemas[entry.methods[0]]?.toJSONSchema()) ??
 						"No docs"
 				}</td></tr>`
 			)

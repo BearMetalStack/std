@@ -1,25 +1,25 @@
 {
-  "name": "@bearmetal/router",
-  "description": "A simple router for Deno",
-  "version": "0.5.0-dev.6",
-  "stable": true,
-  "tasks": {
-    "dirty": {
-      "command": "deno publish --allow-dirty"
+    "name": "@bearmetal/router",
+    "description": "A simple router for Deno",
+    "version": "0.5.0-dev.6",
+    "stable": true,
+    "tasks": {
+        "dirty": {
+            "command": "deno publish --allow-dirty"
+        },
+        "dev": {
+            "command": "deno run --allow-net --allow-read --allow-write --watch example.ts"
+        }
     },
-    "dev": {
-      "command": "deno run --allow-net --allow-read --allow-write --unstable --watch example.ts"
+    "files": ["mod.ts", "modules/", "README.md", "LICENSE"],
+    "exports": {
+        ".": "./mod.ts",
+        "./types": "./types.ts",
+        "./response": "./util/response.ts",
+        "./modules/forager": "./modules/forager.ts"
+    },
+    "exclude": [".vscode/", ".zed/"],
+    "imports": {
+        "@/": "./"
     }
-  },
-  "files": ["mod.ts", "modules/", "README.md", "LICENSE"],
-  "exports": {
-    ".": "./mod.ts",
-    "./types": "./types.ts",
-    "./response": "./util/response.ts",
-    "./modules/forager": "./modules/forager.ts"
-  },
-  "exclude": [".vscode/", ".zed/"],
-  "imports": {
-    "@/": "./"
-  }
 }

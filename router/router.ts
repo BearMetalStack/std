@@ -284,7 +284,7 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 				const res = await middlewareStack[index++]?.(ctx, executeMiddleware);
 				if (res instanceof Response) return res;
 			}
-			return new Response("End of stack", { status: 501 });
+			return new Response("End of stack", { status: 500 });
 		};
 
 		try {
