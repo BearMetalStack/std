@@ -5,6 +5,7 @@ const flags: flags = {
 	db: false,
 	devProxy: false,
 	miscellanea: false,
+	auth: false,
 };
 
 const currentDirName = Deno.cwd().split("/").pop()!;
@@ -21,7 +22,7 @@ bootstrap({
 	dirname,
 });
 
-console.log(`Project "${projectName} has been created."`);
+console.log(`\n✅ Project "${projectName}" has been created`);
 console.log(
 	`To get started: ${projectName === "." ? "" : `cd ${projectName} && `}deno task bm:dev`,
 );

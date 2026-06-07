@@ -3,6 +3,7 @@ export interface flags {
 	/** forces the inclusion of the miscellanea package */
 	miscellanea: boolean;
 	db: "postgres" | false;
+	auth: boolean;
 }
 
 type flagConfigurator = {
@@ -19,7 +20,7 @@ interface bootstrapOpts {
 
 const flagConfigurators: flagConfigurator = {
 	db() {
-		if (confirm("Would you like to use a DB provider? (postgres)")) {
+		if (confirm("Use a DB provider? (postgres)")) {
 			return "postgres";
 		}
 		return false;
@@ -31,12 +32,16 @@ const flagConfigurators: flagConfigurator = {
 		}
 		return false;
 	},
+	auth() {
+		return (confirm("Use auth?"));
+	},
 };
 
 const flagKeyMap: flagKeyMap = {
 	db: "--use-db",
 	devProxy: "--dev-proxy",
 	miscellanea: "--misc",
+	auth: "--auth",
 };
 
 export function coalesceFlags(flags: flags) {
@@ -44,13 +49,10 @@ export function coalesceFlags(flags: flags) {
 		const f = { found: false };
 		if (Array.isArray(arg)) {
 			for (const a of arg) {
-				// deno-lint-ignore no-explicit-any
 				flags[flag] = resolveFlags(a, f) ?? false as any;
 			}
-			// deno-lint-ignore no-explicit-any
 		} else flags[flag] = resolveFlags(arg, f) ?? false as any;
 		if (!f.found) {
-			// deno-lint-ignore no-explicit-any
 			flags[flag] = flagConfigurators[flag]() as any;
 		}
 	}

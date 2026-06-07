@@ -8,22 +8,45 @@ interface MainTemplate {
 	middleware: string[];
 }
 
-export function buildMainTs(opts: MainTemplateOpts): string {
+const optional: Partial<
+	{
+		[key in keyof flags]: (
+			i: MainTemplate["imports"],
+			m: MainTemplate["middleware"],
+			opts: MainTemplateOpts,
+			files: FileBuilder[],
+		) => void;
+	}
+> = {
+	db(i, m, opts) {
+		i.push(["@bearmetal/db", ["dbModule"]]);
+		m.push(`.use(dbModule("${opts.db}"))`);
+	},
+	devProxy(i, m, opts) {
+		i.push(["@bearmetal/devproxy", ["devProxyModule"]]);
+		m.push(`.use(devProxyModule("${opts.devProxy}"))`);
+	},
+	auth(i, m) {
+		i.push(["@bearmetal/auth", ["authModule"]]);
+		i.push(["@bearmetal/forge", ["s"]]);
+		m.push(`.use(authModule(s.object({ username: s.string() })))`);
+	},
+};
+
+type FileBuilder = [string, () => string];
+export function buildMainTs(opts: MainTemplateOpts): FileBuilder[] {
 	const t: MainTemplate = {
 		imports: [["@bearmetal/router", ["Ok", "Router"]]],
 		middleware: [],
 	};
 
-	if (opts.db) {
-		t.imports.push(["@bearmetal/db", ["dbModule"]]);
-		t.middleware.push(`.use(dbModule("${opts.db}"))`);
-	}
+	const files: FileBuilder[] = [];
 
-	// if (opts.auth) {
-	// 	t.imports.push(["@bearmetal/auth", ["authModule"]]);
-	// 	t.imports.push(["@bearmetal/forge", ["s"]]);
-	// 	t.middleware.push(`.use(authModule(s.object({ username: s.string() })))`);
-	// }
+	for (const [key, fn] of Object.entries(optional)) {
+		if (opts[key as keyof flags]) {
+			fn(t.imports, t.middleware, opts, files);
+		}
+	}
 
 	const importLines = t.imports
 		.map(([spec, names]) => `import { ${names.join(", ")} } from "${spec}";`)
@@ -32,19 +55,22 @@ export function buildMainTs(opts: MainTemplateOpts): string {
 	const routerSetup = t.middleware.length > 0 ? `router\n\t${t.middleware.join("\n\t")};\n` : "";
 
 	return [
-		importLines,
-		"",
-		"const router = new Router();",
-		"",
-		routerSetup,
-		`router.route("/").get(() => Ok("Hello, World!"));`,
-		"",
-		"Deno.serve(router.handle.bind(router));",
-		"",
-	].filter((line, i, arr) => {
-		// collapse consecutive empty lines
-		return !(line === "" && arr[i - 1] === "");
-	}).join("\n");
+		["main.ts", () =>
+			[
+				importLines,
+				"",
+				"const router = new Router();",
+				"",
+				routerSetup,
+				`router.route("/").get(() => Ok("Hello, World!"));`,
+				"",
+				"Deno.serve(router.handle.bind(router));",
+				"",
+			].filter((line, i, arr) => {
+				return !(line === "" && arr[i - 1] === "");
+			}).join("\n")],
+		...files,
+	];
 }
 
 export function denoJson(projectName: string) {

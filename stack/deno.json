@@ -10,5 +10,19 @@
     },
     "fmt": {
         "useTabs": true
+    },
+    "compilerOptions": {
+        "lib": [
+            "deno.window",
+            "deno.unstable",
+            "node",
+            "esnext",
+            "dom.asynciterable"
+        ]
+    },
+    "lint": {
+        "rules": {
+            "exclude": ["no-explicit-any"]
+        }
     }
 }
