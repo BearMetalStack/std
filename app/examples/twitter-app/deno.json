@@ -1,7 +1,0 @@
-{
-    "compilerOptions": {
-        "jsx": "react-jsx",
-        "jsxImportSource": "@bearmetal/jsx/client",
-        "lib": ["dom", "dom.iterable", "dom.asynciterable", "esnext"]
-    }
-}

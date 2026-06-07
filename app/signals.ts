@@ -1,4 +1,4 @@
-import { Signal } from "@bearmetal/app/signals";
+import { Signal } from "@signals";
 import { getCurrentOwner, setCurrentOwner } from "@bearmetal/jsx/client";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 
