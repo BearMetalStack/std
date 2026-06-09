@@ -1,15 +1,22 @@
 {
-  "name": "@bearmetal/sockpuppet",
-  "version": "1.0.0",
-  "exports": {
-    ".": "./mod.ts",
-    "./client": "./client/mod.ts"
-  },
-  "tasks": {
-    "dev": "deno test --watch"
-  },
-  "license": "GPL-3.0-only",
-  "compilerOptions": {
-    "lib": ["deno.ns", "deno.window", "deno.unstable", "node", "dom", "esnext"]
-  }
+    "name": "@bearmetal/sockpuppet",
+    "version": "1.0.1",
+    "exports": {
+        ".": "./mod.ts",
+        "./client": "./client/mod.ts"
+    },
+    "tasks": {
+        "dev": "deno test --watch"
+    },
+    "license": "GPL-3.0-only",
+    "compilerOptions": {
+        "lib": [
+            "deno.ns",
+            "deno.window",
+            "deno.unstable",
+            "node",
+            "dom",
+            "esnext"
+        ]
+    }
 }
