@@ -1,4 +1,4 @@
-import { joinPath } from "../miscellanea/mod.ts";
+import { joinPath } from "@bearmetal/miscellanea";
 
 export async function DevServer() {
 	const assetMap = new Map<string, [string, string]>();

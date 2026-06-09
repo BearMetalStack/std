@@ -20,6 +20,18 @@ function getLatestTag(pkg: string): string | null {
 	}
 }
 
+function getNextRetagSuffix(pkg: string, version: string): string {
+	const tags = run(["git", "tag", "--list", `${pkg}@${version}-retag.*`]);
+	if (!tags) return "-retag.1";
+	const nums = tags.split("\n")
+		.filter(Boolean)
+		.map((t) => t.match(/-retag\.(\d+)$/)?.[1])
+		.filter(Boolean)
+		.map(Number);
+	const max = nums.length ? Math.max(...nums) : 0;
+	return `-retag.${max + 1}`;
+}
+
 function hasChanges(
 	_pkg: string,
 	dir: string,
@@ -37,12 +49,14 @@ async function promptBump(
 	const [real, dev = "dev.0"] = current.split("-");
 	const [major, minor, patch] = real.split(".").map(Number);
 	const bumpBy = dev !== "dev.0" ? 0 : 1;
+	const retagSuffix = getNextRetagSuffix(pkg, current);
 	const choice = prompt(
 		`\n📦 ${pkg} has changes since ${current}\n` +
 			`  p) patch (default) → ${major}.${minor}.${patch + bumpBy}\n` +
 			`  m) minor → ${major}.${minor + bumpBy}.0\n` +
 			`  M) major → ${major + bumpBy}.0.0\n` +
 			`  d) dev → ${major}.${minor}.${patch + bumpBy}-${dev}\n` +
+			`  r) retag → ${current}${retagSuffix}\n` +
 			`  s) skip\n` +
 			` => `,
 		"p",
@@ -61,6 +75,7 @@ async function promptBump(
 		[devname, version] = await checkPackageDevVersions(pkg, [devname, version]);
 		return `${major}.${minor}.${patch}-${devname}.${version}`;
 	}
+	if (choice === "r") return "retag";
 	return null;
 }
 
@@ -116,6 +131,7 @@ if (status.length > 0) {
 const packages = await findPackages();
 
 const bumps: { name: string; dir: string; next: string }[] = [];
+const retags: { name: string; current: string }[] = [];
 for (const { name, dir } of packages) {
 	const latestTag = getLatestTag(name);
 	if (!hasChanges(name, dir, latestTag)) continue;
@@ -129,6 +145,10 @@ for (const { name, dir } of packages) {
 			console.log(`  skipped.`);
 			continue;
 		}
+		if (next === "retag") {
+			retags.push({ name, current });
+			continue;
+		}
 
 		denoJson.version = next;
 		Deno.writeTextFileSync(
@@ -140,19 +160,27 @@ for (const { name, dir } of packages) {
 	bumps.push({ name, dir, next });
 }
 
-if (bumps.length === 0) {
+if (bumps.length === 0 && retags.length === 0) {
 	console.log("nothing to bump.");
 	Deno.exit(0);
 }
 
-const message = "chore: " + bumps.map((b) => `${b.name}@${b.next}`).join(", ");
-run(["git", "add", ...bumps.map((b) => `${b.dir}/deno.json`)]);
-run(["git", "commit", "-m", message]);
+if (bumps.length > 0) {
+	const message = "chore: " + bumps.map((b) => `${b.name}@${b.next}`).join(", ");
+	run(["git", "add", ...bumps.map((b) => `${b.dir}/deno.json`)]);
+	run(["git", "commit", "-m", message]);
 
-for (const { name, next } of bumps) {
-	const tag = `${name}@${next}`;
+	for (const { name, next } of bumps) {
+		const tag = `${name}@${next}`;
+		run(["git", "tag", tag]);
+		console.log(`  ✓ tagged ${tag}`);
+	}
+}
+
+for (const { name, current } of retags) {
+	const tag = `${name}@${current}${getNextRetagSuffix(name, current)}`;
 	run(["git", "tag", tag]);
-	console.log(`  ✓ tagged ${tag}`);
+	console.log(`  ✓ retagged ${tag}`);
 }
 
 console.log("\ndone. don't forget to git push --tags");
