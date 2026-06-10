@@ -4,16 +4,18 @@ import { KVConnector, PostgresConnector } from "@connectors";
 import { schemaHash } from "@lib/hash.ts";
 import type { Migration, MigrationResult } from "@migrations";
 import { m } from "@migrations";
-import type { DBOptions, PostgresOptions, Queryable, TableIdentifier } from "./types.d.ts";
+import type { DBOptions, PostgresOptions, Queryable, TableIdentifier, TableRegistry } from "./types.d.ts";
 import { isProd } from "@bearmetal/miscellanea/environment";
 
 export { type Infer, ObjectSchema, s, type SchemaShape } from "@bearmetal/forge";
 export { m, type Migration, type MigrationOp, type MigrationResult } from "@migrations";
+export type { TableRegistry } from "./types.d.ts";
 
 type ProviderType = "postgres" | "kv";
 
 export type DBServiceActions = {
-	table: (identifier: TableIdentifier) => Queryable;
+	table<K extends keyof TableRegistry>(identifier: K): Queryable<TableRegistry[K]>;
+	table(identifier: TableIdentifier): Queryable;
 	migrate: () => Promise<MigrationResult>;
 	registerMigrations: (migrations: Migration[]) => void;
 	extend: (
@@ -53,7 +55,7 @@ export function dbModule(
 	const mod = new Module().provides(
 		dbToken,
 		createService<DBServiceActions>({
-			table: (id: TableIdentifier) => conn.table(id),
+			table: ((id: TableIdentifier) => conn.table(id)) as DBServiceActions["table"],
 			migrate: () => conn.migrate(migrations),
 			registerMigrations: (incoming) => migrations.push(...incoming),
 			extend: ({ table, schema, migration, allowDrop }) => {

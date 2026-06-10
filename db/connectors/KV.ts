@@ -7,11 +7,11 @@ export class KVConnector extends Connector {
     super(opts);
   }
 
-  table(_identifier: TableIdentifier): Queryable {
+  table<T = Record<string, unknown>>(_identifier: TableIdentifier): Queryable<T> {
     throw new Error("Not Implemented");
   }
 
-  select(_fields: string[]): Queryable {
+  select<F extends string>(_fields: F[]): Queryable<Pick<Record<string, unknown>, F>> {
     throw new Error("Not Implemented");
   }
 
@@ -43,18 +43,18 @@ export class KVConnector extends Connector {
     throw new Error("Not Implemented");
   }
 
-  get query(): Promise<unknown> {
+  get query(): Promise<Record<string, unknown>[]> {
     throw new Error("Not Implemented");
   }
 
-  get delete(): Promise<unknown> {
+  get delete(): Promise<Record<string, unknown>[]> {
     throw new Error("Not Implemented");
   }
 
   upsert(
     _data: Record<string, unknown>,
     _conflictOn?: string[],
-  ): Promise<unknown> {
+  ): Promise<Record<string, unknown>[]> {
     throw new Error("Not Implemented");
   }
 

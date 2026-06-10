@@ -1,23 +1,28 @@
+import type { ServiceActions } from "@bearmetal/router";
+
 export type TableIdentifier = string | { name: string };
 
-export interface Queryable {
-  select(fields: string[]): Queryable;
-  where(condition: unknown): Queryable;
+// deno-lint-ignore no-empty-interface
+export interface TableRegistry {}
+
+export interface Queryable<T = Record<string, unknown>> {
+  select<F extends keyof T & string>(fields: F[]): Queryable<Pick<T, F>>;
+  where(condition: Partial<T>): Queryable<T>;
   join(
     otherTableIdentifier: TableIdentifier,
     on: { localTable?: string; local: string; foreign: string },
     type?: "inner" | "left",
-  ): Queryable;
-  orderBy(field: string, direction?: "asc" | "desc"): Queryable;
-  groupBy(fields: string[]): Queryable;
-  limit(count?: number): Queryable;
-  offset(skipCount: number): Queryable;
-  readonly query: Promise<unknown>;
-  readonly delete: Promise<unknown>;
+  ): Queryable<T>;
+  orderBy(field: keyof T & string, direction?: "asc" | "desc"): Queryable<T>;
+  groupBy(fields: (keyof T & string)[]): Queryable<T>;
+  limit(count?: number): Queryable<T>;
+  offset(skipCount: number): Queryable<T>;
+  readonly query: Promise<T[]>;
+  readonly delete: Promise<T[]>;
   upsert(
-    data: Record<string, unknown>,
-    conflictOn?: string[],
-  ): Promise<unknown>;
+    data: Partial<T>,
+    conflictOn?: (keyof T & string)[],
+  ): Promise<T[]>;
 }
 
 export type DBOptions<T = unknown> =
@@ -45,3 +50,10 @@ export type PostgresOptions = {
 export type KVOptions = {
   KV: true;
 };
+
+declare module "@bearmetal/router" {
+  interface Service<T extends ServiceActions> {
+    invoke<K extends keyof TableRegistry>(action: "table", identifier: K): Queryable<TableRegistry[K]>;
+    invoke(action: "table", identifier: string): Queryable;
+  }
+}

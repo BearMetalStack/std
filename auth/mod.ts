@@ -7,7 +7,14 @@ import {
 	type Service,
 	Unauthorized,
 } from "@bearmetal/router";
-import { type DBServiceActions, dbToken, m, s } from "@bearmetal/db";
+import { type DBServiceActions, dbToken, m, s, type TableRegistry } from "@bearmetal/db";
+
+declare module "@bearmetal/db" {
+	interface TableRegistry {
+		bma_users: { id: string; alias: string; password?: string };
+		bma_sessions: { token: string; data?: string };
+	}
+}
 import { SignInPage } from "./views/SignInPage.tsx";
 import { Layout, Page } from "@bearmetal/app/ssr";
 import { mainLayout } from "./layouts/main.tsx";
@@ -91,11 +98,10 @@ export function authModule<T extends Schema<unknown>>(
 		const token = ctx.cookies.get(cookieName);
 		if (token) {
 			const db = ctx.getService(dbToken);
-			const rows = await db.invoke("table", "bma_sessions").select(["data"]).where({ token })
-				.query as { data: string }[];
+			const rows = await db.invoke("table", "bma_sessions").where({ token }).select(["data"]).query;
 			if (rows.length > 0) {
 				ctx.state.user = Token.parse(token);
-				ctx.state.session = rows[0].data;
+				ctx.state.session = rows[0].data ?? "";
 			}
 		}
 		return await next();
@@ -117,12 +123,8 @@ export function authModule<T extends Schema<unknown>>(
 				const db = ctx.getService(dbToken);
 				const { alias, password } = ctx.body;
 				const user = await db.invoke("table", "bma_users").select(
-					["alias", "password", ...includeInToken] as string[],
-				).where(
-					{
-						alias,
-					},
-				).query as Partial<Infer<typeof userSignInSchema>>;
+					["alias", "password", ...includeInToken] as (keyof TableRegistry["bma_users"])[],
+				).where({ alias }).query as unknown as Partial<TableRegistry["bma_users"]>;
 				if (!user || !await Password.verify(password, user.password!)) {
 					return Unauthorized(new Error("Invalid credentials"));
 				}

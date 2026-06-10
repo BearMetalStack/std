@@ -52,24 +52,24 @@ export class PostgresConnector extends Connector {
 		this.#state = emptyState();
 	}
 
-	async #execute(sql: string, params: unknown[]): Promise<unknown> {
+	async #execute(sql: string, params: unknown[]): Promise<Record<string, unknown>[]> {
 		const client = await this.#pool.connect();
 		try {
 			const result = await client.queryObject(sql, params);
-			return result.rows;
+			return result.rows as Record<string, unknown>[];
 		} finally {
 			client.release();
 		}
 	}
 
-	table(identifier: TableIdentifier): Queryable {
+	table<T = Record<string, unknown>>(identifier: TableIdentifier): Queryable<T> {
 		this.#state = { ...emptyState(), table: resolveIdentifier(identifier) };
-		return this;
+		return this as unknown as Queryable<T>;
 	}
 
-	select(fields: string[]): Queryable {
+	select<F extends string>(fields: F[]): Queryable<Pick<Record<string, unknown>, F>> {
 		this.#state.fields = fields;
-		return this;
+		return this as unknown as Queryable<Pick<Record<string, unknown>, F>>;
 	}
 
 	where(condition: unknown): Queryable {
@@ -117,12 +117,12 @@ export class PostgresConnector extends Connector {
 		return this;
 	}
 
-	get query(): Promise<unknown> {
+	get query(): Promise<Record<string, unknown>[]> {
 		const { sql, params } = buildPostgresSQL(this.#state);
 		return this.#execute(sql, params);
 	}
 
-	get delete(): Promise<unknown> {
+	get delete(): Promise<Record<string, unknown>[]> {
 		const { sql, params } = buildPostgresDeleteSQL(this.#state);
 		return this.#execute(sql, params);
 	}
@@ -130,7 +130,7 @@ export class PostgresConnector extends Connector {
 	upsert(
 		data: Record<string, unknown>,
 		conflictOn?: string[],
-	): Promise<unknown> {
+	): Promise<Record<string, unknown>[]> {
 		const { sql, params } = buildPostgresUpsertSQL(
 			this.#state,
 			data,
