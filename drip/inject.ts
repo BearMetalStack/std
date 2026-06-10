@@ -37,6 +37,10 @@ export function theme(name: string, scope: string = ":root"): void {
 	_updateTheme(name, entry);
 }
 
+export function getRegisteredTheme(name: string): Theme | undefined {
+	return registry.get(name)?.data;
+}
+
 function _updateTheme(name: string, entry: ThemeEntry): void {
 	if (typeof document === "undefined" || !entry.data || !entry.scopes.size) return;
 	const id = `bm-theme-${name}`;

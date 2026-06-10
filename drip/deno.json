@@ -1,7 +1,14 @@
 {
 	"name": "@bearmetal/drip",
 	"version": "0.0.2",
-	"exports": "./mod.ts",
+	"exports": {
+		".": "./mod.ts",
+		"./ssr": "./ssr.tsx"
+	},
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx/server"
+	},
 	"tasks": {
 		"dev": "deno test --watch",
 		"bm:drip": {
