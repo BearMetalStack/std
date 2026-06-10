@@ -1,3 +1,5 @@
+import { Loader } from "@bearmetal/webbies/temp";
+
 export const SignInPage = (
 	{ buttonText, headerText = buttonText, switchPage, redirectUrl, submitUrl }: {
 		buttonText: string;
@@ -10,6 +12,7 @@ export const SignInPage = (
 	return (() => {
 		return (
 			<>
+				<Loader />
 				<form action={submitUrl} method="post">
 					{redirectUrl && <input type="hidden" name="redirectUrl" value={redirectUrl} />}
 					<fieldset>

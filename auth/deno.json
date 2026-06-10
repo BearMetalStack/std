@@ -19,7 +19,9 @@
                 "BEARMETAL_ENV",
                 "BM_TOKEN_SECRET"
             ],
-            "net": ["dev.bear-metal.dev", "0.0.0.0:3000", "localhost:5432"]
+            "net": ["dev.bear-metal.dev", "0.0.0.0:3000", "localhost:5432"],
+            "read": true,
+            "write": true
         }
     },
     "license": "GPL-3.0-only",

@@ -1,7 +1,7 @@
 // [GENERATED:link-mods] DO NOT EDIT BELOW
-import "@style"
+import "@style";
 export * from "./badge.ts";
-export * from "./loader.ts";
+export * from "./loader.tsx";
 export * from "./progress.ts";
 export * from "./table.ts";
 // [/GENERATED:link-mods]

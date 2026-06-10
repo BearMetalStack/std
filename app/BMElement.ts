@@ -3,8 +3,8 @@ import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal as Signals } from "@signals";
 import type { ContextMap } from "./context/mod.ts";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
-import { effect } from "./signals.ts";
-const { Signal } = await import("@signals");
+import { each, effect } from "./signals.ts";
+import { Signal } from "@signals";
 
 setEffectImpl(effect);
 
@@ -68,7 +68,7 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 					const frag = document.createDocumentFragment();
 					frag.appendChild(t.get() as Node);
 					this.init();
-					this.appendChild(frag);
+					this.root.appendChild(frag);
 					// effect handles subsequent updates
 					this.addEffect(() => {
 						this.replaceChildren(t.get() as Node);
@@ -78,7 +78,7 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 					const frag = document.createDocumentFragment();
 					frag.appendChild(t as Node);
 					this.init();
-					this.appendChild(frag);
+					this.root.appendChild(frag);
 				}
 			} else {
 				this.init();
@@ -101,6 +101,14 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 	 * `protected override get template() { ... }`
 	 */
 	protected get template():
+		| JSX.Element
+		| Signals.State<JSX.Element>
+		| Signals.Computed<JSX.Element>
+		| undefined {
+		return undefined;
+	}
+
+	protected get shadowTemplate():
 		| JSX.Element
 		| Signals.State<JSX.Element>
 		| Signals.Computed<JSX.Element>
@@ -145,5 +153,28 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 
 	injectOrThrow<K extends keyof ContextMap>(key: K): ContextMap[K] {
 		return injectOrThrow(this.parentElement ?? this, key);
+	}
+
+	protected useShadow(mode: ShadowRootMode = "open"): ShadowRoot {
+		return this.shadowRoot ?? this.attachShadow({ mode });
+	}
+
+	protected get root(): ShadowRoot | this {
+		return this.shadowRoot ?? this;
+	}
+
+	each = each;
+
+	protected adoptStyleSheet(css: CSSStyleSheet) {
+		if (!this.shadowRoot) {
+			console.warn(
+				`${this.tagName}: setShadowStyle called but no shadow root exists. Call useShadow() first.`,
+			);
+			return;
+		}
+		this.shadowRoot.adoptedStyleSheets = [
+			...this.shadowRoot.adoptedStyleSheets,
+			css,
+		];
 	}
 }

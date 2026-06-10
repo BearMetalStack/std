@@ -10,19 +10,7 @@ export * from "./indentation.ts";
 export * from "./ascii/mod.ts";
 
 /** Tagged template that concatenates values as-is - provides syntax highlighting in editors. */
-export function css(
-	strings: TemplateStringsArray,
-	...values: (string | number | boolean)[]
-): string {
-	let result = "";
-	for (let i = 0; i < strings.length; i++) {
-		result += strings[i];
-		if (i < values.length) {
-			result += values[i];
-		}
-	}
-	return result;
-}
+export const css = String.raw;
 
 /** Tagged template that auto-escapes string interpolations via {@link escapeHtml}. */
 export function html(

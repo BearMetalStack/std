@@ -1,6 +1,6 @@
 import { css } from "@bearmetal/miscellanea";
 import type { LayoutEl } from "@bearmetal/app/ssr";
-import { ThemeStyle } from "@bearmetal/drip/ssr";
+// import { ThemeStyle } from "@bearmetal/drip/ssr";
 
 export const mainLayout: LayoutEl = (props) => {
 	return (
@@ -24,7 +24,7 @@ export const mainLayout: LayoutEl = (props) => {
 				<script defer src="https://cdn.bear-metal.dev/webbies/0.0.1/utility.js" />
 				<script defer src="https://cdn.bear-metal.dev/webbies/0.0.1/layout.js" />
 				<link rel="stylesheet" href="https://cdn.bear-metal.dev/webbies/0.0.1/inputs.css" />
-				<ThemeStyle />
+				{/*<ThemeStyle />*/}
 				<style raw>
 					{css`
 						body {

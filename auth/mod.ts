@@ -60,7 +60,7 @@ export function authModule<T extends Schema<unknown>>(
 					}),
 					primaryKey: "token",
 				}),
-				...migrationsFor(methods),
+				// ...migrationsFor(methods),
 			]);
 			try {
 				await db.invoke("migrate");

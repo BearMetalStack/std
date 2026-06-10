@@ -16,14 +16,16 @@
             "deno.unstable"
         ],
         "jsx": "react-jsx",
-        "jsxImportSource": "@bearmetal/jsx/client"
+        "jsxImportSource": "@bearmetal/jsx/client",
+        "noImplicitOverride": false
     },
     "publish": {
         "exclude": ["./prod", "./dist"]
     },
     "exports": {
         ".": "./mod.ts",
-        "./types": "./types.ts"
+        "./types": "./types.ts",
+        "./temp": "./components/data/loader.tsx"
     },
     "imports": {
         "@lib/": "./lib/",
