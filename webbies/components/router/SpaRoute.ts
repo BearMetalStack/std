@@ -1,20 +1,20 @@
+import { BMElement, define } from "@bearmetal/app";
 import { html } from "@bearmetal/miscellanea";
 import { joinPath } from "@bearmetal/miscellanea";
-import { registerElement } from "@lib/registerElements.ts";
 
-export class SpaRoute extends HTMLElement {
+@define("bm-route", import.meta)
+export class SpaRoute extends BMElement {
 	static get observedAttributes(): string[] {
 		return ["active", "path", "keep-alive"];
-	}
-	constructor() {
-		super();
-		this.style.display = "none";
 	}
 
 	private _templ?: HTMLTemplateElement | null;
 	private _observer?: MutationObserver;
 	private _importedNodes: ChildNode[] = [];
-	connectedCallback(): void {
+
+	init(): void {
+		this.style.display = "none";
+
 		const glorp = () => {
 			if (this._templ) return true;
 			this._templ = this.querySelector(":scope > template");
@@ -54,7 +54,8 @@ export class SpaRoute extends HTMLElement {
 		}
 	}
 
-	disconnectedCallback() {
+	override disconnectedCallback() {
+		super.disconnectedCallback();
 		this._observer?.disconnect();
 	}
 
@@ -161,5 +162,3 @@ export class SpaRoute extends HTMLElement {
 		}
 	}
 }
-
-registerElement("bm-route", SpaRoute);

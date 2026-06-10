@@ -1,16 +1,17 @@
+import { define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 import { PopoverBase } from "./base.ts";
-import { registerElement } from "@lib/registerElements.ts";
 
+@define("bm-icon-popover", import.meta)
 export class PopoverIcon extends PopoverBase {
-	override connectedCallback(): void {
+	override init(): void {
 		console.log(this.children);
 
 		if (!this.hasAttribute("icon")) {
 			console.warn("PopoverIcon has no icon attribute");
 		}
 		if (this.children.length === 0) console.warn("PopoverIcon has no content");
-		super.connectedCallback();
+		super.init();
 		const icon = document.createElement("bm-icon");
 		icon.setAttribute("slot", "trigger");
 		icon.setAttribute("icon", this.getAttribute("icon")!);
@@ -36,5 +37,3 @@ export class PopoverIcon extends PopoverBase {
 		this.prepend(style);
 	}
 }
-
-registerElement("bm-icon-popover", PopoverIcon);

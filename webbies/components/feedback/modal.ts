@@ -1,6 +1,6 @@
-import { injectStyle } from "@bearmetal/drip";
+import { BMElement, define } from "@bearmetal/app";
 import { css, html } from "@bearmetal/miscellanea";
-import { registerElement } from "@lib/registerElements.ts";
+import { injectStyle } from "@bearmetal/drip";
 
 injectStyle(
 	"bm-modal",
@@ -46,13 +46,13 @@ const shadowStyles = css`
 	}
 `;
 
-export class Modal extends HTMLElement {
-	#dialog: HTMLDialogElement;
+@define("bm-modal", import.meta)
+export class Modal extends BMElement {
+	#dialog!: HTMLDialogElement;
 	#resolvers: Array<(returnValue: string) => void> = [];
 
-	constructor() {
-		super();
-		const shadow = this.attachShadow({ mode: "open" });
+	init() {
+		const shadow = this.useShadow();
 
 		const style = document.createElement("style");
 		style.textContent = shadowStyles;
@@ -110,5 +110,3 @@ export class Modal extends HTMLElement {
 		});
 	}
 }
-
-registerElement("bm-modal", Modal);

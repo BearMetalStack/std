@@ -1,6 +1,6 @@
-import { injectStyle } from "@bearmetal/drip";
+import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
-import { registerElement } from "@lib/registerElements.ts";
+import { injectStyle } from "@bearmetal/drip";
 
 injectStyle(
 	"bm-progress",
@@ -59,12 +59,13 @@ injectStyle(
 const OBSERVED = ["percent"] as const;
 type Attribute = typeof OBSERVED[number];
 
-export class Progress extends HTMLElement {
+@define("bm-progress", import.meta)
+export class Progress extends BMElement {
+	static observedAttributes = OBSERVED;
+
 	attributeChangedCallback(name: Attribute, _old: string, value: string) {
 		if (name === "percent") {
 			this.style.width = value;
 		}
 	}
 }
-
-registerElement("bm-progress", Progress);

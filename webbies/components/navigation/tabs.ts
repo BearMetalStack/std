@@ -1,7 +1,8 @@
-import { registerElements } from "@lib/registerElements.ts";
+import { BMElement, define } from "@bearmetal/app";
 
-export class BmTab extends HTMLElement {
-	connectedCallback() {
+@define("bm-tab", import.meta)
+export class BmTab extends BMElement {
+	init() {
 		if (!this.hasAttribute("active")) this.style.display = "none";
 	}
 
@@ -16,10 +17,9 @@ export class BmTab extends HTMLElement {
 	}
 }
 
-
-
-export class BmTabs extends HTMLElement {
-	connectedCallback() {
+@define("bm-tabs", import.meta)
+export class BmTabs extends BMElement {
+	init() {
 		Promise.resolve().then(() => this._build());
 	}
 
@@ -60,5 +60,3 @@ export class BmTabs extends HTMLElement {
 		activate(0);
 	}
 }
-
-registerElements(["bm-tab", BmTab], ["bm-tabs", BmTabs]);

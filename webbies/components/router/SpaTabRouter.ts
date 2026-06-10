@@ -1,5 +1,5 @@
+import { BMElement, define } from "@bearmetal/app";
 import type { SpaRoute } from "./SpaRoute.ts";
-import { registerElement } from "@lib/registerElements.ts";
 
 function labelFor(route: SpaRoute): string {
 	if (route.hasAttribute("label")) return route.getAttribute("label")!;
@@ -8,16 +8,18 @@ function labelFor(route: SpaRoute): string {
 	return last.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export class SpaTabRouter extends HTMLElement {
+@define("bm-spa-tabs", import.meta)
+export class SpaTabRouter extends BMElement {
 	private _bar: HTMLElement | null = null;
 	private _handleRouteChange = () => this._updateActive();
 
-	connectedCallback() {
+	init() {
 		document.addEventListener("route-change", this._handleRouteChange);
 		Promise.resolve().then(() => this._build());
 	}
 
-	disconnectedCallback() {
+	override disconnectedCallback() {
+		super.disconnectedCallback();
 		document.removeEventListener("route-change", this._handleRouteChange);
 	}
 
@@ -63,5 +65,3 @@ export class SpaTabRouter extends HTMLElement {
 		});
 	}
 }
-
-registerElement("bm-spa-tabs", SpaTabRouter);

@@ -15,22 +15,20 @@
 // 	</div>
 // </bm-sse>
 
-import { registerElement } from "@lib/registerElements.ts";
+import { BMElement, define } from "@bearmetal/app";
 import { appendToContainer, parseData, swapContainer } from "./utils.ts";
 
-export class BmSse extends HTMLElement {
+@define("bm-sse", import.meta)
+export class BmSse extends BMElement {
 	private _es: EventSource | null = null;
 
-	constructor() {
-		super();
+	init() {
 		this.style.display = "contents";
-	}
-
-	connectedCallback() {
 		Promise.resolve().then(() => this._connect());
 	}
 
-	disconnectedCallback() {
+	override disconnectedCallback() {
+		super.disconnectedCallback();
 		this._es?.close();
 		this._es = null;
 	}
@@ -75,5 +73,3 @@ export class BmSse extends HTMLElement {
 		}
 	}
 }
-
-registerElement("bm-sse", BmSse);

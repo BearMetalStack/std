@@ -1,7 +1,6 @@
-import { BaseComponent } from "@lib/BaseComponent.ts";
+import { BMElement, define } from "@bearmetal/app";
 import { css, html } from "@bearmetal/miscellanea";
 import { injectStyle } from "@bearmetal/drip";
-import { registerElement } from "@lib/registerElements.ts";
 
 injectStyle(
 	"bm-table",
@@ -74,14 +73,6 @@ const OBSERVED = ["data-json", "src", "columns", "sort", "page-size"] as const;
 type Attribute = typeof OBSERVED[number];
 
 type Row = Record<string, unknown>;
-
-const LOADER = html`
-	<slot>
-		<div class="placeholder">
-			<bm-loader>Generating Table</bm-loader>
-		</div>
-	</slot>
-`;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -260,7 +251,8 @@ function updateFoot(
 // Component
 // ---------------------------------------------------------------------------
 
-export class Table extends BaseComponent {
+@define("bm-table", import.meta)
+export class Table extends BMElement {
 	static observedAttributes = OBSERVED;
 
 	// --- State ----------------------------------------------------------------
@@ -277,15 +269,21 @@ export class Table extends BaseComponent {
 	private _tfoot: HTMLTableSectionElement | null = null;
 	private _columns: [key: string, title: string][] = [];
 
-	constructor() {
-		super();
-		this.useShadow();
-		this.setTemplate(LOADER);
-		this._pageSize = this.hasAttribute("page-size") ? Number(this.getAttribute("page-size")) : 0;
+	get template() {
+		return (
+			<slot>
+				<div class="placeholder">
+					<bm-loader>Generating Table</bm-loader>
+				</div>
+			</slot>
+		);
 	}
 
-	override connectedCallback(): void {
-		super.connectedCallback();
+	init() {
+		this.useShadow();
+		this._pageSize = this.hasAttribute("page-size")
+			? Number(this.getAttribute("page-size"))
+			: 0;
 		const raw = this.getAttribute("data-json");
 		if (raw) this._setData(JSON.parse(raw));
 	}
@@ -433,5 +431,3 @@ export class Table extends BaseComponent {
 		tbody ? this._table.replaceChild(next, tbody) : this._table.appendChild(next);
 	}
 }
-
-registerElement("bm-table", Table);

@@ -1,6 +1,6 @@
 import { css } from "@bearmetal/miscellanea";
 import type { LayoutEl } from "@bearmetal/app/ssr";
-// import { ThemeStyle } from "@bearmetal/drip/ssr";
+import { ThemeStyle } from "@bearmetal/drip/ssr";
 
 export const mainLayout: LayoutEl = (props) => {
 	return (
@@ -9,22 +9,7 @@ export const mainLayout: LayoutEl = (props) => {
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 				<title>Sign In</title>
-				<link
-					rel="preload"
-					href="https://cdn.bear-metal.dev/webbies/0.0.1/utility.js"
-					as="script"
-				/>
-				<link rel="preload" href="https://cdn.bear-metal.dev/webbies/0.0.1/layout.js" as="script" />
-				<link
-					rel="preload"
-					href="https://cdn.bear-metal.dev/webbies/0.0.1/utility.css"
-					as="style"
-				/>
-				<link rel="preload" href="https://cdn.bear-metal.dev/webbies/0.0.1/layout.css" as="style" />
-				<script defer src="https://cdn.bear-metal.dev/webbies/0.0.1/utility.js" />
-				<script defer src="https://cdn.bear-metal.dev/webbies/0.0.1/layout.js" />
-				<link rel="stylesheet" href="https://cdn.bear-metal.dev/webbies/0.0.1/inputs.css" />
-				{/*<ThemeStyle />*/}
+				<ThemeStyle />
 				<style raw>
 					{css`
 						body {
@@ -34,7 +19,7 @@ export const mainLayout: LayoutEl = (props) => {
 						}
 						.form {
 							color: var(--color-text);
-							background-color: var(--color-brand-800);
+							background-color: var(--color-bearmetal-800);
 							place-self: center;
 							min-width: 200px;
 							padding: 1rem;

@@ -1,6 +1,6 @@
-import { css, html } from "@bearmetal/miscellanea";
+import { BMElement, define } from "@bearmetal/app";
+import { css } from "@bearmetal/miscellanea";
 import { injectStyle } from "@bearmetal/drip";
-import { registerElement } from "@lib/registerElements.ts";
 
 injectStyle("bm-card", css`
 	bm-card {
@@ -25,27 +25,28 @@ injectStyle("bm-card", css`
 	}
 `);
 
-export class Card extends HTMLElement {
-	connectedCallback() {
-		const shadow = this.attachShadow({ mode: "open" });
+@define("bm-card", import.meta)
+export class Card extends BMElement {
+	get template() {
+		return (
+			<>
+				<style raw>{css`
+					:host {
+						display: grid;
+						grid-template-areas: "pic" "title" "body" "foot";
+					}
+				`}</style>
+				<slot style="grid-area:pic" name="pic"></slot>
+				<slot style="grid-area:title" name="title"></slot>
+				<slot style="grid-area:body" name="body"></slot>
+				<slot style="grid-area:foot" name="foot"></slot>
+			</>
+		);
+	}
 
-		const shadowStyle = document.createElement("style");
-		shadowStyle.textContent = css`
-			:host {
-				display: grid;
-				grid-template-areas: "pic" "title" "body" "foot";
-			}
-		`;
-
-		shadow.appendChild(shadowStyle);
-		const tmp = document.createElement("template");
-		tmp.innerHTML = html`
-			<slot style="grid-area:pic" name="pic"></slot>
-			<slot style="grid-area:title" name="title"></slot>
-			<slot style="grid-area:body" name="body"></slot>
-			<slot style="grid-area:foot" name="foot"></slot>
-		`;
-		shadow.appendChild(tmp.content.cloneNode(true));
+	init() {
+		this.useShadow();
+		this.style.display = "block";
 
 		let hasBody = false;
 		for (const child of this.children) {
@@ -69,9 +70,5 @@ export class Card extends HTMLElement {
 				}
 			}
 		}
-
-		this.style.display = "block";
 	}
 }
-
-registerElement("bm-card", Card);

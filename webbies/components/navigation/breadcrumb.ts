@@ -1,6 +1,6 @@
+import { BMElement, define } from "@bearmetal/app";
 import { html, css } from "@bearmetal/miscellanea";
 import { injectStyle } from "@bearmetal/drip";
-import { registerElement } from "@lib/registerElements.ts";
 
 injectStyle("bm-breadcrumb", css`
 	bm-breadcrumb {
@@ -44,19 +44,21 @@ function buildBreadCrumbs(base: string) {
 	return as;
 }
 
-export class Breadcrumb extends HTMLElement {
-	constructor() {
-		super();
-		document.addEventListener("route-change", (_) => {
-			this.build();
-		});
+@define("bm-breadcrumb", import.meta)
+export class Breadcrumb extends BMElement {
+	#onRouteChange = () => this.#build();
+
+	init() {
+		document.addEventListener("route-change", this.#onRouteChange);
+		this.#build();
 	}
 
-	connectedCallback() {
-		this.build();
+	override disconnectedCallback() {
+		super.disconnectedCallback();
+		document.removeEventListener("route-change", this.#onRouteChange);
 	}
 
-	private build() {
+	#build() {
 		this.innerHTML = "";
 		const base = this.getAttribute("base") ?? "/";
 		this.append(...buildBreadCrumbs(base));
@@ -69,5 +71,3 @@ export class Breadcrumb extends HTMLElement {
 		this.prepend(root);
 	}
 }
-
-registerElement("bm-breadcrumb", Breadcrumb);

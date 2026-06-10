@@ -1,6 +1,6 @@
-import { markdownToHtml } from "@lib/md/html.ts";
+import { BMElement, define } from "@bearmetal/app";
 import { css, unescapeHtml } from "@bearmetal/miscellanea";
-import { registerElement } from "@lib/registerElements.ts";
+import { markdownToHtml } from "@lib/md/html.ts";
 
 const STYLE = css`
 	.root {
@@ -29,20 +29,21 @@ const STYLE = css`
 	}
 `;
 
-export class Markdown extends HTMLElement {
+@define("bm-md", import.meta)
+export class Markdown extends BMElement {
 	static observedAttributes = ["src"];
 
 	private _originalContent = "";
 	private _abort: AbortController | null = null;
 
-	connectedCallback() {
+	init() {
 		if (!this._originalContent) {
 			this._originalContent = unescapeHtml(this.innerHTML);
 		}
-		this.init().then((html) => this._render(html ?? ""));
+		this._load().then((html) => this._render(html ?? ""));
 	}
 
-	async init(): Promise<string | undefined> {
+	async _load(): Promise<string | undefined> {
 		this._abort?.abort();
 		const ctrl = new AbortController();
 		this._abort = ctrl;
@@ -82,12 +83,10 @@ export class Markdown extends HTMLElement {
 
 	attributeChangedCallback(name: string, oldValue: string, newValue: string) {
 		if (name === "src" && newValue !== oldValue) {
-			this.init().then((html) => this._render(html ?? ""));
+			this._load().then((html) => this._render(html ?? ""));
 		}
 	}
 }
-
-registerElement("bm-md", Markdown);
 
 // [GENERATED:link-mods] DO NOT EDIT BELOW
 import "@style";

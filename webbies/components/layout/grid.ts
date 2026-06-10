@@ -1,14 +1,13 @@
-import { BaseComponent } from "@lib/BaseComponent.ts";
-import { registerElement } from "@lib/registerElements.ts";
+import { BMElement, define } from "@bearmetal/app";
 
-export class Grid extends BaseComponent {
+@define("bm-grid", import.meta)
+export class BmGrid extends BMElement {
 	static observedAttributes = ["columns", "gap", "animated"] as const;
 
 	private observer = new MutationObserver(() => this.applyStyles());
 
-	override connectedCallback(): void {
-		super.connectedCallback();
-		this.observer.observe(this, {
+	init() {
+		this.observer.observe(this as unknown as Node, {
 			childList: true,
 			attributeFilter: ["data-span"],
 			subtree: true,
@@ -90,5 +89,3 @@ export class Grid extends BaseComponent {
 		this.flip(snapshots);
 	}
 }
-
-registerElement("bm-grid", Grid);

@@ -1,5 +1,5 @@
+import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
-import { registerElement } from "@lib/registerElements.ts";
 import { injectStyle } from "@bearmetal/drip";
 
 const DURATION = 200;
@@ -148,10 +148,11 @@ const shadowStyles = css`
 	}
 `;
 
-export class Drawer extends HTMLElement {
-	#backdrop: HTMLDivElement;
-	#handleRow: HTMLDivElement;
-	#container: HTMLDivElement;
+@define("bm-drawer", import.meta)
+export class Drawer extends BMElement {
+	#backdrop!: HTMLDivElement;
+	#handleRow!: HTMLDivElement;
+	#container!: HTMLDivElement;
 	#resolvers: Array<(returnValue: string) => void> = [];
 	#returnValue = "";
 	#touchStartY = 0;
@@ -161,9 +162,8 @@ export class Drawer extends HTMLElement {
 	#dragWasOpen = false;
 	#dragDelta = 0;
 
-	constructor() {
-		super();
-		const shadow = this.attachShadow({ mode: "open" });
+	init() {
+		const shadow = this.useShadow();
 
 		const style = document.createElement("style");
 		style.textContent = shadowStyles;
@@ -183,9 +183,7 @@ export class Drawer extends HTMLElement {
 		this.#container.append(document.createElement("slot"));
 
 		shadow.append(style, this.#handleRow, this.#container);
-	}
 
-	connectedCallback() {
 		const existingDrawer = document.querySelector(
 			`bm-drawer[position='${this.position}']`,
 		);
@@ -224,7 +222,8 @@ export class Drawer extends HTMLElement {
 		}, { passive: true });
 	}
 
-	disconnectedCallback() {
+	override disconnectedCallback() {
+		super.disconnectedCallback();
 		if (this.open) document.removeEventListener("keydown", this.#onKeyDown);
 		globalThis.removeEventListener("touchmove", this.#onTouchMove);
 	}
@@ -437,5 +436,3 @@ export class Drawer extends HTMLElement {
 		});
 	}
 }
-
-registerElement("bm-drawer", Drawer);

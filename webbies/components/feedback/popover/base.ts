@@ -1,10 +1,10 @@
-import { registerElement } from "@lib/registerElements.ts";
+import { BMElement, define } from "@bearmetal/app";
 import { html } from "@bearmetal/miscellanea";
 
-export class PopoverBase extends HTMLElement {
-	constructor() {
-		super();
-		this.attachShadow({ mode: "open" });
+@define("bm-popover", import.meta)
+export class PopoverBase extends BMElement {
+	init() {
+		this.useShadow();
 		this.shadowRoot!.innerHTML = html`
 			<style>
 			span {
@@ -70,21 +70,20 @@ export class PopoverBase extends HTMLElement {
 			<div popover><slot name="content"></slot></div>
 			<span><slot name="trigger"></slot></span>
 		`;
-	}
 
-	#timer: ReturnType<typeof setTimeout> | null = null;
-	#overTrigger = false;
-	#overContent = false;
-
-	connectedCallback() {
 		for (const child of this.children) {
 			child.setAttribute(
 				"slot",
 				child.getAttribute("slot") || child.tagName.toLowerCase(),
 			);
 		}
+
 		this.#initialize();
 	}
+
+	#timer: ReturnType<typeof setTimeout> | null = null;
+	#overTrigger = false;
+	#overContent = false;
 
 	#initialize() {
 		const trigger = this.shadowRoot!.querySelector("span")!;
@@ -127,5 +126,3 @@ export class PopoverBase extends HTMLElement {
 		);
 	}
 }
-
-registerElement("bm-popover", PopoverBase);

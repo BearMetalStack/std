@@ -1,6 +1,6 @@
+import { BMElement, define } from "@bearmetal/app";
 import { css, html, type TimeString, timeStringToMillis } from "@bearmetal/miscellanea";
 import { injectStyle } from "@bearmetal/drip";
-import { registerElements } from "@lib/registerElements.ts";
 
 injectStyle(
 	"bm-toast",
@@ -153,20 +153,19 @@ injectStyle(
 
 const OBSERVED = ["fade", "dismissible"] as const;
 type Attribute = typeof OBSERVED[number];
-export class Toast extends HTMLElement {
-	static get observedAttributes(): typeof OBSERVED {
-		return OBSERVED;
-	}
 
-	private host: ToastHost;
-	constructor() {
-		super();
+@define("bm-toast", import.meta)
+export class Toast extends BMElement {
+	static observedAttributes = OBSERVED;
 
-		this.host = document.querySelector("bm-toast-host") ??
+	private _host!: ToastHost;
+
+	init() {
+		this._host = document.querySelector("bm-toast-host") ??
 			document.body.appendChild(
 				document.createElement("bm-toast-host"),
 			) as ToastHost;
-		this.host.append(this);
+		this._host.append(this);
 
 		this.addEventListener("animationend", (e) => {
 			if (
@@ -182,7 +181,7 @@ export class Toast extends HTMLElement {
 		});
 
 		if (this.hasAttribute("dismissible")) {
-			this.createDismissButton();
+			this._createDismissButton();
 		}
 	}
 
@@ -209,7 +208,7 @@ export class Toast extends HTMLElement {
 			}
 			case "dismissible":
 				if (this.hasAttribute("dismissible") && !this._dismissBtn) {
-					this.createDismissButton();
+					this._createDismissButton();
 				} else {
 					this._dismissBtn?.remove();
 					this._dismissBtn = undefined;
@@ -219,7 +218,7 @@ export class Toast extends HTMLElement {
 	}
 
 	private _dismissBtn?: HTMLButtonElement;
-	private createDismissButton() {
+	private _createDismissButton() {
 		this._dismissBtn = document.createElement("button");
 		this._dismissBtn.classList.add("icon", "ghost", "xs");
 		this._dismissBtn.setAttribute("data-dismiss", "");
@@ -233,11 +232,5 @@ export class Toast extends HTMLElement {
 	}
 }
 
-export class ToastHost extends HTMLElement {
-	constructor() {
-		super();
-		// this.setAttribute("position", "bottom");
-	}
-}
-
-registerElements(["bm-toast", Toast], ["bm-toast-host", ToastHost]);
+@define("bm-toast-host", import.meta)
+export class ToastHost extends BMElement {}

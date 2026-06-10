@@ -19,24 +19,21 @@
 // Incoming WS messages are JSON objects: { "type": "<event>", "channel"?: "...", ...data }
 // Outgoing form messages:               { "type": "<event>", "channel"?: "...", ...formFields }
 
+import { BMElement, define } from "@bearmetal/app";
 import { Sockpuppet } from "@bearmetal/sockpuppet/client";
-
-import { registerElement } from "@lib/registerElements.ts";
 import { appendToContainer, swapContainer } from "./utils.ts";
 
-export class BmSockpuppet extends HTMLElement {
+@define("bm-sockpuppet", import.meta)
+export class BmSockpuppet extends BMElement {
 	private _ws: Sockpuppet | null = null;
 
-	constructor() {
-		super();
+	init() {
 		this.style.display = "contents";
-	}
-
-	connectedCallback() {
 		Promise.resolve().then(() => this._connect());
 	}
 
-	disconnectedCallback() {
+	override disconnectedCallback() {
+		super.disconnectedCallback();
 		this._ws?.leaveChannel(this.getAttribute("channel")!);
 		this._ws = null;
 	}
@@ -100,5 +97,3 @@ export class BmSockpuppet extends HTMLElement {
 		}
 	}
 }
-
-registerElement("bm-sockpuppet", BmSockpuppet);

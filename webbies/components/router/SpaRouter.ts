@@ -1,31 +1,30 @@
-import { BaseComponent } from "@lib/BaseComponent.ts";
+import { BMElement, define } from "@bearmetal/app";
 import type { SpaRoute } from "./SpaRoute.ts";
-import { registerElement } from "@lib/registerElements.ts";
 
-export class SpaRouter extends BaseComponent {
+@define("bm-router", import.meta)
+export class SpaRouter extends BMElement {
 	private _parentRouter?: SpaRouter | null;
-	constructor() {
-		super();
-		this.style.display = "contents";
-		this.onConnected(() => {
-			this._parentRouter = this.parentElement?.closest("bm-router");
-			if (!this._parentRouter) {
-				this._interceptClicks();
-				this._patchHistory();
-				globalThis.addEventListener(
-					"popstate",
-					() => this._handleRouteChange(),
-				);
-				Promise.resolve().then(() => this._handleRouteChange());
-			}
-		});
 
-		this.onDisconnected(() => {
-			globalThis.removeEventListener(
+	init() {
+		this.style.display = "contents";
+		this._parentRouter = this.parentElement?.closest("bm-router");
+		if (!this._parentRouter) {
+			this._interceptClicks();
+			this._patchHistory();
+			globalThis.addEventListener(
 				"popstate",
 				() => this._handleRouteChange(),
 			);
-		});
+			Promise.resolve().then(() => this._handleRouteChange());
+		}
+	}
+
+	override disconnectedCallback() {
+		super.disconnectedCallback();
+		globalThis.removeEventListener(
+			"popstate",
+			() => this._handleRouteChange(),
+		);
 	}
 
 	_interceptClicks() {
@@ -82,5 +81,3 @@ export class SpaRouter extends BaseComponent {
 		return null;
 	}
 }
-
-registerElement("bm-router", SpaRouter);

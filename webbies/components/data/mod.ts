@@ -3,5 +3,5 @@ import "@style";
 export * from "./badge.ts";
 export * from "./loader.tsx";
 export * from "./progress.ts";
-export * from "./table.ts";
+export * from "./table.tsx";
 // [/GENERATED:link-mods]

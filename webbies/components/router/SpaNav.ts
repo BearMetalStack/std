@@ -1,6 +1,6 @@
+import { BMElement, define } from "@bearmetal/app";
 import { joinPath } from "@bearmetal/miscellanea";
 import type { SpaRoute } from "./SpaRoute.ts";
-import { registerElement } from "@lib/registerElements.ts";
 
 function isNavigable(path: string): boolean {
 	try {
@@ -144,18 +144,20 @@ function renderNavTree(nodes: NavNode[]): HTMLUListElement {
 	return ul;
 }
 
-export class SpaNav extends HTMLElement {
+@define("bm-nav", import.meta)
+export class SpaNav extends BMElement {
 	private _router: HTMLElement | null = null;
 	private _handleRouteChange = () =>
 		Promise.resolve().then(() => this._build());
 
-	connectedCallback() {
+	init() {
 		this._router = this.closest("bm-router");
 		document.addEventListener("route-change", this._handleRouteChange);
 		Promise.resolve().then(() => this._build());
 	}
 
-	disconnectedCallback() {
+	override disconnectedCallback() {
+		super.disconnectedCallback();
 		document.removeEventListener("route-change", this._handleRouteChange);
 	}
 
@@ -167,5 +169,3 @@ export class SpaNav extends HTMLElement {
 		);
 	}
 }
-
-registerElement("bm-nav", SpaNav);

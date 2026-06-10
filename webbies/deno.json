@@ -25,12 +25,13 @@
     "exports": {
         ".": "./mod.ts",
         "./types": "./types.ts",
-        "./temp": "./components/data/loader.tsx"
+        "./style": "./style/mod.ts"
     },
     "imports": {
         "@lib/": "./lib/",
         "@/": "./",
-        "@style": "./style/mod.ts"
+        "@style": "./style/mod.ts",
+        "@components": "./components/mod.ts"
     },
     "fmt": {
         "useTabs": true

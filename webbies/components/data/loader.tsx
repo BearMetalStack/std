@@ -1,6 +1,7 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 import { animationSheet } from "@style";
+import { BmIcon } from "@components";
 
 @define("bm-loader", import.meta)
 export class Loader extends BMElement {
@@ -12,12 +13,12 @@ export class Loader extends BMElement {
 						.notched {
 							width: var(--space-8);
 							height: var(--space-8);
-							/*animation: spin 1s steps(8, end) infinite;*/
+							animation: spin 1s steps(8, end) infinite;
 
-							animation: spin 1s infinite;
+							/*animation: spin 1s infinite;
 							border: 1px solid white;
 							border-top: none;
-							border-radius: var(--space-4);
+							border-radius: var(--space-4);*/
 						}
 
 						:host > div {
@@ -29,8 +30,8 @@ export class Loader extends BMElement {
 					`}
 				</style>
 				<div>
-					{/*<bm-icon icon="spinner-gap" class="notched"></bm-icon>*/}
-					<div class="notched"></div>
+					<BmIcon icon="spinner-gap" class="notched" />
+					{/*<div class="notched"></div>*/}
 					<div>
 						<slot></slot>
 					</div>

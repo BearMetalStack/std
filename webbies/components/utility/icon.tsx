@@ -1,6 +1,6 @@
-import { css, html } from "@bearmetal/miscellanea";
+import { BMElement, define } from "@bearmetal/app";
+import { css } from "@bearmetal/miscellanea";
 import { injectStyle } from "@bearmetal/drip";
-import { registerElement } from "@lib/registerElements.ts";
 
 injectStyle(
 	"bm-icon",
@@ -22,46 +22,56 @@ injectStyle(
 );
 
 const Observed = ["sheet", "icon"] as const;
-export class Icon extends HTMLElement {
+
+@define("bm-icon", import.meta)
+export class BmIcon extends BMElement {
 	static get observedAttributes(): typeof Observed {
 		return Observed;
 	}
-	connectedCallback() {
-		this.attachShadow({ mode: "open" });
-		this.shadowRoot!.innerHTML = html`
-			<span class="fallback"><slot></slot></span>
-			<span class="icon"></span>
-		`;
-		const style = document.createElement("style");
-		style.textContent = css`
-			.icon {
-				display: contents;
-			}
-			.fallback {
-				display: contents;
-			}
-			:host([resolved]) .fallback {
-				display: none;
-			}
-			:host(:not([resolved])) .icon {
-				display: none;
-			}
-		`;
-		this.shadowRoot!.prepend(style);
 
+	get template() {
+		return (
+			<>
+				<style raw>
+					{css`
+						.icon {
+							display: contents;
+						}
+						.fallback {
+							display: contents;
+						}
+						:host([resolved]) .fallback {
+							display: none;
+						}
+						:host(:not([resolved])) .icon {
+							display: none;
+						}
+					`}
+				</style>
+				<span class="fallback">
+					<slot></slot>
+				</span>
+				<span class="icon"></span>
+			</>
+		);
+	}
+
+	init() {
+		this.useShadow();
 		this.style.fill = "currentColor";
 	}
 
-	private get icon(): SVGElement {
-		return this.querySelector("svg")!;
+	private get _iconContainer(): Element | null {
+		return this.shadowRoot?.querySelector(".icon") ?? null;
 	}
-	private set icon(i: SVGElement) {
-		const container = this.shadowRoot!.querySelector(".icon");
-		if (!container) return;
-		container.innerHTML = "";
-		container.appendChild(i);
+
+	private set _iconEl(i: SVGElement) {
+		if (!this._iconContainer) return;
+		this._iconContainer.innerHTML = "";
+		this._iconContainer.appendChild(i);
 		this.toggleAttribute("resolved", true);
 	}
+
 	attributeChangedCallback(
 		name: typeof Observed[number],
 		_oldV: string,
@@ -69,11 +79,9 @@ export class Icon extends HTMLElement {
 	) {
 		switch (name) {
 			case "sheet":
-				Icon.registerSet({ type: "sheet", url: new URL(newV) });
+				BmIcon.registerSet({ type: "sheet", url: new URL(newV) });
 				if (this.hasAttribute("icon")) {
-					resolveIcon(newV, this.getAttribute("icon")!).then((i) =>
-						this.icon = i
-					);
+					resolveIcon(newV, this.getAttribute("icon")!).then((i) => this._iconEl = i);
 				}
 				break;
 			case "icon": {
@@ -83,9 +91,7 @@ export class Icon extends HTMLElement {
 						"https://cdn.bear-metal.dev/icons/phosphor/regular.svg",
 					);
 				}
-				resolveIcon(this.getAttribute("sheet")!, newV).then((i) =>
-					this.icon = i
-				);
+				resolveIcon(this.getAttribute("sheet")!, newV).then((i) => this._iconEl = i);
 				break;
 			}
 		}
@@ -96,9 +102,13 @@ export class Icon extends HTMLElement {
 	}
 }
 
-const cache = new Map<string, Promise<Document>>();
+let _cache: Map<string, Promise<Document>> | undefined;
+function getCache() {
+	return (_cache ??= new Map<string, Promise<Document>>());
+}
 
 function fetchSheet(url: string): Promise<Document> {
+	const cache = getCache();
 	if (!cache.has(url)) {
 		cache.set(
 			url,
@@ -130,5 +140,3 @@ async function resolveIcon(
 
 	return svg;
 }
-
-registerElement("bm-icon", Icon);

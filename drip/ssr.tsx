@@ -1,4 +1,4 @@
-import { cssFromJson } from "./generate.ts";
+import { themeCSS } from "./generate.ts";
 import { getRegisteredTheme } from "./inject.ts";
 import type { Theme } from "./types.ts";
 
@@ -12,5 +12,5 @@ export async function ThemeStyle({ theme }: { theme?: string }) {
 	const data = theme
 		? (getRegisteredTheme(theme) ?? await loadTheme(theme))
 		: await loadTheme("bearmetal");
-	return <style raw>{cssFromJson(data)}</style>;
+	return <style raw>{themeCSS(data, ":root")}</style>;
 }
