@@ -4,7 +4,8 @@
     "exports": {
         ".": "./mod.ts",
         "./signals": "./signals/index.ts",
-        "./context": "./context/mod.ts"
+        "./context": "./context/mod.ts",
+        "./ssr": "./ssr/mod.ts"
     },
     "tasks": {
         "example:counter": {

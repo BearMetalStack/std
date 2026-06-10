@@ -1,22 +1,20 @@
-// @jsxImportSource @bearmetal/jsx/server
-import type { JSX } from "@bearmetal/jsx/jsx-runtime";
+import type { JSX } from "@bearmetal/jsx/server/jsx-runtime";
 import {
 	Html as HTMLRes,
-	Router,
 	type RouterContext,
 	type RouterHandler,
 	type StateType,
 } from "@bearmetal/router";
 
 export type LayoutState = {
-	layout?: Layout;
+	layout?: LayoutEl;
 };
-type Layout = (props: {
+export type LayoutEl = (props: {
 	children: JSX.Element;
 }) => JSX.Element;
 
 export function Layout<T extends StateType>(
-	jsx: (props: { children: JSX.Element }) => JSX.Element,
+	jsx: LayoutEl,
 ): RouterHandler<T & LayoutState> {
 	return async (ctx, next) => {
 		(ctx.state as T & LayoutState).layout = jsx;
@@ -37,17 +35,17 @@ export function Page<T extends StateType>(
 	};
 }
 
-if (import.meta.main) {
-	const router = new Router();
-	router.use(Layout(({ children }) => (
-		<html>
-			<head>
-				<title></title>
-			</head>
-			<body>{children}</body>
-		</html>
-	))).route("/").get<{ name: string | undefined }>(
-		Page((ctx) => <h1>Hello, {ctx.state.name ?? "World"}!</h1>),
-	);
-	Deno.serve(router.handle.bind(router));
-}
+// if (import.meta.main) {
+// 	const router = new Router();
+// 	router.use(Layout(({ children }) => (
+// 		<html>
+// 			<head>
+// 				<title></title>
+// 			</head>
+// 			<body>{children}</body>
+// 		</html>
+// 	))).route("/").get<{ name: string | undefined }>(
+// 		Page((ctx) => <h1>Hello, {ctx.state.name ?? "World"}!</h1>),
+// 	);
+// 	Deno.serve(router.handle.bind(router));
+// }

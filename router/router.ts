@@ -276,7 +276,16 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			},
 			body,
 			connection: info,
+			cookies: new Map<string, string>(),
 		};
+
+		const cookies = req.headers.get("cookie");
+		if (cookies) {
+			for (const cookie of cookies.split(";")) {
+				const [name, value] = cookie.trim().split("=");
+				if (name && value) ctx.cookies.set(name, value);
+			}
+		}
 
 		let index = 0;
 		const executeMiddleware = async (): Promise<Response> => {

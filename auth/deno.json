@@ -1,33 +1,30 @@
 {
-	"name": "@bearmetal/auth",
-	"version": "0.0.2",
-	"exports": "./mod.ts",
-	"tasks": {
-		"dev": "deno run -P=test --env-file --watch main.ts"
-	},
-	"permissions": {
-		"test": {
-			"env": [
-				"PGUSER",
-				"PGPASSWORD",
-				"PGHOST",
-				"PGPORT",
-				"PGAPPNAME",
-				"PGOPTIONS",
-				"PGDATABASE",
-				"BEARMETAL_PROXY_HOST",
-				"BEARMETAL_ENV"
-			],
-			"net": [
-				"dev.bear-metal.dev",
-				"0.0.0.0:3000",
-				"localhost:5432"
-			]
-		}
-	},
-	"license": "GPL-3.0-only",
-	"compilerOptions": {
-		"jsx": "react-jsx",
-		"jsxImportSource": "@bearmetal/jsx/server"
-	}
+    "name": "@bearmetal/auth",
+    "version": "0.0.2",
+    "exports": "./mod.ts",
+    "tasks": {
+        "dev": "deno run -P=test --env-file --watch main.ts"
+    },
+    "permissions": {
+        "test": {
+            "env": [
+                "PGUSER",
+                "PGPASSWORD",
+                "PGHOST",
+                "PGPORT",
+                "PGAPPNAME",
+                "PGOPTIONS",
+                "PGDATABASE",
+                "BEARMETAL_PROXY_HOST",
+                "BEARMETAL_ENV",
+                "BM_TOKEN_SECRET"
+            ],
+            "net": ["dev.bear-metal.dev", "0.0.0.0:3000", "localhost:5432"]
+        }
+    },
+    "license": "GPL-3.0-only",
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "jsxImportSource": "@bearmetal/jsx/server"
+    }
 }

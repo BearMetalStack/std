@@ -74,13 +74,25 @@ function makeHelper<N extends number>(status: N, defaultBody: string): ResponseH
 	// deno-lint-ignore no-explicit-any
 	return function (...args: any[]): any {
 		if (args.length === 0) return new TypedResponse(defaultBody, status);
-		if (args.length >= 2 && args[0] instanceof SchemaClass) {
-			const schema = args[0] as Schema<unknown>;
-			const data = schema.parse(args[1]);
-			return new TypedResponse(data, status, { schema });
+		if (args.length >= 2) {
+			if (args[0] instanceof SchemaClass) {
+				const schema = args[0] as Schema<unknown>;
+				const data = schema.parse(args[1]);
+				return new TypedResponse(data, status, { schema });
+			}
+			if (isHeaders(args[1])) {
+				return new TypedResponse(args[0] ?? defaultBody, status, { headers: args[1] });
+			}
+		}
+		if (args.length === 1 && isHeaders(args[0])) {
+			return new TypedResponse(defaultBody, status, { headers: args[0] });
 		}
 		return new TypedResponse(args[0] ?? defaultBody, status);
 	};
+}
+
+function isHeaders(obj: unknown): obj is Headers {
+	return obj instanceof Headers;
 }
 
 // ─── HTML ─────────────────────────────────────────────────────────────────────

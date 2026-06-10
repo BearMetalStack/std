@@ -62,6 +62,7 @@ export interface RouterContext<
 		name: string | ServiceToken<T>,
 	): Service<T>;
 	connection: Deno.ServeHandlerInfo<Deno.Addr>;
+	cookies: Map<string, string>;
 }
 
 /**
