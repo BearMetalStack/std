@@ -276,7 +276,9 @@
       },
       "dev-server": {
         "dependencies": [
-          "jsr:@std/path@*"
+          "jsr:@bearmetal/app@0.1",
+          "jsr:@bearmetal/jsx@*",
+          "jsr:@bearmetal/jsx@^0.0.10"
         ]
       }
     }

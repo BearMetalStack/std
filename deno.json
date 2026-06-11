@@ -31,7 +31,7 @@
             "write": true
         }
     },
-    "workspace": ["./*"],
+    "workspace": ["./*", "./*/examples/*"],
     "unstable": ["raw-imports", "bundle"],
     "imports": {
         "@std/assert": "jsr:@std/assert@1",

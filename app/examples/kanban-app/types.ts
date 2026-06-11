@@ -1,4 +1,4 @@
-import type { Signal } from "@signals";
+import type { Signal } from "@bearmetal/app/signals";
 
 export type ColumnId = "todo" | "in-progress" | "done";
 

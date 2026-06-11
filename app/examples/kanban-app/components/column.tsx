@@ -1,6 +1,4 @@
-import { define } from "../../../define.ts";
-import { BMElement } from "../../../mod.ts";
-import { each } from "../../../signals.ts";
+import { BMElement, define, each } from "@bearmetal/app";
 import type { Card, ColumnId, Priority } from "../types.ts";
 import { COLUMNS } from "../data.ts";
 import { KanbanCard, PRIORITY_NEXT } from "./card.tsx";

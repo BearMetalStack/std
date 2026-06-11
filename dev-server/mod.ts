@@ -1,4 +1,4 @@
-import { joinPath } from "@bearmetal/miscellanea";
+import { joinPath } from "jsr:@bearmetal/miscellanea";
 
 export async function DevServer() {
 	const assetMap = new Map<string, [string, string]>();
@@ -39,7 +39,11 @@ export async function DevServer() {
 
 			let asset = assetMap.get(path);
 			if (!asset && isBundlable(path)) asset = await bundleAndCache(path);
-			if (!asset) asset = [mimeType(path), await Deno.readTextFile(path)];
+			try {
+				if (!asset) asset = [mimeType(path), await Deno.readTextFile(path)];
+			} catch {
+				return new Response(null, { status: 404 });
+			}
 
 			if (asset[0] === "text/html") {
 				asset[1] = asset[1].replace(
@@ -83,7 +87,7 @@ export async function DevServer() {
 	}
 
 	function isBundlable(path: string) {
-		return ["text/javascript", "text/html"].includes(mimeType(path));
+		return ["text/javascript"].includes(mimeType(path));
 	}
 
 	async function bundleAndCache(
@@ -93,6 +97,7 @@ export async function DevServer() {
 		path = await Deno.realPath(path);
 		console.log(`Bundler: Bundling ${filename}...`);
 		const start = performance.now();
+
 		const b = await Deno.bundle({
 			entrypoints: [path],
 			write: false,
@@ -101,6 +106,7 @@ export async function DevServer() {
 			platform: "browser",
 			inlineImports: true,
 			packages: "bundle",
+			codeSplitting: false,
 		});
 
 		const end = performance.now();
@@ -109,17 +115,21 @@ export async function DevServer() {
 				b.outputFiles?.length ?? 0
 			} files generated.`,
 		);
+		console.log(b.errors);
 		const ass = new Set<string>();
 
 		for (const file of b.outputFiles ?? []) {
 			const sourceMap = extractSourceMap(file.text());
-			console.log(sourceMap);
 			for (const source of sourceMap?.sources ?? []) {
-				console.log(serveDir, source, joinPath(serveDir, source));
-				const tail = source.replace(/^(\.\.\/)+/, "");
+				if (source.startsWith("http")) continue;
+				let tail = source.replace(/^(\.\.\/)+/, "");
 				let absSource: string;
-				if (tail === source) absSource = await Deno.realPath(joinPath(serveDir, tail));
-				else absSource = await Deno.realPath(joinPath("/home/emma/repos/bearmetal", tail));
+				if (tail === source) {
+					if (tail.startsWith(serveDir.split("/").at(-1) ?? "[[NO PATH]]")) {
+						tail = "./" + tail.split("/").slice(1).join("/");
+					}
+					absSource = await Deno.realPath(joinPath(serveDir, tail));
+				} else absSource = await Deno.realPath(joinPath("/home/emma/repos/bearmetal", tail));
 				const associations = associationMap.get(absSource) ?? new Set<string>();
 				associations.add(file.path);
 				assetMap.set(absSource, [mimeType(absSource), file.text()]);
@@ -166,6 +176,28 @@ export async function DevServer() {
 		const b64 = m?.[1];
 		return b64 ? JSON.parse(atob(b64)) : undefined;
 	}
+}
+
+export async function bundle(serveDir: string, entryPoint: string): Promise<string> {
+	const tmp = await Deno.makeTempDir();
+	const cmd = new Deno.Command("deno", {
+		args: [
+			"bundle",
+			"--outdir",
+			tmp,
+			"--platform=browser",
+			"--sourcemap=inline",
+			"-o",
+			entryPoint.replace(/\.tsx?$/, ".js"),
+			entryPoint,
+		],
+		cwd: serveDir,
+		stdout: "piped",
+		stderr: "piped",
+	});
+	const r = await cmd.output();
+	if (!r.success) throw new Error("Unable to bundle " + entryPoint);
+	return tmp;
 }
 
 if (import.meta.main) {

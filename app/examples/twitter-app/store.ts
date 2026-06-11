@@ -1,4 +1,4 @@
-import { Signal } from "@signals";
+import { Signal } from "@bearmetal/app/signals";
 import type { Notification, Route, Tweet, User } from "./types.ts";
 import { getNextFreshTweet, ME, SEED_NOTIFICATIONS, SEED_TWEETS, USERS } from "./data.ts";
 
