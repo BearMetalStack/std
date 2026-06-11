@@ -906,6 +906,8 @@ export const s = {
 	file: (): FileSchema => new FileSchema(),
 };
 
+export const f = s;
+
 // ─── Type extraction ──────────────────────────────────────────────────────────
 
 /** Extract the TypeScript type from a Schema */

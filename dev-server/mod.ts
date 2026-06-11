@@ -115,7 +115,6 @@ export async function DevServer() {
 				b.outputFiles?.length ?? 0
 			} files generated.`,
 		);
-		console.log(b.errors);
 		const ass = new Set<string>();
 
 		for (const file of b.outputFiles ?? []) {

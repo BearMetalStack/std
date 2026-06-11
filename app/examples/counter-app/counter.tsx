@@ -4,6 +4,10 @@ import { BMElement, define } from "@bearmetal/app";
 export class MyCounter extends BMElement {
 	#count = this.signal(0);
 
+	change(amount: number) {
+		return () => this.#count.set(this.#count.get() + amount);
+	}
+
 	override get template() {
 		return (
 			<>
@@ -12,27 +16,27 @@ export class MyCounter extends BMElement {
 					<button
 						type="button"
 						class="down"
-						onClick={() => this.#count.set(this.#count.get() - 10)}
+						onClick={this.change(-10)}
 					>
 						- -
 					</button>
 					<button
 						type="button"
 						class="down"
-						onClick={() => this.#count.set(this.#count.get() - 1)}
+						onClick={this.change(-1)}
 					>
 						-
 					</button>
 					<span>{this.#count}</span>
 					<button
 						type="button"
-						onClick={() => this.#count.set(this.#count.get() + 1)}
+						onClick={this.change(1)}
 					>
 						+
 					</button>
 					<button
 						type="button"
-						onClick={() => this.#count.set(this.#count.get() + 10)}
+						onClick={this.change(10)}
 					>
 						+ +
 					</button>
