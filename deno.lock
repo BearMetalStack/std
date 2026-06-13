@@ -273,13 +273,6 @@
         "dependencies": [
           "jsr:@db/postgres@~0.19.5"
         ]
-      },
-      "dev-server": {
-        "dependencies": [
-          "jsr:@bearmetal/app@0.1",
-          "jsr:@bearmetal/jsx@*",
-          "jsr:@bearmetal/jsx@^0.0.10"
-        ]
       }
     }
   }

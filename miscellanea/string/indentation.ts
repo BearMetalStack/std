@@ -4,9 +4,31 @@ export function indent(s: string, depth = 1): string {
 }
 
 /** Removes the common leading tab indentation from every line. */
-export function dedent(s: string): string {
-	const rx = /^\t*/gm;
-	const matches = s.matchAll(rx);
+export function dedent(s: string, tabSpaces = 4, preferSpaces = false): string {
+	const space = " ".repeat(tabSpaces);
+	s = s.replaceAll(
+		new RegExp(`^(\\t|${space})+`, "gm"),
+		(e) => e.replaceAll(space, "\t"),
+	);
+	const rx = /^(\t)+/gm;
+	const matches = s.matchAll(rx).toArray();
 	const minIndent = Math.min(...matches.map((m) => m[0].length));
-	return s.replaceAll("\t".repeat(minIndent), "");
+	s = s.replaceAll(new RegExp(`^\\t{${minIndent}}`, "gm"), "");
+	if (preferSpaces) s = s.replaceAll(/^\t/gm, (e) => e.replaceAll("\t", space));
+
+	return s;
+}
+
+/** Tagged template to dedent the text with automatic space detection */
+// deno-lint-ignore no-explicit-any
+export function dedented(strings: TemplateStringsArray, ...values: any[]): string {
+	const s = String.raw(strings, ...values);
+	const leading = s.matchAll(/^ +/gm).toArray().map((e) => e[0].length);
+	if (!leading.length) return dedent(s);
+	const minspace = Math.min(...leading);
+	let spacing = minspace;
+	while (!leading.every((e) => e % spacing === 0)) {
+		spacing--;
+	}
+	return dedent(s, minspace);
 }
