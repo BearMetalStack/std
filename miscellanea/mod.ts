@@ -9,3 +9,6 @@ export * from "./time/mod.ts";
 export * from "./objectUtils/mod.ts";
 export * from "./colors/mod.ts";
 export * from "./listUtils/mod.ts";
+export { argset, fn } from "./function/mod.ts";
+
+export type * from "./types.ts";

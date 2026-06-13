@@ -82,7 +82,9 @@ export function renderTitleAscii(
 	}
 
 	// maxWidth = maxWidth === Infinity ? longestLine(ascii) : maxWidth;
+	const old = ascii;
 	if (pride && !notPridable) ascii = combineAscii(ascii, random(love, heart), 8);
+	if (longestLine(ascii) > maxWidth) ascii = old;
 	ascii = centerKeepAligned(ascii.replace(/^\n/, ""), maxWidth);
 	if (pride && !notPridable) {
 		// ascii = ascii.replace(
@@ -123,3 +125,8 @@ export function selectSet(): string[] {
 }
 
 export * from "./art/mod.ts";
+
+if (import.meta.main) {
+	const { columns } = Deno.consoleSize();
+	sets.def.forEach((a) => renderTitleAscii(a, { maxWidth: columns, pride: true }));
+}

@@ -11,12 +11,16 @@
             "description": "Bumps versions of packages that have had changes since last bump"
         },
         "workspace:manifest": {
-            "description": "Lists all packages at their current version.",
+            "description": "Lists all packages at their current version",
             "command": "deno run -R manifest.ts"
         },
         "bm:drip": {
             "description": "Generates theme completions and CSS",
             "command": "deno run -RW drip/mod.ts"
+        },
+        "play": {
+            "description": "Runs the playground for the current dev",
+            "command": "deno task --cwd=playground play"
         }
     },
     "permissions": {

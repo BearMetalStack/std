@@ -123,6 +123,10 @@ export function buildMainTs(opts: MainTemplateOpts): FileBuilder[] {
 					export const home = Page(() => <App />)
 				`,
 		],
+		[
+			"components/counter.tsx",
+			() => ts``,
+		],
 		...files,
 	];
 }
