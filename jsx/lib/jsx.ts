@@ -54,6 +54,9 @@ export function flatChildren(children: unknown): unknown[] {
 // -- client impl --
 
 function applyProp(el: HTMLElement, key: string, val: unknown) {
+	if (isPixelable(key, val)) {
+		val = val + "px";
+	}
 	if (key === "class") {
 		el.className = val as string;
 	} else if (key.startsWith("on") && typeof val === "function") {
@@ -69,6 +72,11 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 	}
 }
 
+function isPixelable(key: string, val: unknown): boolean {
+	const pixelables = ["width", "height"];
+	return typeof val === "number" && pixelables.includes(key);
+}
+
 function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 	for (const [key, val] of Object.entries(props)) {
 		if (key === "children") continue;
@@ -77,7 +85,7 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 			continue;
 		}
 		if (isSignal(val)) {
-			reactiveEffect(() => applyProp(el, key, val.get()));
+			reactiveEffect(() => applyProp(el, key, (val as SignalLike).get()));
 		} else {
 			applyProp(el, key, val);
 		}

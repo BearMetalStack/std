@@ -40,7 +40,7 @@ export function createStack(): Module {
 				const updated = b.replace(
 					/<\/head>/,
 					`${
-						compStyles ? `<link rel="stylesheet" href="/styles/components.css">` : ""
+						compStyles ? `<style>${compStyles}</style>` : ""
 					}${compBundle.keys().filter((k) => !k.match(/-.*\.js/)).map((s) => `<script type="module" src="/${s}"></script>`).toArray().join("")}</head>`,
 				);
 				return new Response(updated, res);
@@ -55,7 +55,7 @@ export function createStack(): Module {
 			return r;
 		});
 	mod.route("/styles/components.css")
-		.get(() => compStyles ? Style(compStyles) : NotFound());
+		.get(() => compStyles ? Style(compStyles.replace(/(;)?\n\s*/g, (_,i) => i ?? ' ')) : NotFound());
 
 	if (isDev()) {
 		mod

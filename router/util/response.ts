@@ -109,14 +109,20 @@ export function Html(html: string, status = 200): TypedResponse<string, number> 
 /** Sends a pre-rendered JavaScript string with `Content-Type: text/javascript`. Defaults to 200. */
 export function Script(script: string): TypedResponse<string, 200> {
 	return new TypedResponse(script, 200, {
-		headers: { "Content-Type": "text/javascript; charset=utf-8" },
+		headers: {
+			"Content-Type": "text/javascript; charset=utf-8",
+			"Cache-control": "max-age=604800; public",
+		},
 	});
 }
 
 /** Sends a pre-rendered CSS string with `Content-Type: text/css`. Defaults to 200. */
 export function Style(style: string): TypedResponse<string, 200> {
 	return new TypedResponse(style, 200, {
-		headers: { "Content-Type": "text/css; charset=utf-8" },
+		headers: {
+			"Content-Type": "text/css; charset=utf-8",
+			"Cache-control": "max-age=604800; public",
+		},
 	});
 }
 

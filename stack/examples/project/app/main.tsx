@@ -78,6 +78,7 @@ export class App extends BMElement {
 				background: #00000020;
 				padding: 3rem;
 				border-radius: var(--radius-lg);
+				user-select: none;
 			}
 
 			.hero {
@@ -127,7 +128,14 @@ export class App extends BMElement {
 			<main>
 				<div class="hero">
 					<p class="hero__eyebrow">Welcome to the</p>
-					<img class="hero__logo" src="/bmicon.svg" alt="BearMetal" fetchPriority="high" />
+					<img
+						class="hero__logo"
+						width={300}
+						height={338}
+						src="/bmicon.svg"
+						alt="BearMetal"
+						fetchPriority="high"
+					/>
 					<p class="hero__wordmark">
 						STAC<span>K</span>
 					</p>

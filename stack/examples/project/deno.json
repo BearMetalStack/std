@@ -1,6 +1,7 @@
 {
     "tasks": {
-        "dev": "deno run -A --watch --unstable-raw-imports main.ts"
+        "dev": "deno run -A --watch main.ts",
+        "prod": "export BEARMETAL_ENV=prod && deno run -A --watch main.ts"
     },
     "imports": {
         "@app/": "app/",
