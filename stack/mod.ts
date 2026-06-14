@@ -1,4 +1,5 @@
-import {  buildBundle } from "@bearmetal/app/ssr";
+import { buildBundle } from "@bearmetal/app/ssr";
+import { getAllStylesheets } from "@bearmetal/app";
 import { Module, NotFound, Script, Style } from "@bearmetal/router";
 import { walkDir } from "@bearmetal/miscellanea/fs";
 import { isDev } from "@bearmetal/miscellanea/environment";
@@ -14,15 +15,19 @@ export function createStack(): Module {
 		const modules = new Set<string>();
 		for await (const m of walkDir("components")) {
 			if (m.isFile && scriptFiles.includes(m.name.split(".").pop()!)) {
-				modules.add("file://" + await Deno.realPath(m.path));
+				const realPath = await Deno.realPath(m.path);
+				modules.add("file://" + realPath);
+				await import("file://" + realPath);
 			}
 		}
 
-
-		[compBundle, compStyles] = await buildBundle(modules.values().toArray(),true);
+		const componentStyles = getAllStylesheets();
+		[compBundle, compStyles] = await buildBundle(modules.values().toArray(), true);
+		if (componentStyles) compStyles = componentStyles + "\n" + compStyles;
 		if (isDev()) {
 			bus.addEventListener("modify", async () => {
 				[compBundle, compStyles] = await buildBundle(modules.values().toArray(), true);
+				if (componentStyles) compStyles = componentStyles + "\n" + compStyles;
 				bus.dispatchEvent(new Event("reload"));
 			});
 			watch().catch();

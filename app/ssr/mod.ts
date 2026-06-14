@@ -6,7 +6,8 @@ import {
 	type StateType,
 } from "@bearmetal/router";
 import { isDev } from "@bearmetal/miscellanea/environment";
-import { getComponentUrl } from "../define.ts";
+import { getComponentUrl, getTagStylesheet } from "../define.ts";
+import { stripServerCode } from "./stripServer.ts";
 
 export type LayoutState = {
 	layout?: LayoutEl;
@@ -69,12 +70,16 @@ export function Page<T extends StateType>(
 async function buildTagBundle(usedTags: Set<string>) {
 	const componentUrls = usedTags.values().map(getComponentUrl).filter(Boolean)
 		.toArray() as string[];
+	const componentStyles = usedTags.values()
+		.map(getTagStylesheet)
+		.filter((s): s is string => s != null).toArray()
+		.join("\n");
 	const [scripttag, styletag] = await buildBundle(componentUrls);
 	return [
 		scripttag.entries().filter(([k]) => !k.match(/-.*\.js/)).map(([_, s]) =>
 			`<script type="module">${s}</script>`
 		).toArray().join(""),
-		`<style>${styletag}</style>`,
+		`<style>${componentStyles}${styletag}</style>`,
 	];
 }
 export async function buildBundle(
@@ -98,9 +103,10 @@ export async function buildBundle(
 		entrypoints: [entry, "jsr:@bearmetal/app", "jsr:@bearmetal/app/signals"],
 		write: false,
 		codeSplitting: true,
-		minify: !isDev(),
 		platform: "browser",
 		outputDir: "scripts",
+		minify: !isDev(),
+		sourcemap: isDev() ? "inline" : undefined,
 	});
 
 	let styletag = "";
@@ -108,10 +114,11 @@ export async function buildBundle(
 		if (b.path.endsWith(".css")) {
 			styletag = b.text();
 		} else {
-			const t = b.text();
-			t.matchAll(/@bearmetal\/[a-zA-Z\/\-]+/g).forEach(([m]) => m && addImport(m));
+			let t = b.text();
+			t = stripServerCode(t, { names: ["serverRender", "serverLoad"] });
 
-			scripttag.set(b.path.split("/").pop()!, t);
+			const p = b.path.split("/").pop()!;
+			scripttag.set(p, t);
 		}
 	}
 
@@ -119,7 +126,6 @@ export async function buildBundle(
 
 	return [scripttag, styletag];
 }
-
 const imports = new Set<string>();
 export function getImports() {
 	return imports.values().toArray();

@@ -14,12 +14,12 @@ export class Joke extends BMElement<{ joke: Element }> {
 				text-align: center;
 				p:nth-child(odd) {
 					max-width: 45ch;
-					color: var(--color-bearmetal-info-300);
+					color: var(--color-bearmetal-info-200);
 					&.banana {
-						color: var(--color-bearmetal-warning-300);
+						color: var(--color-bearmetal-warning-200);
 					}
 					&.orange {
-						color: var(--color-bearmetal-orange-300);
+						color: var(--color-bearmetal-orange-200);
 					}
 				}
 			}
