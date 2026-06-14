@@ -1,19 +1,26 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 
-@define("app-joke", import.meta)
+@define("app-joke")
 export class Joke extends BMElement<{ joke: Element }> {
 	static get stylesheet() {
 		return css`
 			.joke {
-				max-height: 10ch;
+				height: 5ch;
 				overflow-y: auto;
 				width: 100%;
 				scroll-behavior: smooth;
 				scrollbar-width: none;
 				text-align: center;
 				p:nth-child(odd) {
+					max-width: 45ch;
 					color: var(--color-bearmetal-info-300);
+					&.banana {
+						color: var(--color-bearmetal-warning-300);
+					}
+					&.orange {
+						color: var(--color-bearmetal-orange-300);
+					}
 				}
 			}
 		`;
@@ -48,7 +55,12 @@ export class Joke extends BMElement<{ joke: Element }> {
 			};
 			const to = setInterval(() => {
 				const l = line();
-				this.refs.joke.append(<p>{l}</p> as Node);
+				const c = l.toLowerCase().includes("orange")
+					? "orange"
+					: l.toLowerCase().includes("banana")
+					? "banana"
+					: "";
+				this.refs.joke.append(<p class={c}>{l}</p> as Node);
 
 				if (l === this.signals.$orange.get()) {
 					clearInterval(to);
@@ -61,6 +73,19 @@ export class Joke extends BMElement<{ joke: Element }> {
 	}
 
 	get template() {
-		return <div class="joke" ref="joke"></div>;
+		const m = this.computed(() => {
+			if (this.signals.$orange) return undefined;
+			return (
+				<p class="banana">
+					If you are seeing this, it means I wasn't rendered on the server. Dang, guess there's no
+					joke for you here.
+				</p>
+			);
+		});
+		return (
+			<div class="joke" ref="joke">
+				{m}
+			</div>
+		);
 	}
 }

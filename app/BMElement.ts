@@ -5,7 +5,6 @@ import type { ContextMap } from "./context/mod.ts";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import { each, effect } from "./signals.ts";
 import { Signal } from "@signals";
-// const { Signal } = await import("@signals");
 
 setEffectImpl(effect);
 
@@ -22,6 +21,22 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 		customElements.define(this.tag, this as unknown as CustomElementConstructor);
 		return this;
 	}
+
+	static override async serverRender(
+		props: Record<string, unknown>,
+		children: string,
+	): Promise<string> {
+		const inst = new (this as unknown as new () => BMElement)();
+		for (const [k, v] of Object.entries(props)) {
+			if (!inst.signals[`$${k}`]) inst.signals[`$${k}`] = new Signal.State(v);
+			(inst as Record<string, unknown>)[k] = v;
+		}
+		// deno-lint-ignore no-explicit-any
+		const tpl = await (inst as any).template;
+		if (tpl == null) return children;
+		return String(tpl);
+	}
+
 	static get stylesheet(): string | undefined {
 		return undefined;
 	}
@@ -69,24 +84,36 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 		const prevOwner = getCurrentOwner();
 		setCurrentOwner(this);
 		try {
-			const t = this.template;
-			if (t !== undefined) {
-				if (isSignal(t)) {
-					const frag = document.createDocumentFragment();
-					frag.appendChild(t.get() as Node);
-					this.init();
-					this.root.appendChild(frag);
-					this.addEffect(() => {
-						this.replaceChildren(t.get() as Node);
-					});
-				} else {
-					const frag = document.createDocumentFragment();
-					frag.appendChild(t as Node);
-					this.init();
-					this.root.appendChild(frag);
+			if (this.root.hasChildNodes()) {
+				const t = this.template;
+				if (t !== undefined && isSignal(t)) {
+					this.addEffect(() => this.replaceChildren(t.get() as Node));
 				}
-			} else {
+
+				for (const el of this.root.querySelectorAll("[ref]")) {
+					this.registerRef(el.getAttribute("ref")!, el);
+				}
 				this.init();
+			} else {
+				const t = this.template;
+				if (t !== undefined) {
+					if (isSignal(t)) {
+						const frag = document.createDocumentFragment();
+						frag.appendChild(t.get() as Node);
+						this.init();
+						this.root.appendChild(frag);
+						this.addEffect(() => {
+							this.replaceChildren(t.get() as Node);
+						});
+					} else {
+						const frag = document.createDocumentFragment();
+						frag.appendChild(t as Node);
+						this.init();
+						this.root.appendChild(frag);
+					}
+				} else {
+					this.init();
+				}
 			}
 		} finally {
 			setCurrentOwner(prevOwner);

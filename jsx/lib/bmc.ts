@@ -12,7 +12,7 @@ export abstract class BMC extends _Base {
 	static serverRender(
 		_props: Record<string, unknown>,
 		children: string,
-	): string {
+	): string | Promise<string> {
 		return children;
 	}
 

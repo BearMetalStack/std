@@ -193,7 +193,6 @@ const voidElements = new Set([
 	"wbr",
 ]);
 
-// Html import is dynamic so server impl can be used without it on client
 export type HtmlLike = { raw: string; toString(): string };
 type HtmlCtor = new (raw: string) => HtmlLike;
 
@@ -223,11 +222,13 @@ export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string)
 	}
 
 	async function resolveChild(c: unknown): Promise<string> {
+		if (isSignal(c)) c = c.get();
 		if (c instanceof Promise) c = await c;
 		return childToStr(c);
 	}
 
 	async function resolveChildRaw(c: unknown): Promise<string> {
+		if (isSignal(c)) c = c.get();
 		if (c instanceof Promise) c = await c;
 		return childToStrRaw(c);
 	}
@@ -255,7 +256,7 @@ export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string)
 				: loadedProps;
 
 			const childStr = (await Promise.all(flat.map(raw ? resolveChildRaw : resolveChild))).join("");
-			const inner = tag.serverRender(loadedProps, childStr);
+			const inner = await tag.serverRender(loadedProps, childStr);
 			return new Html(`<${tag.tag}${buildAttrs(serialized)}>${inner}</${tag.tag}>`);
 		}
 
