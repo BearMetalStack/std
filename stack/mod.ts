@@ -1,4 +1,4 @@
-import { buildBundle } from "@bearmetal/app/ssr";
+import {  buildBundle } from "@bearmetal/app/ssr";
 import { Module, NotFound, Script, Style } from "@bearmetal/router";
 import { walkDir } from "@bearmetal/miscellanea/fs";
 import { isDev } from "@bearmetal/miscellanea/environment";
@@ -7,7 +7,7 @@ import { html } from "@bearmetal/miscellanea";
 const scriptFiles = ["js", "ts", "jsx", "tsx"];
 export function createStack(): Module {
 	const bus = new EventTarget();
-	let compBundle = "";
+	let compBundle: Map<string, string> = new Map();
 	let compStyles = "";
 	const mod = new Module();
 	mod.onStart(async () => {
@@ -18,10 +18,11 @@ export function createStack(): Module {
 			}
 		}
 
-		[compBundle, compStyles] = await buildBundle(modules.values().toArray());
+
+		[compBundle, compStyles] = await buildBundle(modules.values().toArray(),true);
 		if (isDev()) {
 			bus.addEventListener("modify", async () => {
-				[compBundle, compStyles] = await buildBundle(modules.values().toArray());
+				[compBundle, compStyles] = await buildBundle(modules.values().toArray(), true);
 				bus.dispatchEvent(new Event("reload"));
 			});
 			watch().catch();
@@ -35,14 +36,19 @@ export function createStack(): Module {
 					/<\/head>/,
 					`${
 						compStyles ? `<link rel="stylesheet" href="/styles/components.css">` : ""
-					}<script type="module" src="/scripts/components.js"></script></head>`,
+					}${compBundle.keys().filter((k) => !k.match(/-.*\.js/)).map((s) => `<script type="module" src="/${s}"></script>`).toArray().join("")}</head>`,
 				);
 				return new Response(updated, res);
 			}
 			return res;
 		});
-	mod.route("/scripts/components.js")
-		.get(() => Script(compBundle));
+	mod.route("/:script")
+		.get(async (ctx, next) => {
+		    const s = compBundle.get(ctx.params.script as string)
+			if (s === undefined) return await next();
+		    const r = Script(s)
+			return r;
+		});
 	mod.route("/styles/components.css")
 		.get(() => compStyles ? Style(compStyles) : NotFound());
 
@@ -61,7 +67,6 @@ export function createStack(): Module {
 									ev.addEventListener("reload", () => location.reload());
 									ev.onerror= (e) => {
 									    if (ev.readyState === EventSource.CONNECTING) {
-									        console.log("server reset")
 											setTimeout(() => location.reload(), 100);
 										}
 									}

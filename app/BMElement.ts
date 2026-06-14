@@ -5,6 +5,7 @@ import type { ContextMap } from "./context/mod.ts";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import { each, effect } from "./signals.ts";
 import { Signal } from "@signals";
+// const { Signal } = await import("@signals");
 
 setEffectImpl(effect);
 
@@ -56,7 +57,7 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 			for (const [key, value] of Object.entries(loaded)) {
 				const sig = this.signals[`$${key}`];
 				if (!sig) {
-					this.signal(value);
+					this.signals[`$${key}`] = this.signal(value);
 					continue;
 				}
 				if (sig instanceof Signal.State) {

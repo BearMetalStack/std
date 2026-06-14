@@ -273,6 +273,11 @@
         "dependencies": [
           "jsr:@db/postgres@~0.19.5"
         ]
+      },
+      "stack/examples/project": {
+        "dependencies": [
+          "jsr:@bearmetal/jsx@^0.0.10"
+        ]
       }
     }
   }

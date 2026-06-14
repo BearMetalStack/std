@@ -38,6 +38,10 @@ export type EventProps = {
 
 export type MakeBaseProps<Extra = never> = MakeCommonProps<Extra> & EventProps;
 
+export type MakeHtmlProps<Extra = never> = MakeBaseProps<Extra> & {
+	lang?: string | Extra;
+};
+
 export interface MakeAnchorProps<Extra = never> extends MakeBaseProps<Extra> {
 	href?: string | Extra;
 	target?: string | Extra;
@@ -107,6 +111,7 @@ export interface MakeImgProps<Extra = never> extends MakeBaseProps<Extra> {
 	loading?: "lazy" | "eager" | Extra;
 	srcset?: string | Extra;
 	sizes?: string | Extra;
+	fetchPriority?: "high" | "low" | "auto" | Extra;
 }
 
 export interface MakeVideoProps<Extra = never> extends MakeBaseProps<Extra> {
@@ -150,7 +155,7 @@ export interface MakeLinkProps<Extra = never> extends MakeBaseProps<Extra> {
 	type?: string | Extra;
 	media?: string | Extra;
 	as?: string | Extra;
-	crossorigin?: string | Extra;
+	crossorigin?: string | boolean | Extra;
 }
 
 export interface MakeMetaProps<Extra = never> extends MakeBaseProps<Extra> {
@@ -319,7 +324,7 @@ export type MakeIntrinsicElements<Extra = never> = {
 	caption: MakeBaseProps<Extra>;
 	head: MakeBaseProps<Extra>;
 	body: MakeBaseProps<Extra>;
-	html: MakeBaseProps<Extra>;
+	html: MakeHtmlProps<Extra>;
 	title: MakeBaseProps<Extra>;
 	link: MakeLinkProps<Extra>;
 	meta: MakeMetaProps<Extra>;

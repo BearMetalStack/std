@@ -15,6 +15,7 @@ export type LayoutEl = (props: {
 	children: JSX.Element;
 	title: string;
 	theme?: string;
+	description?: string;
 }) => JSX.Element;
 
 export function Layout<T extends StateType>(
@@ -70,15 +71,17 @@ async function buildTagBundle(usedTags: Set<string>) {
 		.toArray() as string[];
 	const [scripttag, styletag] = await buildBundle(componentUrls);
 	return [
-		`<script type="module">${scripttag}</script>`,
+		scripttag.entries().filter(([k]) => !k.match(/-.*\.js/)).map(([_, s]) =>
+			`<script type="module">${s}</script>`
+		).toArray().join(""),
 		`<style>${styletag}</style>`,
 	];
 }
 export async function buildBundle(
 	componentUrls: string[],
 	bare = false,
-): Promise<[string, string]> {
-	let scripttag = "";
+): Promise<[Map<string, string>, string]> {
+	const scripttag: Map<string, string> = new Map();
 
 	if (componentUrls.length === 0) return [scripttag, ""];
 	const entry = await Deno.makeTempFile({ suffix: ".tsx" });
@@ -92,12 +95,12 @@ export async function buildBundle(
         `,
 	);
 	const bundle = await Deno.bundle({
-		entrypoints: [entry],
+		entrypoints: [entry, "jsr:@bearmetal/app", "jsr:@bearmetal/app/signals"],
 		write: false,
-		codeSplitting: false,
+		codeSplitting: true,
 		minify: !isDev(),
 		platform: "browser",
-		outputDir: "virt",
+		outputDir: "scripts",
 	});
 
 	let styletag = "";
@@ -105,13 +108,24 @@ export async function buildBundle(
 		if (b.path.endsWith(".css")) {
 			styletag = b.text();
 		} else {
-			scripttag = b.text();
+			const t = b.text();
+			t.matchAll(/@bearmetal\/[a-zA-Z\/\-]+/g).forEach(([m]) => m && addImport(m));
+
+			scripttag.set(b.path.split("/").pop()!, t);
 		}
 	}
 
 	Deno.remove(entry);
 
 	return [scripttag, styletag];
+}
+
+const imports = new Set<string>();
+export function getImports() {
+	return imports.values().toArray();
+}
+export function addImport(url: string) {
+	imports.add(url);
 }
 
 // if (import.meta.main) {

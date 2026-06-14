@@ -37,6 +37,7 @@ export function define(
 				const style = document.head.querySelector("style#" + tag) ??
 					document.createElement("style");
 				style.textContent = s.replaceAll(/:scope/gm, tag);
+				style.id = tag;
 				document.head.appendChild(style);
 			}
 		} else if (moduleUrl) {
