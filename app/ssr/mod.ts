@@ -1,10 +1,11 @@
-import type { JSX } from "@bearmetal/jsx/server/jsx-runtime";
+import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import {
 	Html as HTMLRes,
 	type RouterContext,
 	type RouterHandler,
 	type StateType,
 } from "@bearmetal/router";
+import { isDev } from "@bearmetal/miscellanea/environment";
 import { getComponentUrl } from "../define.ts";
 
 export type LayoutState = {
@@ -12,6 +13,8 @@ export type LayoutState = {
 };
 export type LayoutEl = (props: {
 	children: JSX.Element;
+	title: string;
+	theme?: string;
 }) => JSX.Element;
 
 export function Layout<T extends StateType>(
@@ -24,43 +27,67 @@ export function Layout<T extends StateType>(
 }
 const tagRx = /<(?<tag>[a-z\-]+?)[>\s]/ig;
 const bodyRx = /<body>/;
+const endHeadRx = /<\/head>/;
 
 export function Page<T extends StateType>(
 	render: (ctx: RouterContext<T>) => JSX.Element,
+	title = "BearMetal SSR",
 ): RouterHandler<T> {
 	return async (ctx) => {
 		const usedTags = new Set<string>();
 		const layout = ctx.state.layout as LayoutState["layout"];
 		const html = await render(ctx);
 		if (typeof layout === "function") {
-			const page = (await layout({ children: html })).toString();
+			const page = (await layout({ children: html, title })).toString();
 			page.matchAll(tagRx).forEach((m) => usedTags.add(m.groups?.tag ?? ""));
 			if (bodyRx.test(page)) {
+				const [scripttag, styletag] = await buildTagBundle(usedTags);
 				return HTMLRes(
-					"<!DOCTYPE html>" + page.replace(bodyRx, `<body>${await buildBundle(usedTags)}`),
+					"<!DOCTYPE html>" + page.replace(
+						endHeadRx,
+						`${styletag}${scripttag}</head>`,
+					),
 				);
 			}
 			return HTMLRes(page);
 		}
 		if (bodyRx.test(html.toString())) {
-			return HTMLRes(html.toString().replace(bodyRx, await buildBundle(usedTags)));
+			const r = html.toString();
+			r.matchAll(tagRx).forEach((m) => usedTags.add(m.groups?.tag ?? ""));
+			const [scripttag, styletag] = await buildTagBundle(usedTags);
+			return HTMLRes(
+				r.replace(
+					endHeadRx,
+					`${styletag}${scripttag}</head>`,
+				),
+			);
 		}
 		return HTMLRes(html.toString());
 	};
 }
-
-async function buildBundle(usedTags: Set<string>): Promise<string> {
+async function buildTagBundle(usedTags: Set<string>) {
+	const componentUrls = usedTags.values().map(getComponentUrl).filter(Boolean)
+		.toArray() as string[];
+	const [scripttag, styletag] = await buildBundle(componentUrls);
+	return [
+		`<script type="module">${scripttag}</script>`,
+		`<style>${styletag}</style>`,
+	];
+}
+export async function buildBundle(
+	componentUrls: string[],
+	bare = false,
+): Promise<[string, string]> {
 	let scripttag = "";
-	const componentUrls = usedTags.values().map(getComponentUrl).filter(Boolean).toArray();
 
-	if (componentUrls.length === 0) return scripttag;
+	if (componentUrls.length === 0) return [scripttag, ""];
 	const entry = await Deno.makeTempFile({ suffix: ".tsx" });
 	await Deno.writeTextFile(
 		entry,
 		`
          /** @jsxRuntime automatic */
          /** @jsxImportSource jsr:@bearmetal/jsx/client */
-         import "@bearmetal/webbies/style";
+         ${bare ? "" : 'import "@bearmetal/webbies/style"'};
          ${componentUrls.map((url) => `import "${url}"`).join("\n")}
         `,
 	);
@@ -68,17 +95,23 @@ async function buildBundle(usedTags: Set<string>): Promise<string> {
 		entrypoints: [entry],
 		write: false,
 		codeSplitting: false,
-		minify: false,
+		minify: !isDev(),
 		platform: "browser",
+		outputDir: "virt",
 	});
 
+	let styletag = "";
 	for (const b of bundle.outputFiles ?? []) {
-		scripttag = `<script type="module">${b.text()}</script>`;
+		if (b.path.endsWith(".css")) {
+			styletag = b.text();
+		} else {
+			scripttag = b.text();
+		}
 	}
 
 	Deno.remove(entry);
 
-	return scripttag;
+	return [scripttag, styletag];
 }
 
 // if (import.meta.main) {

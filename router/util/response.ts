@@ -95,7 +95,7 @@ function isHeaders(obj: unknown): obj is Headers {
 	return obj instanceof Headers;
 }
 
-// ─── HTML ─────────────────────────────────────────────────────────────────────
+// ─── File ─────────────────────────────────────────────────────────────────────
 
 /** Sends a pre-rendered HTML string with `Content-Type: text/html`. Defaults to 200. */
 export function Html(html: string): TypedResponse<string, 200>;
@@ -103,6 +103,20 @@ export function Html<S extends number>(html: string, status: S): TypedResponse<s
 export function Html(html: string, status = 200): TypedResponse<string, number> {
 	return new TypedResponse(html, status, {
 		headers: { "Content-Type": "text/html; charset=utf-8" },
+	});
+}
+
+/** Sends a pre-rendered JavaScript string with `Content-Type: text/javascript`. Defaults to 200. */
+export function Script(script: string): TypedResponse<string, 200> {
+	return new TypedResponse(script, 200, {
+		headers: { "Content-Type": "text/javascript; charset=utf-8" },
+	});
+}
+
+/** Sends a pre-rendered CSS string with `Content-Type: text/css`. Defaults to 200. */
+export function Style(style: string): TypedResponse<string, 200> {
+	return new TypedResponse(style, 200, {
+		headers: { "Content-Type": "text/css; charset=utf-8" },
 	});
 }
 

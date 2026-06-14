@@ -320,11 +320,13 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			showIndex = false,
 			spa = false,
 			queryable = false,
+			favicon,
 		}: {
 			showIndex?: boolean;
 			flatten?: boolean | RegExp;
 			spa?: boolean;
 			queryable?: boolean;
+			favicon?: string;
 		} = {},
 	): void {
 		let effectiveDir = dir;
@@ -346,9 +348,12 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			});
 		}
 
-		this.route(root + "*").get((ctx) =>
-			resolveStaticFile(effectiveDir, root, ctx.url.pathname, spa, showIndex)
-		);
+		this.route(root + "*").get((ctx) => {
+			const path = favicon && ctx.url.pathname.endsWith("favicon.ico")
+				? ctx.url.pathname.replace("favicon.ico", favicon.replace(/^\//, ""))
+				: ctx.url.pathname;
+			return resolveStaticFile(effectiveDir, root, path, spa, showIndex);
+		});
 	}
 }
 

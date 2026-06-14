@@ -1,0 +1,14 @@
+{
+    "tasks": {
+        "dev": "deno run -A --watch --unstable-raw-imports main.ts"
+    },
+    "imports": {
+        "@app/": "app/",
+        "@views/": "views/"
+    },
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "jsxImportSource": "@bearmetal/jsx",
+        "noImplicitOverride": false
+    }
+}

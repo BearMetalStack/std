@@ -111,7 +111,28 @@ export function buildMainTs(opts: MainTemplateOpts): FileBuilder[] {
 					}
 					`,
 		],
-		["views/layouts/Document.tsx", () => ""],
+		[
+			"views/layouts/Document.tsx",
+			() =>
+				ts`
+    			    import { Layout } from "@bearmetal/app/ssr";
+
+                    export const document = Layout((props) => {
+                       	return (
+                      		<html>
+                     			<head>
+                    				<meta charset="UTF-8" />
+                    				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                    				<title>{props.title}</title>
+                     			</head>
+                     			<body>
+                       	            {props.children}
+                     			</body>
+                      		</html>
+                       	);
+                    }
+         		`,
+		],
 		[
 			"views/home.tsx",
 			() =>
@@ -125,7 +146,42 @@ export function buildMainTs(opts: MainTemplateOpts): FileBuilder[] {
 		],
 		[
 			"components/counter.tsx",
-			() => ts``,
+			() =>
+				ts`
+			        import { BMElement, define } from "@bearmetal/app";
+
+					@define("app-main", import.meta)
+					export class App extends BMElement {
+						#count = this.signal(0);
+
+						change(amount: number) {
+							return () => this.#count.set(this.#count.get() + amount);
+						}
+
+						override get template() {
+							return (
+								<>
+									<div>
+										<button
+											type="button"
+											class="down"
+											onClick={this.change(-1)}
+										>
+											-
+										</button>
+										<span>{this.#count}</span>
+										<button
+											type="button"
+											onClick={this.change(1)}
+										>
+											+
+										</button>
+									</div>
+								</>
+							);
+						}
+					}
+			`,
 		],
 		...files,
 	];
@@ -133,8 +189,8 @@ export function buildMainTs(opts: MainTemplateOpts): FileBuilder[] {
 
 export function denoJson(projectName: string, packages: Set<string>) {
 	const imports: DenoConfig["imports"] = {
-		"@app": "app/",
-		"@views": "views/",
+		"@app/": "app/",
+		"@views/": "views/",
 	};
 	packages.forEach((pkg) => {
 		imports[`${pkg}`] = `jsr:${pkg}`;

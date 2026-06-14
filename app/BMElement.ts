@@ -21,6 +21,9 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 		customElements.define(this.tag, this as unknown as CustomElementConstructor);
 		return this;
 	}
+	static get stylesheet(): string | undefined {
+		return undefined;
+	}
 
 	#cleanups: Array<() => void> = [];
 
@@ -36,6 +39,10 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 
 	registerRef(name: string, el: Element): void {
 		this.#refs.set(name, el);
+	}
+
+	get tag() {
+		return (this.constructor as typeof BMElement).tag;
 	}
 
 	registerCleanup(fn: () => void): void {
@@ -64,17 +71,14 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 			const t = this.template;
 			if (t !== undefined) {
 				if (isSignal(t)) {
-					// render initial value into fragment for refs
 					const frag = document.createDocumentFragment();
 					frag.appendChild(t.get() as Node);
 					this.init();
 					this.root.appendChild(frag);
-					// effect handles subsequent updates
 					this.addEffect(() => {
 						this.replaceChildren(t.get() as Node);
 					});
 				} else {
-					// static JSX — render into fragment for refs
 					const frag = document.createDocumentFragment();
 					frag.appendChild(t as Node);
 					this.init();

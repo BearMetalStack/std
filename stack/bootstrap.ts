@@ -1,5 +1,5 @@
 import type { flags } from "./flags.ts";
-import { buildMainTs as buildFiles, denoJson } from "./tempate.ts";
+import { buildMainTs as buildFiles, denoJson } from "./template.ts";
 
 export async function bootstrap(opts: { flags: flags; projectName: string; dirname?: string }) {
 	const dryRun = Deno.args.includes("--dry-run");
@@ -23,7 +23,7 @@ export async function bootstrap(opts: { flags: flags; projectName: string; dirna
 
 	await Deno.mkdir(projectDir, { recursive: true });
 
-	const basePackages = ["@bearmetal/app", "@bearmetal/router"];
+	const basePackages = ["@bearmetal/app", "@bearmetal/router", "@bearmetal/stack"];
 	const optionalPackages: [keyof flags, string][] = [
 		["devProxy", "@bearmetal/devproxy"],
 		["miscellanea", "@bearmetal/miscellanea"],
