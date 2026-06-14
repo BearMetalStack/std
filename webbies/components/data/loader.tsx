@@ -2,10 +2,11 @@ import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 import { animationSheet } from "@style";
 import { BmIcon } from "@components";
+import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 
 @define("bm-loader", import.meta)
 export class Loader extends BMElement {
-	get template() {
+	get template(): JSX.Element {
 		return (
 			<>
 				<style raw>

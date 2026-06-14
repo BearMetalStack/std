@@ -27,7 +27,7 @@ function directRouterRoutes(parent: HTMLElement): SpaRoute[] {
 	const results: SpaRoute[] = [];
 	for (const child of parent.children) {
 		if (child.tagName === "BM-ROUTE") {
-			results.push(child as SpaRoute);
+			results.push(child as unknown as SpaRoute);
 		} else if (child.tagName !== "BM-SPA-TABS") {
 			results.push(...directRouterRoutes(child as HTMLElement));
 		}
@@ -49,7 +49,7 @@ function buildNavTree(routes: SpaRoute[], parentPath: string): NavNode[] {
 	for (const route of routes) {
 		if (route.hasAttribute("ignore-nav")) continue;
 
-		const attr = route.getAttribute("path") ?? "";
+		const attr: string = route.getAttribute("path") ?? "";
 		if (attr === "/") continue;
 
 		if (attr.split("/").some((s) => s.startsWith(":"))) continue;
@@ -147,8 +147,7 @@ function renderNavTree(nodes: NavNode[]): HTMLUListElement {
 @define("bm-nav", import.meta)
 export class SpaNav extends BMElement {
 	private _router: HTMLElement | null = null;
-	private _handleRouteChange = () =>
-		Promise.resolve().then(() => this._build());
+	private _handleRouteChange = () => Promise.resolve().then(() => this._build());
 
 	init() {
 		this._router = this.closest("bm-router");

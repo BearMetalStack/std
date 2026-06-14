@@ -57,7 +57,7 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 		this.#refs.set(name, el);
 	}
 
-	get tag() {
+	get tag(): string {
 		return (this.constructor as typeof BMElement).tag;
 	}
 

@@ -1,4 +1,4 @@
-const colorMap = {
+const colorMap: Record<string, string> = {
 	purple: "\x1b[35m",
 	porple: "\x1b[38;2;150;0;200m",
 	red: "\x1b[31m",
@@ -15,7 +15,7 @@ const colorMap = {
 
 type hexString = `#${string}`;
 
-export function colorize(text: string, color?: keyof typeof colorMap | hexString) {
+export function colorize(text: string, color?: keyof typeof colorMap | hexString): string {
 	if (!color) return text;
 	const c = colorMap[color as keyof typeof colorMap];
 	if (!c) {

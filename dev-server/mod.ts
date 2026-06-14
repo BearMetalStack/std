@@ -1,3 +1,4 @@
+// deno-lint-ignore no-import-prefix no-unversioned-import
 import { joinPath } from "jsr:@bearmetal/miscellanea";
 
 export async function DevServer() {

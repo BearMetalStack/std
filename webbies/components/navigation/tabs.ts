@@ -25,8 +25,8 @@ export class BmTabs extends BMElement {
 
 	private _build() {
 		const tabs = Array.from(
-			this.querySelectorAll<BmTab>(":scope > bm-tab"),
-		);
+			this.querySelectorAll(":scope > bm-tab"),
+		) as BmTab[];
 		if (!tabs.length) return;
 
 		const bar = document.createElement("div");

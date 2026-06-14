@@ -127,7 +127,7 @@ export async function buildBundle(
 	return [scripttag, styletag];
 }
 const imports = new Set<string>();
-export function getImports() {
+export function getImports(): string[] {
 	return imports.values().toArray();
 }
 export function addImport(url: string) {

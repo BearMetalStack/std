@@ -123,16 +123,16 @@ export class SpaRoute extends BMElement {
 	/** Direct bm-route children - from live DOM after activation, or template content before. */
 	get directChildRoutes(): SpaRoute[] {
 		const live = Array.from(
-			this.querySelectorAll<SpaRoute>(":scope > bm-route"),
-		);
+			this.querySelectorAll(":scope > bm-route"),
+		) as SpaRoute[];
 		if (live.length) return live;
 		const tmpl = this.querySelector(":scope > template") as
 			| HTMLTemplateElement
 			| null;
 		if (!tmpl) return [];
 		return Array.from(tmpl.content.children).filter(
-			(el): el is SpaRoute => el.tagName === "BM-ROUTE",
-		);
+			(el: unknown): el is SpaRoute => (el as SpaRoute).tagName === "BM-ROUTE",
+		) as unknown as SpaRoute[];
 	}
 
 	/** Whether this route has a path="/" child (an index subroute). */
@@ -141,7 +141,7 @@ export class SpaRoute extends BMElement {
 	}
 
 	get path(): string {
-		const pr = this.parentElement?.closest<SpaRoute>("bm-route");
+		const pr = this.parentElement?.closest("bm-route") as SpaRoute;
 		const pa = this.getAttribute("path") ?? "";
 		return pr ? joinPath(pr.path, pa) : pa;
 	}

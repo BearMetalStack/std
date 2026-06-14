@@ -1,6 +1,7 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 import { injectStyle } from "@bearmetal/drip";
+import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 
 injectStyle(
 	"bm-icon",
@@ -29,7 +30,7 @@ export class BmIcon extends BMElement {
 		return Observed;
 	}
 
-	get template() {
+	get template(): JSX.Element {
 		return (
 			<>
 				<style raw>

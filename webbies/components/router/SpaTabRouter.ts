@@ -25,8 +25,8 @@ export class SpaTabRouter extends BMElement {
 
 	private _build() {
 		const routes = Array.from(
-			this.querySelectorAll<SpaRoute>(":scope > bm-route"),
-		);
+			this.querySelectorAll(":scope > bm-route"),
+		) as SpaRoute[];
 		if (!routes.length) return;
 
 		const bar = document.createElement("div");
@@ -43,9 +43,7 @@ export class SpaTabRouter extends BMElement {
 			}
 
 			btn.append(labelFor(route));
-			btn.addEventListener("click", () =>
-				history.pushState(null, "", route.path),
-			);
+			btn.addEventListener("click", () => history.pushState(null, "", route.path));
 			bar.appendChild(btn);
 		}
 
@@ -57,8 +55,8 @@ export class SpaTabRouter extends BMElement {
 	private _updateActive() {
 		if (!this._bar) return;
 		const routes = Array.from(
-			this.querySelectorAll<SpaRoute>(":scope > bm-route"),
-		);
+			this.querySelectorAll(":scope > bm-route"),
+		) as SpaRoute[];
 		const buttons = Array.from(this._bar.querySelectorAll("button"));
 		routes.forEach((route, i) => {
 			buttons[i]?.toggleAttribute("active", route.hasAttribute("active"));

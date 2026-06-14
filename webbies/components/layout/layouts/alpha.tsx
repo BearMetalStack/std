@@ -1,6 +1,7 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 import { injectStyle } from "@bearmetal/drip";
+import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 
 injectStyle(
 	"bm-layout-alpha",
@@ -82,33 +83,35 @@ injectStyle(
 
 @define("bm-layout-alpha", import.meta)
 export class AlphaLayout extends BMElement {
-	get template() {
+	get template(): JSX.Element {
 		return (
 			<>
-				<style raw>{css`
-					:host {
-						display: grid;
-						grid-template-areas:
-							"a b"
-							"a c";
-						grid-template-columns: 300px 1fr;
-						grid-template-rows: auto 1fr;
-						width: 100vw;
-						height: 100vh;
-					}
-					slot {
-						display: block;
-					}
-					slot[name="nav"] {
-						grid-area: a;
-					}
-					slot[name="header"] {
-						grid-area: b;
-					}
-					slot[name="main"] {
-						grid-area: c;
-					}
-				`}</style>
+				<style raw>
+					{css`
+						:host {
+							display: grid;
+							grid-template-areas:
+								"a b"
+								"a c";
+							grid-template-columns: 300px 1fr;
+							grid-template-rows: auto 1fr;
+							width: 100vw;
+							height: 100vh;
+						}
+						slot {
+							display: block;
+						}
+						slot[name="nav"] {
+							grid-area: a;
+						}
+						slot[name="header"] {
+							grid-area: b;
+						}
+						slot[name="main"] {
+							grid-area: c;
+						}
+					`}
+				</style>
 				<slot name="nav"></slot>
 				<slot name="header"></slot>
 				<slot name="main"></slot>

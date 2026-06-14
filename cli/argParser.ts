@@ -6,13 +6,13 @@ export class ArgParser<T extends Record<string, string[]>> {
 		this.args = args;
 	}
 
-	public get(key: string) {
+	public get(key: string): string | null {
 		const index = this.args.indexOf(key);
 		if (index === -1) return null;
 		return this.args[index + 1];
 	}
 
-	setFlagDefs(flagDefs: T) {
+	setFlagDefs(flagDefs: T): this {
 		for (const [flag, defs] of Object.entries(flagDefs)) {
 			for (const def of defs) {
 				if (this.argFlags.includes(def)) {
@@ -23,30 +23,30 @@ export class ArgParser<T extends Record<string, string[]>> {
 		return this;
 	}
 
-	getFlag(flag: keyof T) {
+	getFlag(flag: keyof T): boolean | undefined {
 		return this.flags.get(flag);
 	}
 
-	get argFlags() {
+	get argFlags(): string[] {
 		return this.args.filter((arg) => arg.startsWith("-"));
 	}
 
-	get nonFlags() {
+	get nonFlags(): string[] {
 		return this.args.filter((arg) => !arg.startsWith("-"));
 	}
 
-	get namedArgs() {
+	get namedArgs(): string[] {
 		return this.args.filter((arg) => arg.startsWith("--"));
 	}
 
-	get task() {
+	get task(): string {
 		return this.nonFlags[0];
 	}
-	get taskArgs() {
+	get taskArgs(): string[] {
 		return this.nonFlags.slice(1);
 	}
 
-	static parse(args: string[]) {
+	static parse(args: string[]): ArgParser<Record<string, string[]>> {
 		return new ArgParser(args);
 	}
 }

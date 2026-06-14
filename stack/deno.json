@@ -12,9 +12,6 @@
     "fmt": {
         "useTabs": true
     },
-    "compilerOptions": {
-        "lib": ["deno.window", "deno.unstable", "node"]
-    },
     "lint": {
         "rules": {
             "exclude": ["no-explicit-any"]

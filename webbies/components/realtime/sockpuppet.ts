@@ -48,11 +48,11 @@ export class BmSockpuppet extends BMElement {
 		if (!channel) throw new Error("bm-sockpuppet: channel is required");
 
 		const appendContainers = Array.from(
-			this.querySelectorAll<HTMLElement>("[data-sockpuppet-append]"),
-		);
+			this.querySelectorAll("[data-sockpuppet-append]"),
+		) as HTMLElement[];
 		const swapContainers = Array.from(
-			this.querySelectorAll<HTMLElement>("[sse-swap]"),
-		);
+			this.querySelectorAll("[sse-swap]"),
+		) as HTMLElement[];
 
 		const puppet = new Sockpuppet(src);
 		this._ws = puppet;
@@ -79,9 +79,9 @@ export class BmSockpuppet extends BMElement {
 		});
 
 		for (
-			const form of this.querySelectorAll<HTMLFormElement>(
+			const form of this.querySelectorAll(
 				"[data-sockpuppet-form]",
-			)
+			) as HTMLFormElement[]
 		) {
 			form.addEventListener("submit", (e) => {
 				e.preventDefault();

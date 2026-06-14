@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 
-import { dedent } from "./indentation.ts";
+import { dedent } from "./mod.ts";
 const correct = "\nthis is a base line\n\tthis is an indented line\n";
 Deno.test("dedent tabs", () => {
 	const indented = `

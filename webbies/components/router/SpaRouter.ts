@@ -50,7 +50,7 @@ export class SpaRouter extends BMElement {
 
 	_handleRouteChange() {
 		const path = location.pathname;
-		const routes = this.querySelectorAll<SpaRoute>("bm-route");
+		const routes = this.querySelectorAll("bm-route") as SpaRoute[];
 		for (const route of routes) {
 			const res = this._checkPath(route.path);
 			if (res === null) route.deactivate();

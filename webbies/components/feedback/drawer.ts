@@ -187,7 +187,7 @@ export class Drawer extends BMElement {
 		const existingDrawer = document.querySelector(
 			`bm-drawer[position='${this.position}']`,
 		);
-		if (existingDrawer && existingDrawer !== this) {
+		if (existingDrawer && existingDrawer !== this as unknown as Element) {
 			throw new Error(
 				`Only one <bm-drawer> with position="${this.position}" can be used at a time.`,
 			);
@@ -210,7 +210,7 @@ export class Drawer extends BMElement {
 			if (this.open) this.close();
 			else this.show();
 		});
-		this.addEventListener("touchstart", (e) => {
+		this.addEventListener("touchstart", (e: TouchEvent) => {
 			if (this.position !== "bottom") return;
 			this.#initDrag(e.touches[0], false);
 			globalThis.addEventListener("touchmove", this.#onTouchMove, {

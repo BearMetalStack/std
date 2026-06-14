@@ -1,6 +1,7 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css, html } from "@bearmetal/miscellanea";
 import { injectStyle } from "@bearmetal/drip";
+import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 
 injectStyle(
 	"bm-table",
@@ -269,7 +270,7 @@ export class Table extends BMElement {
 	private _tfoot: HTMLTableSectionElement | null = null;
 	private _columns: [key: string, title: string][] = [];
 
-	get template() {
+	get template(): JSX.Element {
 		return (
 			<slot>
 				<div class="placeholder">
@@ -281,9 +282,7 @@ export class Table extends BMElement {
 
 	init() {
 		this.useShadow();
-		this._pageSize = this.hasAttribute("page-size")
-			? Number(this.getAttribute("page-size"))
-			: 0;
+		this._pageSize = this.hasAttribute("page-size") ? Number(this.getAttribute("page-size")) : 0;
 		const raw = this.getAttribute("data-json");
 		if (raw) this._setData(JSON.parse(raw));
 	}

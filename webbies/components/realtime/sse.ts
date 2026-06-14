@@ -39,11 +39,11 @@ export class BmSse extends BMElement {
 		if (!src) return;
 
 		const appendContainers = Array.from(
-			this.querySelectorAll<HTMLElement>("[data-sse-append]"),
-		);
+			this.querySelectorAll("[data-sse-append]"),
+		) as HTMLElement[];
 		const swapContainers = Array.from(
-			this.querySelectorAll<HTMLElement>("[sse-swap]"),
-		);
+			this.querySelectorAll("[sse-swap]"),
+		) as HTMLElement[];
 
 		const eventNames = new Set<string>();
 		for (const el of appendContainers) {

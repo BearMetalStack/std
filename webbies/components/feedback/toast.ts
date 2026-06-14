@@ -161,13 +161,13 @@ export class Toast extends BMElement {
 	private _host!: ToastHost;
 
 	init() {
-		this._host = document.querySelector("bm-toast-host") ??
+		this._host = document.querySelector("bm-toast-host") as unknown as ToastHost ??
 			document.body.appendChild(
 				document.createElement("bm-toast-host"),
-			) as ToastHost;
+			) as unknown as ToastHost;
 		this._host.append(this);
 
-		this.addEventListener("animationend", (e) => {
+		this.addEventListener("animationend", (e: AnimationEvent) => {
 			if (
 				e.animationName === "shrink-height" ||
 				e.animationName === "shrink-width"

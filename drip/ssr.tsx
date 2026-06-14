@@ -8,7 +8,9 @@ async function loadTheme(name: string): Promise<Theme> {
 	return await res.json() as Theme;
 }
 
-export async function ThemeStyle({ theme }: { theme?: string }) {
+export async function ThemeStyle(
+	{ theme }: { theme?: string },
+): Promise<import("@bearmetal/jsx").Html> {
 	const data = theme
 		? (getRegisteredTheme(theme) ?? await loadTheme(theme))
 		: await loadTheme("bearmetal");

@@ -14,25 +14,25 @@ import { Password } from "./password.ts";
 import { Token } from "./token.ts";
 import { SignInPage } from "./views/SignInPage.tsx";
 
-declare module "@bearmetal/db" {
-	interface TableRegistry {
-		bma_users: {
-			id: string;
-			alias: string;
-			password?: string;
-			google_id?: string;
-			discord_id?: string;
-			github_id?: string;
-		};
-		bma_sessions: { token: string; data?: string };
-		bma_passkeys: {
-			credential_id: string;
-			user_id: string;
-			public_key: string;
-			counter: number;
-		};
-	}
-}
+// declare module "@bearmetal/db" {
+// 	interface TableRegistry {
+// 		bma_users: {
+// 			id: string;
+// 			alias: string;
+// 			password?: string;
+// 			google_id?: string;
+// 			discord_id?: string;
+// 			github_id?: string;
+// 		};
+// 		bma_sessions: { token: string; data?: string };
+// 		bma_passkeys: {
+// 			credential_id: string;
+// 			user_id: string;
+// 			public_key: string;
+// 			counter: number;
+// 		};
+// 	}
+// }
 
 export const cookieName = "BM_AUTH_TOKEN";
 
@@ -216,7 +216,7 @@ function passwordRoutesModule(includeInToken: string[]): Module {
 			const db = ctx.getService(dbToken);
 			const { alias, password } = ctx.body;
 			const user = await db.invoke("table", "bma_users").select(
-				["alias", "password", ...includeInToken] as (keyof TableRegistry["bma_users"])[],
+				["alias", "password", ...includeInToken] as (keyof TableRegistry["bma_users"])[] as string[],
 			).where({ alias }).query as unknown as Partial<TableRegistry["bma_users"]>;
 			if (!user || !await Password.verify(password, user.password!)) {
 				return Unauthorized(new Error("Invalid credentials"));

@@ -1,14 +1,14 @@
 import { escapeHtml, NO_ESCAPE, type NoEscape } from "./escape/mod.ts";
 import { dedented } from "./indentation/mod.ts";
 
-function ensureTrailingLine(s: string) {
+function ensureTrailingLine(s: string): string {
 	return s.replace(/\n*$/, "\n");
 }
 
 /** Base tagged templates that dedents them via {@link dedented}. */
-export const doc = dedented.follow(ensureTrailingLine);
+export const doc: typeof dedented = dedented.follow(ensureTrailingLine);
 /** Tagged template that auto-escapes string interpolations via {@link escapeHtml} (prevent escape with {@link noEscape}). */
-export const html = doc.lead((
+export const html: typeof doc = doc.lead((
 	s,
 	...v
 ) => [
@@ -20,24 +20,24 @@ export const html = doc.lead((
  * Provides syntax highlighting in editors
  * @see {@link doc}
  */
-export const css = doc;
+export const css: typeof doc = doc;
 /**
  * Provides syntax highlighting in editors
  * @see {@link doc}
  */
-export const ts = doc;
+export const ts: typeof doc = doc;
 /**
  * Provides syntax highlighting in editors
  * @see {@link doc}
  */
-export const tsx = doc;
+export const tsx: typeof doc = doc;
 /**
  * Provides syntax highlighting in editors
  * @see {@link doc}
  */
-export const js = doc;
+export const js: typeof doc = doc;
 /**
  * Provides syntax highlighting in editors
  * @see {@link doc}
  */
-export const jsx = doc;
+export const jsx: typeof doc = doc;

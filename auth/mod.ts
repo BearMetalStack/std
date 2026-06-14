@@ -3,7 +3,7 @@ import { type DBServiceActions, dbToken, m, s } from "@bearmetal/db";
 import { Layout } from "@bearmetal/app/ssr";
 import { mainLayout } from "./layouts/main.tsx";
 import { Token } from "./token.ts";
-import { type AuthConfig, cookieName, migrationsFor, routesFor } from "./methods.ts";
+import { type AuthConfig, cookieName, routesFor } from "./methods.ts";
 
 export type AuthState<T extends Infer<Schema<unknown>>> = {
 	user: {
@@ -77,7 +77,7 @@ export function authModule<T extends Schema<unknown>>(
 			const rows = await db.invoke("table", "bma_sessions").where({ token }).select(["data"]).query;
 			if (rows.length > 0) {
 				ctx.state.user = Token.parse(token);
-				ctx.state.session = rows[0].data ?? "";
+				ctx.state.session = rows[0].data as string ?? "";
 			}
 		}
 		return await next();

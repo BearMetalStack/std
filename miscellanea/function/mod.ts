@@ -28,14 +28,15 @@ export class Fn<TArgs extends unknown[], TReturn> extends Function {
 	}
 
 	/** Extends the function with the provided callback, taking in its own parameters and returning an ArgSet that matches the original function */
-	lead<LArgs extends unknown[] = TArgs>(callback: (...args: LArgs) => TArgs) {
+	lead<LArgs extends unknown[] = TArgs>(callback: (...args: LArgs) => TArgs): Fn<LArgs, TReturn> {
 		return new Fn((...args: LArgs) => this(...callback(...args)));
 	}
 }
 
 /** Returns an extended function of the provided function */
-export const fn = <TArgs extends unknown[], TReturn>(f: (...args: TArgs) => TReturn) =>
-	new Fn<TArgs, TReturn>(f);
+export const fn = <TArgs extends unknown[], TReturn>(
+	f: (...args: TArgs) => TReturn,
+): Fn<TArgs, TReturn> => new Fn<TArgs, TReturn>(f);
 
 export const arg_set = Symbol.for("argset");
 export type ArgSet<T extends unknown[]> = T & { [arg_set]: true };

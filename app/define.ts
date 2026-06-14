@@ -9,10 +9,10 @@ type BmElementConstructor = {
 const registry = new Map<string, string>();
 const stylesheetRegistry = new Map<string, string>();
 
-export function registerComponent(tag: string, url: string) {
+export function registerComponent(tag: string, url: string): void {
 	registry.set(tag, url);
 }
-export function getComponentUrl(tag: string) {
+export function getComponentUrl(tag: string): string | undefined {
 	return registry.get(tag);
 }
 export function getTagStylesheet(tag: string): string | undefined {

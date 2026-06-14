@@ -111,7 +111,7 @@ export async function cliPrompt(
 	});
 }
 
-export async function cliConfirm(message: string, def = false) {
+export async function cliConfirm(message: string, def = false): Promise<boolean> {
 	const im = InputManager.getInstance();
 	let inpout = "";
 	function isValidInput(input: string) {
@@ -148,7 +148,7 @@ export async function cliConfirm(message: string, def = false) {
 	return value;
 }
 
-export async function cliAlert(message: string) {
+export async function cliAlert(message: string): Promise<void> {
 	const im = InputManager.getInstance();
 	const onKey = (e: CLICharEvent) => {
 		e.stopImmediatePropagation();
@@ -162,7 +162,7 @@ export async function cliAlert(message: string) {
 
 export function cliLog(
 	message: string | object | Array<unknown>,
-) {
+): void {
 	console.log(message);
 }
 
