@@ -99,7 +99,6 @@ export async function buildBundle(
          /** @jsxImportSource jsr:@bearmetal/jsx/client */
          ${componentUrls.map((url) => `import "${url}"`).join("\n")}
         `,
-		// ${bare ? "" : 'import "@bearmetal/webbies/style"'};
 	);
 	const bundle = await Deno.bundle({
 		entrypoints: [entry, "jsr:@bearmetal/app", "jsr:@bearmetal/app/signals"],

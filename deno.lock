@@ -1,6 +1,8 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@bearmetal/jsx@^0.0.10": "0.0.10",
+    "jsr:@bearmetal/miscellanea@^0.0.4": "0.0.4",
     "jsr:@bearmetal/router@*": "0.4.0",
     "jsr:@db/postgres@~0.19.5": "0.19.5",
     "jsr:@luca/esbuild-deno-loader@*": "0.11.1",
@@ -26,6 +28,18 @@
     "npm:esbuild@0.20.2": "0.20.2"
   },
   "jsr": {
+    "@bearmetal/jsx@0.0.10": {
+      "integrity": "86a980c82efd0889dc5c519c272a4eca94b34ce2af9370be60caa14b7325040c",
+      "dependencies": [
+        "jsr:@bearmetal/miscellanea"
+      ]
+    },
+    "@bearmetal/miscellanea@0.0.4": {
+      "integrity": "06f899553e35365391d290eb93f30c9333fd740c3ad528ff0cb118def7205a3e",
+      "dependencies": [
+        "jsr:@bearmetal/miscellanea"
+      ]
+    },
     "@bearmetal/router@0.4.0": {
       "integrity": "8abd34b0046e27b518dc9067b71aa6df8ecc0acbd98578998c669e83430b590a"
     },

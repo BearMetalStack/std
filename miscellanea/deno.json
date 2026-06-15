@@ -1,37 +1,37 @@
 {
-    "name": "@bearmetal/miscellanea",
-    "version": "0.0.4",
-    "exports": {
-        ".": "./mod.ts",
-        "./path": "./path/mod.ts",
-        "./string": "./string/mod.ts",
-        "./fs": "./fs/mod.ts",
-        "./time": "./time/mod.ts",
-        "./modules": "./modules/mod.ts",
-        "./environment": "./environment.ts",
-        "./function": "./function/mod.ts"
-    },
-    "tasks": {
-        "dev": "deno test --watch"
-    },
-    "license": "GPL-3.0-only",
-    "compilerOptions": {
-        "lib": [
-            "deno.ns",
-            "deno.window",
-            "dom",
-            "dom.asynciterable",
-            "dom.iterable"
-        ]
-    },
-    "imports": {
-        "@/": "./",
-        "@string": "./string/mod.ts",
-        "@object": "./objectUtils/mod.ts",
-        "@list": "./listUtils/mod.ts",
-        "@fn": "./function/mod.ts",
-        "@time": "./time/mod.ts",
-        "@path": "./path/mod.ts",
-        "@fs": "./fs/mod.ts"
-    }
+	"name": "@bearmetal/miscellanea",
+	"version": "0.0.5",
+	"exports": {
+		".": "./mod.ts",
+		"./path": "./path/mod.ts",
+		"./string": "./string/mod.ts",
+		"./fs": "./fs/mod.ts",
+		"./time": "./time/mod.ts",
+		"./modules": "./modules/mod.ts",
+		"./environment": "./environment.ts",
+		"./function": "./function/mod.ts"
+	},
+	"tasks": {
+		"dev": "deno test --watch"
+	},
+	"license": "GPL-3.0-only",
+	"compilerOptions": {
+		"lib": [
+			"deno.ns",
+			"deno.window",
+			"dom",
+			"dom.asynciterable",
+			"dom.iterable"
+		]
+	},
+	"imports": {
+		"@/": "./",
+		"@string": "./string/mod.ts",
+		"@object": "./objectUtils/mod.ts",
+		"@list": "./listUtils/mod.ts",
+		"@fn": "./function/mod.ts",
+		"@time": "./time/mod.ts",
+		"@path": "./path/mod.ts",
+		"@fs": "./fs/mod.ts"
+	}
 }
