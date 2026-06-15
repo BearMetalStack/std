@@ -111,7 +111,7 @@ export function Script(script: string): TypedResponse<string, 200> {
 	return new TypedResponse(script, 200, {
 		headers: {
 			"Content-Type": "text/javascript; charset=utf-8",
-			"Cache-control": "max-age=604800; public",
+			// "Cache-control": "max-age=604800; public",
 		},
 	});
 }
@@ -121,7 +121,7 @@ export function Style(style: string): TypedResponse<string, 200> {
 	return new TypedResponse(style, 200, {
 		headers: {
 			"Content-Type": "text/css; charset=utf-8",
-			"Cache-control": "max-age=604800; public",
+			// "Cache-control": "max-age=604800; public",
 		},
 	});
 }

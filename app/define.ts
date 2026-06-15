@@ -47,8 +47,8 @@ export function define(
 				style.id = tag;
 				document.head.appendChild(style);
 			}
-		} else if (moduleUrl) {
-			registry.set(tag, moduleUrl);
+		} else {
+			if (moduleUrl) registry.set(tag, moduleUrl);
 			const s = target.stylesheet;
 			if (s) stylesheetRegistry.set(tag, s.replaceAll(/:scope/gm, tag));
 		}

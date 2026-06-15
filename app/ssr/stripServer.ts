@@ -271,7 +271,7 @@ function findServerFunctionNames(src: string, prefixes: string[]): string[] {
 function stripStaticClassMethod(src: string, fnName: string): string {
 	// Matches: static [async] fnName(...) { ... }
 	const pattern = new RegExp(
-		`(static\\s+(?:async\\s+)?${fnName}\\s*\\([^)]*\\)\\s*)`,
+		`(static\\s+(?:async\\s+)?(?:get\\s+)?${fnName}\\s*\\([^)]*\\)\\s*)`,
 		"g",
 	);
 

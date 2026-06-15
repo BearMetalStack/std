@@ -1,3 +1,4 @@
+import { isDev } from "@bearmetal/miscellanea/environment";
 import { escapeHtml, NO_ESCAPE, type NoEscape } from "./escape/mod.ts";
 import { dedented } from "./indentation/mod.ts";
 
@@ -20,7 +21,7 @@ export const html: typeof doc = doc.lead((
  * Provides syntax highlighting in editors
  * @see {@link doc}
  */
-export const css: typeof doc = doc;
+export const css: typeof doc = doc.follow((s) => isDev() ? s : s.replaceAll(/\n\s*/g, " "));
 /**
  * Provides syntax highlighting in editors
  * @see {@link doc}

@@ -28,7 +28,6 @@ export function Layout<T extends StateType>(
 	};
 }
 const tagRx = /<(?<tag>[a-z\-]+?)[>\s]/ig;
-const bodyRx = /<body>/;
 const endHeadRx = /<\/head>/;
 
 export function Page<T extends StateType>(
@@ -42,26 +41,30 @@ export function Page<T extends StateType>(
 		if (typeof layout === "function") {
 			const page = (await layout({ children: html, title })).toString();
 			page.matchAll(tagRx).forEach((m) => usedTags.add(m.groups?.tag ?? ""));
-			if (bodyRx.test(page)) {
+
+			if (endHeadRx.test(page)) {
 				const [scripttag, styletag] = await buildTagBundle(usedTags);
+
 				return HTMLRes(
-					"<!DOCTYPE html>" + page.replace(
-						endHeadRx,
-						`${styletag}${scripttag}</head>`,
-					),
+					"<!DOCTYPE html>" + page
+						.replace(
+							endHeadRx,
+							styletag + scripttag + "</head>",
+						),
 				);
 			}
 			return HTMLRes(page);
 		}
-		if (bodyRx.test(html.toString())) {
+		if (endHeadRx.test(html.toString())) {
 			const r = html.toString();
 			r.matchAll(tagRx).forEach((m) => usedTags.add(m.groups?.tag ?? ""));
 			const [scripttag, styletag] = await buildTagBundle(usedTags);
 			return HTMLRes(
-				r.replace(
-					endHeadRx,
-					`${styletag}${scripttag}</head>`,
-				),
+				r
+					.replace(
+						endHeadRx,
+						`${styletag}${scripttag}</head>`,
+					),
 			);
 		}
 		return HTMLRes(html.toString());
@@ -84,7 +87,6 @@ async function buildTagBundle(usedTags: Set<string>) {
 }
 export async function buildBundle(
 	componentUrls: string[],
-	bare = false,
 ): Promise<[Map<string, string>, string]> {
 	const scripttag: Map<string, string> = new Map();
 
@@ -95,9 +97,9 @@ export async function buildBundle(
 		`
          /** @jsxRuntime automatic */
          /** @jsxImportSource jsr:@bearmetal/jsx/client */
-         ${bare ? "" : 'import "@bearmetal/webbies/style"'};
          ${componentUrls.map((url) => `import "${url}"`).join("\n")}
         `,
+		// ${bare ? "" : 'import "@bearmetal/webbies/style"'};
 	);
 	const bundle = await Deno.bundle({
 		entrypoints: [entry, "jsr:@bearmetal/app", "jsr:@bearmetal/app/signals"],
@@ -115,10 +117,12 @@ export async function buildBundle(
 			styletag = b.text();
 		} else {
 			let t = b.text();
-			t = stripServerCode(t, { names: ["serverRender", "serverLoad"] });
+			t = stripServerCode(t, { names: ["serverRender", "serverLoad", "stylesheet"] });
 
 			const p = b.path.split("/").pop()!;
 			scripttag.set(p, t);
+			// await Deno.mkdir("dist", { recursive: true });
+			// Deno.writeTextFile(`dist/${p}`, t);
 		}
 	}
 

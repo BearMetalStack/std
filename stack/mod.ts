@@ -1,9 +1,11 @@
 import { buildBundle } from "@bearmetal/app/ssr";
 import { getAllStylesheets } from "@bearmetal/app";
-import { Module, NotFound, Script, Style } from "@bearmetal/router";
+import { Module, Script } from "@bearmetal/router";
 import { walkDir } from "@bearmetal/miscellanea/fs";
 import { isDev } from "@bearmetal/miscellanea/environment";
 import { html } from "@bearmetal/miscellanea";
+
+export * from "./optimization/fonts/google.tsx"
 
 const scriptFiles = ["js", "ts", "jsx", "tsx"];
 export function createStack(): Module {
@@ -22,11 +24,11 @@ export function createStack(): Module {
 		}
 
 		const componentStyles = getAllStylesheets();
-		[compBundle, compStyles] = await buildBundle(modules.values().toArray(), true);
+		[compBundle, compStyles] = await buildBundle(modules.values().toArray());
 		if (componentStyles) compStyles = componentStyles + "\n" + compStyles;
 		if (isDev()) {
 			bus.addEventListener("modify", async () => {
-				[compBundle, compStyles] = await buildBundle(modules.values().toArray(), true);
+				[compBundle, compStyles] = await buildBundle(modules.values().toArray());
 				if (componentStyles) compStyles = componentStyles + "\n" + compStyles;
 				bus.dispatchEvent(new Event("reload"));
 			});
@@ -54,8 +56,6 @@ export function createStack(): Module {
 		    const r = Script(s)
 			return r;
 		});
-	mod.route("/styles/components.css")
-		.get(() => compStyles ? Style(compStyles.replace(/(;)?\n\s*/g, (_,i) => i ?? ' ')) : NotFound());
 
 	if (isDev()) {
 		mod
