@@ -1,45 +1,47 @@
 {
-    "name": "@bearmetal/app",
-    "version": "0.1.0",
-    "exports": {
-        ".": "./mod.ts",
-        "./signals": "./signals/index.ts",
-        "./context": "./context/mod.ts",
-        "./ssr": "./ssr/mod.ts"
-    },
-    "tasks": {
-        "example:counter": {
-            "command": "export EXAMPLE_DIR=./examples/counter-app && (deno task example:bundle & deno task example:serve)"
-        },
-        "example:twitter": {
-            "command": "export EXAMPLE_DIR=./examples/twitter-app && (deno task example:bundle & deno task example:serve)"
-        },
-        "example:kanban": {
-            "command": "export EXAMPLE_DIR=./examples/kanban-app && (deno task example:bundle & deno task example:serve)"
-        },
-        "example:bundle": {
-            "command": "deno bundle --watch --minify --sourcemap=inline --platform=browser --outdir=$EXAMPLE_DIR/dist $EXAMPLE_DIR/index.html"
-        },
-        "example:serve": {
-            "command": "deno run -RN jsr:@std/http/file-server $EXAMPLE_DIR/dist"
-        }
-    },
-    "license": "GPL-3.0-only",
-    "imports": {
-        "@signals": "./signals/index.ts"
-    },
-    "compilerOptions": {
-        "jsx": "react-jsx",
-        "jsxImportSource": "@bearmetal/jsx",
-        "jsxImportSourceTypes": "@bearmetal/jsx",
-        "noImplicitOverride": false
-    },
-    "lint": {
-        "rules": {
-            "exclude": ["no-explicit-any"]
-        }
-    },
-    "fmt": {
-        "useTabs": true
-    }
+	"name": "@bearmetal/app",
+	"version": "0.1.1",
+	"exports": {
+		".": "./mod.ts",
+		"./signals": "./signals/index.ts",
+		"./context": "./context/mod.ts",
+		"./ssr": "./ssr/mod.ts"
+	},
+	"tasks": {
+		"example:counter": {
+			"command": "export EXAMPLE_DIR=./examples/counter-app && (deno task example:bundle & deno task example:serve)"
+		},
+		"example:twitter": {
+			"command": "export EXAMPLE_DIR=./examples/twitter-app && (deno task example:bundle & deno task example:serve)"
+		},
+		"example:kanban": {
+			"command": "export EXAMPLE_DIR=./examples/kanban-app && (deno task example:bundle & deno task example:serve)"
+		},
+		"example:bundle": {
+			"command": "deno bundle --watch --minify --sourcemap=inline --platform=browser --outdir=$EXAMPLE_DIR/dist $EXAMPLE_DIR/index.html"
+		},
+		"example:serve": {
+			"command": "deno run -RN jsr:@std/http/file-server $EXAMPLE_DIR/dist"
+		}
+	},
+	"license": "GPL-3.0-only",
+	"imports": {
+		"@signals": "./signals/index.ts"
+	},
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx",
+		"jsxImportSourceTypes": "@bearmetal/jsx",
+		"noImplicitOverride": false
+	},
+	"lint": {
+		"rules": {
+			"exclude": [
+				"no-explicit-any"
+			]
+		}
+	},
+	"fmt": {
+		"useTabs": true
+	}
 }
