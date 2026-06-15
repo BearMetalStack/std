@@ -20,5 +20,8 @@
 	"compilerOptions": {
 		"jsx": "react-jsx",
 		"jsxImportSource": "@bearmetal/jsx"
+	},
+	"imports": {
+		"@std/tar": "jsr:@std/tar@^0.1.10"
 	}
 }

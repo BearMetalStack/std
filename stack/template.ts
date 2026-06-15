@@ -1,4 +1,6 @@
-import { joinPath } from "@bearmetal/miscellanea";
+import { UntarStream } from "@std/tar";
+
+import { directoryOf, joinPath } from "@bearmetal/miscellanea";
 
 import type { DenoConfig } from "./denoConfig.ts";
 import type { flags } from "./flags.ts";
@@ -57,63 +59,28 @@ export function buildMainTs(opts: MainTemplateOpts): FileBuilder[] {
 	const routerSetup = t.middleware.length > 0 ? `\n${t.middleware.join("\n\t")}` : "";
 
 	return [
-		["main.ts", async () => {
-			let t = await loadTemplateFile("main.ts");
+		["main.ts", () => {
+			let t = maints.value;
 			t = t.replace(/\n\/\/ @bearmetal imports/, importLines).replace(
 				/\n\t\/\/ @bearmetal middleware/,
 				routerSetup,
 			);
 			return t;
 		}],
-
-		// [
-		// 	importLines,
-		// 	"",
-		// 	"const router = new Router();",
-		// 	"",
-		// 	routerSetup,
-		// 	`router.route("/").get(() => Ok("Hello, World!"));`,
-		// 	"",
-		// 	"Deno.serve(router.handle.bind(router));",
-		// 	"",
-		// ].filter((line, i, arr) => {
-		// 	return !(line === "" && arr[i - 1] === "");
-		// }).join("\n")],
-		[
-			"app/main.tsx",
-			() => loadTemplateFile("app/main.tsx"),
-		],
-		[
-			"app/joke.tsx",
-			() => loadTemplateFile("app/joke.tsx"),
-		],
-		[
-			"components/counter.tsx",
-			() => loadTemplateFile("components/counter.tsx"),
-		],
-		[
-			"views/layouts/page.tsx",
-			() => loadTemplateFile("views/layouts/page.tsx"),
-		],
-		[
-			"views/home.tsx",
-			() => loadTemplateFile("views/home.tsx"),
-		],
 		...files,
 	];
 }
 
-export function denoJson(projectName: string, packages: Set<string>) {
+export function denoJson(_projectName: string, packages: Set<string>) {
 	const imports: DenoConfig["imports"] = {
-		"@app/": "app/",
-		"@views/": "views/",
+		"@app/": "./app/",
+		"@views/": "./views/",
 	};
 	packages.forEach((pkg) => {
 		imports[`${pkg}`] = `jsr:${pkg}`;
 	});
 
 	const config: DenoConfig = {
-		name: projectName,
 		tasks: {
 			"bm:bootstrap": {
 				description: "Bootstrap the BearMetal stack.",
@@ -140,23 +107,57 @@ export function denoJson(projectName: string, packages: Set<string>) {
 			jsxImportSource: "@bearmetal/jsx",
 			lib: ["deno.ns", "deno.window", "node", "dom"],
 		},
+		fmt: {
+			useTabs: true,
+		},
 	};
 
 	return JSON.stringify(config, null, "\t");
 }
 
-async function loadTemplateFile(
-	fileName: string,
-	templateRoot = "examples/project",
-): Promise<string> {
-	const url = new URL(joinPath(templateRoot, fileName), import.meta.url);
-	const response = await fetch(url);
-	return await response.text();
-}
+const version = "first";
+const templateBaseUrl =
+	`https://github.com/emmalineautumn/BMStackTemplates/archive/refs/tags/${version}.tar.gz`;
+export async function loadTemplateFiles(
+	targetDir: string,
+	templateRoot = "default",
+): Promise<void> {
+	console.log(`   loading template "${templateRoot}"...`);
+	const tar = await fetch(templateBaseUrl);
+	const tarStream = tar.body;
+	if (!tarStream) throw new Error("No tar stream");
+	for await (
+		const entry of (await Deno.open("/home/emma/Downloads/BMStackTemplates-first.tar.gz")).readable
+			.pipeThrough(new DecompressionStream("gzip")).pipeThrough(
+				new UntarStream(),
+			)
+	) {
+		let path = entry.path;
+		if (!path.includes(templateRoot) || path.endsWith("deno.json")) {
+			entry.readable?.cancel();
+			continue;
+		}
+		path = path.split(templateRoot).at(-1) ?? "";
+		if (path === "/main.ts") {
+			const s = new TextDecoderStream();
+			entry.readable?.pipeThrough(s as any).pipeTo(
+				new WritableStream({
+					write: (chunk) => {
+						maints.value += chunk;
+					},
+				}),
+			);
+			continue;
+		}
+		path = joinPath(targetDir, path);
 
-if (import.meta.main) {
-	const tpls = buildMainTs({ auth: false, db: false, devProxy: false, miscellanea: false });
-	for (const [p, tpl] of tpls) {
-		console.log(p, await tpl());
+		console.log(`   writing ${path}...`);
+		if (Deno.args.includes("--dry-run")) entry.readable?.cancel();
+		else {
+			await Deno.mkdir(directoryOf(path), { recursive: true });
+			await entry.readable?.pipeTo((await Deno.open(path, { create: true, write: true })).writable);
+		}
 	}
 }
+
+const maints = { value: "" };

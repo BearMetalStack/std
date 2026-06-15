@@ -1,5 +1,5 @@
 import type { flags } from "./flags.ts";
-import { buildMainTs as buildFiles, denoJson } from "./template.ts";
+import { buildMainTs as buildFiles, denoJson, loadTemplateFiles } from "./template.ts";
 
 export async function bootstrap(opts: { flags: flags; projectName: string; dirname?: string }) {
 	const dryRun = Deno.args.includes("--dry-run");
@@ -44,6 +44,7 @@ export async function bootstrap(opts: { flags: flags; projectName: string; dirna
 		`${projectDir}/deno.json`,
 		denoJson(projectName, toInstall),
 	);
+	await loadTemplateFiles(projectDir);
 	const files = buildFiles(flags);
 	for (const [file, content] of files) {
 		await writeFile(`${projectDir}/${file}`, await content());

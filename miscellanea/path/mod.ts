@@ -18,6 +18,10 @@ export function joinPath(...paths: string[]): string {
 	return (leading ? "/" : "") + segments.join("/");
 }
 
+export function directoryOf(path: string): string {
+	return path.split("/").slice(0, -1).join("/");
+}
+
 /** Returns `true` only for paths starting with `./` or `../` (not bare names or absolute paths). */
 export function isRelativePath(path: string): boolean {
 	return !path.startsWith("/") &&

@@ -1,5 +1,13 @@
+import { renderTitleAscii } from "@bearmetal/cli";
+import { longestLine, random, sets } from "@bearmetal/miscellanea";
+
 import { bootstrap } from "./bootstrap.ts";
 import { coalesceFlags, type flags } from "./flags.ts";
+
+const { columns } = Deno.consoleSize();
+const m = Temporal.Now.plainDateISO().month;
+const set = (m === 10 ? sets.spooky : sets.def).filter((e) => longestLine(e) < columns);
+renderTitleAscii(random(...set), { pride: m === 6, maxWidth: columns });
 
 const flags: flags = {
 	db: false,
@@ -16,7 +24,7 @@ if (projectName === ".") projectName = currentDirName;
 
 coalesceFlags(flags);
 
-bootstrap({
+await bootstrap({
 	flags,
 	projectName,
 	dirname,
@@ -24,5 +32,7 @@ bootstrap({
 
 console.log(`\n✅ Project "${projectName}" has been created`);
 console.log(
-	`To get started: ${projectName === "." ? "" : `cd ${projectName} && `}deno task bm:dev`,
+	`To get started: ${
+		dirname === "." ? "" : `cd ${projectName} && `
+	}deno install && deno task bm:dev`,
 );
