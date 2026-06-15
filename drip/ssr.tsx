@@ -11,14 +11,14 @@ async function loadTheme(name: string): Promise<Theme> {
 
 export async function ThemeStyle(
 	{ theme }: { theme?: string },
-): Promise<import("@bearmetal/jsx").Html> {
+): Promise<import("@bearmetal/jsx/server").Html> {
 	const data = theme
 		? (getRegisteredTheme(theme) ?? await loadTheme(theme))
 		: await loadTheme("bearmetal");
 	return <style id="thingy" raw>{themeCSS(data, ":root").replaceAll(/\n\s*/g, " ")}</style>;
 }
 
-export function BaseStyle() {
+export function BaseStyle(): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
 	return (
 		<style raw>
 			{css`
@@ -286,7 +286,7 @@ export function BaseStyle() {
 	);
 }
 
-export function ComponentStyle() {
+export function ComponentStyle(): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
 	return (
 		<style raw>
 			{css`
@@ -668,7 +668,7 @@ export function ComponentStyle() {
 	);
 }
 
-export function Animations() {
+export function Animations(): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
 	return (
 		<style>
 			{css`
@@ -746,7 +746,9 @@ export function Animations() {
 	);
 }
 
-export function BMDripBase({ theme }: { theme?: string }) {
+export function BMDripBase(
+	{ theme }: { theme?: string },
+): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
 	return (
 		<>
 			<ThemeStyle theme={theme} />

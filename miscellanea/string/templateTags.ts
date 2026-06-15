@@ -1,4 +1,4 @@
-import { isDev } from "@bearmetal/miscellanea/environment";
+import { isDev } from "@/environment.ts";
 import { escapeHtml, NO_ESCAPE, type NoEscape } from "./escape/mod.ts";
 import { dedented } from "./indentation/mod.ts";
 
