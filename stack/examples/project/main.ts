@@ -1,6 +1,7 @@
 import { Router } from "@bearmetal/router";
 import { createStack } from "@bearmetal/stack";
-import { Document } from "@views/layouts/Document.tsx";
+// @bearmetal imports
+import { page } from "@views/layouts/page.tsx";
 import { home } from "@views/home.tsx";
 
 const router = new Router();
@@ -15,7 +16,8 @@ router
 		}
 	})
 	.use(createStack())
-	.use(Document);
+	// @bearmetal middleware
+	.use(page);
 
 router.route("/")
 	.get(home);

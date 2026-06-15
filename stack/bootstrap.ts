@@ -23,7 +23,12 @@ export async function bootstrap(opts: { flags: flags; projectName: string; dirna
 
 	await Deno.mkdir(projectDir, { recursive: true });
 
-	const basePackages = ["@bearmetal/app", "@bearmetal/router", "@bearmetal/stack"];
+	const basePackages = [
+		"@bearmetal/app",
+		"@bearmetal/jsx",
+		"@bearmetal/router",
+		"@bearmetal/stack",
+	];
 	const optionalPackages: [keyof flags, string][] = [
 		["devProxy", "@bearmetal/devproxy"],
 		["miscellanea", "@bearmetal/miscellanea"],
@@ -41,7 +46,7 @@ export async function bootstrap(opts: { flags: flags; projectName: string; dirna
 	);
 	const files = buildFiles(flags);
 	for (const [file, content] of files) {
-		await writeFile(`${projectDir}/${file}`, content());
+		await writeFile(`${projectDir}/${file}`, await content());
 	}
 }
 
@@ -49,6 +54,7 @@ async function writeFile(path: string, content: string) {
 	const dryRun = Deno.args.includes("--dry-run");
 	console.log(`   writing ${path}...`);
 	if (!dryRun) {
+		await Deno.mkdir(path.split("/").slice(0, -1).join("/"), { recursive: true });
 		await Deno.writeTextFile(path, content);
 	}
 }

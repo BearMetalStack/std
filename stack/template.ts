@@ -1,4 +1,4 @@
-import { ts } from "@bearmetal/miscellanea";
+import { joinPath } from "@bearmetal/miscellanea";
 
 import type { DenoConfig } from "./denoConfig.ts";
 import type { flags } from "./flags.ts";
@@ -35,10 +35,10 @@ const optional: Partial<
 	},
 };
 
-type FileBuilder = [string, () => string];
+type FileBuilder = [string, () => string | Promise<string>];
 export function buildMainTs(opts: MainTemplateOpts): FileBuilder[] {
 	const t: MainTemplate = {
-		imports: [["@bearmetal/router", ["Ok", "Router"]]],
+		imports: [],
 		middleware: [],
 	};
 
@@ -54,134 +54,50 @@ export function buildMainTs(opts: MainTemplateOpts): FileBuilder[] {
 		.map(([spec, names]) => `import { ${names.join(", ")} } from "${spec}";`)
 		.join("\n");
 
-	const routerSetup = t.middleware.length > 0 ? `router\n\t${t.middleware.join("\n\t")};\n` : "";
+	const routerSetup = t.middleware.length > 0 ? `\n${t.middleware.join("\n\t")}` : "";
 
 	return [
-		["main.ts", () =>
-			[
-				importLines,
-				"",
-				"const router = new Router();",
-				"",
+		["main.ts", async () => {
+			let t = await loadTemplateFile("main.ts");
+			t = t.replace(/\n\/\/ @bearmetal imports/, importLines).replace(
+				/\n\t\/\/ @bearmetal middleware/,
 				routerSetup,
-				`router.route("/").get(() => Ok("Hello, World!"));`,
-				"",
-				"Deno.serve(router.handle.bind(router));",
-				"",
-			].filter((line, i, arr) => {
-				return !(line === "" && arr[i - 1] === "");
-			}).join("\n")],
+			);
+			return t;
+		}],
+
+		// [
+		// 	importLines,
+		// 	"",
+		// 	"const router = new Router();",
+		// 	"",
+		// 	routerSetup,
+		// 	`router.route("/").get(() => Ok("Hello, World!"));`,
+		// 	"",
+		// 	"Deno.serve(router.handle.bind(router));",
+		// 	"",
+		// ].filter((line, i, arr) => {
+		// 	return !(line === "" && arr[i - 1] === "");
+		// }).join("\n")],
 		[
 			"app/main.tsx",
-			() =>
-				ts`
-					import { BMElement, define } from "@bearmetal/app";
-
-					@define("app-main", import.meta)
-					export class App extends BMElement {
-						#count = this.signal(0);
-
-						change(amount: number) {
-							return () => this.#count.set(this.#count.get() + amount);
-						}
-
-						override get template() {
-							return (
-								<>
-									<h1>BearMetal App Counter</h1>
-									<div>
-										<button
-											type="button"
-											class="down"
-											onClick={this.change(-1)}
-										>
-											-
-										</button>
-										<span>{this.#count}</span>
-										<button
-											type="button"
-											onClick={this.change(1)}
-										>
-											+
-										</button>
-									</div>
-								</>
-							);
-						}
-					}
-					`,
+			() => loadTemplateFile("app/main.tsx"),
 		],
 		[
-			"views/layouts/Document.tsx",
-			() =>
-				ts`
-    			    import { Layout } from "@bearmetal/app/ssr";
-
-                    export const document = Layout((props) => {
-                       	return (
-                      		<html>
-                     			<head>
-                    				<meta charset="UTF-8" />
-                    				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                    				<title>{props.title}</title>
-                     			</head>
-                     			<body>
-                       	            {props.children}
-                     			</body>
-                      		</html>
-                       	);
-                    }
-         		`,
-		],
-		[
-			"views/home.tsx",
-			() =>
-				ts`
-					import { Page } from "@bearmetal/app/ssr";
-
-					import { App } from "@app/main.tsx"
-
-					export const home = Page(() => <App />)
-				`,
+			"app/joke.tsx",
+			() => loadTemplateFile("app/joke.tsx"),
 		],
 		[
 			"components/counter.tsx",
-			() =>
-				ts`
-			        import { BMElement, define } from "@bearmetal/app";
-
-					@define("app-main", import.meta)
-					export class App extends BMElement {
-						#count = this.signal(0);
-
-						change(amount: number) {
-							return () => this.#count.set(this.#count.get() + amount);
-						}
-
-						override get template() {
-							return (
-								<>
-									<div>
-										<button
-											type="button"
-											class="down"
-											onClick={this.change(-1)}
-										>
-											-
-										</button>
-										<span>{this.#count}</span>
-										<button
-											type="button"
-											onClick={this.change(1)}
-										>
-											+
-										</button>
-									</div>
-								</>
-							);
-						}
-					}
-			`,
+			() => loadTemplateFile("components/counter.tsx"),
+		],
+		[
+			"views/layouts/page.tsx",
+			() => loadTemplateFile("views/layouts/page.tsx"),
+		],
+		[
+			"views/home.tsx",
+			() => loadTemplateFile("views/home.tsx"),
 		],
 		...files,
 	];
@@ -227,4 +143,20 @@ export function denoJson(projectName: string, packages: Set<string>) {
 	};
 
 	return JSON.stringify(config, null, "\t");
+}
+
+async function loadTemplateFile(
+	fileName: string,
+	templateRoot = "examples/project",
+): Promise<string> {
+	const url = new URL(joinPath(templateRoot, fileName), import.meta.url);
+	const response = await fetch(url);
+	return await response.text();
+}
+
+if (import.meta.main) {
+	const tpls = buildMainTs({ auth: false, db: false, devProxy: false, miscellanea: false });
+	for (const [p, tpl] of tpls) {
+		console.log(p, await tpl());
+	}
 }
