@@ -8,7 +8,7 @@ async function moduleInternalDeps(
 	scope: ScopeString,
 	path: string,
 ): Promise<string[]> {
-	const rx = RegExp(`^import[\\s\\S]*?(?<dep>${scope}\/.*)["']`, "gm");
+	const rx = RegExp(`^import[\\s\\S]*?(?<dep>${scope}\/.*?)["']`, "gm");
 	const module = await Deno.readTextFile(path);
 	const set = new Set<string>();
 	let match: RegExpExecArray | null;
