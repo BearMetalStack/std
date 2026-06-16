@@ -1,12 +1,12 @@
 {
-    "name": "@bearmetal/cli",
-    "version": "0.0.1",
-    "exports": "./mod.ts",
-    "tasks": {
-        "dev": "deno test --watch"
-    },
-    "license": "GPL-3.0-only",
-    "compilerOptions": {
-        "lib": ["deno.window", "deno.ns", "node"]
-    }
+	"name": "@bearmetal/cli",
+	"version": "0.0.2",
+	"exports": "./mod.ts",
+	"tasks": {
+		"dev": "deno test --watch"
+	},
+	"license": "GPL-3.0-only",
+	"compilerOptions": {
+		"lib": ["deno.window", "deno.ns", "node"]
+	}
 }
