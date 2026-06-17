@@ -8,21 +8,24 @@ import { html } from "@bearmetal/miscellanea";
 export * from "./optimization/fonts/google.tsx"
 
 const scriptFiles = ["js", "ts", "jsx", "tsx"];
-export function createStack(): Module {
+export function createStack(importfn: (specifier:string) => Promise<unknown>): Module {
 	const bus = new EventTarget();
 	let compBundle: Map<string, string> = new Map();
 	let compStyles = "";
 	const mod = new Module();
 	mod.onStart(async () => {
 		const modules = new Set<string>();
+		const promises = [];
 		for await (const m of walkDir("components")) {
 			if (m.isFile && scriptFiles.includes(m.name.split(".").pop()!)) {
 				const realPath = await Deno.realPath(m.path);
-				modules.add("file://" + realPath);
-				await import("file://" + realPath);
+				const specifier = "file://" + realPath
+
+				modules.add(specifier);
+				promises.push(importfn(specifier));
 			}
 		}
-
+		await Promise.all(promises);
 		const componentStyles = getAllStylesheets();
 		[compBundle, compStyles] = await buildBundle(modules.values().toArray());
 		if (componentStyles) compStyles = componentStyles + "\n" + compStyles;

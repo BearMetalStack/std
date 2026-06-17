@@ -25,13 +25,14 @@ export async function bootstrap(opts: { flags: flags; projectName: string; dirna
 
 	const basePackages = [
 		"@bearmetal/app",
+		"@bearmetal/drip",
 		"@bearmetal/jsx",
+		"@bearmetal/miscellanea",
 		"@bearmetal/router",
 		"@bearmetal/stack",
 	];
 	const optionalPackages: [keyof flags, string][] = [
 		["devProxy", "@bearmetal/devproxy"],
-		["miscellanea", "@bearmetal/miscellanea"],
 		["db", "@bearmetal/db"],
 	];
 

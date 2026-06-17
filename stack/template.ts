@@ -106,6 +106,7 @@ export function denoJson(_projectName: string, packages: Set<string>) {
 			jsx: "react-jsx",
 			jsxImportSource: "@bearmetal/jsx",
 			lib: ["deno.ns", "deno.window", "node", "dom"],
+			noImplicitOverride: false,
 		},
 		fmt: {
 			useTabs: true,
@@ -113,6 +114,21 @@ export function denoJson(_projectName: string, packages: Set<string>) {
 	};
 
 	return JSON.stringify(config, null, "\t");
+}
+
+class BMTransformStream extends TransformStream<string, string> {
+	count = 0;
+	constructor() {
+		super({
+			start() {},
+			transform: async (chunk, controller) => {
+				if (this.count++) return;
+				console.log(chunk);
+				controller.enqueue(chunk);
+			},
+			flush() {},
+		});
+	}
 }
 
 const version = "first";
@@ -152,10 +168,17 @@ export async function loadTemplateFiles(
 		path = joinPath(targetDir, path);
 
 		console.log(`   writing ${path}...`);
-		if (Deno.args.includes("--dry-run")) entry.readable?.cancel();
-		else {
+		// if (Deno.args.includes("--dry-run")) entry.readable?.cancel();
+		// else
+		{
+			console.log("hello?");
+
 			await Deno.mkdir(directoryOf(path), { recursive: true });
-			await entry.readable?.pipeTo((await Deno.open(path, { create: true, write: true })).writable);
+			await entry.readable?.pipeThrough(new TextDecoderStream() as any).pipeThrough(
+				new BMTransformStream(),
+			).pipeThrough(new TextEncoderStream() as any).pipeTo(
+				(await Deno.open(path, { create: true, write: true })).writable,
+			);
 		}
 	}
 }
