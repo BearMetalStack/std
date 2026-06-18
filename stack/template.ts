@@ -1,8 +1,9 @@
 import { UntarStream } from "@std/tar";
 
-import { directoryOf, joinPath } from "@bearmetal/miscellanea";
+import type { CollectionMap } from "@bearmetal/miscellanea";
 
 import type { DenoConfig } from "./denoConfig.ts";
+import { type ResolveOptions, TemplateProcessor } from "./directive.ts";
 import type { flags } from "./flags.ts";
 
 type MainTemplateOpts = flags;
@@ -15,66 +16,45 @@ interface MainTemplate {
 const optional: Partial<
 	{
 		[key in keyof flags]: (
-			i: MainTemplate["imports"],
-			m: MainTemplate["middleware"],
+			partials: CollectionMap<string, string>,
 			opts: MainTemplateOpts,
-			files: FileBuilder[],
 		) => void;
 	}
 > = {
-	db(i, m, opts) {
-		i.push(["@bearmetal/db", ["dbModule"]]);
-		m.push(`.use(dbModule("${opts.db}"))`);
+	db(p, opts) {
+		p.add("main-ts-imports", `import { dbModule } from "@bearmetal/db"`);
+		p.add("main-ts-middleware", `.use(dbModule("${opts.db}"))`);
 	},
-	devProxy(i, m, opts) {
-		i.push(["@bearmetal/devproxy", ["devProxyModule"]]);
-		m.push(`.use(devProxyModule("${opts.devProxy}"))`);
+	devProxy(p, opts) {
+		p.add("main-ts-imports", `import { devProxyModule } from "@bearmetal/devproxy"`);
+		p.add("main-ts-middleware", `.use(devProxyModule("${opts.devProxy}"))`);
 	},
-	auth(i, m) {
-		i.push(["@bearmetal/auth", ["authModule"]]);
-		i.push(["@bearmetal/forge", ["s"]]);
-		m.push(`.use(authModule(s.object({ username: s.string() })))`);
+	auth(p, _opts) {
+		p.add("main-ts-imports", `import { authModule } from "@bearmetal/auth"`);
+		p.add("main-ts-imports", `import { s } from "@bearmetal/forge"`);
+		p.add("main-ts-middleware", `.use(authModule(s.object({ username: s.string() })))`);
 	},
 };
 
-type FileBuilder = [string, () => string | Promise<string>];
-export function buildMainTs(opts: MainTemplateOpts): FileBuilder[] {
-	const t: MainTemplate = {
-		imports: [],
-		middleware: [],
-	};
-
-	const files: FileBuilder[] = [];
-
+export function processFlagPartials(
+	opts: MainTemplateOpts,
+	partials: CollectionMap<string, string>,
+): ResolveOptions {
+	const ropts: ResolveOptions = {};
 	for (const [key, fn] of Object.entries(optional)) {
 		if (opts[key as keyof flags]) {
-			fn(t.imports, t.middleware, opts, files);
+			fn(partials, opts);
+			ropts[key] = true;
 		}
 	}
-
-	const importLines = t.imports
-		.map(([spec, names]) => `import { ${names.join(", ")} } from "${spec}";`)
-		.join("\n");
-
-	const routerSetup = t.middleware.length > 0 ? `\n${t.middleware.join("\n\t")}` : "";
-
-	return [
-		["main.ts", () => {
-			let t = maints.value;
-			t = t.replace(/\n\/\/ @bearmetal imports/, importLines).replace(
-				/\n\t\/\/ @bearmetal middleware/,
-				routerSetup,
-			);
-			return t;
-		}],
-		...files,
-	];
+	return ropts;
 }
 
 export function denoJson(_projectName: string, packages: Set<string>) {
 	const imports: DenoConfig["imports"] = {
 		"@app/": "./app/",
 		"@views/": "./views/",
+		"@components/": "./components/",
 	};
 	packages.forEach((pkg) => {
 		imports[`${pkg}`] = `jsr:${pkg}`;
@@ -116,34 +96,24 @@ export function denoJson(_projectName: string, packages: Set<string>) {
 	return JSON.stringify(config, null, "\t");
 }
 
-class BMTransformStream extends TransformStream<string, string> {
-	count = 0;
-	constructor() {
-		super({
-			start() {},
-			transform: async (chunk, controller) => {
-				if (this.count++) return;
-				console.log(chunk);
-				controller.enqueue(chunk);
-			},
-			flush() {},
-		});
-	}
-}
-
 const version = "first";
 const templateBaseUrl =
 	`https://github.com/emmalineautumn/BMStackTemplates/archive/refs/tags/${version}.tar.gz`;
 export async function loadTemplateFiles(
 	targetDir: string,
+	partials: CollectionMap<string, string>,
+	opts: ResolveOptions,
 	templateRoot = "default",
 ): Promise<void> {
+	if (Deno.args.includes("--dry-run")) return;
 	console.log(`   loading template "${templateRoot}"...`);
 	const tar = await fetch(templateBaseUrl);
 	const tarStream = tar.body;
 	if (!tarStream) throw new Error("No tar stream");
+	const processor = new TemplateProcessor(opts, { targetDir, partials });
+	// (await Deno.open("/home/emma/repos/bmtemplate/default.tar.gz"))
 	for await (
-		const entry of (await Deno.open("/home/emma/Downloads/BMStackTemplates-first.tar.gz")).readable
+		const entry of tarStream
 			.pipeThrough(new DecompressionStream("gzip")).pipeThrough(
 				new UntarStream(),
 			)
@@ -154,33 +124,7 @@ export async function loadTemplateFiles(
 			continue;
 		}
 		path = path.split(templateRoot).at(-1) ?? "";
-		if (path === "/main.ts") {
-			const s = new TextDecoderStream();
-			entry.readable?.pipeThrough(s as any).pipeTo(
-				new WritableStream({
-					write: (chunk) => {
-						maints.value += chunk;
-					},
-				}),
-			);
-			continue;
-		}
-		path = joinPath(targetDir, path);
-
-		console.log(`   writing ${path}...`);
-		// if (Deno.args.includes("--dry-run")) entry.readable?.cancel();
-		// else
-		{
-			console.log("hello?");
-
-			await Deno.mkdir(directoryOf(path), { recursive: true });
-			await entry.readable?.pipeThrough(new TextDecoderStream() as any).pipeThrough(
-				new BMTransformStream(),
-			).pipeThrough(new TextEncoderStream() as any).pipeTo(
-				(await Deno.open(path, { create: true, write: true })).writable,
-			);
-		}
+		if (entry.readable) processor.scan(path, entry.readable);
 	}
+	return processor.write(processor.resolve());
 }
-
-const maints = { value: "" };

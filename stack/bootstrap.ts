@@ -1,5 +1,6 @@
+import { CollectionMap, joinPath } from "@bearmetal/miscellanea";
 import type { flags } from "./flags.ts";
-import { buildMainTs as buildFiles, denoJson, loadTemplateFiles } from "./template.ts";
+import { denoJson, loadTemplateFiles, processFlagPartials } from "./template.ts";
 
 export async function bootstrap(opts: { flags: flags; projectName: string; dirname?: string }) {
 	const dryRun = Deno.args.includes("--dry-run");
@@ -42,14 +43,12 @@ export async function bootstrap(opts: { flags: flags; projectName: string; dirna
 	}
 
 	await writeFile(
-		`${projectDir}/deno.json`,
+		joinPath(projectDir, "deno.json"),
 		denoJson(projectName, toInstall),
 	);
-	await loadTemplateFiles(projectDir);
-	const files = buildFiles(flags);
-	for (const [file, content] of files) {
-		await writeFile(`${projectDir}/${file}`, await content());
-	}
+	const partials = new CollectionMap<string, string>();
+	const ropts = processFlagPartials(flags, partials);
+	await loadTemplateFiles(projectDir, partials, ropts);
 }
 
 async function writeFile(path: string, content: string) {

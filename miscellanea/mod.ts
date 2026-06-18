@@ -3,12 +3,13 @@
  * @module
  */
 
-export * from "./path/mod.ts";
-export * from "./string/mod.ts";
-export * from "./time/mod.ts";
-export * from "./objectUtils/mod.ts";
+export * from "@path";
+export * from "@string";
+export * from "@time";
+export * from "@object";
 export * from "./colors/mod.ts";
-export * from "./listUtils/mod.ts";
-export { argset, fn } from "./function/mod.ts";
+export * from "@list";
+export { argset, fn } from "@fn";
+export * from "@/collections/mod.ts";
 
 export type * from "./types.ts";

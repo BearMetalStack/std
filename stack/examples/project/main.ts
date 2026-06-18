@@ -15,7 +15,7 @@ router
 			return new Response("Internal Server Error", { status: 500 });
 		}
 	})
-	.use(createStack())
+	.use(createStack((s) => import(s)))
 	// @bearmetal middleware
 	.use(page);
 
