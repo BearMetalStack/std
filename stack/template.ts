@@ -96,7 +96,7 @@ export function denoJson(_projectName: string, packages: Set<string>) {
 	return JSON.stringify(config, null, "\t");
 }
 
-const version = "first";
+const version = "0.0.1-alpha.1";
 const templateBaseUrl =
 	`https://github.com/emmalineautumn/BMStackTemplates/archive/refs/tags/${version}.tar.gz`;
 export async function loadTemplateFiles(
