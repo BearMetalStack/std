@@ -55,6 +55,10 @@ export function createSignal(init: unknown): Signal.State<unknown> {
 	return new Signal.State(init);
 }
 
+export function createComputed(init: () => unknown): Signal.Computed<unknown> {
+	return new Signal.Computed(init);
+}
+
 function ownerScope() {
 	const prev = getCurrentOwner();
 	const cleanups: Array<() => void> = [];

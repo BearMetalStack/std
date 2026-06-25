@@ -21,7 +21,10 @@
         "play": {
             "description": "Runs the playground for the current dev",
             "command": "deno task --cwd=playground play"
-        }
+        },
+        "docs:dev": "dx -A vitepress dev docs",
+        "docs:build": "dx -A vitepress build docs",
+        "docs:preview": "dx -A vitepress preview docs"
     },
     "permissions": {
         "publish": {
@@ -33,6 +36,14 @@
             "run": true,
             "read": true,
             "write": true
+        },
+        "docs": {
+            "read": true,
+            "write": true,
+            "env": true,
+            "ffi": true,
+            "sys": true,
+            "net": true
         }
     },
     "workspace": ["./*", "./*/examples/*"],
