@@ -2,9 +2,13 @@ import { CollectionMap, joinPath } from "@bearmetal/miscellanea";
 import type { flags } from "./flags.ts";
 import { denoJson, loadTemplateFiles, processFlagPartials } from "./template.ts";
 
-export async function bootstrap(opts: { flags: flags; projectName: string; dirname?: string }) {
-	const dryRun = Deno.args.includes("--dry-run");
-	const { flags, projectName } = opts;
+export async function bootstrap(opts: {
+	flags: flags;
+	projectName: string;
+	dirname?: string;
+	dryRun?: boolean;
+}) {
+	const { flags, projectName, dryRun = false } = opts;
 	const projectDir = `./${opts.dirname ?? projectName}`;
 
 	try {
@@ -42,17 +46,13 @@ export async function bootstrap(opts: { flags: flags; projectName: string; dirna
 		if (flags[flag]) toInstall.add(pack);
 	}
 
-	await writeFile(
-		joinPath(projectDir, "deno.json"),
-		denoJson(projectName, toInstall),
-	);
+	await writeFile(joinPath(projectDir, "deno.json"), denoJson(projectName, toInstall), dryRun);
 	const partials = new CollectionMap<string, string>();
 	const ropts = processFlagPartials(flags, partials);
 	await loadTemplateFiles(projectDir, partials, ropts);
 }
 
-async function writeFile(path: string, content: string) {
-	const dryRun = Deno.args.includes("--dry-run");
+async function writeFile(path: string, content: string, dryRun: boolean) {
 	console.log(`   writing ${path}...`);
 	if (!dryRun) {
 		await Deno.mkdir(path.split("/").slice(0, -1).join("/"), { recursive: true });

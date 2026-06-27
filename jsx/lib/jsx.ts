@@ -85,7 +85,7 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 			continue;
 		}
 		if (isSignal(val)) {
-			reactiveEffect(() => applyProp(el, key, (val as SignalLike).get()));
+			reactiveEffect(() => applyProp(el, key, val.get()));
 		} else {
 			applyProp(el, key, val);
 		}

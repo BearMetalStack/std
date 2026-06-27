@@ -96,7 +96,7 @@ export function denoJson(_projectName: string, packages: Set<string>) {
 	return JSON.stringify(config, null, "\t");
 }
 
-const version = "0.0.1-alpha.1";
+const version = "0.0.1-alpha.2";
 const templateBaseUrl =
 	`https://github.com/emmalineautumn/BMStackTemplates/archive/refs/tags/${version}.tar.gz`;
 export async function loadTemplateFiles(
@@ -111,7 +111,6 @@ export async function loadTemplateFiles(
 	const tarStream = tar.body;
 	if (!tarStream) throw new Error("No tar stream");
 	const processor = new TemplateProcessor(opts, { targetDir, partials });
-	// (await Deno.open("/home/emma/repos/bmtemplate/default.tar.gz"))
 	for await (
 		const entry of tarStream
 			.pipeThrough(new DecompressionStream("gzip")).pipeThrough(

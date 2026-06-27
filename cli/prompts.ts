@@ -10,7 +10,7 @@ export async function cliPrompt(
 	defaultValue?: string,
 ): Promise<string> {
 	const encoder = new TextEncoder();
-	const input: string[] = defaultValue ? defaultValue.split("") : [];
+	const input: string[] = [];
 	let cursorPos = 0;
 
 	Cursor.saveVisibility();
@@ -24,7 +24,9 @@ export async function cliPrompt(
 	const inputStart = visibleLength(message) + 1; // 0-indexed col where input begins
 
 	const render = () => {
-		const line = message + " " + input.join("");
+		const line = `${message} ${
+			input.length ? input.join("") : colorize(defaultValue ?? "", "gray")
+		}`;
 		const moveTo = `\x1b[${inputStart + cursorPos}G`;
 		Deno.stdout.writeSync(encoder.encode("\r\x1b[K" + line + moveTo));
 		// Cursor.restorePosition();
@@ -57,7 +59,7 @@ export async function cliPrompt(
 
 	const onEnter = () => {
 		exit();
-		resolve?.(input.join(""));
+		resolve?.(input.length ? input.join("") : defaultValue ?? "");
 	};
 
 	const onBackspace = () => {
