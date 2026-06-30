@@ -1,20 +1,23 @@
 {
-	"name": "@bearmetal/drip",
-	"version": "0.0.3",
-	"exports": {
-		".": "./mod.ts",
-		"./ssr": "./ssr.tsx"
-	},
-	"compilerOptions": {
-		"jsx": "react-jsx",
-		"jsxImportSource": "@bearmetal/jsx/server"
-	},
-	"tasks": {
-		"dev": "deno test --watch",
-		"bm:drip": {
-			"description": "Generates theme completions and CSS",
-			"command": "deno run mod.ts"
-		}
-	},
-	"license": "GPL-3.0-only"
+    "name": "@bearmetal/drip",
+    "version": "0.0.3",
+    "exports": {
+        ".": "./mod.ts",
+        "./ssr": "./ssr.tsx"
+    },
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "jsxImportSource": "@bearmetal/jsx/server"
+    },
+    "tasks": {
+        "dev": "deno test --watch",
+        "bm:drip": {
+            "description": "Generates theme completions and CSS",
+            "command": "deno run mod.ts"
+        },
+        "drip:palette": {
+            "command": "deno run -A --watch palette.tsx"
+        }
+    },
+    "license": "GPL-3.0-only"
 }

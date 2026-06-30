@@ -1,6 +1,6 @@
 export class Html {
-  constructor(readonly raw: string) {}
-  toString(): string {
-    return this.raw;
-  }
+	constructor(readonly raw: string) {}
+	toString(): string {
+		return this.raw;
+	}
 }

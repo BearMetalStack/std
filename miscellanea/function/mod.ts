@@ -7,6 +7,7 @@
  * @param f The function to extend
  */
 export class Fn<TArgs extends unknown[], TReturn> extends Function {
+	/** Constructs a chainable callable instance */
 	constructor(f: (...args: TArgs) => TReturn) {
 		super();
 		return Object.setPrototypeOf(f, Fn.prototype);
@@ -38,7 +39,9 @@ export const fn = <TArgs extends unknown[], TReturn>(
 	f: (...args: TArgs) => TReturn,
 ): Fn<TArgs, TReturn> => new Fn<TArgs, TReturn>(f);
 
-export const arg_set = Symbol.for("argset");
+/** Symbol for identifying argsets */
+export const arg_set: symbol = Symbol.for("argset");
+/** Array of arguments for chaining */
 export type ArgSet<T extends unknown[]> = T & { [arg_set]: true };
 
 /** Creates a typed ArgSet of a given function */

@@ -57,6 +57,11 @@
         "useTabs": true,
         "lineWidth": 100
     },
+    "lint": {
+        "rules": {
+            "exclude": ["jsx-key"]
+        }
+    },
     "compilerOptions": {
         "lib": [
             "deno.window",

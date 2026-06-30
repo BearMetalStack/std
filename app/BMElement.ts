@@ -1,10 +1,11 @@
 import { BMC, getCurrentOwner, setCurrentOwner, setEffectImpl } from "@bearmetal/jsx/client";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal as Signals } from "@signals";
+import { Signal } from "@signals";
 import type { ContextMap } from "./context/mod.ts";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import { each, effect } from "./signals.ts";
-import { Signal } from "@signals";
+import { colorize } from "@bearmetal/cli/style";
 
 setEffectImpl(effect);
 
@@ -12,8 +13,10 @@ function isSignal(S: unknown): S is Signals.State<unknown> | Signals.Computed<un
 	return S instanceof Signal.State || S instanceof Signal.Computed;
 }
 
-export abstract class BMElement<TRefs extends Record<string, Element> = Record<string, Element>>
-	extends BMC {
+export abstract class BMElement<
+	TRefs extends Record<string, Element> = Record<string, Element>,
+	TProps extends AnyRecord = AnyRecord,
+> extends BMC {
 	static register(): typeof BMElement | undefined {
 		if (typeof customElements === "undefined") return;
 		if (!this.tag) throw new Error(`${this.name} must define a static tag`);
@@ -59,6 +62,20 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 
 	get tag(): string {
 		return (this.constructor as typeof BMElement).tag;
+	}
+
+	static propDefs: Record<string | symbol, unknown> = {};
+
+	get props(): Record<string, unknown> {
+		return new Proxy({}, {
+			get: (_, key) => {
+				if (typeof key === "symbol") return null;
+				return getProp(this, key);
+			},
+			set: () => {
+				return true;
+			},
+		});
 	}
 
 	registerCleanup(fn: () => void): void {
@@ -209,4 +226,27 @@ export abstract class BMElement<TRefs extends Record<string, Element> = Record<s
 			css,
 		];
 	}
+}
+
+type AnyRecord = Record<string, unknown>;
+
+function clientGetProp(e: HTMLElement, key: string): unknown | null {
+	const propDefs = (e.constructor as typeof BMElement).propDefs;
+	if (propDefs && Object.hasOwn(propDefs, key)) {
+		switch (propDefs[key]) {
+			case Boolean:
+				return e.hasAttribute(key) || Boolean(key in e && (e as unknown as AnyRecord)[key]);
+			case String:
+				return e.getAttribute(key);
+			default:
+				return (e as unknown as AnyRecord)[key];
+		}
+	}
+}
+
+function getProp(e: BMElement, key: string): unknown | null {
+	if ("document" in globalThis) return clientGetProp(e as unknown as HTMLElement, key);
+	throw `Cannot access ${
+		colorize("this.props")
+	} in server context, please use props arg passed to ${colorize(".serverRender()")}`;
 }

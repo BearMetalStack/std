@@ -36,7 +36,7 @@ export const tsx: typeof doc = doc;
  * Provides syntax highlighting in editors
  * @see {@link doc}
  */
-export const js: typeof doc = doc;
+export const js: typeof doc = doc.follow((s) => s.replaceAll(/\\(.)/g, "$1"));
 /**
  * Provides syntax highlighting in editors
  * @see {@link doc}
