@@ -18,8 +18,9 @@ export function joinPath(...paths: string[]): string {
 	return (leading ? "/" : "") + segments.join("/");
 }
 
+/** Naively returns the parent directory of the given item */
 export function directoryOf(path: string): string {
-	return path.split("/").slice(0, -1).join("/");
+	return path.split("/").slice(0, -1).join("/") || "/";
 }
 
 /** Returns `true` only for paths starting with `./` or `../` (not bare names or absolute paths). */
