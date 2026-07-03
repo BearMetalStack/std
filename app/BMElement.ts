@@ -40,7 +40,7 @@ export abstract class BMElement<
 		return String(tpl);
 	}
 
-	static get stylesheet(): string | undefined {
+	static get stylesheet(): string | CSSStyleSheet | undefined {
 		return undefined;
 	}
 

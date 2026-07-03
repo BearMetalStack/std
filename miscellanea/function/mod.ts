@@ -44,10 +44,7 @@ export const arg_set: symbol = Symbol.for("argset");
 /** Array of arguments for chaining */
 export type ArgSet<T extends unknown[]> = T & { [arg_set]: true };
 
-/** Creates a typed ArgSet of a given function */
-// deno-lint-ignore no-explicit-any
-export function argset<T extends (...args: any) => any>(
-	...args: Parameters<T>
-): ArgSet<Parameters<T>> {
-	return Object.assign(args, { [arg_set]: true }) as ArgSet<Parameters<T>>;
+/** Creates a typed ArgSet from the provided arguments */
+export function argset<T extends unknown[]>(...args: T): ArgSet<T> {
+	return Object.assign(args, { [arg_set]: true }) as ArgSet<T>;
 }

@@ -30,10 +30,10 @@ export const toKebabCase: StringTrans = normalize.follow((e) => e.replace(/\s+/g
 /** Converts a string to `SCREAMING_SNAKE_CASE`. */
 export const toScreamCase: StringTrans = toSnakeCase.follow((e) => e.toUpperCase());
 /** Converts a string to `Sentence case` (first word capitalized, rest lowercase). */
-export const toCapitalized: StringTrans = normalize.follow((e) =>
+export const toSentenceCase: StringTrans = normalize.follow((e) =>
 	e.replace(/^./, (c) => c.toUpperCase())
 );
 /** Converts a string to `Title Case` (every word capitalized). */
-export const toTitleCase: StringTrans = toCapitalized.follow((e) =>
+export const toTitleCase: StringTrans = toSentenceCase.follow((e) =>
 	e.replace(/\s+(.)/g, (_, c) => " " + c.toUpperCase())
 );

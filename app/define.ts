@@ -3,7 +3,7 @@ import type { BMC } from "@bearmetal/jsx";
 type BmElementConstructor = {
 	new (...args: any[]): BMC;
 	tag: string;
-	stylesheet?: string;
+	stylesheet?: string | CSSStyleSheet;
 };
 
 const registry = new Map<string, string>();
@@ -42,15 +42,19 @@ export function define(
 			});
 			const s = target.stylesheet;
 			if (s && !document.head.querySelector(`style#${tag}`)) {
-				const style = document.createElement("style");
-				style.textContent = s.replaceAll(/:scope/gm, tag);
-				style.id = tag;
-				document.head.appendChild(style);
+				if (s instanceof CSSStyleSheet) {
+					document.adoptedStyleSheets = [...document.adoptedStyleSheets, s];
+				} else {
+					const style = document.createElement("style");
+					style.textContent = s.replaceAll(/:scope/gm, tag);
+					style.id = tag;
+					document.head.appendChild(style);
+				}
 			}
 		} else {
 			if (moduleUrl) registry.set(tag, moduleUrl);
 			const s = target.stylesheet;
-			if (s) stylesheetRegistry.set(tag, s.replaceAll(/:scope/gm, tag));
+			if (typeof s === "string") stylesheetRegistry.set(tag, s.replaceAll(/:scope/gm, tag));
 		}
 	};
 }

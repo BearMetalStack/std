@@ -2,10 +2,10 @@ import { assert } from "@std/assert";
 import {
 	normalize,
 	toCamelCase,
-	toCapitalized,
 	toKebabCase,
 	toPascalCase,
 	toScreamCase,
+	toSentenceCase,
 	toSnakeCase,
 	toTitleCase,
 } from "./mod.ts";
@@ -46,7 +46,7 @@ Deno.test("toCamelCase", () => {
 	}
 });
 
-Deno.test("toCapitalized", () => {
+Deno.test("toSentenceCase", () => {
 	const expected = [
 		"No fever",
 		"More cow bell",
@@ -56,7 +56,7 @@ Deno.test("toCapitalized", () => {
 		"And now christopher walken is coming for my kidneys",
 	];
 	for (let i = 0; i < input.length; i++) {
-		assert(toCapitalized(input[i]) === expected[i]);
+		assert(toSentenceCase(input[i]) === expected[i]);
 	}
 });
 
