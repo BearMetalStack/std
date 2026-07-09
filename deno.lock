@@ -259,6 +259,7 @@
     "dependencies": [
       "jsr:@std/assert@1",
       "jsr:@std/fs@1",
+      "jsr:@std/path@1",
       "jsr:@std/testing@1"
     ],
     "members": {

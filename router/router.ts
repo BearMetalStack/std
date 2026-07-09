@@ -221,6 +221,11 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 
 	/** Returns a bound handler suitable for `Deno.serve`. */
 	get handle(): Deno.ServeHandler {
+		if (this.bearmetalSubrouteWarnings.length) {
+			throw new Error(
+				"BearMetal subroute warnings:\n\t" + this.bearmetalSubrouteWarnings.join("\n\t"),
+			);
+		}
 		const ready = this.ready();
 		ready.catch(() => {}); // surfaced via await in the handler, not as an unhandled rejection
 		const handler = this.handler.bind(this);

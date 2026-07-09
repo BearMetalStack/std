@@ -25,3 +25,16 @@ paragraph.textContent = 'Hello, ref!';
 ::: warning Functional Components
 Functional components do not have access to `this.refs` and as such, refs are not currently accessible within functional components. This will be addressed in a future release.
 :::
+
+## Typing `this.refs`
+
+Ref type inference is something that is currently very difficult to do automatically, so as a workaround you can currently type the refs of a component by passing a type argument to BMElement.
+
+```ts
+@define("component")
+export class Component extends BMElement<{ paragraph: HTMLParagraphElement }> {
+    init() {
+        const paragraph = this.refs.paragraph // HTMLParagraphElement
+    }
+}
+```

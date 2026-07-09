@@ -11,6 +11,7 @@
 import { joinPath } from "@bearmetal/miscellanea";
 import { type Infer, Schema } from "./schema.ts";
 import type { RouterHandler, Service, ServiceActions, ServiceToken, StateType } from "./types.ts";
+import { isInternal } from "@bearmetal/internal";
 
 // ─── Internal type utilities ──────────────────────────────────────────────────
 
@@ -48,6 +49,12 @@ export type RouteConfig<T extends StateType> = {
 	/** Response schemas per method and status - for documentation generation. */
 	responseSchemas: { [method: string]: { [status: number]: Schema<unknown> } };
 	pattern: URLPattern;
+	/**
+	 * When true, this route is anchored at the root: `resolveModuleStack` skips
+	 * joining it with the mount path, and the flag is carried onto the parent's
+	 * copy so it stays root-anchored through every bubble up to the root module.
+	 */
+	absolute?: boolean;
 	_phantom?: T;
 };
 
@@ -161,6 +168,7 @@ export interface AnyModule<TState extends StateType = StateType> {
 	_startCallbacks?: (() => Promise<void>)[];
 	// deno-lint-ignore no-explicit-any
 	_setParent?(parent: any): void;
+	mark: symbol;
 }
 
 /** Duck-type guard - true for any object that looks like a Module. */
@@ -198,6 +206,7 @@ export class Module<TState extends StateType = {}> {
 	protected routes: Map<string, RouteConfig<StateType>> = new Map();
 	protected _services: Map<string, Service> = new Map();
 	protected trailingSlash = false;
+	protected bearmetalSubrouteWarnings: string[] = [];
 	// deno-lint-ignore no-explicit-any
 	#parent: Module<any> | null = null;
 	// deno-lint-ignore no-explicit-any
@@ -299,8 +308,28 @@ export class Module<TState extends StateType = {}> {
 	 * parse and validate the request body and type `ctx.body`.
 	 */
 	route<T extends StateType = TState>(path: string): RouteConfigurator<T> {
-		path = fixPath(path);
+		return this._buildRoute(fixPath(path), false);
+	}
+
+	/**
+	 * Define a route that is always anchored at the root, regardless of where this
+	 * module is mounted. Unlike {@link route}, the path is not joined with the mount
+	 * path when the module bubbles up through parents - `/absolute/path` stays
+	 * `/absolute/path` even nested several modules deep.
+	 *
+	 * Otherwise identical to `route` - configure handlers per HTTP method on the
+	 * returned configurator, and pass a schema to parse/validate the request body.
+	 */
+	absoluteRoute<T extends StateType = TState>(path: string): RouteConfigurator<T> {
+		return this._buildRoute(fixPath(path), true);
+	}
+
+	private _buildRoute<T extends StateType>(
+		path: string,
+		absolute: boolean,
+	): RouteConfigurator<T> {
 		const routeConfig = this.getOrCreateConfig(path);
+		if (absolute) routeConfig.absolute = true;
 
 		const addHandlers = (method: string, args: unknown[]) => {
 			if (args[0] instanceof Schema) {
@@ -420,16 +449,35 @@ export class Module<TState extends StateType = {}> {
 	// deno-lint-ignore no-explicit-any
 	protected resolveModuleStack(path: string, module: AnyModule<any>): void {
 		module._setParent?.(this);
+		const isInternalModule = isInternal(module);
 		for (const [routePath, thatConfig] of module.rawRoutes) {
-			const p = joinPath(path, routePath).replace(
+			// Absolute routes stay root-anchored: skip the mount-path join and
+			// carry the flag forward so they survive every subsequent bubble.
+			const p = thatConfig.absolute ? routePath : (joinPath(path, routePath).replace(
 				/\/$/,
 				this.trailingSlash ? "/" : "",
-			) || "/";
+			) || "/");
 			const thisConfig = this.getOrCreateConfig(p);
+			if (thatConfig.absolute) thisConfig.absolute = true;
 			for (const method of allMethods) {
 				if (thatConfig.handlers[method]) {
-					thisConfig.handlers[method] = (thisConfig.handlers[method] ?? [])
-						.concat(thatConfig.handlers[method]);
+					if (p.match(/^\/?@bearmetal/)) {
+						if (
+							!isInternalModule &&
+							!thatConfig.handlers[method].every((h) => isInternal((h as any)["__module"]))
+						) {
+							this.bearmetalSubrouteWarnings.push(`Subroute "${p}" is a BearMetal internal route`);
+						} else {
+							thisConfig.handlers[method] = (thisConfig.handlers[method] ?? [])
+								.concat(thatConfig.handlers[method].map((h) => {
+									(h as any)["__module"] = module;
+									return h;
+								}));
+						}
+					} else {
+						thisConfig.handlers[method] = (thisConfig.handlers[method] ?? [])
+							.concat(thatConfig.handlers[method]);
+					}
 				}
 				if (thatConfig.schemas[method]) {
 					thisConfig.schemas[method] = thatConfig.schemas[method];
