@@ -36,7 +36,6 @@ If the normalized name still does not comply, the prefix "my-" will be added.
 ```ts
 @define("component") // becomes "my-component"
 ```
-<!--This prefix can be defined in `.bearmetal/config.ts`-->
 ::: info
 This means that when using your components, you should expect to refer to them by this compliant name. This can be circumvented by importing the class and using the class name in the JSX, but know that you will likely be increasing the bundle size unecessarily.
 :::

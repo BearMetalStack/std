@@ -5,7 +5,7 @@ import { Signal } from "@signals";
 import type { ContextMap } from "./context/mod.ts";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import { each, effect } from "./signals.ts";
-import { colorize } from "@bearmetal/cli/style";
+import { coerceProp, declaredProps } from "./prop.ts";
 
 setEffectImpl(effect);
 
@@ -15,7 +15,6 @@ function isSignal(S: unknown): S is Signals.State<unknown> | Signals.Computed<un
 
 export abstract class BMElement<
 	TRefs extends Record<string, Element> = Record<string, Element>,
-	TProps extends AnyRecord = AnyRecord,
 > extends BMC {
 	static register(): typeof BMElement | undefined {
 		if (typeof customElements === "undefined") return;
@@ -64,18 +63,21 @@ export abstract class BMElement<
 		return (this.constructor as typeof BMElement).tag;
 	}
 
-	static propDefs: Record<string | symbol, unknown> = {};
+	/** Attributes backing the props declared with `@prop`. */
+	static get observedAttributes(): string[] {
+		return Object.keys(declaredProps(this));
+	}
 
-	get props(): Record<string, unknown> {
-		return new Proxy({}, {
-			get: (_, key) => {
-				if (typeof key === "symbol") return null;
-				return getProp(this, key);
-			},
-			set: () => {
-				return true;
-			},
-		});
+	/**
+	 * Mirrors an observed attribute back into its prop signal. The JSX runtime
+	 * writes strings, numbers, and booleans as attributes, so this is the path a
+	 * parent's update takes to reach a child's `@prop`.
+	 */
+	attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
+		const type = declaredProps(this.constructor)[name];
+		if (!type) return;
+		const signal = this.signals[`$${name}`];
+		if (signal instanceof Signal.State) signal.set(coerceProp(type, value));
 	}
 
 	registerCleanup(fn: () => void): void {
@@ -110,14 +112,14 @@ export abstract class BMElement<
 				for (const el of this.root.querySelectorAll("[ref]")) {
 					this.registerRef(el.getAttribute("ref")!, el);
 				}
-				this.init();
+				this.#runInit();
 			} else {
 				const t = this.template;
 				if (t !== undefined) {
 					if (isSignal(t)) {
 						const frag = document.createDocumentFragment();
 						frag.appendChild(t.get() as Node);
-						this.init();
+						this.#runInit();
 						this.root.appendChild(frag);
 						this.addEffect(() => {
 							this.replaceChildren(t.get() as Node);
@@ -125,11 +127,11 @@ export abstract class BMElement<
 					} else {
 						const frag = document.createDocumentFragment();
 						frag.appendChild(t as Node);
-						this.init();
+						this.#runInit();
 						this.root.appendChild(frag);
 					}
 				} else {
-					this.init();
+					this.#runInit();
 				}
 			}
 		} finally {
@@ -157,28 +159,30 @@ export abstract class BMElement<
 		return undefined;
 	}
 
-	protected get shadowTemplate():
-		| JSX.Element
-		| Signals.State<JSX.Element>
-		| Signals.Computed<JSX.Element>
-		| undefined {
-		return undefined;
-	}
-
 	/**
 	 * Called once when the component connects to the DOM.
 	 * Override this to set up effects, refs, or one-time logic.
+	 *
+	 * Returning a function registers it as a cleanup, run on disconnect.
 	 *
 	 * @example
 	 * ```ts
 	 * protected init() {
 	 *   this.addEffect(() => console.log("mounted"));
+	 *   const id = setInterval(tick, 1000);
+	 *   return () => clearInterval(id);
 	 * }
 	 * ```
 	 *
 	 * @remarks You may use `override` if you have `noImplicitOverride` enabled.
 	 */
-	protected init(): void {}
+	protected init(): void | (() => void) {}
+
+	/** Runs `init()` and registers any returned teardown function. */
+	#runInit(): void {
+		const cleanup = this.init();
+		if (typeof cleanup === "function") this.registerCleanup(cleanup);
+	}
 
 	protected addEffect(fn: () => (() => void) | void): void {
 		this.#cleanups.push(effect(fn));
@@ -228,25 +232,38 @@ export abstract class BMElement<
 	}
 }
 
-type AnyRecord = Record<string, unknown>;
-
-function clientGetProp(e: HTMLElement, key: string): unknown | null {
-	const propDefs = (e.constructor as typeof BMElement).propDefs;
-	if (propDefs && Object.hasOwn(propDefs, key)) {
-		switch (propDefs[key]) {
-			case Boolean:
-				return e.hasAttribute(key) || Boolean(key in e && (e as unknown as AnyRecord)[key]);
-			case String:
-				return e.getAttribute(key);
-			default:
-				return (e as unknown as AnyRecord)[key];
-		}
+/**
+ * Reads the refs of the nearest owning component. This is how a functional
+ * component reaches a `ref` it declared, since it has no `this.refs` of its own.
+ *
+ * The returned object is a live view: read from it after the JSX that declares
+ * the ref has been evaluated, not before.
+ *
+ * Refs share one namespace per owning component, so two instances of the same
+ * functional component under one parent will collide on the same ref name and
+ * the last one registered wins. Name refs accordingly.
+ *
+ * @example
+ * ```tsx
+ * function Field() {
+ *   const refs = getRefs<{ input: HTMLInputElement }>();
+ *   const el = <input ref="input" />;
+ *   queueMicrotask(() => refs.input.focus());
+ *   return el;
+ * }
+ * ```
+ */
+export function getRefs<T extends Record<string, Element> = Record<string, Element>>(): T {
+	const owner = getCurrentOwner();
+	if (!owner?.refs) {
+		console.warn(
+			"getRefs() called without an owner — no refs are reachable.\n" +
+				"Call getRefs() inside:\n" +
+				"  • a functional component rendered by a BMElement\n" +
+				"  • a BMElement.init() method\n" +
+				"  • an each() render callback",
+		);
+		return {} as T;
 	}
-}
-
-function getProp(e: BMElement, key: string): unknown | null {
-	if ("document" in globalThis) return clientGetProp(e as unknown as HTMLElement, key);
-	throw `Cannot access ${
-		colorize("this.props")
-	} in server context, please use props arg passed to ${colorize(".serverRender()")}`;
+	return owner.refs as T;
 }

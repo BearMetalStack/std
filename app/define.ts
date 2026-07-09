@@ -30,7 +30,7 @@ export function define(
 		target: T,
 		context: ClassDecoratorContext,
 	) {
-		if (!isValidComponentName(tag)) tag = "my-" + tag;
+		tag = normalizeComponentName(tag);
 		const moduleUrl = meta?.url;
 		target.tag = tag;
 		if (typeof document !== "undefined") {
@@ -61,4 +61,42 @@ export function define(
 
 function isValidComponentName(tag: string) {
 	return /^[a-z][a-z0-9]+(-[a-z0-9]+)+$/.test(tag);
+}
+
+/**
+ * Coerces a user-supplied tag into a valid custom element name.
+ *
+ * Punctuation and camelCase boundaries become word breaks, words are joined
+ * with hyphens, and a `my-` prefix is added if the result still lacks the
+ * hyphen that the custom element spec requires.
+ *
+ * Already-valid names pass through unchanged.
+ *
+ * @example
+ * normalizeComponentName("My Component");            // "my-component"
+ * normalizeComponentName("My *very cool* Component") // "my-very-cool-component"
+ * normalizeComponentName("component");               // "my-component"
+ */
+export function normalizeComponentName(tag: string): string {
+	const words = tag
+		.replace(/[^a-zA-Z0-9]+/g, " ")
+		.replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+		.trim()
+		.toLowerCase();
+
+	if (!words) {
+		throw new Error(
+			`@define("${tag}") does not contain any alphanumeric characters to build a tag name from.`,
+		);
+	}
+
+	const normalized = words.replace(/\s+/g, "-");
+	if (isValidComponentName(normalized)) return normalized;
+
+	const prefixed = `my-${normalized}`;
+	if (isValidComponentName(prefixed)) return prefixed;
+
+	throw new Error(
+		`@define("${tag}") normalizes to "${prefixed}", which is not a valid custom element name.`,
+	);
 }

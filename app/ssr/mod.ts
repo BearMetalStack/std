@@ -129,6 +129,52 @@ export async function buildBundle(
 
 	return [scripttag, styletag];
 }
+/** Emitted files from a bundle: script text keyed by output filename, plus concatenated CSS. */
+export type BundleOutput = {
+	scripts: Map<string, string>;
+	styles: string;
+};
+
+/**
+ * Bundles a set of entrypoints in a single pass, with code splitting on.
+ *
+ * Anything shared by two or more entrypoints — including the `@bearmetal/app`
+ * runtime and its signals, which every component pulls in — is hoisted into a
+ * `chunk-*.js` output that each entry imports by relative path. Serve every
+ * output from the same URL directory and those relative imports resolve.
+ *
+ * Entry outputs are named after their entrypoint's basename, so callers can map
+ * an output back to the entrypoint that produced it.
+ */
+export async function bundleEntrypoints(entrypoints: string[]): Promise<BundleOutput> {
+	const scripts = new Map<string, string>();
+	if (entrypoints.length === 0) return { scripts, styles: "" };
+
+	const bundle = await Deno.bundle({
+		entrypoints,
+		write: false,
+		codeSplitting: true,
+		platform: "browser",
+		outputDir: "scripts",
+		minify: !isDev(),
+		sourcemap: isDev() ? "inline" : undefined,
+	});
+
+	let styles = "";
+	for (const file of bundle.outputFiles ?? []) {
+		const name = file.path.split("/").pop()!;
+		if (name.endsWith(".css")) {
+			styles += file.text();
+			continue;
+		}
+		scripts.set(name, stripServerCode(file.text(), { names: serverOnlyNames }));
+	}
+
+	return { scripts, styles };
+}
+
+const serverOnlyNames = ["serverRender", "serverLoad", "stylesheet"];
+
 const imports = new Set<string>();
 export function getImports(): string[] {
 	return imports.values().toArray();

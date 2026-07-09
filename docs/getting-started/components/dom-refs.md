@@ -22,8 +22,29 @@ const paragraph = this.refs.paragraph;
 paragraph.textContent = 'Hello, ref!';
 ```
 
-::: warning Functional Components
-Functional components do not have access to `this.refs` and as such, refs are not currently accessible within functional components. This will be addressed in a future release.
+## Refs in Functional Components
+
+Functional components have no `this`, and so no `this.refs`. Instead, `@bearmetal/app` exposes `getRefs()`, which reads the refs of the nearest owning component.
+
+```tsx
+import { getRefs } from "@bearmetal/app";
+
+function Field() {
+    const refs = getRefs<{ input: HTMLInputElement }>();
+    const input = <input ref="input" />;
+    queueMicrotask(() => refs.input.focus());
+    return input;
+}
+```
+
+`getRefs()` takes the same type argument that `BMElement` does, for the same reason — see [Typing `this.refs`](#typing-this-refs) below.
+
+`getRefs()` returns a live view rather than a snapshot, so read from it *after* the JSX declaring the ref has been evaluated. Reading `refs.input` on the line above `<input ref="input" />` gives you `undefined`.
+
+Like `createEffect()` and `each()`, `getRefs()` needs an owner. Called outside of a component, an `init()`, or an `each()` render callback, it warns and hands back an empty view.
+
+::: warning Refs share one namespace per component
+Refs are registered against the owning `BMElement`, not against the functional component that declared them. Two instances of the same functional component under one parent will therefore collide on the same ref name, and the last one registered wins. Name your refs accordingly.
 :::
 
 ## Typing `this.refs`

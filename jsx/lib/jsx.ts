@@ -18,6 +18,8 @@ let _effect: EffectFn | null = null;
 type Owner = {
 	registerCleanup(fn: CleanupFn): void;
 	registerRef?: (ref: string, el: Element) => void;
+	/** Live view of the owner's registered refs, read by `getRefs()`. */
+	refs?: Record<string, Element>;
 } | null;
 
 let _currentOwner: Owner = null;

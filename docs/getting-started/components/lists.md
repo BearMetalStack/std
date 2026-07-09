@@ -123,12 +123,16 @@ In this example, ListExploder takes any value and creates many DOM nodes from it
 
 Keys should instead not mutate between frames. In the example above, that's not very practical, which indicates that it is an anti-pattern.
 
-For items with deep or frequently-changing internal state, pass the item to a child component as a signal and let that component own its reactivity. each handles structure, components handle depth.
+For items with deep or frequently-changing internal state, put that state in a signal *on the item itself*. `each` only diffs the top level of each item, so a signal held on an item updates through normal reactivity without the list ever needing to tear the node down and rebuild it. `each` handles structure, signals handle depth.
 
 ```tsx
-each(this.#items, (item) => (
-    <item-card $item={item} />
+const items = createSignal([
+    { id: 1, label: createSignal("Chicken") },
+]);
+
+each(items, (item) => (
+    <li>{item.label}</li>
 ), (item) => item.id)
 ```
 
-In this example, we instead pass each item off to an `item-card` component as a reactive prop.
+Here, setting `item.label` re-renders only that `<li>`'s text node. Replacing the array — adding, removing, or reordering items — is what `each` reconciles.
