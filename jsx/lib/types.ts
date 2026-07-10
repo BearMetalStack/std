@@ -23,6 +23,7 @@ export interface MakeCommonProps<Extra = never> {
 	title?: string | Extra;
 	tabindex?: number | Extra;
 	hidden?: boolean | Extra;
+	popover?: boolean | Extra;
 	children?: MakeChildren<Extra>;
 	raw?: boolean;
 	ref?: string;
@@ -54,6 +55,8 @@ export interface MakeButtonProps<Extra = never> extends MakeBaseProps<Extra> {
 	disabled?: boolean | Extra;
 	name?: string | Extra;
 	value?: string | Extra;
+	popovertarget?: string | Extra;
+	popovertargetaction?: "hide" | "show" | "toggle" | Extra;
 }
 
 export interface MakeInputProps<Extra = never> extends MakeBaseProps<Extra> {
@@ -70,6 +73,8 @@ export interface MakeInputProps<Extra = never> extends MakeBaseProps<Extra> {
 	readonly?: boolean | Extra;
 	multiple?: boolean | Extra;
 	accept?: string | Extra;
+	popovertarget?: string | Extra;
+	popovertargetaction?: "hide" | "show" | "toggle" | Extra;
 }
 
 export interface MakeTextareaProps<Extra = never> extends MakeBaseProps<Extra> {

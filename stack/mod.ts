@@ -1,10 +1,9 @@
 import { bundleEntrypoints } from "@bearmetal/app/ssr";
 import { getAllStylesheets } from "@bearmetal/app";
-import { Module, Script } from "@bearmetal/router";
+import { type Module, Script, TrustedModule } from "@bearmetal/router";
 import { walkDir } from "@bearmetal/miscellanea/fs";
 import { isDev } from "@bearmetal/miscellanea/environment";
 import { html, joinPath } from "@bearmetal/miscellanea";
-import { markInternal } from "@bearmetal/internal";
 
 export * from "./optimization/fonts/google.tsx"
 
@@ -150,6 +149,13 @@ function serveMap(entrypoints: Entrypoint[], scripts: Map<string, string>): Map<
 	for (const [name, code] of scripts) served.set(byOutput.get(name) ?? name, code);
 	return served;
 }
+/** Serves the client bundle at the reserved `/@bearmetal/components` endpoint. */
+class StackComponentsModule extends TrustedModule {
+	constructor() {
+		super("@bearmetal/components");
+	}
+}
+
 export function createStack(importfn: (specifier:string) => Promise<unknown>): Module {
 	const bus = new EventTarget();
 	/** Bundles keyed by the name they are served under at the components endpoint. */
@@ -157,9 +163,9 @@ export function createStack(importfn: (specifier:string) => Promise<unknown>): M
 	/** Every emitted file keyed by its raw output filename, served at the root. */
 	let rawBundle: Map<string, string> = new Map();
 	let compStyles = "";
-	const mod = new Module();
 	// Claims the `/@bearmetal/components` namespace, which the router reserves.
-	markInternal(mod);
+	// The class name is what the router reports, so it is declared rather than anonymous.
+	const mod = new StackComponentsModule();
 	mod.onStart(async () => {
 		const dir = await findComponentsDir();
 		if (!dir) return;

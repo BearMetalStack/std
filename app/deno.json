@@ -31,8 +31,7 @@
 	"compilerOptions": {
 		"jsx": "react-jsx",
 		"jsxImportSource": "@bearmetal/jsx",
-		"jsxImportSourceTypes": "@bearmetal/jsx",
-		"noImplicitOverride": false
+		"jsxImportSourceTypes": "@bearmetal/jsx"
 	},
 	"lint": {
 		"rules": {

@@ -23,6 +23,7 @@ deno lint
 Root-level workspace tasks (run from repo root):
 
 ```bash
+deno task workspace:check              # deno check + deno lint each package in its own directory
 deno task workspace:manifest           # list all packages at their current published version
 deno task workspace:map-dependencies   # print the internal @bearmetal/* dependency graph
 deno task workspace:bump-versions      # bump versions for packages changed since last bump
@@ -30,6 +31,11 @@ deno task workspace:publish            # bump + publish all packages to JSR, in 
 deno task bm:drip                      # regenerate Drip theme CSS/completions
 deno task docs:dev                     # VitePress docs site (docs/)
 ```
+
+`workspace:check` is the CI gate: it exits non-zero if any package fails and takes
+`--filter=<pkg>` (repeatable), `--no-lint`, `--fmt`, and `--concurrency=N`. Pass these
+directly (`deno task workspace:check --filter=router`) — a `--` separator would end flag
+parsing before the script sees them.
 
 Test files are colocated as `*.test.ts` (or occasionally `mod_test.ts`) next to the source they cover — not in a separate `tests/` tree, with the exception of `webbies/tests/`. Tests use bare `Deno.test(...)` with `@std/assert`, not a BDD framework.
 
@@ -40,9 +46,30 @@ There is no CI configured (no `.github/workflows`). Nothing enforces fmt/lint/te
 ## Cross-package dependency conventions
 
 - Internal deps are always `jsr:@bearmetal/<pkg>` style imports, referenced by package name (see each package's `deno.json` `imports` map for local aliases like `@lib/`, `@fs`, `@components`).
-- `dep_graph.ts` / `manifest.ts` / `version_bump.ts` / `publish_workspace.ts` at the repo root implement the workspace tooling above by scanning every workspace package's `deno.json`. They identify "is this a real package" via `isPackage()` in `dep_graph.ts` (has a `deno.json` with a `name` starting with the scope `@bearmetal`).
-- `@bearmetal/internal` (`internal/`) is `"publish": false` — an internal-only package (currently exposes `isInternal`/`markInternal` for marking trusted/first-party routes). It is never published to JSR; don't add public API surface to it.
+- The workspace tooling lives in `workspace_scripts/`. `workspace.ts` is the single source of truth for package discovery — `discoverPackages()` expands the root `workspace` globs and keeps directories whose `deno.json` has a `name` under the `@bearmetal/` scope. Never re-derive that; every other script (`check.ts`, `dep_graph.ts`, `manifest.ts`, `version_bump.ts`, `publish_workspace.ts`) imports it. `run.ts` holds the subprocess and concurrency helpers.
+- A package whose `deno.json` `name` is unscoped is invisible to all of this tooling. `cog/` is named `cog` rather than `@bearmetal/cog`, so it is never checked, versioned, or published.
+- `@bearmetal/internal` (`internal/`) is `"publish": false` and, as of the `TrustedModule` change, **has no importers left** — `router` and `stack` used to depend on it, which would have shipped a dangling `jsr:@bearmetal/internal` reference to consumers (`deno publish --dry-run` does *not* catch this; it rewrites bare workspace specifiers into `jsr:` ones at publish time). Don't reintroduce a dependency on it from a published package. `publish_workspace.ts` refuses to publish any package that imports it.
 - JSX packages set `compilerOptions.jsx: "react-jsx"` and `jsxImportSource` to either `@bearmetal/jsx/client` (DOM output, web components) or `@bearmetal/jsx/server` (SSR, produces `Html` string wrappers). Get this backwards and JSX either won't render server-side or won't produce real DOM nodes client-side — check the consuming package's `deno.json` before assuming which runtime is active.
+
+### compilerOptions belong to the root
+
+A package's effective config is the root `deno.json` merged with its own, key by key, the package's winning. **`lib` is replaced wholesale, not unioned.** Workspace dependencies resolve to local source and are type-checked under the *importing* package's `compilerOptions`, so a package that narrows `lib` breaks its dependencies' sources rather than its own — e.g. a `lib` without `deno.ns` makes `Deno` undefined inside `router/` and `miscellanea/` when checked from `webbies/`.
+
+So `lib` is defined **once, at the root**, as the union every package needs, and no package overrides it. Packages should only set genuinely package-specific `compilerOptions` (`jsx`, `jsxImportSource`, `types`). If you find yourself adding `lib` to a package, you are about to break its dependents. Run `deno task workspace:check` after touching any `deno.json`.
+
+## The reserved `/@bearmetal/*` namespace (`router/`)
+
+Routes under `/@bearmetal/*` may only be registered by a `TrustedModule` (`router/module.ts`), an exported abstract class whose subclass must pass a non-empty name to `super()`. `ForagerModule` claims `@bearmetal/forager`; `stack`'s `StackComponentsModule` claims `@bearmetal/components`.
+
+`TrustedModule` is public on purpose — **this is not a security boundary.** A module you `.use()` already runs arbitrary code in your process and can patch `Router.prototype` directly. What the mechanism buys is attribution and noise:
+
+- every reserved route a trusted module takes is announced in yellow, once, at the point it is mounted;
+- when two different classes claim the same trusted name — the impersonation signature — the router prints a large red alarm naming both constructors, refuses the registration, and records a warning;
+- accumulated warnings make `router.handle` throw, so the app refuses to serve.
+
+Warnings and trust claims bubble upward through `resolveModuleStack` when a sub-`Router` is mounted; without that a violation below the root would never reach the `handle` check. Note `Module.use()` only takes middleware — mounting a module is `Router.use()`.
+
+Handlers on reserved routes are tagged with `__module` on their *deepest* merge so the declaring module survives bubbling; don't re-tag on every level or trust gets laundered onto whatever plain `Module` carried it up.
 
 ## Architecture
 

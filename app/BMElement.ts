@@ -63,8 +63,13 @@ export abstract class BMElement<
 		return (this.constructor as typeof BMElement).tag;
 	}
 
-	/** Attributes backing the props declared with `@prop`. */
-	static get observedAttributes(): string[] {
+	/**
+	 * Attributes backing the props declared with `@prop`.
+	 *
+	 * `readonly` so subclasses may narrow with `as const` - a mutable `string[]`
+	 * is invariant and rejects a `readonly [...]` literal.
+	 */
+	static get observedAttributes(): readonly string[] {
 		return Object.keys(declaredProps(this));
 	}
 

@@ -29,12 +29,5 @@
 	],
 	"imports": {
 		"@/": "./"
-	},
-	"compilerOptions": {
-		"lib": [
-			"deno.window",
-			"deno.unstable",
-			"node"
-		]
 	}
 }

@@ -18,14 +18,12 @@
  */
 
 import { escapeHtml, html } from "@bearmetal/miscellanea";
-import { Module } from "../module.ts";
-import { markInternal } from "@bearmetal/internal";
+import { TrustedModule } from "../module.ts";
 
-export class ForagerModule extends Module {
+export class ForagerModule extends TrustedModule {
 	constructor({ path = "/@bearmetal/forager" }: { path?: string } = {}) {
-		super();
+		super("@bearmetal/forager");
 		this.route(path).get(() => this.#render());
-		markInternal(this);
 	}
 
 	#render(): Response {

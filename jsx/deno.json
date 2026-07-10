@@ -13,14 +13,5 @@
 		"./server": "./server/mod.ts",
 		"./server/jsx-runtime": "./server/jsx-runtime.ts",
 		"./jsx-runtime": "./jsx-runtime.ts"
-	},
-	"compilerOptions": {
-		"lib": [
-			"deno.ns",
-			"deno.window",
-			"node",
-			"dom",
-			"esnext"
-		]
 	}
 }

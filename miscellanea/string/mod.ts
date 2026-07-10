@@ -9,6 +9,7 @@ export * from "./escape/mod.ts";
 export * from "./indentation/mod.ts";
 export * from "./templateTags.ts";
 export * from "./capitalization/mod.ts";
+export * from "./compare.ts";
 
 /** Escapes Regular Expression special characters */
 export function escapeRegex(str: string): string {

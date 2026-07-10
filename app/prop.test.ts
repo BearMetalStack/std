@@ -13,7 +13,7 @@ class Counter extends BMElement {
 }
 
 Deno.test("declared props become observedAttributes, before any instance exists", () => {
-	assertEquals(Counter.observedAttributes.sort(), ["count", "label", "open"]);
+	assertEquals(Counter.observedAttributes.toSorted(), ["count", "label", "open"]);
 });
 
 Deno.test("a prop is backed by a signal in this.signals", () => {
@@ -79,9 +79,9 @@ Deno.test("props are inherited by subclasses", () => {
 		accessor extra = "";
 	}
 
-	assertEquals(Extended.observedAttributes.sort(), ["count", "extra", "label", "open"]);
+	assertEquals(Extended.observedAttributes.toSorted(), ["count", "extra", "label", "open"]);
 	// The base class is unaffected by the subclass's declaration.
-	assertEquals(Counter.observedAttributes.sort(), ["count", "label", "open"]);
+	assertEquals(Counter.observedAttributes.toSorted(), ["count", "label", "open"]);
 });
 
 Deno.test("each instance gets its own signal", () => {

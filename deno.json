@@ -1,79 +1,108 @@
 {
-    "tasks": {
-        "workspace:map-dependencies": "deno run -R dep_graph.ts",
-        "workspace:publish": {
-            "command": "deno run -P=publish --env-file publish_workspace.ts",
-            "description": "Publishes all packages in order of dependency",
-            "dependencies": ["workspace:bump-versions"]
-        },
-        "workspace:bump-versions": {
-            "command": "deno run -P=bump version_bump.ts",
-            "description": "Bumps versions of packages that have had changes since last bump"
-        },
-        "workspace:manifest": {
-            "description": "Lists all packages at their current version",
-            "command": "deno run -R manifest.ts"
-        },
-        "bm:drip": {
-            "description": "Generates theme completions and CSS",
-            "command": "deno run -RW drip/mod.ts"
-        },
-        "play": {
-            "description": "Runs the playground for the current dev",
-            "command": "deno task --cwd=playground play"
-        },
-        "docs:dev": "dx -A vitepress dev docs",
-        "docs:build": "dx -A vitepress build docs",
-        "docs:preview": "dx -A vitepress preview docs"
-    },
-    "permissions": {
-        "publish": {
-            "run": true,
-            "read": true,
-            "env": ["JSR_PUBLISH_TOKEN"]
-        },
-        "bump": {
-            "run": true,
-            "read": true,
-            "write": true
-        },
-        "docs": {
-            "read": true,
-            "write": true,
-            "env": true,
-            "ffi": true,
-            "sys": true,
-            "net": true
-        }
-    },
-    "workspace": ["./*", "./*/examples/*"],
-    "unstable": ["raw-imports", "bundle"],
-    "imports": {
-        "@std/assert": "jsr:@std/assert@1",
-        "@std/fs": "jsr:@std/fs@1",
-        "@std/testing": "jsr:@std/testing@1",
-        "@std/path": "jsr:@std/path@1"
-    },
-    "fmt": {
-        "useTabs": true,
-        "lineWidth": 100
-    },
-    "lint": {
-        "rules": {
-            "exclude": ["jsx-key"]
-        }
-    },
-    "compilerOptions": {
-        "lib": [
-            "deno.window",
-            "deno.unstable",
-            "deno.ns",
-            "deno.worker",
-            "esnext",
-            "dom",
-            "dom.iterable",
-            "dom.asynciterable"
-        ],
-        "noImplicitOverride": false
-    }
+	"tasks": {
+		"workspace:check": {
+			"description": "Type-checks and lints every package inside its own directory",
+			"command": "deno run -P=check workspace_scripts/check.ts"
+		},
+		"workspace:map-dependencies": {
+			"description": "Prints the internal dependency graph in topological order",
+			"command": "deno run -R workspace_scripts/dep_graph.ts"
+		},
+		"workspace:publish": {
+			"command": "deno run -P=publish --env-file workspace_scripts/publish_workspace.ts",
+			"description": "Publishes all packages in order of dependency",
+			"dependencies": [
+				"workspace:bump-versions"
+			]
+		},
+		"workspace:bump-versions": {
+			"command": "deno run -P=bump workspace_scripts/version_bump.ts",
+			"description": "Bumps versions of packages that have had changes since last bump"
+		},
+		"workspace:manifest": {
+			"description": "Lists all packages at their current version",
+			"command": "deno run -R workspace_scripts/manifest.ts"
+		},
+		"bm:drip": {
+			"description": "Generates theme completions and CSS",
+			"command": "deno run -RW drip/mod.ts"
+		},
+		"play": {
+			"description": "Runs the playground for the current dev",
+			"command": "deno task --cwd=playground play"
+		},
+		"docs:dev": "dx -A vitepress dev docs",
+		"docs:build": "dx -A vitepress build docs",
+		"docs:preview": "dx -A vitepress preview docs"
+	},
+	"permissions": {
+		"publish": {
+			"run": true,
+			"read": true,
+			"env": [
+				"JSR_PUBLISH_TOKEN"
+			]
+		},
+		"bump": {
+			"run": true,
+			"read": true,
+			"write": true
+		},
+		"check": {
+			"run": [
+				"deno"
+			],
+			"read": true
+		},
+		"docs": {
+			"read": true,
+			"write": true,
+			"env": true,
+			"ffi": true,
+			"sys": true,
+			"net": true
+		}
+	},
+	"workspace": [
+		"./*",
+		"./*/examples/*"
+	],
+	"exclude": [
+		"docs/.vitepress"
+	],
+	"unstable": [
+		"raw-imports",
+		"bundle"
+	],
+	"imports": {
+		"@std/assert": "jsr:@std/assert@1",
+		"@std/cli": "jsr:@std/cli@1",
+		"@std/fs": "jsr:@std/fs@1",
+		"@std/testing": "jsr:@std/testing@1",
+		"@std/path": "jsr:@std/path@1"
+	},
+	"fmt": {
+		"useTabs": true,
+		"lineWidth": 100
+	},
+	"lint": {
+		"rules": {
+			"exclude": [
+				"jsx-key"
+			]
+		}
+	},
+	"compilerOptions": {
+		"lib": [
+			"deno.window",
+			"deno.ns",
+			"deno.unstable",
+			"deno.worker",
+			"esnext",
+			"dom",
+			"dom.iterable",
+			"dom.asynciterable"
+		],
+		"noImplicitOverride": false
+	}
 }

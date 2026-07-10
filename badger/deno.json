@@ -1,14 +1,5 @@
 {
 	"tasks": {
 		"dev": "deno run -RN --watch main.ts"
-	},
-	"compilerOptions": {
-		"lib": [
-			"deno.window",
-			"deno.unstable",
-			"esnext",
-			"deno.ns",
-			"dom.asynciterable"
-		]
 	}
 }

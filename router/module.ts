@@ -8,10 +8,14 @@
  */
 // deno-lint-ignore-file no-explicit-any ban-unused-ignore ban-types
 
-import { joinPath } from "@bearmetal/miscellanea";
+import { joinPath, stringsSufficientlySimilar } from "@bearmetal/miscellanea";
 import { type Infer, Schema } from "./schema.ts";
 import type { RouterHandler, Service, ServiceActions, ServiceToken, StateType } from "./types.ts";
-import { isInternal } from "@bearmetal/internal";
+import {
+	alarmTrustedNameCollision,
+	logTrustedRoute,
+	raiseTrustedNameSimilarity,
+} from "./trustLog.ts";
 
 // ─── Internal type utilities ──────────────────────────────────────────────────
 
@@ -168,7 +172,10 @@ export interface AnyModule<TState extends StateType = StateType> {
 	_startCallbacks?: (() => Promise<void>)[];
 	// deno-lint-ignore no-explicit-any
 	_setParent?(parent: any): void;
-	mark: symbol;
+	/** Trusted names claimed anywhere in this module's subtree: name -> class name. */
+	_trustedClaims?: Map<string, string>;
+	/** Reserved-namespace violations raised in this subtree, bubbled up at mount. */
+	_bearmetalSubrouteWarnings?: string[];
 }
 
 /** Duck-type guard - true for any object that looks like a Module. */
@@ -206,7 +213,10 @@ export class Module<TState extends StateType = {}> {
 	protected routes: Map<string, RouteConfig<StateType>> = new Map();
 	protected _services: Map<string, Service> = new Map();
 	protected trailingSlash = false;
-	protected bearmetalSubrouteWarnings: string[] = [];
+	/** Public so a parent can drain a child's warnings when it is mounted. */
+	_bearmetalSubrouteWarnings: string[] = [];
+	/** Trusted names claimed in this subtree, merged upward on mount. */
+	_trustedClaims: Map<string, string> = new Map();
 	// deno-lint-ignore no-explicit-any
 	#parent: Module<any> | null = null;
 	// deno-lint-ignore no-explicit-any
@@ -449,7 +459,7 @@ export class Module<TState extends StateType = {}> {
 	// deno-lint-ignore no-explicit-any
 	protected resolveModuleStack(path: string, module: AnyModule<any>): void {
 		module._setParent?.(this);
-		const isInternalModule = isInternal(module);
+		const moduleTrust = trustOf(module);
 		for (const [routePath, thatConfig] of module.rawRoutes) {
 			// Absolute routes stay root-anchored: skip the mount-path join and
 			// carry the flag forward so they survive every subsequent bubble.
@@ -459,24 +469,21 @@ export class Module<TState extends StateType = {}> {
 			) || "/");
 			const thisConfig = this.getOrCreateConfig(p);
 			if (thatConfig.absolute) thisConfig.absolute = true;
+			const reserved = RESERVED_NAMESPACE.test(p);
 			for (const method of allMethods) {
-				if (thatConfig.handlers[method]) {
-					if (p.match(/^\/?@bearmetal/)) {
-						if (
-							!isInternalModule &&
-							!thatConfig.handlers[method].every((h) => isInternal((h as any)["__module"]))
-						) {
-							this.bearmetalSubrouteWarnings.push(`Subroute "${p}" is a BearMetal internal route`);
-						} else {
-							thisConfig.handlers[method] = (thisConfig.handlers[method] ?? [])
-								.concat(thatConfig.handlers[method].map((h) => {
-									(h as any)["__module"] = module;
-									return h;
-								}));
-						}
-					} else {
+				const handlers = thatConfig.handlers[method];
+				if (handlers) {
+					if (!reserved) {
+						thisConfig.handlers[method] = (thisConfig.handlers[method] ?? []).concat(handlers);
+					} else if (this.#admitReserved(p, method, module, moduleTrust, handlers)) {
 						thisConfig.handlers[method] = (thisConfig.handlers[method] ?? [])
-							.concat(thatConfig.handlers[method]);
+							.concat(handlers.map((h) => {
+								// Tag once, at the deepest merge: the origin module is the one
+								// that declared the handler, and re-tagging on every bubble
+								// would launder it into whatever plain Module carried it up.
+								if (!(h as any)["__module"]) (h as any)["__module"] = module;
+								return h;
+							}));
 					}
 				}
 				if (thatConfig.schemas[method]) {
@@ -493,7 +500,149 @@ export class Module<TState extends StateType = {}> {
 		if (module._startCallbacks) {
 			this._startCallbacks.push(...module._startCallbacks);
 		}
+		// Claims and warnings raised below this module would otherwise die here,
+		// never reaching the Router that refuses to serve on them.
+		for (const [name, ctor] of module._trustedClaims ?? []) {
+			this.#registerClaim({ name, ctor }, "*", "(nested)", false);
+		}
+		if (module._bearmetalSubrouteWarnings?.length) {
+			this._bearmetalSubrouteWarnings.push(...module._bearmetalSubrouteWarnings);
+		}
 	}
+
+	/**
+	 * Decides whether `handlers` may take a reserved `/@bearmetal/*` route.
+	 *
+	 * Admissible when the mounting module is a named `TrustedModule`, or when
+	 * every handler was already admitted deeper in the tree and still carries
+	 * the trusted module that declared it.
+	 */
+	#admitReserved(
+		path: string,
+		method: string,
+		// deno-lint-ignore no-explicit-any
+		module: AnyModule<any>,
+		moduleTrust: TrustClaim | null,
+		handlers: RouterHandler<any>[],
+	): boolean {
+		const claims = moduleTrust
+			? [moduleTrust]
+			: handlers.map((h) => trustOf((h as any)["__module"]));
+
+		if (claims.length === 0 || claims.some((claim) => claim === null)) {
+			this._bearmetalSubrouteWarnings.push(
+				`${describeModule(module)} tried to register ${method.toUpperCase()} "${path}" in the ` +
+					`reserved /@bearmetal namespace. Only a named TrustedModule may do that.`,
+			);
+			return false;
+		}
+
+		let admitted = true;
+		const seen = new Set<string>();
+		for (const claim of claims as TrustClaim[]) {
+			const key = `${claim.name} ${claim.ctor}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			// Announce only where the trusted module is directly mounted, so a
+			// route is logged once rather than once per level it bubbles through.
+			if (!this.#registerClaim(claim, method, path, moduleTrust !== null)) admitted = false;
+		}
+		return admitted;
+	}
+
+	/** Collisions already reported, so a claim seen on both the route and the claim map alarms once. */
+	#alarmed = new Set<string>();
+
+	/** Records a trusted name, refusing and screaming when a different class already holds it. */
+	#registerClaim(claim: TrustClaim, method: string, path: string, announce: boolean): boolean {
+		const incumbent = this._trustedClaims.get(claim.name);
+		if (incumbent && incumbent !== claim.ctor) {
+			const key = `${claim.name}|${incumbent}|${claim.ctor}`;
+			if (!this.#alarmed.has(key)) {
+				this.#alarmed.add(key);
+				alarmTrustedNameCollision(claim.name, incumbent, claim.ctor, method, path);
+				this._bearmetalSubrouteWarnings.push(
+					`Trusted name "${claim.name}" is claimed by both ${incumbent} and ${claim.ctor}. ` +
+						`Refused ${method.toUpperCase()} "${path}".`,
+				);
+			}
+			return false;
+		}
+		this._trustedClaims.entries().forEach(([name, ctor]) => {
+			const similar = stringsSufficientlySimilar(claim.name, name, 3);
+
+			if (similar && claim.ctor !== ctor) {
+				raiseTrustedNameSimilarity(claim.name, ctor, claim.ctor, method, path);
+			}
+		});
+		this._trustedClaims.set(claim.name, claim.ctor);
+		if (announce) logTrustedRoute(claim.name, claim.ctor, method, path);
+		return true;
+	}
+}
+
+/** Routes under this prefix may only be registered by a named `TrustedModule`. */
+const RESERVED_NAMESPACE = /^\/?@bearmetal(\/|$)/;
+
+/** A trusted module's self-declared name, paired with the class that declared it. */
+interface TrustClaim {
+	name: string;
+	ctor: string;
+}
+
+/**
+ * A Module permitted to register routes under the reserved `/@bearmetal/*`
+ * namespace, on condition that it names itself.
+ *
+ * This class is exported, so any package can subclass it and claim a name.
+ * That is intentional: a module you `.use()` already executes in your process
+ * and could reach into the router directly, so this is not a sandbox. What the
+ * name buys you is attribution - the router announces every reserved route a
+ * trusted module takes, and raises an alarm when two different classes claim
+ * the same name, which is what impersonation looks like.
+ *
+ * Subclass it; do not instantiate it directly. The subclass's name is what gets
+ * reported, so an anonymous class makes for a useless audit trail.
+ *
+ * @example
+ * ```ts
+ * class ComponentsModule extends TrustedModule {
+ *   constructor() {
+ *     super("@bearmetal/components");
+ *     this.route("/@bearmetal/components").get(serveBundle);
+ *   }
+ * }
+ * ```
+ */
+export abstract class TrustedModule<TState extends StateType = {}> extends Module<TState> {
+	/** The name this module claims in the reserved namespace. */
+	readonly trustedName: string;
+
+	constructor(trustedName: string) {
+		super();
+		if (typeof trustedName !== "string" || trustedName.trim() === "") {
+			throw new TypeError(
+				'A TrustedModule must name itself: super("@your-scope/thing"). ' +
+					"Unnamed modules cannot register routes under /@bearmetal.",
+			);
+		}
+		this.trustedName = trustedName.trim();
+	}
+}
+
+/** The claim a module can make, or null when it is not a validly named TrustedModule. */
+function trustOf(module: unknown): TrustClaim | null {
+	if (!(module instanceof TrustedModule)) return null;
+	const name = module.trustedName;
+	// Defensive: `trustedName` is readonly to TypeScript, not to JavaScript.
+	if (typeof name !== "string" || name.trim() === "") return null;
+	return { name: name.trim(), ctor: describeModule(module) };
+}
+
+/** The class name to blame in a warning. */
+function describeModule(module: unknown): string {
+	const ctor = (module as { constructor?: { name?: string } })?.constructor;
+	return ctor?.name || "<anonymous module>";
 }
 
 export type ModuleBuilder<TState extends StateType = {}> = {
