@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/jsx",
-	"version": "0.0.11",
+	"version": "0.0.12",
 	"license": "GPL-3.0-only",
 	"tasks": {
 		"dev": "deno run --watch main.ts",
