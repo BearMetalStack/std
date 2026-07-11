@@ -3,7 +3,7 @@ import { themeCSS } from "./css/generate.ts";
 import { getDefaultTheme, loadTheme } from "./theme.ts";
 
 export async function ThemeStyle(
-	{ theme }: { theme?: string },
+	{ theme }: { theme?: string | null },
 ): Promise<import("@bearmetal/jsx/server").Html> {
 	const data = theme ? await loadTheme(theme) : await getDefaultTheme();
 	return <style id="thingy" raw>{themeCSS(data, ":root").replaceAll(/\n\s*/g, " ")}</style>;
@@ -471,10 +471,10 @@ export function ComponentStyle(): import("@bearmetal/jsx/server/jsx-runtime").JS
 
 					--b-gradient-angle: 315deg;
 					--b-gradient: linear-gradient(
-						in oklch var(--b-gradient-angle),
-						oklch(from var(--b-gradient-from) l c h),
-						oklch(from var(--b-gradient-to) l c h)
-					);
+										in oklch var(--b-gradient-angle),
+										oklch(from var(--b-gradient-from) l c h),
+										oklch(from var(--b-gradient-to) l c h)
+									);
 					--bg: linear-gradient(var(--color-bg), var(--color-bg));
 					background:
 						var(--bg) padding-box,
@@ -505,10 +505,10 @@ export function ComponentStyle(): import("@bearmetal/jsx/server/jsx-runtime").JS
 				.gradient {
 					--gradient-angle: 135deg;
 					--gradient: linear-gradient(
-						in oklch var(--gradient-angle),
-						oklch(from var(--gradient-from) l c h),
-						oklch(from var(--gradient-to) l c h)
-					);
+										in oklch var(--gradient-angle),
+										oklch(from var(--gradient-from) l c h),
+										oklch(from var(--gradient-to) l c h)
+									);
 
 					--bg: var(--gradient);
 					&:not(.gradient-border) {

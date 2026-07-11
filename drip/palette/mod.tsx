@@ -3,6 +3,7 @@ import { ThemeUtils } from "./ThemeUtils.ts";
 import { getDefaultTheme } from "@bearmetal/drip";
 import { Html, Router } from "@bearmetal/router";
 import { Chain, css, js } from "@bearmetal/miscellanea";
+import { loadTheme } from "../theme.ts";
 
 export const router: Router = new Router();
 
@@ -68,10 +69,18 @@ function buildGradient(
 }
 
 router.get("/", async (ctx) => {
-	const u = new ThemeUtils(await getDefaultTheme());
-	const colors = (await Chain.fromAsync(u.eachColor({ skipReferences: true }))).groupBy(([k]) =>
-		k.split("-").slice(1, -1).join("-")
-	);
+	const themeName = ctx.url.searchParams.get("theme");
+	const u = new ThemeUtils(themeName ? await loadTheme(themeName) : await getDefaultTheme());
+	const colors = (await Chain.fromAsync(u.eachColor({ skipReferences: true }))).groupBy((
+		[k],
+	) => !/[1-9][05](0)?$/.test(k) ? "Identities" : k.split("-").slice(1, -1).join("-")).groups.sort((
+		a,
+		b,
+	) => {
+		if (a.__group === "Identities") return -1;
+		if (b.__group === "Identities") return 1;
+		return 0;
+	});
 
 	const stopsParam = ctx.url.searchParams.get("stops");
 	const stops = stopsParam ? stopsParam.split(",").filter(Boolean) : [];
@@ -90,6 +99,7 @@ router.get("/", async (ctx) => {
 			<head>
 				<title>BearMetal Drip - Palette</title>
 				<ThemeStyle />
+				<ThemeStyle theme={themeName} />
 				<BaseStyle />
 				<style raw>
 					{css`
@@ -151,6 +161,15 @@ router.get("/", async (ctx) => {
 
 								border-radius: 1rem;
 								border: 2px solid color-mix(in srgb, var(--backgroundColor) 50%, black);
+							}
+
+							&[data-group="Identities"] {
+								display: grid;
+								grid-template-columns: repeat(11, 1fr);
+								button {
+									whitespace: nowrap;
+									font-size: .75rem;
+								}
 							}
 						}
 
@@ -264,10 +283,10 @@ router.get("/", async (ctx) => {
 			</head>
 			<body>
 				<div class="main">
-					{colors.groups.map((g) => (
+					{colors.map((g) => (
 						<div class="group">
 							<h3>{titleCase(g.__group ?? "")}</h3>
-							<div class="flex">
+							<div class="flex" data-group={g.__group}>
 								{g.map(([k, c]) => (
 									<button
 										type="button"
@@ -276,7 +295,11 @@ router.get("/", async (ctx) => {
 										class="btn swatch"
 										style={`--backgroundColor: ${c}`}
 									>
-										<p>{k.split("-").pop()}</p>
+										<p>
+											{g.__group === "Identities"
+												? k.split("-").slice(1).join("-")
+												: k.split("-").pop()}
+										</p>
 									</button>
 								))}
 							</div>

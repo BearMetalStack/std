@@ -5,12 +5,14 @@ export class ThemeUtils {
 	constructor(private data: Theme) {}
 
 	async *eachColor(
-		{ skipReferences }: { skipReferences?: boolean } = {},
+		{ skipReferences, skipIdentities }: { skipReferences?: boolean; skipIdentities?: boolean } = {},
 	): AsyncGenerator<[string, string], void, unknown> {
 		const colors = this.data.color;
 		yield* this._each(colors as Theme, ["color"]).filter((e) => {
-			if (skipReferences) return e[1].startsWith("#");
-			return true;
+			let result = true;
+			if (skipReferences) result = result && e[1].startsWith("#");
+			if (skipIdentities) result = result && /[1-9][05](0)?$/.test(e[0]);
+			return result;
 		});
 	}
 
