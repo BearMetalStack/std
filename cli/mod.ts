@@ -1,3 +1,16 @@
+import {
+	ansiTruecolor,
+	BG_RESET,
+	bgColorMap,
+	colorMap,
+	FG_RESET,
+	getBGReset,
+	getFGReset,
+	type hexString,
+	RESET,
+	setBGReset,
+	setFGReset,
+} from "@bearmetal/cli/style";
 import { writeRow } from "./write.ts";
 import {
 	bloody,
@@ -10,6 +23,7 @@ import {
 	fender,
 	graffiti,
 	heart,
+	isValidHex,
 	longestLine,
 	love,
 	poison,
@@ -98,4 +112,39 @@ export function renderTitleAscii(
 
 	console.log(`%c${ascii}`, `color: ${color}; background-color: ${background};`);
 	return [color, background];
+}
+
+export function startCliTheme(
+	bgcolor: keyof typeof bgColorMap | hexString,
+	fgcolor: keyof typeof colorMap | hexString = "white",
+): { [Symbol.dispose](): void; cleanup(): void } {
+	const currentFGReset = getFGReset();
+	const currentBGReset = getBGReset();
+	const isBase = currentFGReset === FG_RESET && currentBGReset === BG_RESET;
+	const resetValue = isBase ? RESET : currentFGReset + currentBGReset;
+	const reset = () => {
+		console.log(resetValue);
+		setFGReset(currentFGReset);
+		setBGReset(currentBGReset);
+	};
+	if (isBase) {
+		addEventListener("unload", reset, { once: true });
+	}
+	if (isValidHex(bgcolor)) bgcolor = ansiTruecolor(bgcolor);
+	else bgcolor = bgColorMap[bgcolor];
+	if (isValidHex(fgcolor)) fgcolor = ansiTruecolor(fgcolor, false);
+	else fgcolor = colorMap[fgcolor];
+	setFGReset(fgcolor);
+	setBGReset(bgcolor);
+	console.log(bgcolor + fgcolor + "\n");
+	return {
+		[Symbol.dispose]() {
+			reset();
+			removeEventListener("unload", reset);
+		},
+		cleanup() {
+			reset();
+			removeEventListener("unload", reset);
+		},
+	};
 }

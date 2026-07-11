@@ -88,7 +88,7 @@ export abstract class Schema<T> {
 		return new NullableSchema(this);
 	}
 
-	getDescription() {
+	getDescription(): string | undefined {
 		return this.description;
 	}
 }

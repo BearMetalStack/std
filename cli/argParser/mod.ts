@@ -28,7 +28,7 @@ import type {
 	StringArgDef,
 } from "./types.ts";
 import { DESCRIPTION_KEY } from "./types.ts";
-import { toKebabCase } from "@bearmetal/miscellanea";
+import { tmplr, toKebabCase } from "@bearmetal/miscellanea";
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
@@ -41,6 +41,7 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 	private _parsed: Record<string, string | boolean | number | unknown[] | undefined> = {};
 	private _explicitlySet = new Set<string>();
 	private _rootCommand?: string;
+	_interactive = true;
 
 	constructor(private rawArgs: string[], private defs: T = {} as T) {
 		this._parse();
@@ -79,8 +80,13 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 			} else if (def.type === "number") {
 				this._parsed[key] = def.default;
 			} else if (def.type !== "confirm" && "default" in def && def.default !== undefined) {
-				// ConfirmDef defaults are applied lazily in resolve() so we can detect unset values
 				this._parsed[key] = def.default;
+			}
+
+			if ((["nonInteractive"].includes(key))) {
+				this._interactive = !this.rawArgs.some((e) =>
+					[`--${key}`, ...def.aliases ?? []].includes(e)
+				);
 			}
 		}
 
@@ -102,10 +108,9 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 					if (def?.type === "number") {
 						this._parsed[key] = Number(value);
 					} else if (def?.type === "list") {
-						const mapped = def.map ? def.map(value) : value;
 						this._parsed[key] = this._explicitlySet.has(key)
-							? [...(this._parsed[key] as unknown[]), mapped]
-							: [mapped];
+							? [...(this._parsed[key] as unknown[]), value]
+							: [value];
 					} else {
 						this._parsed[key] = value;
 					}
@@ -144,6 +149,17 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 		if (lines.length) lines.push("");
 		if (entries.length) {
 			lines.push(colorize("Options:", "gray"));
+			lines.push(...formatArgLines(entries));
+		}
+		return lines.join("\n");
+	}
+
+	helpTextArgs(programName?: string): string {
+		const lines: string[] = [];
+		const entries = this._entries();
+		if (lines.length) lines.push("");
+		if (entries.length) {
+			lines.push(colorize(programName ? `Options (${programName})` : "Options:", "gray"));
 			lines.push(...formatArgLines(entries));
 		}
 		return lines.join("\n");
@@ -188,14 +204,15 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 	 *
 	 * Either way, `required` itself is only checked once — see `_validateRequired`.
 	 */
-	async resolve(): Promise<ResolvedArgs<T>> {
+	async resolve(existing?: ResolvedArgs<T>): Promise<ResolvedArgs<T>> {
 		if (isHelpFlag(this.rawArgs)) {
+			console.log(tmplr);
 			_write(this.helpText(this._rootCommand) + "\n");
 			Deno.exit(0);
 		}
 
-		const result = { ...this._parsed } as Record<string, unknown>;
-		const isInteractive = Deno.stdin.isTerminal();
+		const result = { ...existing, ...this._parsed } as Record<string, unknown>;
+		const isInteractive = Deno.stdin.isTerminal() && this._interactive;
 
 		if (!isInteractive) {
 			const errors: string[] = [];
@@ -232,6 +249,7 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 			return result as ResolvedArgs<T>;
 		}
 
+		const errors = [];
 		for (const [key, def] of this._entries()) {
 			if (def.type === "flag") continue;
 
@@ -260,11 +278,12 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 				// can't be prompted for, so a missing-but-required list is `_validateRequired`'s
 				// call, below, once every other arg's value is settled too.
 				if ("schema" in def && def.schema) {
-					const check = def.schema.safeParse(current as string[]);
+					const check = def.schema.safeParse(result[key] as string[]);
 					if (!check.success) {
-						throw new Error(`--${key}: ${check.issues.map((i) => i.message).join(", ")}`);
+						errors.push(`--${key}: ${check.issues.map((i) => i.message).join(", ")}`);
 					}
 				}
+				if (def.map) result[key] = (result[key] as string[]).map(def.map);
 				continue;
 			}
 
@@ -273,7 +292,7 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 				if ("schema" in def && def.schema) {
 					const check = def.schema.safeParse(current as string);
 					if (!check.success) {
-						throw new Error(`--${key}: ${check.issues.map((i) => i.message).join(", ")}`);
+						errors.push(`--${key}: ${check.issues.map((i) => i.message).join(", ")}`);
 					}
 				}
 				continue;
@@ -322,7 +341,7 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 			}
 		}
 
-		const errors = this._validateRequired(result);
+		errors.push(...this._validateRequired(result));
 		if (errors.length > 0) {
 			throw new Error(`Missing required arguments:\n${errors.map((e) => `  ${e}`).join("\n")}`);
 		}
@@ -385,51 +404,105 @@ export type CommandDefs = Record<string, ArgDefs>;
  * Ordinary (non self-referential) for the same reason as `ArgDefsShape` — keeps object-literal
  * completions working at both the command level and each command's own arg defs.
  */
-export type CommandDefsShape = Record<string, ArgDefsShape | string>;
+export type CommandDefsShape = Record<string, ArgDefsShape | string | boolean>;
 
-/** Keys of `C` that are real commands (i.e. everything but `$description`). */
-type CommandKeys<C> = Exclude<keyof C, DescriptionKey>;
+/**
+ * Reserved key. Set `$root` in the object passed to `.commandFrom()` to define arg defs that
+ * apply *before* the command token — e.g. `program --root-arg command --command-arg`. Same
+ * `ArgDefsShape` structure as a single command's own defs; resolved root values are merged into
+ * the final result alongside whichever command matched.
+ */
+export const ROOT_KEY = "$root";
+type RootKey = typeof ROOT_KEY;
+
+/**
+ * Reserved key. Set `$requireCommand: true` in the object passed to `.commandFrom()` to keep a
+ * command mandatory — `resolve()` throws if none is given, same as before this existed. Defaults
+ * to `false`: a program with only `$root` args and no matched command resolves successfully with
+ * `command: undefined` and just the root args.
+ */
+export const REQUIRE_COMMAND_KEY = "$requireCommand";
+type RequireCommandKey = typeof REQUIRE_COMMAND_KEY;
+
+type ReservedCommandKey = DescriptionKey | RootKey | RequireCommandKey;
+function isReservedCommandKey(key: string): key is ReservedCommandKey {
+	return key === DESCRIPTION_KEY || key === ROOT_KEY || key === REQUIRE_COMMAND_KEY;
+}
+
+/** Keys of `C` that are real commands (i.e. everything but the reserved `$`-prefixed keys). */
+type CommandKeys<C> = Exclude<keyof C, ReservedCommandKey>;
 
 /**
  * `C[K]`, narrowed to `ArgDefsShape` (falling back to `never` otherwise). Since `CommandDefsShape`
- * is `Record<string, ArgDefsShape | string>`, an abstract `C[K]` widens to include `string` — this
- * degrades safely instead of failing `ResolvedArgs`'s constraint, the same trick `ArgDefOf` uses.
+ * is `Record<string, ArgDefsShape | string | boolean>`, an abstract `C[K]` widens beyond
+ * `ArgDefsShape` — this degrades safely instead of failing `ResolvedArgs`'s constraint, the same
+ * trick `ArgDefOf` uses.
  */
 type CommandDefOf<C, K extends keyof C> = C[K] extends ArgDefsShape ? C[K] : never;
+
+/** `C["$root"]`, narrowed to `ArgDefsShape` — an empty defs shape when `$root` isn't given. */
+type RootDefsOf<C> = C extends Record<RootKey, infer R>
+	? (R extends ArgDefsShape ? R : Record<string, never>)
+	: Record<string, never>;
+
+/** Whether `C["$requireCommand"]` is literally `true` — `false` (the default) otherwise. */
+type RequireCommand<C> = C extends Record<RequireCommandKey, true> ? true : false;
 
 /** Union of all command names in `C`. */
 export type CommandName<C extends CommandDefsShape> = CommandKeys<C>;
 
-/** Discriminated union of `{ command } & ResolvedArgs` for each command in `C`. */
-export type CommandResolvedArgs<C extends CommandDefsShape> = {
-	[K in CommandKeys<C>]: { command: K } & ResolvedArgs<CommandDefOf<C, K>>;
+/** `{ command } & ResolvedArgs` for a matched command, plus any `$root` args merged in. */
+type CommandVariant<C> = {
+	[K in CommandKeys<C>]:
+		& { command: K }
+		& ResolvedArgs<CommandDefOf<C, K>>
+		& ResolvedArgs<RootDefsOf<C>>;
 }[CommandKeys<C>];
+
+/**
+ * Discriminated union of `{ command } & ResolvedArgs` for each command in `C`, each merged with
+ * `$root`'s resolved args. When `$requireCommand` isn't literally `true`, also includes a
+ * `{ command: undefined } & <root args>` variant for when no command was given.
+ */
+export type CommandResolvedArgs<C extends CommandDefsShape> = RequireCommand<C> extends true
+	? CommandVariant<C>
+	: CommandVariant<C> | ({ command: undefined } & ResolvedArgs<RootDefsOf<C>>);
 
 export class CommandArgParser<C extends CommandDefsShape> {
 	private _command: CommandKeys<C> | undefined;
 	private _parser: ArgParser<ArgDefs> | undefined;
-	private _rootCommand?: string;
+	private _rootParser: ArgParser<ArgDefs>;
+	private _program?: string;
 
 	constructor(private rawArgs: string[], private commands: C) {
 		const idx = rawArgs.findIndex((a) => !a.startsWith("-"));
+		const rootArgs = idx === -1 ? rawArgs : rawArgs.slice(0, idx);
+		const rootDefs = (commands as Record<string, unknown>)[ROOT_KEY];
+		this._rootParser = new ArgParser(
+			rootArgs,
+			(rootDefs && typeof rootDefs === "object" ? rootDefs : {}) as ArgDefs,
+		);
 		const name = idx === -1 ? undefined : rawArgs[idx];
-		if (name !== undefined && name !== DESCRIPTION_KEY && name in commands) {
+		if (name !== undefined && !isReservedCommandKey(name) && name in commands) {
 			this._activate(name as CommandKeys<C>);
 		}
 	}
 
-	/** Sets the active command, dropping its positional token (if present) from the remaining args. */
+	/** Sets the active command; everything after its positional token becomes the command's own args. */
 	private _activate(command: CommandKeys<C>) {
 		const idx = this.rawArgs.findIndex((a) => !a.startsWith("-"));
-		const rest = idx === -1 || this.rawArgs[idx] !== command
-			? this.rawArgs
-			: [...this.rawArgs.slice(0, idx), ...this.rawArgs.slice(idx + 1)];
+		const rest = idx === -1 ? [] : this.rawArgs.slice(idx + 1);
 		this._command = command;
 		this._parser = new ArgParser(rest, this.commands[command] as unknown as ArgDefs);
+		this._parser._interactive = this._rootParser._interactive;
 	}
 
-	setRootCommand(command: string | undefined): CommandArgParser<C> {
-		this._rootCommand = command;
+	private _requireCommand(): boolean {
+		return Boolean((this.commands as Record<string, unknown>)[REQUIRE_COMMAND_KEY]);
+	}
+
+	setProgram(command: string | undefined): CommandArgParser<C> {
+		this._program = command;
 		return this;
 	}
 
@@ -438,9 +511,11 @@ export class CommandArgParser<C extends CommandDefsShape> {
 		return this._command;
 	}
 
-	/** All known command names. */
+	/** All known command names (excludes `$description`, `$root`, and `$requireCommand`). */
 	get commandNames(): CommandKeys<C>[] {
-		return (Object.keys(this.commands) as CommandKeys<C>[]).filter((k) => k !== DESCRIPTION_KEY);
+		return (Object.keys(this.commands) as CommandKeys<C>[]).filter((k) =>
+			!isReservedCommandKey(k as string)
+		);
 	}
 
 	/** Positional args following the command name. */
@@ -461,11 +536,16 @@ export class CommandArgParser<C extends CommandDefsShape> {
 	helpText(programName = ""): string {
 		if (this._command !== undefined && this._parser) {
 			const label = programName ? `${programName} ${String(this._command)}` : String(this._command);
-			return this._parser.helpText(label);
+			return [this._parser.helpText(label), " ", this._rootParser.helpTextArgs(programName)].filter(
+				Boolean,
+			)
+				.join("\n");
 		}
 		const lines: string[] = [];
 		const description = descriptionOf(this.commands);
 		if (description) lines.push(description, "");
+		const rootHelp = this._rootParser.helpText();
+		if (rootHelp) lines.push(rootHelp, "");
 		const rows = this.commandNames.map((name) =>
 			[
 				String(name),
@@ -484,7 +564,7 @@ export class CommandArgParser<C extends CommandDefsShape> {
 		options?: { promptForCommand?: boolean | string },
 	): Promise<CommandResolvedArgs<C>> {
 		if (isHelpFlag(this.rawArgs)) {
-			_write(this.helpText(this._rootCommand) + "\n");
+			_write(this.helpText(this._program) + "\n");
 			Deno.exit(0);
 		}
 
@@ -498,6 +578,10 @@ export class CommandArgParser<C extends CommandDefsShape> {
 
 		if (this._command === undefined || !this._parser) {
 			const name = this.rawArgs.find((a) => !a.startsWith("-"));
+			if (name === undefined && !this._requireCommand()) {
+				const rootResolved = await this._rootParser.resolve();
+				return { command: undefined, ...rootResolved } as CommandResolvedArgs<C>;
+			}
 			const available = this.commandNames.join(", ");
 			throw new Error(
 				name
@@ -505,7 +589,8 @@ export class CommandArgParser<C extends CommandDefsShape> {
 					: `Missing command. Expected one of: ${available}`,
 			);
 		}
-		const resolved = await this._parser.resolve();
-		return { command: this._command, ...resolved } as CommandResolvedArgs<C>;
+		const rootResolved = await this._rootParser.resolve();
+		const resolved = await this._parser.resolve(rootResolved);
+		return { command: this._command, ...rootResolved, ...resolved } as CommandResolvedArgs<C>;
 	}
 }

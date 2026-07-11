@@ -1,3 +1,5 @@
+import { InputManager } from "./InputManager.ts";
+
 export class Cursor {
 	private static visible = true;
 	private static visibilityStack: boolean[] = [];
@@ -34,10 +36,18 @@ export class Cursor {
 
 	static enterAltBuffer() {
 		Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?1049h"));
+		InputManager.addEventListener("exit", this.exitAltBuffer, { once: true });
+		addEventListener("beforeunload", this.exitAltBuffer, { once: true });
+		Deno.addSignalListener("SIGINT", this.exitAltBuffer);
+		Deno.addSignalListener("SIGTERM", this.exitAltBuffer);
 	}
 
 	static exitAltBuffer() {
 		Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?1049l"));
+		InputManager.removeEventListener("exit", this.exitAltBuffer);
+		removeEventListener("beforeunload", this.exitAltBuffer);
+		Deno.removeSignalListener("SIGINT", this.exitAltBuffer);
+		Deno.removeSignalListener("SIGTERM", this.exitAltBuffer);
 	}
 
 	static async getPosition(): Promise<{ row: number; col: number }> {

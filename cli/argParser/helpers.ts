@@ -120,17 +120,24 @@ export function formatRequired(def: RequirableArgDef): string {
 			if (isRequiredSpecIfNot(v)) acc.ifNot.push(v.ifNot);
 			return acc;
 		}, { if: [], ifNot: [] });
-		res += [ifs.if.join(", ").replace(/^/, " if "), ifs.ifNot.join(", ").replace(/^/, " if ")]
-			.filter(Boolean).join("; ");
+		res += [
+			ifs.if.filter(Boolean).map((e) => "--" + toKebabCase(e)).join(", ").replace(
+				/^(\w)/,
+				"when $1",
+			),
+			ifs.ifNot.filter(Boolean).map((e) => "--" + toKebabCase(e)).join(", ").replace(
+				/^(\w)/,
+				"without $1",
+			),
+		]
+			.filter(Boolean).join("; required").replace(/^(\w)/, " $1");
 	} else if (typeof def.required === "object") {
 		const ifs: string[] = [];
-		if (isRequiredSpecIf(def.required)) ifs.push(` if ${toKebabCase(def.required.if)}`);
+		if (isRequiredSpecIf(def.required)) ifs.push(`when --${toKebabCase(def.required.if)}`);
 		if (isRequiredSpecIfNot(def.required)) {
-			ifs.push(` cannot be ${toKebabCase(def.required.ifNot)}`);
+			ifs.push(`without --${toKebabCase(def.required.ifNot)}`);
 		}
-		res += ifs.join(", ");
-	} else if (typeof def.required === "string") {
-		res += ` if ${def.required}`;
+		res += ifs.join("; ").replace(/^(\w)/, " $1");
 	}
 	return res;
 }
@@ -145,7 +152,7 @@ export function formatListLines(rows: (readonly [string, string | undefined])[])
 export function formatArgLines(entries: [string, ArgDef][]): string[] {
 	return formatListLines(entries.map(([key, def]) => {
 		const meta = formatArgMeta(def);
-		const desc = [def.$description, meta.length ? `(${meta.join(", ")})` : ""]
+		const desc = [def.$description, meta.length ? `(${meta.join("; ")})` : ""]
 			.filter(Boolean)
 			.join(" ");
 		return [formatArgName(key, def), desc] as const;

@@ -1,8 +1,13 @@
-import { ArgParser, colorize } from "@bearmetal/cli";
+import { ArgParser, colorize, startCliTheme } from "@bearmetal/cli";
 import { f } from "@bearmetal/forge";
 import { generateDripTheme } from "./drip/generateDripTheme.ts";
 import { listDripThemes } from "./drip/listDripThemes.ts";
 import { dripConfig } from "@bearmetal/drip";
+import { tmplr } from "@bearmetal/miscellanea";
+
+using _cliTheme = startCliTheme("#25000e", "#f0a8c2");
+console.log(tmplr.replace(/^\n\n/, "").trimEnd());
+console.log("-=".repeat(Deno.consoleSize().columns / 2));
 
 const args = ArgParser.commandFrom(Deno.args, {
 	palette: {
@@ -15,7 +20,7 @@ const args = ArgParser.commandFrom(Deno.args, {
 		port: {
 			type: "number",
 			default: 3000,
-			schema: f.number().min(1).max(65535).int(),
+			schema: f.number().min(1).max(65535).int().describe("<1-65535>"),
 		},
 	},
 	drip: {
@@ -28,23 +33,16 @@ const args = ArgParser.commandFrom(Deno.args, {
 				if: "nonInteractve",
 				message: "Non-interactive mode only available when passing --new",
 			},
+			$description: "Create a new theme",
 		},
 		default: {
 			type: "string",
 			default: "bearmetal",
+			$description: "Change the default theme for the project",
 		},
 		bearmetal: {
 			type: "flag",
-		},
-		nonInteractive: {
-			type: "flag",
-			aliases: ["-c"],
-			$description: "Run in non-interactive mode",
-			default: false,
-			required: [
-				{ if: "color", message: "--color can only be used in non-interactive mode" },
-				{ if: "name", message: "--name can only be used in non-interactive mode" },
-			],
+			$description: "Enable/disable built-in themes",
 		},
 		color: {
 			type: "list",
@@ -69,6 +67,7 @@ const args = ArgParser.commandFrom(Deno.args, {
 			).describe(
 				"<color name>:<hex code>[:stop]",
 			),
+			$description: "Provide a color to the non-interactive theme generator",
 		},
 		name: {
 			type: "string",
@@ -76,10 +75,24 @@ const args = ArgParser.commandFrom(Deno.args, {
 				if: "nonInteractive",
 				message: "Non-interactive mode requires --name=<theme name>",
 			},
+			$description:
+				"Provide a name for the theme to be created in the non-interactive theme generator",
+		},
+	},
+	$root: {
+		nonInteractive: {
+			type: "flag",
+			aliases: ["-p"],
+			$description: "Run in non-interactive mode",
+			default: false,
+			required: [
+				{ if: "color", message: "--color can only be used in non-interactive mode" },
+				{ if: "name", message: "--name can only be used in non-interactive mode" },
+			],
 		},
 	},
 	$description: "Tools and utilities for the BearMetal Stack",
-}).setRootCommand("bearmetal");
+}).setProgram("bearmetal");
 const resolved = await args.resolve({ promptForCommand: "Command:" }).catch(
 	(e) => console.error(e.message) ?? Deno.exit(2),
 );
