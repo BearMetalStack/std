@@ -66,7 +66,7 @@ export async function doAColor(theme: Theme) {
 		done = await cliConfirm("Look good?", true);
 	}
 	if (!steps!) throw new Error("No steps generated... how did you do that?");
-	let current: Theme = (theme.color ??= {}) as Theme;
+	let current = (theme.color ??= {}) as Theme;
 	current = colorName.split("-").reduce(
 		(acc, part) => ((acc as Theme)[part] ??= {}) as Theme,
 		current,
@@ -78,4 +78,22 @@ export async function doAColor(theme: Theme) {
 	while (current[""] && typeof current[""] !== "string") current = current[""] as Theme;
 
 	current[""] = steps[identityStop!].hex;
+}
+
+export function generateSteps(theme: Theme, color: { name: string; hex: string; stop: number }) {
+	const oklch = srgbToOklch(hexToSrgb(color.hex));
+	const lightnessMap = generateRelativeLightnessMap(oklch.l, color.stop);
+	const steps = seededScale(color.hex, color.stop, lightnessMap);
+	let current = theme.color as Theme;
+	current = color.name.split("-").reduce(
+		(acc, part) => ((acc as Theme)[part] ??= {}) as Theme,
+		current,
+	);
+	for (const stop of STOPS) {
+		current[stop] = steps[stop].hex;
+	}
+
+	while (current[""] && typeof current[""] !== "string") current = current[""] as Theme;
+
+	current[""] = steps[color.stop!].hex;
 }

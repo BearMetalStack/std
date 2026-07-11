@@ -4,9 +4,13 @@ import { colorize } from "@bearmetal/cli/style";
 import { type Theme, ThemeUtils } from "@bearmetal/drip";
 import { dotBearmetalFile } from "@bearmetal/miscellanea/fs";
 import { namespaces } from "@bearmetal/drip/namespaces";
-import { doAColor } from "./doAColor.ts";
+import { doAColor, generateSteps } from "./doAColor.ts";
+import type { Resolved } from "../run.ts";
 
-export async function generateDripTheme() {
+export async function generateDripTheme(
+	resolved: Resolved & { command: "drip" },
+) {
+	if (isNonInteractive(resolved)) return generateNonInteractively(resolved);
 	console.log("Let's build a theme!");
 	let themeName = await cliPrompt(
 		"What should we call your theme? (Keep this name short and sweet)",
@@ -59,4 +63,18 @@ export async function generateDripTheme() {
 	const themeFile = await dotBearmetalFile(namespaces.themes, themeName + ".theme.json");
 	await themeFile.writeJson(theme);
 	console.log(`Theme file generated: ${themeFile.path}`);
+}
+
+function isNonInteractive(resolved: { command: "drip" } & Resolved): boolean {
+	return Boolean(resolved.color.length && resolved.name);
+}
+
+async function generateNonInteractively(resolved: { command: "drip" } & Resolved) {
+	const themeName = resolved.name;
+	const themeFile = await dotBearmetalFile(namespaces.themes, themeName + ".theme.json");
+	const theme = await themeFile.readJson();
+	for (const color of resolved.color) {
+		generateSteps(theme, color);
+	}
+	return themeFile.writeJson(theme);
 }

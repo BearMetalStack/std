@@ -1,247 +1,46 @@
-import type { Schema } from "@bearmetal/forge";
-import { colorize } from "./style.ts";
-import { cliConfirm, cliPrompt } from "./prompts.ts";
-import { selectMenuInteractive } from "./select.ts";
+import { colorize } from "../style.ts";
+import { cliConfirm, cliPrompt } from "../prompts.ts";
+import { selectMenuInteractive } from "../select.ts";
+import {
+	_write,
+	activeSpecs,
+	collectCannotBe,
+	collectHint,
+	descriptionOf,
+	formatArgLines,
+	formatListLines,
+	isHelpFlag,
+	isPresent,
+	normalizeSpecs,
+} from "./helpers.ts";
+import type {
+	ArgDef,
+	ArgDefOf,
+	ArgDefs,
+	ArgDefsShape,
+	ArgKeys,
+	ConfirmDef,
+	DescriptionKey,
+	EnumArgDef,
+	InferValue,
+	ListArgDef,
+	ResolvedArgs,
+	StringArgDef,
+} from "./types.ts";
+import { DESCRIPTION_KEY } from "./types.ts";
+import { toKebabCase } from "@bearmetal/miscellanea";
 
-// ─── Required spec ────────────────────────────────────────────────────────────
+// ─── Exports ──────────────────────────────────────────────────────────────────
 
-/**
- * A single required condition. Pass an array to combine multiple.
- * - `true`/`false` - always/never required
- * - `string` - always required; the string is used as the prompt hint
- * - `{ if: key }` - required when `key` is truthy after resolution
- * - `{ ifNot: key }` - required when `key` is falsy after resolution
- *
- * Conditional forms accept `message` (shown as a hint) and `cannotBe` (values
- * excluded from the prompt when this condition is active).
- *
- * When multiple specs are given, any active one makes the arg required.
- * `cannotBe` lists and hint messages are merged across all active specs.
- * Conditions are evaluated in definition order. Place dependencies first.
- */
-export type RequiredSpec =
-	| boolean
-	| string
-	| { if: string; message?: string; cannotBe?: string[] }
-	| { ifNot: string; message?: string; cannotBe?: string[] };
-
-export type RequiredInput = RequiredSpec | RequiredSpec[];
-
-// ─── Arg definition types ─────────────────────────────────────────────────────
-
-/** Boolean presence flag. Set via `--flag` / `--no-flag` / `-f`. Never prompts. */
-export type FlagDef = {
-	type: "flag";
-	aliases?: string[];
-	default?: boolean;
-	/** Shown next to this arg in `--help` output */
-	$description?: string;
-};
-
-/** Yes/no confirmation. Set via `--confirm` / `--no-confirm`. Prompts with y/n when required. */
-export type ConfirmDef = {
-	type: "confirm";
-	aliases?: string[];
-	default?: boolean;
-	required?: RequiredInput;
-	/** Label shown in the y/n prompt */
-	prompt?: string;
-	/** Set `false` to suppress the hint even when a message is available. Default: `true` */
-	showHint?: boolean;
-	/** Shown next to this arg in `--help` output */
-	$description?: string;
-};
-
-export type StringArgDef = {
-	type?: "string";
-	aliases?: string[];
-	default?: string;
-	required?: RequiredInput;
-	/** Label shown when prompting for a missing value */
-	prompt?: string;
-	/** Set `false` to suppress the hint. Default: `true` */
-	showHint?: boolean;
-	/** Forge schema validates the value; re-prompts on failure when interactive */
-	schema?: Schema<string>;
-	/** Shown next to this arg in `--help` output */
-	$description?: string;
-};
-
-export type NumArgDef = {
-	type?: "number";
-	aliases?: string[];
-	default?: number;
-	required?: RequiredInput;
-	/** Label shown when prompting for a missing value */
-	prompt?: string;
-	/** Set `false` to suppress the hint. Default: `true` */
-	showHint?: boolean;
-	/** Forge schema validates the value; re-prompts on failure when interactive */
-	schema?: Schema<number>;
-	/** Shown next to this arg in `--help` output */
-	$description?: string;
-};
-
-export type EnumArgDef = {
-	type: "enum";
-	values: readonly string[];
-	aliases?: string[];
-	default?: string;
-	required?: RequiredInput;
-	/** Label shown in the interactive select */
-	prompt?: string;
-	/** Set `false` to suppress the hint. Default: `true` */
-	showHint?: boolean;
-	/** Shown next to this arg in `--help` output */
-	$description?: string;
-};
-
-export type ArgDef = FlagDef | ConfirmDef | StringArgDef | NumArgDef | EnumArgDef;
-export type ArgDefs = Record<string, ArgDef>;
-
-/**
- * Reserved key. Set `$description` at the root of an `ArgDefs` object (alongside the arg
- * keys) to document the whole group — the arg-def structure passed to `.from()`, or a single
- * command's defs within `.commandFrom()`. Shown as the header in `--help` output.
- */
-const DESCRIPTION_KEY = "$description";
-type DescriptionKey = typeof DESCRIPTION_KEY;
-
-/**
- * Validates that every key of `T` holds an `ArgDef`, except the reserved `$description` key,
- * which must be a `string`. Used as a self-referential generic bound so arg-def object literals
- * keep their precise inferred type while still being checked against this shape.
- */
-export type ArgDefsShape<T> = {
-	[K in keyof T]: K extends DescriptionKey ? string : ArgDef;
-};
-
-/** Keys of `T` that hold real arg defs (i.e. everything but `$description`). */
-type ArgKeys<T> = Exclude<keyof T, DescriptionKey>;
-
-type ArgDefOf<T, K extends keyof T> = T[K] extends ArgDef ? T[K] : never;
-
-// ─── Type inference ────────────────────────────────────────────────────────────
-
-type InferValue<D extends ArgDef> = D extends { type: "flag" } ? boolean
-	: D extends { type: "confirm" } ? boolean | undefined
-	: D extends { type: "enum"; values: readonly (infer V extends string)[] } ? V | undefined
-	: D extends { type: "number" } ? number | undefined
-	: string | undefined;
-
-/**
- * Bound as `Record<string, unknown>` rather than `ArgDefsShape<T>` so this composes inside
- * other generics (e.g. indexing a command map) without re-proving the self-referential shape
- * constraint at every nesting level — `ArgDefOf` falls back to `never` for anything malformed,
- * which `.from()`/`.commandFrom()` already reject at the point a defs object is constructed.
- */
-export type ParsedArgs<T extends Record<string, unknown>> = {
-	[K in keyof T as K extends DescriptionKey ? never : K]: InferValue<ArgDefOf<T, K>>;
-};
-
-type ResolveValue<V> = [V] extends [boolean | undefined] ? boolean : V;
-
-/** After `resolve()`, all confirms are filled in and `boolean | undefined` collapses to `boolean`. */
-export type ResolvedArgs<T extends Record<string, unknown>> = {
-	[K in keyof T as K extends DescriptionKey ? never : K]: ResolveValue<InferValue<ArgDefOf<T, K>>>;
-};
-
-// ─── Internal helpers ─────────────────────────────────────────────────────────
-
-function normalizeSpecs(required: RequiredInput | undefined): RequiredSpec[] {
-	if (required === undefined) return [];
-	return Array.isArray(required) ? required : [required];
-}
-
-function specIsActive(spec: RequiredSpec, resolved: Record<string, unknown>): boolean {
-	if (spec === false) return false;
-	if (spec === true || typeof spec === "string") return true;
-	if ("if" in spec) return Boolean(resolved[spec.if]);
-	return !resolved[(spec as { ifNot: string }).ifNot];
-}
-
-function activeSpecs(specs: RequiredSpec[], resolved: Record<string, unknown>): RequiredSpec[] {
-	return specs.filter((spec) => specIsActive(spec, resolved));
-}
-
-function collectCannotBe(specs: RequiredSpec[]): string[] {
-	const result: string[] = [];
-	for (const spec of specs) {
-		if (typeof spec === "object" && "cannotBe" in spec && spec.cannotBe) {
-			result.push(...spec.cannotBe);
-		}
-	}
-	return [...new Set(result)];
-}
-
-function collectHint(specs: RequiredSpec[]): string {
-	return specs
-		.map((spec) => {
-			if (typeof spec === "string") return spec;
-			if (typeof spec === "object" && "message" in spec) return spec.message ?? "";
-			return "";
-		})
-		.filter(Boolean)
-		.join("; ");
-}
-
-function toKebab(key: string): string {
-	return key.replace(/([A-Z])/g, "-$1").toLowerCase();
-}
-
-function isHelpFlag(rawArgs: string[]): boolean {
-	return rawArgs.includes("--help") || rawArgs.includes("-h");
-}
-
-function descriptionOf(defs: Record<string, unknown>): string | undefined {
-	const raw = defs[DESCRIPTION_KEY];
-	return typeof raw === "string" ? raw : undefined;
-}
-
-function formatArgName(key: string, def: ArgDef): string {
-	const kebab = toKebab(key);
-	const aliases = (def.aliases ?? []).map((a) => a.replace(/^-+/, ""));
-	const names = [`--${kebab}`, ...aliases.map((a) => a.length === 1 ? `-${a}` : `--${a}`)];
-	if (def.type === "confirm") return `${names.join(", ")} / --no-${kebab}`;
-	if (def.type === "enum") return `${names.join(", ")} <${def.values.join("|")}>`;
-	if (def.type === "flag") return names.join(", ");
-	return `${names.join(", ")} <value>`;
-}
-
-function formatArgMeta(def: ArgDef): string[] {
-	const meta: string[] = [];
-	if (def.type !== "flag" && def.required) meta.push("required");
-	if ("default" in def && def.default !== undefined) meta.push(`default: ${def.default}`);
-	return meta;
-}
-
-function formatListLines(rows: (readonly [string, string | undefined])[]): string[] {
-	const width = Math.max(0, ...rows.map(([name]) => name.length));
-	return rows.map(([name, desc]) =>
-		`  ${colorize(name.padEnd(width), "porple")}${desc ? `  ${desc}` : ""}`
-	);
-}
-
-function formatArgLines(entries: [string, ArgDef][]): string[] {
-	return formatListLines(entries.map(([key, def]) => {
-		const meta = formatArgMeta(def);
-		const desc = [def.$description, meta.length ? `(${meta.join(", ")})` : ""]
-			.filter(Boolean)
-			.join(" ");
-		return [formatArgName(key, def), desc] as const;
-	}));
-}
-
-const _enc = new TextEncoder();
-function _write(s: string) {
-	Deno.stdout.writeSync(_enc.encode(s));
-}
+export type * from "./types.ts";
+export { DESCRIPTION_KEY } from "./types.ts";
 
 // ─── ArgParser ────────────────────────────────────────────────────────────────
 
-export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
-	private _parsed: Record<string, string | boolean | number | undefined> = {};
+export class ArgParser<T extends ArgDefsShape = ArgDefs> {
+	private _parsed: Record<string, string | boolean | number | unknown[] | undefined> = {};
 	private _explicitlySet = new Set<string>();
+	private _rootCommand?: string;
 
 	constructor(private rawArgs: string[], private defs: T = {} as T) {
 		this._parse();
@@ -257,7 +56,7 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 	private _aliasMap(): Map<string, string> {
 		const map = new Map<string, string>();
 		for (const [key, def] of this._entries()) {
-			const kebab = toKebab(key);
+			const kebab = toKebabCase(key);
 			map.set(key, key);
 			map.set(`--${key}`, key);
 			if (kebab !== key) map.set(`--${kebab}`, key);
@@ -302,6 +101,11 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 					}
 					if (def?.type === "number") {
 						this._parsed[key] = Number(value);
+					} else if (def?.type === "list") {
+						const mapped = def.map ? def.map(value) : value;
+						this._parsed[key] = this._explicitlySet.has(key)
+							? [...(this._parsed[key] as unknown[]), mapped]
+							: [mapped];
 					} else {
 						this._parsed[key] = value;
 					}
@@ -319,6 +123,11 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 				}
 			}
 		}
+	}
+
+	setRootCommand(command: string): ArgParser<T> {
+		this._rootCommand = command;
+		return this;
 	}
 
 	get<K extends ArgKeys<T>>(key: K): InferValue<ArgDefOf<T, K>> {
@@ -341,6 +150,32 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 	}
 
 	/**
+	 * Checks every `required` spec against the fully-resolved `result`, once every arg's value
+	 * is settled. Run as a separate pass after collection (rather than inline, interleaved with
+	 * it) so a requirement that depends on another arg declared *later* in the defs object is
+	 * checked against that arg's real final value, not whatever it happened to be mid-collection
+	 * — collection order no longer has to match dependency order, in either direction.
+	 *
+	 * Satisfaction is type-aware: a `flag` must resolve `true` (there's no "unset" flag state); a
+	 * `list` must resolve to a non-empty array; everything else just needs to be defined.
+	 */
+	private _validateRequired(result: Record<string, unknown>): string[] {
+		const errors: string[] = [];
+		for (const [key, def] of this._entries()) {
+			if (!("required" in def) || def.required === undefined) continue;
+			const active = activeSpecs(normalizeSpecs(def.required), result);
+			if (active.length === 0) continue;
+			const current = result[key];
+			const satisfied = def.type === "flag" ? Boolean(current) : isPresent(current);
+			if (satisfied) continue;
+			const hint = collectHint(active);
+			const displayKey = key.replace(/([A-Z])/g, "-$1").toLowerCase();
+			errors.push(`--${displayKey}${hint ? `: ${hint}` : ""}`);
+		}
+		return errors;
+	}
+
+	/**
 	 * Validates and resolves all arg values.
 	 *
 	 * `--help`/`-h` short-circuits: prints `helpText()` and exits the process.
@@ -350,10 +185,12 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 	 *
 	 * Interactive (TTY): prompts for any missing required values, validates schema
 	 * on string inputs, and re-prompts on failure.
+	 *
+	 * Either way, `required` itself is only checked once — see `_validateRequired`.
 	 */
 	async resolve(): Promise<ResolvedArgs<T>> {
 		if (isHelpFlag(this.rawArgs)) {
-			_write(this.helpText() + "\n");
+			_write(this.helpText(this._rootCommand) + "\n");
 			Deno.exit(0);
 		}
 
@@ -376,23 +213,19 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 					continue;
 				}
 				if (def.type === "confirm") {
-					const specs = normalizeSpecs(def.required);
-					const active = activeSpecs(specs, result);
-					if (active.length === 0) {
-						result[key] = def.default ?? false;
-					} else {
-						const hint = collectHint(active);
-						errors.push(`--${displayKey}${hint ? `: ${hint}` : ""}`);
-					}
+					const active = activeSpecs(normalizeSpecs(def.required), result);
+					if (active.length === 0) result[key] = def.default ?? false;
 					continue;
 				}
-				const specs = normalizeSpecs((def as StringArgDef | EnumArgDef).required);
-				const active = activeSpecs(specs, result);
-				if (active.length > 0) {
-					const hint = collectHint(active);
-					errors.push(`--${displayKey}${hint ? `: ${hint}` : ""}`);
+				if (def.type === "list") {
+					const active = activeSpecs(normalizeSpecs(def.required), result);
+					if (active.length === 0) result[key] = def.default ?? [];
+					continue;
 				}
+				// string/enum/number left unresolved when unset — `_validateRequired`, below,
+				// reports it if required, once every other arg's value is also settled.
 			}
+			errors.push(...this._validateRequired(result));
 			if (errors.length > 0) {
 				throw new Error(`Missing required arguments:\n${errors.map((e) => `  ${e}`).join("\n")}`);
 			}
@@ -403,7 +236,9 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 			if (def.type === "flag") continue;
 
 			const current = result[key];
-			const specs = normalizeSpecs((def as ConfirmDef | StringArgDef | EnumArgDef).required);
+			const specs = normalizeSpecs(
+				(def as ConfirmDef | StringArgDef | EnumArgDef | ListArgDef).required,
+			);
 			const active = activeSpecs(specs, result);
 
 			if (def.type === "confirm") {
@@ -416,6 +251,20 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 				const hintStr = hint ? ` ${colorize(`(${hint})`, "gray")}` : "";
 				const q = `${colorize("?", "porple")} ${colorize(label, "white")}${hintStr}`;
 				result[key] = await cliConfirm(q, def.default);
+				continue;
+			}
+
+			if (def.type === "list") {
+				if (current === undefined && active.length === 0) result[key] = def.default ?? [];
+				// Otherwise left as-is (already collected from the CLI, or still missing) — lists
+				// can't be prompted for, so a missing-but-required list is `_validateRequired`'s
+				// call, below, once every other arg's value is settled too.
+				if ("schema" in def && def.schema) {
+					const check = def.schema.safeParse(current as string[]);
+					if (!check.success) {
+						throw new Error(`--${key}: ${check.issues.map((i) => i.message).join(", ")}`);
+					}
+				}
 				continue;
 			}
 
@@ -473,6 +322,10 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 			}
 		}
 
+		const errors = this._validateRequired(result);
+		if (errors.length > 0) {
+			throw new Error(`Missing required arguments:\n${errors.map((e) => `  ${e}`).join("\n")}`);
+		}
 		return result as ResolvedArgs<T>;
 	}
 
@@ -497,7 +350,7 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 		return this.nonFlags.slice(1);
 	}
 
-	static from<T extends ArgDefsShape<T>>(rawArgs: string[], defs: T): ArgParser<T> {
+	static from<T extends ArgDefsShape>(rawArgs: string[], defs: T): ArgParser<T> {
 		return new ArgParser(rawArgs, defs);
 	}
 
@@ -512,7 +365,7 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 	 * token in `rawArgs` selects the command; everything else is parsed against that
 	 * command's own defs.
 	 */
-	static commandFrom<C extends CommandDefsShape<C>>(
+	static commandFrom<C extends CommandDefsShape>(
 		rawArgs: string[],
 		commands: C,
 	): CommandArgParser<C> {
@@ -525,28 +378,37 @@ export class ArgParser<T extends ArgDefsShape<T> = ArgDefs> {
 export type CommandDefs = Record<string, ArgDefs>;
 
 /**
- * Validates each command's defs against `ArgDefsShape`, keeping their literal inferred types.
- * `$description` is reserved at this root level too — a string describing the whole program,
- * shown above the command list in `--help` output.
+ * Shape accepted by `.commandFrom()`: every key maps to a command's own `ArgDefsShape`, except
+ * the reserved `$description` key, which holds a string describing the whole program (shown
+ * above the command list in `--help` output).
+ *
+ * Ordinary (non self-referential) for the same reason as `ArgDefsShape` — keeps object-literal
+ * completions working at both the command level and each command's own arg defs.
  */
-export type CommandDefsShape<C> = {
-	[K in keyof C]: K extends DescriptionKey ? string : ArgDefsShape<C[K]>;
-};
+export type CommandDefsShape = Record<string, ArgDefsShape | string>;
 
 /** Keys of `C` that are real commands (i.e. everything but `$description`). */
 type CommandKeys<C> = Exclude<keyof C, DescriptionKey>;
 
+/**
+ * `C[K]`, narrowed to `ArgDefsShape` (falling back to `never` otherwise). Since `CommandDefsShape`
+ * is `Record<string, ArgDefsShape | string>`, an abstract `C[K]` widens to include `string` — this
+ * degrades safely instead of failing `ResolvedArgs`'s constraint, the same trick `ArgDefOf` uses.
+ */
+type CommandDefOf<C, K extends keyof C> = C[K] extends ArgDefsShape ? C[K] : never;
+
 /** Union of all command names in `C`. */
-export type CommandName<C extends CommandDefsShape<C>> = CommandKeys<C>;
+export type CommandName<C extends CommandDefsShape> = CommandKeys<C>;
 
 /** Discriminated union of `{ command } & ResolvedArgs` for each command in `C`. */
-export type CommandResolvedArgs<C extends CommandDefsShape<C>> = {
-	[K in CommandKeys<C>]: { command: K } & ResolvedArgs<C[K]>;
+export type CommandResolvedArgs<C extends CommandDefsShape> = {
+	[K in CommandKeys<C>]: { command: K } & ResolvedArgs<CommandDefOf<C, K>>;
 }[CommandKeys<C>];
 
-export class CommandArgParser<C extends CommandDefsShape<C>> {
+export class CommandArgParser<C extends CommandDefsShape> {
 	private _command: CommandKeys<C> | undefined;
 	private _parser: ArgParser<ArgDefs> | undefined;
+	private _rootCommand?: string;
 
 	constructor(private rawArgs: string[], private commands: C) {
 		const idx = rawArgs.findIndex((a) => !a.startsWith("-"));
@@ -564,6 +426,11 @@ export class CommandArgParser<C extends CommandDefsShape<C>> {
 			: [...this.rawArgs.slice(0, idx), ...this.rawArgs.slice(idx + 1)];
 		this._command = command;
 		this._parser = new ArgParser(rest, this.commands[command] as unknown as ArgDefs);
+	}
+
+	setRootCommand(command: string | undefined): CommandArgParser<C> {
+		this._rootCommand = command;
+		return this;
 	}
 
 	/** The matched command name, or `undefined` if the leading token isn't a known command. */
@@ -600,7 +467,10 @@ export class CommandArgParser<C extends CommandDefsShape<C>> {
 		const description = descriptionOf(this.commands);
 		if (description) lines.push(description, "");
 		const rows = this.commandNames.map((name) =>
-			[String(name), descriptionOf(this.commands[name])] as const
+			[
+				String(name),
+				descriptionOf(this.commands[name] as unknown as Record<string, unknown>),
+			] as const
 		);
 		lines.push(colorize("Commands:", "gray"), ...formatListLines(rows));
 		return lines.join("\n");
@@ -614,7 +484,7 @@ export class CommandArgParser<C extends CommandDefsShape<C>> {
 		options?: { promptForCommand?: boolean | string },
 	): Promise<CommandResolvedArgs<C>> {
 		if (isHelpFlag(this.rawArgs)) {
-			_write(this.helpText() + "\n");
+			_write(this.helpText(this._rootCommand) + "\n");
 			Deno.exit(0);
 		}
 

@@ -65,6 +65,8 @@ export abstract class Schema<T> {
 	// Phantom property - never exists at runtime, only for TypeScript inference.
 	declare readonly _output: T;
 
+	protected abstract description?: string;
+
 	abstract _parse(value: unknown, path: (string | number)[]): ParseResult<T>;
 	abstract toJSONSchema(): JSONSchema;
 
@@ -85,6 +87,10 @@ export abstract class Schema<T> {
 	nullable(): NullableSchema<T> {
 		return new NullableSchema(this);
 	}
+
+	getDescription() {
+		return this.description;
+	}
 }
 
 // ─── String ───────────────────────────────────────────────────────────────────
@@ -101,7 +107,7 @@ type StringCheck =
 export class StringSchema extends Schema<string> {
 	constructor(
 		private readonly checks: StringCheck[] = [],
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
@@ -236,7 +242,7 @@ export class NumberSchema extends Schema<number> {
 	constructor(
 		private readonly checks: NumberCheck[] = [],
 		private readonly _coerce = false,
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
@@ -397,7 +403,7 @@ export class NumberSchema extends Schema<number> {
 export class BooleanSchema extends Schema<boolean> {
 	constructor(
 		private readonly _coerce = false,
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
@@ -431,7 +437,7 @@ export class BooleanSchema extends Schema<boolean> {
 export class LiteralSchema<T extends string | number | boolean | null> extends Schema<T> {
 	constructor(
 		private readonly value: T,
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
@@ -469,7 +475,7 @@ export type InferShape<S extends SchemaShape> = {
 export class ObjectSchema<S extends SchemaShape> extends Schema<InferShape<S>> {
 	constructor(
 		readonly shape: S,
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
@@ -559,7 +565,7 @@ export class ArraySchema<T> extends Schema<T[]> {
 	constructor(
 		private readonly items: Schema<T>,
 		private readonly checks: ArrayCheck[] = [],
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
@@ -642,7 +648,7 @@ type InferUnion<T extends UnionMembers> = T[number]["_output"];
 export class UnionSchema<T extends UnionMembers> extends Schema<InferUnion<T>> {
 	constructor(
 		private readonly options: T,
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
@@ -672,7 +678,7 @@ export class UnionSchema<T extends UnionMembers> extends Schema<InferUnion<T>> {
 export class EnumSchema<T extends string> extends Schema<T> {
 	constructor(
 		private readonly values: readonly T[],
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
@@ -703,6 +709,7 @@ export class EnumSchema<T extends string> extends Schema<T> {
 // ─── Optional ─────────────────────────────────────────────────────────────────
 
 export class OptionalSchema<T> extends Schema<T | undefined> {
+	protected readonly description?: string;
 	constructor(private readonly inner: Schema<T>) {
 		super();
 	}
@@ -720,6 +727,7 @@ export class OptionalSchema<T> extends Schema<T | undefined> {
 // ─── Nullable ─────────────────────────────────────────────────────────────────
 
 export class NullableSchema<T> extends Schema<T | null> {
+	protected readonly description?: string;
 	constructor(private readonly inner: Schema<T>) {
 		super();
 	}
@@ -737,7 +745,7 @@ export class NullableSchema<T> extends Schema<T | null> {
 // ─── File (for FormData) ──────────────────────────────────────────────────────
 
 export class FileSchema extends Schema<File> {
-	constructor(private readonly description?: string) {
+	constructor(protected readonly description?: string) {
 		super();
 	}
 
@@ -769,7 +777,7 @@ export class FormDataSchema<S extends SchemaShape> extends Schema<InferShape<S>>
 
 	constructor(
 		readonly shape: S,
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
@@ -832,7 +840,7 @@ export class QuerySchema<S extends SchemaShape> extends Schema<InferShape<S>> {
 
 	constructor(
 		readonly shape: S,
-		private readonly description?: string,
+		protected readonly description?: string,
 	) {
 		super();
 	}
