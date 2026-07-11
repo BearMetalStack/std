@@ -1,4 +1,4 @@
-import { themeCSS } from "./generate.ts";
+import { themeCSS } from "./css/generate.ts";
 import type { Theme } from "./types.ts";
 
 export function injectStyle(id: string, css: string): void {

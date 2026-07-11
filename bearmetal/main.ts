@@ -2,7 +2,7 @@ import { ArgParser, colorize } from "@bearmetal/cli";
 import { f } from "@bearmetal/forge";
 import { generateDripTheme } from "./drip/generateDripTheme.ts";
 import { listDripThemes } from "./drip/listDripThemes.ts";
-import { dripConfig } from "./drip/dripConfig.ts";
+import { dripConfig } from "@bearmetal/drip";
 
 const args = ArgParser.commandFrom(Deno.args, {
 	palette: {

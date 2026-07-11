@@ -1,20 +1,11 @@
 import { css } from "@bearmetal/miscellanea";
-import { themeCSS } from "./generate.ts";
-import { getRegisteredTheme } from "./inject.ts";
-import type { Theme } from "./types.ts";
-
-async function loadTheme(name: string): Promise<Theme> {
-	const url = new URL(`./themes/${name}.theme.json`, import.meta.url);
-	const res = await fetch(url);
-	return await res.json() as Theme;
-}
+import { themeCSS } from "./css/generate.ts";
+import { getDefaultTheme, loadTheme } from "./theme.ts";
 
 export async function ThemeStyle(
 	{ theme }: { theme?: string },
 ): Promise<import("@bearmetal/jsx/server").Html> {
-	const data = theme
-		? (getRegisteredTheme(theme) ?? await loadTheme(theme))
-		: await loadTheme("bearmetal");
+	const data = theme ? await loadTheme(theme) : await getDefaultTheme();
 	return <style id="thingy" raw>{themeCSS(data, ":root").replaceAll(/\n\s*/g, " ")}</style>;
 }
 

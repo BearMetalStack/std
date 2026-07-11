@@ -1,7 +1,7 @@
 import { isDev } from "@bearmetal/miscellanea/environment";
-import { buildVariantsCss } from "./buildVariants.ts";
+import { buildVariantsCss } from "./variants.ts";
 import { emitCalcCSS, isCalcNode } from "./calc.ts";
-import type { PropertyType, SectionedTokens, Theme } from "./types.ts";
+import type { PropertyType, SectionedTokens, Theme } from "../types.ts";
 import { boxIn, justify } from "@bearmetal/miscellanea/string";
 import { css } from "@bearmetal/miscellanea";
 

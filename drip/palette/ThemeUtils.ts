@@ -1,23 +1,11 @@
 import type { Theme } from "@bearmetal/drip";
-import { emitCalcCSS, isCalcNode } from "./calc.ts";
+import { emitCalcCSS, isCalcNode } from "../css/calc.ts";
 
 export class ThemeUtils {
-	constructor(
-		private name: string,
-		private location: URL,
-	) {
-		this._loadTheme();
-	}
-
-	themeData!: Promise<Theme>;
-	_loadTheme() {
-		this.themeData = fetch(this.location)
-			.then((res) => res.json())
-			.then((data) => data);
-	}
+	constructor(private data: Theme) {}
 
 	async *eachColor({ skipReferences }: { skipReferences?: boolean } = {}) {
-		const colors = (await this.themeData).color;
+		const colors = this.data.color;
 		yield* this._each(colors as Theme, ["color"]).filter((e) => {
 			if (skipReferences) return e[1].startsWith("#");
 			return true;

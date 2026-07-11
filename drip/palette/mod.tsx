@@ -1,5 +1,6 @@
 import { BaseStyle, ThemeStyle } from "@bearmetal/drip/ssr";
 import { ThemeUtils } from "./ThemeUtils.ts";
+import { getDefaultTheme } from "@bearmetal/drip";
 import { Html, Router } from "@bearmetal/router";
 import { Chain, css, js } from "@bearmetal/miscellanea";
 
@@ -67,7 +68,7 @@ function buildGradient(
 }
 
 router.get("/", async (ctx) => {
-	const u = new ThemeUtils("bearmetal", new URL(`./themes/bearmetal.theme.json`, import.meta.url));
+	const u = new ThemeUtils(await getDefaultTheme());
 	const colors = (await Chain.fromAsync(u.eachColor({ skipReferences: true }))).groupBy(([k]) =>
 		k.split("-").slice(1, -1).join("-")
 	);

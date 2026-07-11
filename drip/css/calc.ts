@@ -1,4 +1,4 @@
-import type { CalcNode } from "./types.ts";
+import type { CalcNode } from "../types.ts";
 
 export function emitCalcCSS(node: CalcNode): string {
 	if (typeof node === "number") return String(node);

@@ -1,5 +1,5 @@
 import { emitCalcCSS } from "./calc.ts";
-import type { CalcNode, Theme, Variant } from "./types.ts";
+import type { CalcNode, Theme, Variant } from "../types.ts";
 import { indent } from "@bearmetal/miscellanea";
 
 export function buildVariantsCss(theme: Theme, selector: string = ":root") {
@@ -14,7 +14,9 @@ export function buildVariantsCss(theme: Theme, selector: string = ":root") {
 	return variants.flatMap((v) => {
 		const sections: string[] = [];
 		if (v.default) sections.push(`${selector} {\n${v.__compiled}\n}`);
-		if (v.media) sections.push(`@media ${v.media} {\n${indent(`${selector} {\n${v.__compiled}\n}`)}\n}`);
+		if (v.media) {
+			sections.push(`@media ${v.media} {\n${indent(`${selector} {\n${v.__compiled}\n}`)}\n}`);
+		}
 		sections.push(`${selector}[data-theme="${v.name}"] {\n${v.__compiled}\n}`);
 		return sections;
 	}).join("\n\n");
