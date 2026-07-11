@@ -1,7 +1,8 @@
 import { joinPath } from "@bearmetal/miscellanea";
 import { dirname, parse, resolve } from "@std/path";
-import type { DotBearmetalFile, DotBearmetalNamespace } from "@types";
+import type { DotBearmetalDir, DotBearmetalFile, DotBearmetalNamespace } from "@types";
 import { ensureDirOf } from "@fs";
+import { ensureDir } from "@std/fs/ensure-dir";
 
 // Find an existing .bearmetal dir by walking up from cwd
 async function findDotBearmetal(startDir: string): Promise<string | null> {
@@ -73,6 +74,7 @@ export async function dotBearmetalFile<T = {}>(
 	path = joinPath(path, fileName);
 	await ensureDirOf(path);
 	return {
+		path,
 		read() {
 			try {
 				return Deno.readTextFile(path);
@@ -91,7 +93,28 @@ export async function dotBearmetalFile<T = {}>(
 			return Deno.writeTextFile(path, content, { create: true });
 		},
 		writeJson<J = T>(content: J) {
-			return Deno.writeTextFile(path, JSON.stringify(content), { create: true });
+			return Deno.writeTextFile(path, JSON.stringify(content, null, "\t"), { create: true });
+		},
+	};
+}
+
+export async function dotBearmetalDir(namespace: DotBearmetalNamespace): Promise<DotBearmetalDir> {
+	const path = await dotBearmetal(namespace);
+	return {
+		read: async () => {
+			try {
+				return (await Array.fromAsync(Deno.readDir(path)));
+			} catch {
+				return undefined;
+			}
+		},
+		empty: async () => {
+			for await (const entry of Deno.readDir(path)) {
+				await Deno.remove(joinPath(path, entry.name), { recursive: true });
+			}
+		},
+		ensure: () => {
+			return ensureDir(path);
 		},
 	};
 }

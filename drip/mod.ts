@@ -3,6 +3,7 @@ export * from "./types.ts";
 export * from "./inject.ts";
 export * from "./config.ts";
 export * from "./theme.ts";
+export * from "./palette/ThemeUtils.ts";
 
 import { generateStylesheets } from "./theme.ts";
 

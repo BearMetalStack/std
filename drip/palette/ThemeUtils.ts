@@ -4,7 +4,9 @@ import { emitCalcCSS, isCalcNode } from "../css/calc.ts";
 export class ThemeUtils {
 	constructor(private data: Theme) {}
 
-	async *eachColor({ skipReferences }: { skipReferences?: boolean } = {}) {
+	async *eachColor(
+		{ skipReferences }: { skipReferences?: boolean } = {},
+	): AsyncGenerator<[string, string], void, unknown> {
 		const colors = this.data.color;
 		yield* this._each(colors as Theme, ["color"]).filter((e) => {
 			if (skipReferences) return e[1].startsWith("#");

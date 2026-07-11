@@ -9,6 +9,12 @@ export type DotBearmetalFile<T = {}> = {
 	readJson<J = T>(): Promise<J>;
 	write(content: string): Promise<void>;
 	writeJson<J = T>(content: J): Promise<void>;
+	path: string;
+};
+export type DotBearmetalDir = {
+	read(): Promise<Deno.DirEntry[] | undefined>;
+	empty(): Promise<void>;
+	ensure(): Promise<void>;
 };
 export type DotBearmetalNamespace = string | string[];
 export type DotBearmetalNamespaceManifest = {

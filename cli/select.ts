@@ -21,10 +21,10 @@ export async function selectMenuInteractive(
 	this: any,
 	q: string,
 	options: (string | [string, string])[],
-	_config?: ISelectMenuConfig,
+	config?: ISelectMenuConfig,
 ): Promise<string | null> {
 	Deno.stdin.setRaw(true);
-	let selected = 0;
+	let selected = config?.initialSelection ?? 0;
 	const encoder = new TextEncoder();
 	Cursor.saveVisibility();
 	Cursor.hide();

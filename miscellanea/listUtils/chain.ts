@@ -47,9 +47,9 @@ export class Chain<T> {
 		return this.each().toArray().sort(compareFn);
 	}
 
-	groupBy(callback: (e: T) => string): Chain<T> {
+	groupBy(callback: (e: T, g: Groups<T>) => string): Chain<T> {
 		const groups = this.each().reduce((acc, e) => {
-			const key = callback(e);
+			const key = callback(e, acc);
 			if (!acc[key]) {
 				acc[key] = [];
 				acc[key]["__group"] = key;

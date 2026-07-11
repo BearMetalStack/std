@@ -1,4 +1,4 @@
-import { dotBearmetal, dotBearmetalFile } from "@bearmetal/miscellanea/fs";
+import { dotBearmetal, dotBearmetalDir, dotBearmetalFile } from "@bearmetal/miscellanea/fs";
 import { namespaces } from "./namespaces.ts";
 import { getDripConfig } from "./config.ts";
 import { getRegisteredTheme } from "./inject.ts";
@@ -94,4 +94,15 @@ export async function generateStylesheets(): Promise<string[]> {
 		}
 	}
 	return written;
+}
+
+export async function listCustomThemes(): Promise<string[]> {
+	const dir = await dotBearmetalDir(namespaces.themes);
+	return (await dir.read())?.filter((e) => e.name.endsWith(THEME_SUFFIX)).map((e) =>
+		e.name.replace(THEME_SUFFIX, "")
+	) ?? [];
+}
+
+export function listBuiltinThemes(): string[] {
+	return ["bearmetal"];
 }
