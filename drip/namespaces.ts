@@ -5,3 +5,5 @@ export const namespaces: DotBearmetalNamespaceManifest = {
 	themes: ["drip", "themes"],
 	stylesheets: ["drip", "stylesheets"],
 } as const;
+
+export type Namespace = keyof typeof namespaces;

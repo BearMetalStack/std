@@ -3,7 +3,7 @@ import { ThemeUtils } from "./ThemeUtils.ts";
 import { Html, Router } from "@bearmetal/router";
 import { Chain, css, js } from "@bearmetal/miscellanea";
 
-const router = new Router();
+export const router: Router = new Router();
 
 router.use(async (_, next) => {
 	try {
@@ -396,4 +396,4 @@ router.get("/", async (ctx) => {
 	return Html((await page).toString());
 });
 
-Deno.serve(router.handle);
+if (import.meta.main) Deno.serve(router.handle);

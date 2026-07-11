@@ -10,7 +10,7 @@ interface ISelectMenuConfig {
 
 type callback = (...args: any[]) => any;
 
-export function selectMenu(items: string[]) {
+export function selectMenu(items: string[]): string {
 	const menu = items.map((i, index) => `${index + 1}. ${i}`).join("\n");
 	console.log(menu);
 	const index = parseInt(prompt("Please select an option:") || "1") - 1;

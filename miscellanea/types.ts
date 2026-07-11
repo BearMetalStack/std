@@ -3,9 +3,12 @@ import type { Fn } from "@fn";
 export type TemplateArgs = [template: TemplateStringsArray, ...substitutions: unknown[]];
 export type TagFn = Fn<TemplateArgs, string>;
 
-export type DotBearmetalFile = {
-	read(): Promise<string>;
+// deno-lint-ignore ban-types
+export type DotBearmetalFile<T = {}> = {
+	read(): Promise<string> | undefined;
+	readJson<J = T>(): Promise<J>;
 	write(content: string): Promise<void>;
+	writeJson<J = T>(content: J): Promise<void>;
 };
 export type DotBearmetalNamespace = string | string[];
 export type DotBearmetalNamespaceManifest = {

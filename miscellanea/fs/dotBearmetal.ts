@@ -1,6 +1,7 @@
 import { joinPath } from "@bearmetal/miscellanea";
 import { dirname, parse, resolve } from "@std/path";
 import type { DotBearmetalFile, DotBearmetalNamespace } from "@types";
+import { ensureDirOf } from "@fs";
 
 // Find an existing .bearmetal dir by walking up from cwd
 async function findDotBearmetal(startDir: string): Promise<string | null> {
@@ -63,18 +64,34 @@ export async function dotBearmetal(namespace: DotBearmetalNamespace): Promise<st
 	return path;
 }
 
-export async function dotBearmetalFile(
+// deno-lint-ignore ban-types
+export async function dotBearmetalFile<T = {}>(
 	namespace: DotBearmetalNamespace,
 	fileName: string,
-): Promise<DotBearmetalFile> {
+): Promise<DotBearmetalFile<T>> {
 	let path = await dotBearmetal(namespace);
 	path = joinPath(path, fileName);
+	await ensureDirOf(path);
 	return {
 		read() {
-			return Deno.readTextFile(path);
+			try {
+				return Deno.readTextFile(path);
+			} catch {
+				return undefined;
+			}
+		},
+		async readJson<J = T>(): Promise<J> {
+			try {
+				return JSON.parse(await Deno.readTextFile(path));
+			} catch {
+				return {} as J;
+			}
 		},
 		write(content: string) {
 			return Deno.writeTextFile(path, content, { create: true });
+		},
+		writeJson<J = T>(content: J) {
+			return Deno.writeTextFile(path, JSON.stringify(content), { create: true });
 		},
 	};
 }
