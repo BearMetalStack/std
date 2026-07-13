@@ -1,4 +1,4 @@
-import { BaseStyle, ThemeStyle } from "@bearmetal/drip/ssr";
+import { BaseStyle, ThemeStyle } from "../ssr.tsx";
 import { ThemeUtils } from "./ThemeUtils.ts";
 import { getDefaultTheme } from "@bearmetal/drip";
 import { Html, Router } from "@bearmetal/router";
