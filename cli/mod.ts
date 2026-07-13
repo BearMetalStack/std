@@ -10,7 +10,7 @@ import {
 	RESET,
 	setBGReset,
 	setFGReset,
-} from "@bearmetal/cli/style";
+} from "./style.ts";
 import { writeRow } from "./write.ts";
 import {
 	bloody,
