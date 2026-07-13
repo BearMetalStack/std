@@ -1,0 +1,12 @@
+{
+    "name": "@bearmetal/clawmark",
+    "version": "0.1.0",
+    "exports": {
+        ".": "./mod.ts",
+        "./rules/extra": "./rules/extra/mod.ts"
+    },
+    "tasks": {
+        "dev": "deno test --watch"
+    },
+    "license": "GPL-3.0-only"
+}
