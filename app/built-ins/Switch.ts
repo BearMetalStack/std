@@ -36,6 +36,7 @@ export function Switch<T>({ $, children }: SwitchProps<T>): Signal.Computed<JSX.
 	let prevNode: JSX.Element | null = null;
 	return createComputed(() => {
 		const val = $.get();
+		console.log(val, $);
 		if (prevVal === val) return prevNode;
 		prevVal = val;
 		drain(cleanups, (e) => e());
@@ -58,6 +59,7 @@ export function Switch<T>({ $, children }: SwitchProps<T>): Signal.Computed<JSX.
 			() => (renderer ?? fallback)?.() ?? null,
 			() => drain(cleanups, (e) => e()),
 		);
+		prevNode = (renderer ?? fallback)?.() ?? null;
 		return prevNode;
 	});
 }

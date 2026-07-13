@@ -22,6 +22,7 @@ export function when(
 	let prevNode: JSX.Element | null = null;
 	return createComputed(() => {
 		const val = e.get();
+		console.log(val, e);
 		if (prevVal === val) return prevNode;
 		drain(cleanups, (e) => e());
 		prevVal = val;

@@ -151,20 +151,29 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 }
 
 function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalLike) {
-	const getValue = () => {
-		const v = signal.get();
-		if (v instanceof Node) return "";
-		return v == null ? "" : String(v);
-	};
-	const initial = signal.get();
-	if (initial instanceof Node) {
-		parent.appendChild(initial);
-		return;
-	}
-	const text = document.createTextNode(getValue());
-	parent.appendChild(text);
+	let current: Node = document.createTextNode("");
+	let currentIsText = true;
+	parent.appendChild(current);
+
 	reactiveEffect(() => {
-		text.data = getValue();
+		const v = signal.get();
+		if (v instanceof Node) {
+			if (v !== current) {
+				current.parentNode?.replaceChild(v, current);
+				current = v;
+				currentIsText = false;
+			}
+			return;
+		}
+		const text = v == null ? "" : String(v);
+		if (currentIsText) {
+			(current as Text).data = text;
+		} else {
+			const node = document.createTextNode(text);
+			current.parentNode?.replaceChild(node, current);
+			current = node;
+			currentIsText = true;
+		}
 	});
 }
 
