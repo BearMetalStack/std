@@ -33,7 +33,7 @@ export class BmIcon extends BMElement {
 	get template(): JSX.Element {
 		return (
 			<>
-				<style raw>
+				<style $raw>
 					{css`
 						.icon {
 							display: contents;

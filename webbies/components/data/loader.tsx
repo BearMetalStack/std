@@ -9,7 +9,7 @@ export class Loader extends BMElement {
 	get template(): JSX.Element {
 		return (
 			<>
-				<style raw>
+				<style $raw>
 					{css`
 						.notched {
 							width: var(--space-8);

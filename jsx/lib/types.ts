@@ -1,6 +1,7 @@
 import type { Html } from "@bearmetal/jsx";
 
 type SignalLike<T = unknown> = { get(): T };
+export type WritableSignalLike<T = unknown> = SignalLike<T> & { set(value: T): void };
 
 export type MakeChild<Extra = never> =
 	| globalThis.Element
@@ -25,7 +26,7 @@ export interface MakeCommonProps<Extra = never> {
 	hidden?: boolean | Extra;
 	popover?: boolean | Extra;
 	children?: MakeChildren<Extra>;
-	raw?: boolean;
+	$raw?: boolean;
 	ref?: string;
 	[key: `data-${string}`]: string | undefined;
 	[key: `aria-${string}`]: string | boolean | undefined;
@@ -75,6 +76,8 @@ export interface MakeInputProps<Extra = never> extends MakeBaseProps<Extra> {
 	accept?: string | Extra;
 	popovertarget?: string | Extra;
 	popovertargetaction?: "hide" | "show" | "toggle" | Extra;
+	$bind?: Extra extends never ? never : WritableSignalLike;
+	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
 
 export interface MakeTextareaProps<Extra = never> extends MakeBaseProps<Extra> {
@@ -85,6 +88,8 @@ export interface MakeTextareaProps<Extra = never> extends MakeBaseProps<Extra> {
 	cols?: number | Extra;
 	readonly?: boolean | Extra;
 	name?: string | Extra;
+	$bind?: Extra extends never ? never : WritableSignalLike;
+	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
 
 export interface MakeSelectProps<Extra = never> extends MakeBaseProps<Extra> {

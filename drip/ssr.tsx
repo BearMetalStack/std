@@ -6,12 +6,12 @@ export async function ThemeStyle(
 	{ theme }: { theme?: string | null },
 ): Promise<import("@bearmetal/jsx/server").Html> {
 	const data = theme ? await loadTheme(theme) : await getDefaultTheme();
-	return <style id="thingy" raw>{themeCSS(data, ":root").replaceAll(/\n\s*/g, " ")}</style>;
+	return <style id="thingy" $raw>{themeCSS(data, ":root").replaceAll(/\n\s*/g, " ")}</style>;
 }
 
 export function BaseStyle(): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
 	return (
-		<style raw>
+		<style $raw>
 			{css`
 				/* ============================================================
 				   RESET
@@ -279,7 +279,7 @@ export function BaseStyle(): import("@bearmetal/jsx/server/jsx-runtime").JSX.Ele
 
 export function ComponentStyle(): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
 	return (
-		<style raw>
+		<style $raw>
 			{css`
 				/* ============================================================
 				   form elements

@@ -101,7 +101,7 @@ router.get("/", async (ctx) => {
 				<ThemeStyle />
 				<ThemeStyle theme={themeName} />
 				<BaseStyle />
-				<style raw>
+				<style $raw>
 					{css`
 						@view-transition {
 							navigation: auto;
@@ -357,7 +357,7 @@ router.get("/", async (ctx) => {
 						</div>
 					</div>
 				)}
-				<script raw>
+				<script $raw>
 					{js`
 					    function showToast(message) {
 					        const toast = document.createElement("p")

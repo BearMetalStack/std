@@ -86,7 +86,7 @@ export class AlphaLayout extends BMElement {
 	get template(): JSX.Element {
 		return (
 			<>
-				<style raw>
+				<style $raw>
 					{css`
 						:host {
 							display: grid;

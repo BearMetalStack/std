@@ -172,8 +172,8 @@ export abstract class BMElement<
 	 */
 	protected get template():
 		| JSX.Element
-		| Signals.State<JSX.Element>
-		| Signals.Computed<JSX.Element>
+		| Signals.State<JSX.Element | null>
+		| Signals.Computed<JSX.Element | null>
 		| undefined {
 		return undefined;
 	}

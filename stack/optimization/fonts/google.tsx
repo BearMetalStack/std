@@ -30,7 +30,7 @@ export async function GoogleFonts(
 	return (
 		<>
 			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-			<style raw>
+			<style $raw>
 				{css}
 			</style>
 		</>

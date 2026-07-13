@@ -1,6 +1,7 @@
 import { type BMC, isBMC } from "../lib/bmc.ts";
 
 type SignalLike = { get(): unknown };
+type WritableSignalLike = SignalLike & { set(value: unknown): void };
 
 function isSignal(value: unknown): value is SignalLike {
 	return (
@@ -8,6 +9,14 @@ function isSignal(value: unknown): value is SignalLike {
 		typeof value === "object" &&
 		// deno-lint-ignore no-explicit-any
 		typeof (value as any).get === "function"
+	);
+}
+
+function isWritableSignal(value: unknown): value is WritableSignalLike {
+	return (
+		isSignal(value) &&
+		// deno-lint-ignore no-explicit-any
+		typeof (value as any).set === "function"
 	);
 }
 
@@ -79,8 +88,44 @@ function isPixelable(key: string, val: unknown): boolean {
 	return typeof val === "number" && pixelables.includes(key);
 }
 
+function isCheckable(type: unknown): boolean {
+	return type === "checkbox" || type === "radio";
+}
+
+function coerceBindValue(
+	el: HTMLInputElement | HTMLTextAreaElement,
+	type: unknown,
+	cast: ((raw: string | boolean) => unknown) | undefined,
+): unknown {
+	const raw: string | boolean = isCheckable(type) ? (el as HTMLInputElement).checked : el.value;
+	if (cast) return cast(raw);
+	if (type === "number" || type === "range") return Number(raw);
+	if (isCheckable(type)) return Boolean(raw);
+	return raw;
+}
+
+function applyBind(
+	el: HTMLInputElement | HTMLTextAreaElement,
+	signal: WritableSignalLike,
+	type: unknown,
+	cast: ((raw: string | boolean) => unknown) | undefined,
+) {
+	reactiveEffect(() => {
+		const value = signal.get();
+		if (isCheckable(type)) {
+			(el as HTMLInputElement).checked = Boolean(value);
+		} else {
+			el.value = value == null ? "" : String(value);
+		}
+	});
+	el.addEventListener("input", () => {
+		signal.set(coerceBindValue(el, type, cast));
+	});
+}
+
 function applyProps(el: HTMLElement, props: Record<string, unknown>) {
-	for (const [key, val] of Object.entries(props)) {
+	const { $bind, $type, ...attrs } = props;
+	for (const [key, val] of Object.entries(attrs)) {
 		if (key === "children") continue;
 		if (key === "ref" && typeof val === "string" && _currentOwner?.registerRef) {
 			_currentOwner.registerRef(val, el);
@@ -91,6 +136,17 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 		} else {
 			applyProp(el, key, val);
 		}
+	}
+	if ($bind !== undefined) {
+		if (!isWritableSignal($bind)) {
+			throw new Error("$bind requires a writable signal (an object with get() and set())");
+		}
+		applyBind(
+			el as HTMLInputElement | HTMLTextAreaElement,
+			$bind,
+			attrs.type,
+			$type as ((raw: string | boolean) => unknown) | undefined,
+		);
 	}
 }
 
@@ -149,7 +205,7 @@ export function clientJsx(
 	props: Record<string, unknown>,
 	_key?: unknown,
 ): unknown {
-	const { children, raw, ...rest } = props;
+	const { children, $raw, ...rest } = props;
 	const flat = flatChildren(children);
 
 	if (isBMC(tag)) {
@@ -172,7 +228,7 @@ export function clientJsx(
 
 	const el = document.createElement(tag);
 	applyProps(el, rest);
-	if (raw) {
+	if ($raw) {
 		for (const child of flat) {
 			if (child == null) continue;
 			if (isSignal(child)) {
@@ -276,7 +332,7 @@ export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string)
 		props: Record<string, unknown>,
 		_key?: unknown,
 	): Promise<unknown> {
-		const { children, raw, ...rest } = props;
+		const { children, $raw, ...rest } = props;
 		const flat = flatChildren(children);
 
 		if (isBMC(tag)) {
@@ -290,7 +346,7 @@ export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string)
 				? { ...loadedProps, "data-server-props": btoa(JSON.stringify(loaded)) }
 				: loadedProps;
 
-			const childStr = (await Promise.all(flat.map(raw ? resolveChildRaw : resolveChild))).join("");
+			const childStr = (await Promise.all(flat.map($raw ? resolveChildRaw : resolveChild))).join("");
 			const inner = await tag.serverRender(loadedProps, childStr);
 			return new Html(`<${tag.tag}${buildAttrs(serialized)}>${inner}</${tag.tag}>`);
 		}
@@ -301,7 +357,7 @@ export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string)
 
 		const attrs = buildAttrs(rest);
 		if (voidElements.has(tag as string)) return new Html(`<${tag}${attrs}>`);
-		const childStr = (await Promise.all(flat.map(raw ? resolveChildRaw : resolveChild))).join("");
+		const childStr = (await Promise.all(flat.map($raw ? resolveChildRaw : resolveChild))).join("");
 		return new Html(`<${tag}${attrs}>${childStr}</${tag}>`);
 	}
 

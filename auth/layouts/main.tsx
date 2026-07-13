@@ -10,7 +10,7 @@ export const mainLayout: LayoutEl = (props) => {
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 				<title>Sign In</title>
 				<ThemeStyle />
-				<style raw>
+				<style $raw>
 					{css`
 						body {
 							width: 100vw;
