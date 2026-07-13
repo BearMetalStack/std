@@ -40,7 +40,7 @@ export function Page<T extends StateType>(
 		const html = await render(ctx);
 		if (typeof layout === "function") {
 			const page = (await layout({ children: html, title })).toString();
-			page.matchAll(tagRx).forEach((m) => usedTags.add(m.groups?.tag ?? ""));
+			page.matchAll(tagRx).forEach((m: any) => usedTags.add(m.groups?.tag ?? ""));
 
 			if (endHeadRx.test(page)) {
 				const [scripttag, styletag] = await buildTagBundle(usedTags);
@@ -57,7 +57,7 @@ export function Page<T extends StateType>(
 		}
 		if (endHeadRx.test(html.toString())) {
 			const r = html.toString();
-			r.matchAll(tagRx).forEach((m) => usedTags.add(m.groups?.tag ?? ""));
+			r.matchAll(tagRx).forEach((m: any) => usedTags.add(m.groups?.tag ?? ""));
 			const [scripttag, styletag] = await buildTagBundle(usedTags);
 			return HTMLRes(
 				r

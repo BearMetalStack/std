@@ -4,13 +4,27 @@ import type { Signal as Signals } from "@signals";
 import { Signal } from "@signals";
 import type { ContextMap } from "./context/mod.ts";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
-import { each, effect } from "./signals.ts";
+import { effect } from "./signals.ts";
 import { coerceProp, declaredProps } from "./prop.ts";
+import { each } from "./built-ins/For.ts";
 
 setEffectImpl(effect);
 
 function isSignal(S: unknown): S is Signals.State<unknown> | Signals.Computed<unknown> {
 	return S instanceof Signal.State || S instanceof Signal.Computed;
+}
+
+/**
+ * A `template` signal may legitimately resolve to `null`/`undefined` (e.g. a
+ * ternary that renders nothing). DOM APIs don't agree on what that means:
+ * `appendChild` requires a real `Node` and throws on `null`, while
+ * `replaceChildren` silently stringifies it into the text `"null"`. Route
+ * every template value through here first so "nothing" reliably becomes an
+ * empty text node instead of a crash or stray text.
+ */
+function toNode(v: unknown): Node {
+	if (v instanceof Node) return v;
+	return document.createTextNode("");
 }
 
 export abstract class BMElement<
@@ -111,7 +125,7 @@ export abstract class BMElement<
 			if (this.root.hasChildNodes()) {
 				const t = this.template;
 				if (t !== undefined && isSignal(t)) {
-					this.addEffect(() => this.replaceChildren(t.get() as Node));
+					this.addEffect(() => this.replaceChildren(toNode(t.get())));
 				}
 
 				for (const el of this.root.querySelectorAll("[ref]")) {
@@ -123,11 +137,11 @@ export abstract class BMElement<
 				if (t !== undefined) {
 					if (isSignal(t)) {
 						const frag = document.createDocumentFragment();
-						frag.appendChild(t.get() as Node);
+						frag.appendChild(toNode(t.get()));
 						this.#runInit();
 						this.root.appendChild(frag);
 						this.addEffect(() => {
-							this.replaceChildren(t.get() as Node);
+							this.replaceChildren(toNode(t.get()));
 						});
 					} else {
 						const frag = document.createDocumentFragment();

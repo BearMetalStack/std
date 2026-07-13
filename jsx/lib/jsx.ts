@@ -128,6 +128,19 @@ function appendFlatChildren(
 	}
 }
 
+export function clientJsx<T>(
+	// deno-lint-ignore no-explicit-any
+	tag: (props: any) => T,
+	props: Record<string, unknown>,
+	_key?: unknown,
+): T;
+export function clientJsx(
+	tag:
+		| string
+		| typeof BMC,
+	props: Record<string, unknown>,
+	_key?: unknown,
+): Element | DocumentFragment;
 export function clientJsx(
 	tag:
 		| string
@@ -135,7 +148,7 @@ export function clientJsx(
 		| typeof BMC,
 	props: Record<string, unknown>,
 	_key?: unknown,
-): Element | DocumentFragment {
+): unknown {
 	const { children, raw, ...rest } = props;
 	const flat = flatChildren(children);
 
@@ -243,6 +256,18 @@ export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string)
 		return childToStrRaw(c);
 	}
 
+	async function serverJsx<T extends HtmlLike>(
+		tag: (props: Record<string, unknown>) => T | Promise<T>,
+		props: Record<string, unknown>,
+		_key?: unknown,
+	): Promise<T>;
+	async function serverJsx(
+		tag:
+			| string
+			| typeof BMC,
+		props: Record<string, unknown>,
+		_key?: unknown,
+	): Promise<HtmlLike>;
 	async function serverJsx(
 		tag:
 			| string
@@ -250,7 +275,7 @@ export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string)
 			| typeof BMC,
 		props: Record<string, unknown>,
 		_key?: unknown,
-	): Promise<HtmlLike> {
+	): Promise<unknown> {
 		const { children, raw, ...rest } = props;
 		const flat = flatChildren(children);
 
