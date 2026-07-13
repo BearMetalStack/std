@@ -7,8 +7,8 @@ interface ShowProps {
 	children: () => JSX.Element;
 }
 
-export function Show({ when: $, children }: ShowProps): JSX.Element {
-	return <>{when($, children)}</>;
+export function Show({ when: $, children }: ShowProps): Signal.Computed<JSX.Element | null> {
+	return when($, children);
 }
 
 export function when(

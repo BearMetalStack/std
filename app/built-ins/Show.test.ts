@@ -1,12 +1,17 @@
 import { assertEquals } from "@std/assert";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
-import { Show, when } from "./Show.tsx";
-import { createSignal } from "../signals.ts";
+import { Show, when } from "./Show.ts";
+import { createSignal, isSignal } from "../signals.ts";
+import type { SignalOf } from "../types.ts";
 
 // No document global under `deno test`, so the jsx-runtime chooser picks the server
 // impl: Show's fragment resolves to a Promise of an Html-like whose `raw` is the
 // rendered string.
-async function rendered(el: JSX.Element): Promise<string> {
+async function rendered(
+	el: JSX.Element | null | SignalOf<JSX.Element | null>,
+): Promise<string | null> {
+	if (!el) return null;
+	if (isSignal(el)) return rendered(await el.get());
 	return (await (el as unknown as Promise<{ raw: string }>)).raw;
 }
 

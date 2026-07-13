@@ -1,5 +1,6 @@
 import { Signal } from "@signals";
 import { getCurrentOwner } from "@bearmetal/jsx/client";
+import type { SignalOf } from "./types.ts";
 
 let needsFlush = true;
 const watcher = new Signal.subtle.Watcher(() => {
@@ -56,4 +57,8 @@ export function createSignal<T>(init: T): Signal.State<T> {
 
 export function createComputed<T>(init: () => T): Signal.Computed<T> {
 	return new Signal.Computed(init);
+}
+
+export function isSignal<T>(v: SignalOf<T> | unknown): v is SignalOf<T> {
+	return Signal.isState(v) || Signal.isComputed(v);
 }

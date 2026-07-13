@@ -15,7 +15,17 @@ export function For<T>({ $, keyOn, children }: ForProps<T>): ReturnType<typeof e
 function ownerScope() {
 	const prev = getCurrentOwner();
 	const cleanups: Array<() => void> = [];
-	setCurrentOwner({ registerCleanup: (fn) => cleanups.push(fn) });
+	setCurrentOwner({
+		registerCleanup: (fn) => cleanups.push(fn),
+		// Refs registered by a render callback (e.g. `ref="foo"` on a list item)
+		// must land on the real owning component, not this per-item scope, or
+		// they'd silently never be recorded — `clientJsx` only special-cases
+		// `ref` when `_currentOwner.registerRef` exists.
+		registerRef: prev?.registerRef?.bind(prev),
+		get refs() {
+			return prev?.refs;
+		},
+	});
 	return {
 		cleanups,
 		[Symbol.dispose]() {

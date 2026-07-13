@@ -13,7 +13,7 @@ interface SwitchProps<T> {
 	children: JSX.Element | JSX.Element[];
 }
 
-export function Switch<T>({ $, children }: SwitchProps<T>): JSX.Element {
+export function Switch<T>({ $, children }: SwitchProps<T>): Signal.Computed<JSX.Element | null> {
 	const map = new Map<T, CaseRenderer>();
 	const evaluators: [CaseEval<T>, CaseRenderer][] = [];
 	let fallback: CaseRenderer | undefined;
@@ -27,7 +27,7 @@ export function Switch<T>({ $, children }: SwitchProps<T>): JSX.Element {
 			evaluators.push([child.$ as CaseEval<T>, child.renderer]);
 		} else map.set(child.$ as T, child.renderer);
 	}
-	const s = createComputed(() => {
+	return createComputed(() => {
 		const val = $.get();
 		let renderer = map.get(val);
 		if (!renderer) {
@@ -40,8 +40,6 @@ export function Switch<T>({ $, children }: SwitchProps<T>): JSX.Element {
 		}
 		return (renderer ?? fallback)?.() ?? null;
 	});
-
-	return <>{s}</>;
 }
 
 interface CaseProps<T> {

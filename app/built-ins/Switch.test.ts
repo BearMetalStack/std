@@ -1,14 +1,19 @@
 import { assertEquals } from "@std/assert";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
-import { Case, Default, Switch } from "./Switch.tsx";
-import { createSignal } from "../signals.ts";
+import { Case, Default, Switch } from "./Switch.ts";
+import { createSignal, isSignal } from "../signals.ts";
+import type { SignalOf } from "../types.ts";
 
 // Renderers yield bare strings; under Deno (no document) the jsx runtime is the
 // server impl, so Switch's fragment resolves to a Promise of an Html-like whose
 // raw string is the chosen renderer's output.
 const r = (s: string) => () => s as unknown as JSX.Element;
 
-async function rendered(el: JSX.Element): Promise<string> {
+async function rendered(
+	el: JSX.Element | null | SignalOf<JSX.Element | null>,
+): Promise<string | null> {
+	if (!el) return null;
+	if (isSignal(el)) return rendered(await el.get());
 	return (await (el as unknown as Promise<{ raw: string }>)).raw;
 }
 

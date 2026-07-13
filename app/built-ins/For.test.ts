@@ -19,6 +19,26 @@ function fakeOwner() {
 	};
 }
 
+/**
+ * Mirrors `BMElement`'s real shape: refs live behind a private field only
+ * reachable through a properly-bound `this`, so a `registerRef` forwarded
+ * without `.bind()` would throw instead of silently losing the ref.
+ */
+class FakeOwnerWithRefs {
+	#refs = new Map<string, unknown>();
+	#cleanups: Array<() => void> = [];
+	registerCleanup = (fn: () => void) => this.#cleanups.push(fn);
+	registerRef(name: string, el: unknown): void {
+		this.#refs.set(name, el);
+	}
+	getRef(name: string): unknown {
+		return this.#refs.get(name);
+	}
+	runCleanups(): void {
+		this.#cleanups.forEach((fn) => fn());
+	}
+}
+
 function tags(anchor: MiniElement): string[] {
 	return anchor.children.map((c) => c.tag);
 }
@@ -126,6 +146,23 @@ Deno.test("each reorders existing nodes without re-rendering unchanged items", a
 		await flush();
 		assertEquals(tags(anchor), ["b", "a"]);
 		assertEquals(renderCount, 2, "reordering unchanged objects should not re-render them");
+	} finally {
+		setCurrentOwner(null);
+	}
+});
+
+Deno.test("refs registered by a render callback land on the real owning component, not the per-item scope", async () => {
+	const owner = new FakeOwnerWithRefs();
+	setCurrentOwner(owner);
+	try {
+		const signal = createSignal<Item[]>([{ id: 1, label: "a" }]);
+		each(signal, (item) => {
+			const el = render(item);
+			getCurrentOwner()?.registerRef?.(`item-${item.id}`, el);
+			return el;
+		}, (i) => i.id);
+		await flush();
+		assertExists(owner.getRef("item-1"), "ref declared inside the render callback should register");
 	} finally {
 		setCurrentOwner(null);
 	}

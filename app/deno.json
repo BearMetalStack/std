@@ -5,7 +5,8 @@
 		".": "./mod.ts",
 		"./signals": "./signals/index.ts",
 		"./context": "./context/mod.ts",
-		"./ssr": "./ssr/mod.ts"
+		"./ssr": "./ssr/mod.ts",
+		"./types": "./types.ts"
 	},
 	"tasks": {
 		"example:counter": {
@@ -38,9 +39,7 @@
 	},
 	"lint": {
 		"rules": {
-			"exclude": [
-				"no-explicit-any"
-			]
+			"exclude": ["no-explicit-any"]
 		}
 	},
 	"fmt": {
