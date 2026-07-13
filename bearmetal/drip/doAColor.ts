@@ -1,7 +1,6 @@
-import { cliConfirm, cliPrompt } from "../../cli/prompts.ts";
-import { selectMenuInteractive } from "../../cli/select.ts";
+import { cliConfirm, cliPrompt, selectMenuInteractive } from "@bearmetal/cli";
 import { bgColorize, colorize } from "@bearmetal/cli/style";
-import type { Theme } from "../../drip/types.ts";
+import type { Theme } from "@bearmetal/drip";
 import {
 	DEFAULT_LIGHTNESS_MAP,
 	generateRelativeLightnessMap,

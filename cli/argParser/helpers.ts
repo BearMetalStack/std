@@ -1,4 +1,4 @@
-import { colorize } from "@bearmetal/cli/style";
+import { colorize } from "../style.ts";
 import type {
 	ArgDef,
 	ConfirmDef,
