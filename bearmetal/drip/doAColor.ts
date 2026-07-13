@@ -1,7 +1,6 @@
-import { cliConfirm, cliPrompt } from "../../cli/prompts.ts";
-import { selectMenuInteractive } from "../../cli/select.ts";
+import { cliConfirm, cliPrompt, selectMenuInteractive } from "@bearmetal/cli";
 import { bgColorize, colorize } from "@bearmetal/cli/style";
-import type { Theme } from "../../drip/types.ts";
+import type { Theme } from "@bearmetal/drip";
 import {
 	DEFAULT_LIGHTNESS_MAP,
 	generateRelativeLightnessMap,
@@ -10,8 +9,8 @@ import {
 	seededScale,
 	srgbToOklch,
 	STOPS,
-} from "../../miscellanea/colors/mod.ts";
-import { toKebabCase } from "../../miscellanea/string/capitalization/mod.ts";
+	toKebabCase,
+} from "@bearmetal/miscellanea";
 
 export async function doAColor(theme: Theme) {
 	console.log("Coat of paint coming right up!");
