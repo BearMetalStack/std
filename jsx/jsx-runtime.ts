@@ -9,5 +9,5 @@ const Fragment = j.Fragment;
 const jsx = j.jsx;
 const jsxs = j.jsxs;
 export { Fragment, jsx, jsxs };
-export { getCurrentOwner, setCurrentOwner, setEffectImpl } from "./lib/jsx.ts";
+export { getCurrentOwner, type Owner, setCurrentOwner, setEffectImpl } from "./lib/jsx.ts";
 export type * from "./types.ts";

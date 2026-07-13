@@ -1,6 +1,8 @@
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal } from "../signals/wrapper.ts";
 import { createComputed } from "../signals.ts";
+import { borrowOwnership } from "../util/ownership.ts";
+import { drain } from "../util/drain.ts";
 
 // TS types every JSX expression as JSX.Element regardless of the component's
 // declared return type, so <Case>/<Default> can't honestly return CaseTuple.
@@ -27,8 +29,17 @@ export function Switch<T>({ $, children }: SwitchProps<T>): Signal.Computed<JSX.
 			evaluators.push([child.$ as CaseEval<T>, child.renderer]);
 		} else map.set(child.$ as T, child.renderer);
 	}
+
+	const cleanups: (() => void)[] = [];
+
+	let prevVal: T | undefined = undefined;
+	let prevNode: JSX.Element | null = null;
 	return createComputed(() => {
 		const val = $.get();
+		if (prevVal === val) return prevNode;
+		prevVal = val;
+		drain(cleanups, (e) => e());
+
 		let renderer = map.get(val);
 		if (!renderer) {
 			for (const [evalFn, r] of evaluators) {
@@ -38,7 +49,16 @@ export function Switch<T>({ $, children }: SwitchProps<T>): Signal.Computed<JSX.
 				}
 			}
 		}
-		return (renderer ?? fallback)?.() ?? null;
+		prevNode = borrowOwnership(
+			{
+				registerCleanup(e) {
+					cleanups.push(e);
+				},
+			},
+			() => (renderer ?? fallback)?.() ?? null,
+			() => drain(cleanups, (e) => e()),
+		);
+		return prevNode;
 	});
 }
 

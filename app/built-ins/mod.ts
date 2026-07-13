@@ -1,3 +1,3 @@
 export * from "./For.ts";
-export * from "./Switch.tsx";
-export * from "./Show.tsx";
+export * from "./Switch.ts";
+export * from "./Show.ts";

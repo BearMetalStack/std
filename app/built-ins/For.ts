@@ -115,7 +115,6 @@ function reconcile<T>(
 			const entry = keyMap.get(k);
 			if (!entry) continue;
 			using scope = ownerScope();
-			// TODO: Pretty sure this becomes an n^2 problem, should have the initial idx as part of the payloads
 			const newNode = render(item, items.indexOf(item));
 			entry.cleanup?.();
 			if (newNode == null) {
@@ -131,7 +130,6 @@ function reconcile<T>(
 		for (const item of added) {
 			const k = key(item);
 			using scope = ownerScope();
-			// TODO: Pretty sure this becomes an n^2 problem, should have the initial idx as part of the payloads
 			const node = render(item, items.indexOf(item));
 			if (node == null) continue;
 			keyMap.set(k, { node, cleanup: () => scope.cleanups.forEach((fn) => fn()) });

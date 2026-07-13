@@ -24,7 +24,7 @@ type CleanupFn = () => void;
 type EffectFn = (fn: () => CleanupFn | void) => CleanupFn;
 
 let _effect: EffectFn | null = null;
-type Owner = {
+export type Owner = {
 	registerCleanup(fn: CleanupFn): void;
 	registerRef?: (ref: string, el: Element) => void;
 	/** Live view of the owner's registered refs, read by `getRefs()`. */
@@ -346,7 +346,9 @@ export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string)
 				? { ...loadedProps, "data-server-props": btoa(JSON.stringify(loaded)) }
 				: loadedProps;
 
-			const childStr = (await Promise.all(flat.map($raw ? resolveChildRaw : resolveChild))).join("");
+			const childStr = (await Promise.all(flat.map($raw ? resolveChildRaw : resolveChild))).join(
+				"",
+			);
 			const inner = await tag.serverRender(loadedProps, childStr);
 			return new Html(`<${tag.tag}${buildAttrs(serialized)}>${inner}</${tag.tag}>`);
 		}
