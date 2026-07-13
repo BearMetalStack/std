@@ -1,13 +1,13 @@
 {
-    "name": "@bearmetal/cli",
-    "version": "0.0.3",
-    "exports": {
-        ".": "./mod.ts",
-        "./style": "./style.ts",
-        "./argParser": "./argParser/mod.ts"
-    },
-    "tasks": {
-        "dev": "deno test --watch"
-    },
-    "license": "GPL-3.0-only"
+	"name": "@bearmetal/cli",
+	"version": "0.0.4",
+	"exports": {
+		".": "./mod.ts",
+		"./style": "./style.ts",
+		"./argParser": "./argParser/mod.ts"
+	},
+	"tasks": {
+		"dev": "deno test --watch"
+	},
+	"license": "GPL-3.0-only"
 }
