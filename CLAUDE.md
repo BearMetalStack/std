@@ -115,3 +115,7 @@ These are load-bearing, non-obvious rules from `docs/NOTES.md` — violating the
 ## Logger design (parked)
 
 `log/design.md` documents an accepted-but-unimplemented design for a context-carrying logger (two-tier `withContext`/`callWithContext` API built on `AsyncContext.Variable`). Read it before implementing anything under `log/` — the sync-vs-async footgun it describes (a `using withContext()` block must never contain an `await`, even transitively) is the central constraint the design is built around.
+
+## Exports
+
+Every package must export a `types.ts` at its root, both as `@bearmetal/<package>/types` and re-exported through `mod.ts`. Use the type-export skill to audit/fix this.
