@@ -12,10 +12,14 @@ const CASE: unique symbol = Symbol.for("bearmetal.case");
 
 interface SwitchProps<T> {
 	$: Signal.State<T> | Signal.Computed<T>;
+	/** enable node preservation */
+	$$?: boolean;
 	children: JSX.Element | JSX.Element[];
 }
 
-export function Switch<T>({ $, children }: SwitchProps<T>): Signal.Computed<JSX.Element | null> {
+export function Switch<T>(
+	{ $, $$, children }: SwitchProps<T>,
+): Signal.Computed<JSX.Element | null> {
 	const map = new Map<T, CaseRenderer>();
 	const evaluators: [CaseEval<T>, CaseRenderer][] = [];
 	let fallback: CaseRenderer | undefined;
@@ -30,16 +34,22 @@ export function Switch<T>({ $, children }: SwitchProps<T>): Signal.Computed<JSX.
 		} else map.set(child.$ as T, child.renderer);
 	}
 
+	const cache = new Map<T, JSX.Element | null>();
+
 	const cleanups: (() => void)[] = [];
 
 	let prevVal: T | undefined = undefined;
 	let prevNode: JSX.Element | null = null;
 	return createComputed(() => {
 		const val = $.get();
-		console.log(val, $);
 		if (prevVal === val) return prevNode;
 		prevVal = val;
 		drain(cleanups, (e) => e());
+
+		if ($$) {
+			const node = cache.get(val);
+			if (node !== undefined) return node;
+		}
 
 		let renderer = map.get(val);
 		if (!renderer) {
@@ -60,6 +70,7 @@ export function Switch<T>({ $, children }: SwitchProps<T>): Signal.Computed<JSX.
 			() => drain(cleanups, (e) => e()),
 		);
 		prevNode = (renderer ?? fallback)?.() ?? null;
+		if ($$) cache.set(val, prevNode);
 		return prevNode;
 	});
 }
