@@ -8,3 +8,5 @@ temp/
 
 **/*.vitepress/cache
 **/*.vitepress/dist
+
+worktrees/

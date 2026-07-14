@@ -14,6 +14,10 @@ All work happens in a dedicated git worktree and branch, never directly on
 the checked-out branch in the main worktree. Open PRs via the `tea` CLI
 (Gitea). Use the worktree skill for the exact steps.
 
+### Commits
+
+This project uses conventional commits. Scope the commits specifically to the package the work was completed in
+
 ## Commands
 
 There is no single root test/lint/fmt task — run `deno test`, `deno fmt`, `deno lint`, `deno check` **inside the package directory** you're working in (most packages define a `dev` task that is just `deno test --watch`).
