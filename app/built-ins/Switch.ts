@@ -69,7 +69,6 @@ export function Switch<T>(
 			() => (renderer ?? fallback)?.() ?? null,
 			() => drain(cleanups, (e) => e()),
 		);
-		prevNode = (renderer ?? fallback)?.() ?? null;
 		if ($$) cache.set(val, prevNode);
 		return prevNode;
 	});

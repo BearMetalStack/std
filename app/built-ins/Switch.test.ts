@@ -5,8 +5,9 @@ import { createSignal, isSignal } from "../signals.ts";
 import type { SignalOf } from "../types.ts";
 
 // Renderers yield bare strings; under Deno (no document) the jsx runtime is the
-// server impl, so Switch's fragment resolves to a Promise of an Html-like whose
-// raw string is the chosen renderer's output.
+// server impl, so real JSX resolves to a Promise of an Html-like whose raw string
+// is the chosen renderer's output — but Switch returns a renderer's result verbatim,
+// so these bare-string mocks never touch the jsx-runtime and should pass through as-is.
 const r = (s: string) => () => s as unknown as JSX.Element;
 
 async function rendered(
@@ -14,7 +15,8 @@ async function rendered(
 ): Promise<string | null> {
 	if (!el) return null;
 	if (isSignal(el)) return rendered(await el.get());
-	return (await (el as unknown as Promise<{ raw: string }>)).raw;
+	const awaited = await (el as unknown as Promise<{ raw: string } | string>);
+	return typeof awaited === "string" ? awaited : awaited.raw;
 }
 
 Deno.test("Switch renders the exact-match Case", async () => {
@@ -88,5 +90,5 @@ Deno.test("renders nothing when no Case matches and no Default exists", async ()
 		$: createSignal("z"),
 		children: Case({ $: "a", children: r("A") }),
 	});
-	assertEquals(await rendered(out), "");
+	assertEquals(await rendered(out), null);
 });
