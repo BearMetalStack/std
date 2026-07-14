@@ -1,4 +1,4 @@
-import { BMElement, define, each } from "@bearmetal/app";
+import { BMElement, Case, define, each, Show, Switch } from "@bearmetal/app";
 import {
 	composerOpen,
 	followedUsers,
@@ -9,26 +9,12 @@ import {
 	USERS,
 } from "./store.ts";
 import { TRENDING } from "./data.ts";
-import type { Route } from "./types.ts";
 
 import "./components/sidebar.tsx";
 import "./components/feed.tsx";
 import "./components/explore.tsx";
 import "./components/profile.tsx";
 import "./components/notifications.tsx";
-
-function pageTagFor(r: Route): string {
-	switch (r.page) {
-		case "home":
-			return "twitter-home";
-		case "explore":
-			return "twitter-explore";
-		case "notifications":
-			return "twitter-notifications";
-		case "profile":
-			return "twitter-profile";
-	}
-}
 
 @define("twitter-right-panel")
 export class TwitterRightPanel extends BMElement {
@@ -125,7 +111,7 @@ export class TwitterModal extends BMElement {
 					if (e.target === e.currentTarget) composerOpen.set(false);
 				}}
 			>
-				<div class="modal-inner" ref="modal">
+				<div class="modal-inner">
 					<div class="modal-composer">
 						<div class="modal-header">
 							<button
@@ -136,65 +122,34 @@ export class TwitterModal extends BMElement {
 								✕
 							</button>
 						</div>
-						<twitter-composer />
+						<twitter-composer autofocus />
 					</div>
 				</div>
 			</div>
 		);
 	}
-
-	protected override init() {
-		this.addEffect(() => {
-			const open = composerOpen.get();
-			(this as unknown as HTMLElement).style.display = open ? "flex" : "none";
-			if (open) {
-				const ta = this.refs.modal.querySelector("textarea");
-				if (ta) (ta as HTMLTextAreaElement).focus();
-			}
-		});
-	}
 }
 
 @define("twitter-app")
-export class TwitterApp extends BMElement<{ main: HTMLElement }> {
+export class TwitterApp extends BMElement {
 	protected override init() {
 		this.addEffect(() => startLiveFeed());
-		let currentPageEl: HTMLElement | null = null;
-
-		this.addEffect(() => {
-			const r = route.get();
-			const tag = pageTagFor(r);
-
-			if (currentPageEl?.tagName.toLowerCase() === tag) {
-				if (tag === "twitter-profile") {
-					(currentPageEl as unknown as { setUserId(id: string): void })
-						.setUserId(
-							(r as { page: "profile"; userId: string }).userId,
-						);
-				}
-				return;
-			}
-
-			const el = document.createElement(tag) as HTMLElement;
-			if (tag === "twitter-profile") {
-				(el as unknown as { setUserId(id: string): void }).setUserId(
-					(r as { page: "profile"; userId: string }).userId,
-				);
-			}
-
-			this.refs.main.replaceChildren(el);
-			currentPageEl = el;
-		});
 	}
 
 	override get template() {
 		return (
 			<div class="app-layout">
 				<twitter-sidebar />
-				<main class="main-content" ref="main">
+				<main class="main-content">
+					<Switch $={this.computed(() => route.get().page)}>
+						<Case $="home">{() => <twitter-home />}</Case>
+						<Case $="explore">{() => <twitter-explore />}</Case>
+						<Case $="notifications">{() => <twitter-notifications />}</Case>
+						<Case $="profile">{() => <twitter-profile />}</Case>
+					</Switch>
 				</main>
 				<twitter-right-panel />
-				<twitter-modal />
+				<Show when={composerOpen}>{() => <twitter-modal />}</Show>
 			</div>
 		);
 	}

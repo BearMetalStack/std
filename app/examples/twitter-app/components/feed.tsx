@@ -151,6 +151,16 @@ export class TwitterComposer extends BMElement<{ textarea: HTMLTextAreaElement }
 		composerOpen.set(false);
 	};
 
+	protected override init() {
+		// A plain attribute check, not a reactive `@prop` — this only needs to
+		// run once at mount, and the modal remounts the composer fresh each open.
+		// `init()` runs before the template fragment is attached to the DOM, so
+		// `.focus()` needs to be deferred to a microtask to take effect.
+		if (this.hasAttribute("autofocus")) {
+			queueMicrotask(() => this.refs.textarea.focus());
+		}
+	}
+
 	protected get template() {
 		const user = currentUser.get();
 		return (

@@ -1,8 +1,9 @@
-import { BMElement, define, each } from "@bearmetal/app";
+import { BMElement, define, each, when } from "@bearmetal/app";
 import {
 	currentUser,
 	followedUsers,
 	navigate,
+	route,
 	toggleFollow,
 	toggleLike,
 	toggleRetweet,
@@ -88,12 +89,25 @@ function ProfileTweet(tweet: Tweet, author: User): Element {
 
 @define("twitter-profile")
 export class TwitterProfile extends BMElement {
-	#userId = this.signal<string>("u1");
+	// `route` is the single source of truth for which profile to show — reading
+	// it directly (rather than threading userid through as a prop) sidesteps
+	// the browser's lack of native decorator-metadata support, which currently
+	// makes `@prop`'s observedAttributes wiring silently do nothing once bundled.
+	#userId = this.computed(() => {
+		const r = route.get();
+		return r.page === "profile" ? r.userId : undefined;
+	});
+
 	#tab = this.signal<"posts" | "replies" | "likes">("posts");
 
-	#user = this.computed(() => USERS.get(this.#userId.get()));
+	#user = this.computed(() => {
+		const uid = this.#userId.get();
+		return uid == null ? undefined : USERS.get(uid);
+	});
+	#hasUser = this.computed(() => this.#user.get() != null);
+	#userMissing = this.computed(() => this.#user.get() == null);
 	#isMe = this.computed(() => this.#userId.get() === currentUser.get().id);
-	#followed = this.computed(() => followedUsers.get().has(this.#userId.get()));
+	#followed = this.computed(() => followedUsers.get().has(this.#userId.get() ?? ""));
 
 	#shown = this.computed(() => {
 		const uid = this.#userId.get();
@@ -109,14 +123,7 @@ export class TwitterProfile extends BMElement {
 	#tabClass = (t: "posts" | "replies" | "likes") =>
 		this.computed(() => `tab-btn${this.#tab.get() === t ? " tab-btn--active" : ""}`);
 
-	setUserId(id: string) {
-		this.#userId.set(id);
-	}
-
 	protected get template() {
-		const user = this.#user.get();
-		if (!user) return <div class="empty-state">User not found</div>;
-
 		return (
 			<div class="profile-page">
 				<header class="page-header">
@@ -129,90 +136,102 @@ export class TwitterProfile extends BMElement {
 					</button>
 				</header>
 
-				<div class="profile-header">
-					{this.computed(() => {
-						const u = this.#user.get();
-						// deno-lint-ignore jsx-no-useless-fragment
-						if (!u) return <></>;
-						return (
-							<>
-								<div
-									class="profile-cover"
-									style={`--cover-color: ${u.color}`}
-								/>
-								<div class="profile-info-row">
-									<span
-										class="avatar avatar--xl"
-										style={`--avatar-color: ${u.color}`}
-									>
-										{u.displayName[0].toUpperCase()}
-									</span>
-									{this.#isMe.get()
-										? (
-											<button type="button" class="btn-outline" onClick={() => {}}>
-												Edit profile
-											</button>
-										)
-										: (
-											<button
-												type="button"
-												class={this.computed(() =>
-													`btn-follow${this.#followed.get() ? " btn-follow--active" : ""}`
-												)}
-												onClick={() => toggleFollow(this.#userId.get())}
+				{when(this.#hasUser, () => (
+					<>
+						<div class="profile-header">
+							{this.computed(() => {
+								const u = this.#user.get();
+								// The outer `when(hasUser, …)` guards this content, but async
+								// effect flushing can re-run this computed one tick after
+								// `#user` flips to undefined, before that guard tears it down.
+								// deno-lint-ignore jsx-no-useless-fragment
+								if (!u) return <></>;
+								return (
+									<>
+										<div
+											class="profile-cover"
+											style={`--cover-color: ${u.color}`}
+										/>
+										<div class="profile-info-row">
+											<span
+												class="avatar avatar--xl"
+												style={`--avatar-color: ${u.color}`}
 											>
-												{this.computed(() => this.#followed.get() ? "Following" : "Follow")}
-											</button>
-										)}
-								</div>
-								<div class="profile-details">
-									<h2 class="profile-display-name">{u.displayName}</h2>
-									<span class="profile-handle">@{u.handle}</span>
-									{u.bio ? <p class="profile-bio">{u.bio}</p> : null}
-									<div class="profile-meta">
-										{u.location ? <span class="meta-item">📍 {u.location}</span> : null}
-										<span class="meta-item">📅 Joined {u.joinedYear}</span>
-									</div>
-									<div class="profile-counts">
-										<span class="count-item">
-											<strong>{fmtCount(u.following)}</strong>
-											{" Following"}
-										</span>
-										<span class="count-item">
-											<strong>{fmtCount(u.followers)}</strong>
-											{" Followers"}
-										</span>
-									</div>
-								</div>
-							</>
-						);
-					})}
-				</div>
+												{u.displayName[0].toUpperCase()}
+											</span>
+											{this.#isMe.get()
+												? (
+													<button type="button" class="btn-outline" onClick={() => {}}>
+														Edit profile
+													</button>
+												)
+												: (
+													<button
+														type="button"
+														class={this.computed(() =>
+															`btn-follow${this.#followed.get() ? " btn-follow--active" : ""}`
+														)}
+														onClick={() => {
+															const uid = this.#userId.get();
+															if (uid) toggleFollow(uid);
+														}}
+													>
+														{this.computed(() => this.#followed.get() ? "Following" : "Follow")}
+													</button>
+												)}
+										</div>
+										<div class="profile-details">
+											<h2 class="profile-display-name">{u.displayName}</h2>
+											<span class="profile-handle">@{u.handle}</span>
+											{u.bio ? <p class="profile-bio">{u.bio}</p> : null}
+											<div class="profile-meta">
+												{u.location ? <span class="meta-item">📍 {u.location}</span> : null}
+												<span class="meta-item">📅 Joined {u.joinedYear}</span>
+											</div>
+											<div class="profile-counts">
+												<span class="count-item">
+													<strong>{fmtCount(u.following)}</strong>
+													{" Following"}
+												</span>
+												<span class="count-item">
+													<strong>{fmtCount(u.followers)}</strong>
+													{" Followers"}
+												</span>
+											</div>
+										</div>
+									</>
+								);
+							})}
+						</div>
 
-				<div class="profile-tabs">
-					{(["posts", "replies", "likes"] as const).map((t) => (
-						<button
-							type="button"
-							class={this.#tabClass(t)}
-							onClick={() => this.#tab.set(t)}
-						>
-							{t.charAt(0).toUpperCase() + t.slice(1)}
-						</button>
-					))}
-				</div>
+						<div class="profile-tabs">
+							{(["posts", "replies", "likes"] as const).map((t) => (
+								<button
+									type="button"
+									class={this.#tabClass(t)}
+									onClick={() => this.#tab.set(t)}
+								>
+									{t.charAt(0).toUpperCase() + t.slice(1)}
+								</button>
+							))}
+						</div>
 
-				<div class="tweet-feed">
-					{each(
-						this.#shown,
-						(t) => {
-							const author = USERS.get(t.authorId);
-							// deno-lint-ignore jsx-no-useless-fragment
-							if (!author) return <></>;
-							return ProfileTweet(t, author);
-						},
-						(t) => t.id,
-					)}
-				</div>
+						<div class="tweet-feed">
+							{each(
+								this.#shown,
+								(t) => {
+									const author = USERS.get(t.authorId);
+									// deno-lint-ignore jsx-no-useless-fragment
+									if (!author) return <></>;
+									return ProfileTweet(t, author);
+								},
+								(t) => t.id,
+							)}
+						</div>
+					</>
+				))}
+
+				{when(this.#userMissing, () => <div class="empty-state">User not found</div>)}
 			</div>
 		);
 	}
