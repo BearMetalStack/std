@@ -7,8 +7,8 @@ next: false
 
 # Props
 
-Props are declared with the `@prop` decorator on an `accessor` field. A declared prop is a signal,
-so reading it inside a template or an effect is reactive.
+Props are declared with the `@prop` decorator on an `accessor` field initialized to a signal. The
+accessor _is_ the signal — there's no separate value/signal split to think about.
 
 ```tsx
 import { BMElement, define, prop } from "@bearmetal/app";
@@ -16,12 +16,12 @@ import { BMElement, define, prop } from "@bearmetal/app";
 @define("my-counter")
 export class MyCounter extends BMElement {
 	@prop()
-	accessor count = 0;
+	accessor count = this.signal(0);
 	@prop()
-	accessor label = "Count";
+	accessor label = this.signal("Count");
 
 	get template() {
-		return <p>{this.label}: {this.signals.$count}</p>;
+		return <p>{this.label}: {this.count}</p>;
 	}
 }
 ```
@@ -30,10 +30,9 @@ export class MyCounter extends BMElement {
 <my-counter count={5} label="Total" />;
 ```
 
-Reading `this.count` gets the current value; assigning `this.count = 5` updates it and anything
-watching it. The underlying signal is always available at `this.signals.$count`, which is what you
-pass into JSX when you want the binding to be reactive — `{this.count}` reads once,
-`{this.signals.$count}` re-renders.
+`this.count` is a `Signal.State<number>`, the same as any other signal in the framework: read it
+with `.get()`, write it with `.set()`, or bind it straight into a template as `{this.count}` for a
+reactive child. It's usable anywhere a bare signal is — `each()`, effects, `Show`/`Switch`.
 
 ## Reactivity
 
@@ -57,19 +56,19 @@ up and updates its own signal. Neither side has to know about the other.
 
 ## Types
 
-The type is inferred from the initializer, and it is what an attribute is coerced back to.
-Attributes are always strings, so the declared type is how `count="42"` becomes the number `42`.
+The type is inferred from the signal's initial value, and it is what an attribute is coerced back
+to. Attributes are always strings, so the declared type is how `count="42"` becomes the number `42`.
 
 ```tsx
-@prop() accessor count = 0;      // number
-@prop() accessor label = "";     // string
-@prop() accessor open = false;   // boolean
+@prop() accessor count = this.signal(0);       // number
+@prop() accessor label = this.signal("");      // string
+@prop() accessor open = this.signal(false);    // boolean
 ```
 
-Pass the type explicitly when the initializer can't carry it:
+Pass the type explicitly when the initial value can't carry it:
 
 ```tsx
-@prop(Number) accessor count = undefined;
+@prop(Number) accessor count = this.signal<number | undefined>(undefined);
 ```
 
 ### String and Boolean Values
@@ -94,14 +93,13 @@ empty string.
 
 ### Objects
 
-Objects and functions are set as properties on the element rather than as attributes. They work as
-props, but they are never observed, because there is no attribute for `observedAttributes` to watch.
+Objects and functions are set as properties on the element rather than as attributes, so there's no
+attribute for `observedAttributes` to watch. As a signal, `count`-style props are still watchable
+regardless of value type — this only affects whether a _parent writing an attribute_ is observed.
 
 ```tsx
 <my-list items={["a", "b"]} />;
 ```
-
-If you need to watch one, pass a signal.
 
 ## Accessing Server Side Props
 
@@ -121,5 +119,6 @@ export class MyComponent extends BMElement {
 }
 ```
 
-Whatever `serverLoad` returns is serialized onto the element and rehydrated into
-`this.signals.$user` on the client — the same place a declared prop's signal lives.
+Whatever `serverLoad` returns is serialized onto the element and rehydrated on the client: if a
+`@prop` declares that name, its signal is set directly; otherwise it falls back to a signal on
+`this.signals.$user`, since there's no accessor to reach an undeclared prop by.

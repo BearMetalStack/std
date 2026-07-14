@@ -1,4 +1,4 @@
-import { Signal } from "@signals";
+import type { Signal } from "@signals";
 
 /** The attribute types a declared prop can be coerced back from. */
 export type PropType = typeof String | typeof Number | typeof Boolean;
@@ -15,18 +15,21 @@ const PROPS: unique symbol = Symbol.for("bearmetal.props");
  * when writing `ctor[Symbol.metadata]` — so reads must use the same fallback,
  * or they query a key nothing ever wrote to.
  */
-const METADATA: symbol = (Symbol as { metadata?: symbol }).metadata ?? Symbol.for("Symbol.metadata");
+const METADATA: symbol = (Symbol as { metadata?: symbol }).metadata ??
+	Symbol.for("Symbol.metadata");
 
-/** Minimal shape `@prop` needs from the class it decorates. */
-export type PropHost = {
-	signals: Record<string, Signal.State<unknown>>;
-};
-
-/** The accessor decorator returned by `prop()`. */
-export type PropDecorator = <This extends PropHost, T>(
-	target: ClassAccessorDecoratorTarget<This, T>,
-	context: ClassAccessorDecoratorContext<This, T>,
-) => ClassAccessorDecoratorResult<This, T>;
+/**
+ * The accessor decorator returned by `prop()`.
+ *
+ * Target and result share the same `Signal.State<T>` value — a decorator
+ * cannot change an accessor's type to something the field itself isn't
+ * already declared as, so the field must be initialized with a signal
+ * (`accessor count = this.signal(0)`), not a bare value.
+ */
+export type PropDecorator = <This, T>(
+	target: ClassAccessorDecoratorTarget<This, Signal.State<T>>,
+	context: ClassAccessorDecoratorContext<This, Signal.State<T>>,
+) => ClassAccessorDecoratorResult<This, Signal.State<T>>;
 
 type DeclaredProps = Record<string, PropType | undefined>;
 
@@ -78,38 +81,41 @@ export function coerceProp(type: PropType, value: string | null): unknown {
 /**
  * Declares a reactive prop.
  *
- * The accessor reads and writes `this.signals.$<name>`, the same bag SSR fills
- * from `data-server-props`, so a prop is a signal from the moment it exists.
- * Declaring a prop also adds it to `observedAttributes`: when a parent writes
- * the corresponding attribute — which is what the JSX runtime does for strings,
- * numbers, and booleans — the signal updates and anything reading it re-renders.
+ * The accessor *is* the signal: `@prop() accessor count = this.signal(0)`
+ * makes `this.count` a `Signal.State<number>` directly, usable anywhere a
+ * bare signal is — template children, `each()`, effects — with no `.signals`
+ * indirection to reach through. Declaring a prop also adds it to
+ * `observedAttributes`: when a parent writes the corresponding attribute —
+ * which is what the JSX runtime does for strings, numbers, and booleans —
+ * the signal updates and anything reading it re-renders.
  *
- * The type is inferred from the initializer. Pass one explicitly when the
- * initializer can't carry it, e.g. `@prop(Number) accessor count = undefined`.
+ * The type is inferred from the signal's initial value. Pass one explicitly
+ * when that value can't carry it, e.g.
+ * `@prop(Number) accessor count = this.signal(undefined)`.
  *
- * Object-valued props are set as properties rather than attributes, so they are
- * never observed. Pass a signal if you need to watch one.
+ * Object-valued props are set as properties rather than attributes, so they
+ * are never observed via `observedAttributes` — but as a signal, `count` is
+ * still watchable regardless of value type.
  *
  * @example
  * ```tsx
  * @define("my-counter")
  * class MyCounter extends BMElement {
- *   @prop() accessor count = 0;
- *   @prop() accessor label = "Count";
+ *   @prop() accessor count = this.signal(0);
+ *   @prop() accessor label = this.signal("Count");
  *
  *   get template() {
- *     return <p>{this.label}: {this.signals.$count}</p>;
+ *     return <p>{this.label}: {this.count}</p>;
  *   }
  * }
  * ```
  */
 export function prop(type?: PropType): PropDecorator {
-	return function <This extends PropHost, T>(
-		_target: ClassAccessorDecoratorTarget<This, T>,
-		context: ClassAccessorDecoratorContext<This, T>,
-	): ClassAccessorDecoratorResult<This, T> {
+	return function <This, T>(
+		_target: ClassAccessorDecoratorTarget<This, Signal.State<T>>,
+		context: ClassAccessorDecoratorContext<This, Signal.State<T>>,
+	): ClassAccessorDecoratorResult<This, Signal.State<T>> {
 		const name = String(context.name);
-		const key = `$${name}`;
 		// Give this class its own declarations rather than inheriting the parent's
 		// object, which a subclass's `@prop` would otherwise write into.
 		if (!Object.hasOwn(context.metadata, PROPS)) context.metadata[PROPS] = {};
@@ -117,17 +123,12 @@ export function prop(type?: PropType): PropDecorator {
 		declared[name] = type;
 
 		return {
-			init(this: This, value: T): T {
-				// Base-class fields initialize first, so `signals` is already here.
-				this.signals[key] ??= new Signal.State(value as unknown);
-				declared[name] ??= inferType(value);
+			// get/set are intentionally omitted: the field's own initializer is
+			// already a Signal.State, so the auto-accessor's default storage is
+			// the signal itself — no redirection needed.
+			init(value: Signal.State<T>): Signal.State<T> {
+				declared[name] ??= inferType(value.get());
 				return value;
-			},
-			get(this: This): T {
-				return this.signals[key].get() as T;
-			},
-			set(this: This, value: T) {
-				this.signals[key].set(value as unknown);
 			},
 		};
 	};

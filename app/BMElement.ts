@@ -44,6 +44,14 @@ export abstract class BMElement<
 	): Promise<string> {
 		const inst = new (this as unknown as new () => BMElement)();
 		for (const [k, v] of Object.entries(props)) {
+			// A `@prop`-declared field's accessor is already the signal; write
+			// through it directly. Anything undeclared falls back to the signals
+			// bag and a plain property, since there's no accessor to reach it by.
+			const declared = (inst as Record<string, unknown>)[k];
+			if (declared instanceof Signal.State) {
+				declared.set(v);
+				continue;
+			}
 			if (!inst.signals[`$${k}`]) inst.signals[`$${k}`] = new Signal.State(v);
 			(inst as Record<string, unknown>)[k] = v;
 		}
@@ -95,7 +103,9 @@ export abstract class BMElement<
 	attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
 		const type = declaredProps(this.constructor)[name];
 		if (!type) return;
-		const signal = this.signals[`$${name}`];
+		// The attribute name matches the accessor name directly (props are
+		// required to be a single lowercase word) — no `.signals` bag needed.
+		const signal = (this as unknown as Record<string, unknown>)[name];
 		if (signal instanceof Signal.State) signal.set(coerceProp(type, value));
 	}
 
@@ -108,6 +118,12 @@ export abstract class BMElement<
 		if (raw) {
 			const loaded = JSON.parse(atob(raw));
 			for (const [key, value] of Object.entries(loaded)) {
+				// A `@prop`-declared field's accessor is already the signal.
+				const declared = (this as unknown as Record<string, unknown>)[key];
+				if (declared instanceof Signal.State) {
+					declared.set(value);
+					continue;
+				}
 				const sig = this.signals[`$${key}`];
 				if (!sig) {
 					this.signals[`$${key}`] = this.signal(value);
