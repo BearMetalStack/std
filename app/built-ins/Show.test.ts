@@ -6,13 +6,16 @@ import type { SignalOf } from "../types.ts";
 
 // No document global under `deno test`, so the jsx-runtime chooser picks the server
 // impl: Show's fragment resolves to a Promise of an Html-like whose `raw` is the
-// rendered string.
+// rendered string — but Show/when return their `children()` result verbatim, so a
+// mocked children() that yields a bare string (as these tests do) never touches the
+// jsx-runtime and should be returned as-is.
 async function rendered(
 	el: JSX.Element | null | SignalOf<JSX.Element | null>,
 ): Promise<string | null> {
 	if (!el) return null;
 	if (isSignal(el)) return rendered(await el.get());
-	return (await (el as unknown as Promise<{ raw: string }>)).raw;
+	const awaited = await (el as unknown as Promise<{ raw: string } | string>);
+	return typeof awaited === "string" ? awaited : awaited.raw;
 }
 
 Deno.test("Show renders children when the signal is true", async () => {
@@ -28,7 +31,7 @@ Deno.test("Show renders nothing when the signal is false", async () => {
 		when: createSignal(false),
 		children: () => "shown" as unknown as JSX.Element,
 	});
-	assertEquals(await rendered(out), "");
+	assertEquals(await rendered(out), null);
 });
 
 Deno.test("Show tracks a Computed signal, not just State", async () => {
