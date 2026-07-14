@@ -5,6 +5,18 @@ export type PropType = typeof String | typeof Number | typeof Boolean;
 
 const PROPS: unique symbol = Symbol.for("bearmetal.props");
 
+/**
+ * The decorator-metadata proposal is a separate addition on top of the base
+ * decorators proposal, and some engines (this includes at least one shipping
+ * Chromium build) implement the latter without the former: `Symbol.metadata`
+ * comes back `undefined` even though decorators themselves run fine. Down-level
+ * decorator transforms (esbuild's included, which is what `deno bundle`
+ * produces) already handle this by falling back to `Symbol.for("Symbol.metadata")`
+ * when writing `ctor[Symbol.metadata]` — so reads must use the same fallback,
+ * or they query a key nothing ever wrote to.
+ */
+const METADATA: symbol = (Symbol as { metadata?: symbol }).metadata ?? Symbol.for("Symbol.metadata");
+
 /** Minimal shape `@prop` needs from the class it decorates. */
 export type PropHost = {
 	signals: Record<string, Signal.State<unknown>>;
@@ -30,7 +42,7 @@ export function declaredProps(ctor: unknown): DeclaredProps {
 	const merged: DeclaredProps = {};
 	// deno-lint-ignore no-explicit-any
 	for (let c: any = ctor; typeof c === "function"; c = Object.getPrototypeOf(c)) {
-		const own = Object.getOwnPropertyDescriptor(c, Symbol.metadata)?.value?.[PROPS];
+		const own = Object.getOwnPropertyDescriptor(c, METADATA)?.value?.[PROPS];
 		if (!own) continue;
 		for (const [name, type] of Object.entries(own as DeclaredProps)) merged[name] ??= type;
 	}
