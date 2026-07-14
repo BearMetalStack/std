@@ -5,50 +5,47 @@ import { prop } from "./prop.ts";
 
 class Counter extends BMElement {
 	@prop()
-	accessor count = 0;
+	accessor count = this.signal(0);
 	@prop()
-	accessor label = "Count";
+	accessor label = this.signal("Count");
 	@prop()
-	accessor open = false;
+	accessor open = this.signal(false);
 }
 
 Deno.test("declared props become observedAttributes, before any instance exists", () => {
 	assertEquals(Counter.observedAttributes.toSorted(), ["count", "label", "open"]);
 });
 
-Deno.test("a prop is backed by a signal in this.signals", () => {
+Deno.test("a prop's accessor is the signal itself", () => {
 	const el = new Counter();
 
-	assert(el.signals.$count instanceof Signal.State);
-	assertEquals(el.signals.$count.get(), 0);
-	assertEquals(el.signals.$label.get(), "Count");
+	assert(el.count instanceof Signal.State);
+	assertEquals(el.count.get(), 0);
+	assertEquals(el.label.get(), "Count");
 });
 
-Deno.test("the accessor reads and writes through the signal", () => {
+Deno.test("the accessor reads and writes through .get()/.set()", () => {
 	const el = new Counter();
 
-	el.count = 7;
-	assertEquals(el.signals.$count.get(), 7);
-
-	el.signals.$count.set(9);
-	assertEquals(el.count, 9);
+	el.count.set(7);
+	assertEquals(el.count.get(), 7);
 });
 
 Deno.test("attributeChangedCallback coerces back to the declared type", () => {
 	const el = new Counter();
 
 	el.attributeChangedCallback("count", null, "42");
-	assertEquals(el.count, 42);
-	assert(typeof el.count === "number");
+	assertEquals(el.count.get(), 42);
+	assert(typeof el.count.get() === "number");
 
 	el.attributeChangedCallback("label", null, "Total");
-	assertEquals(el.label, "Total");
+	assertEquals(el.label.get(), "Total");
 
 	// An attribute is present or absent; `open=""` is true, removal is false.
 	el.attributeChangedCallback("open", null, "");
-	assertEquals(el.open, true);
+	assertEquals(el.open.get(), true);
 	el.attributeChangedCallback("open", "", null);
-	assertEquals(el.open, false);
+	assertEquals(el.open.get(), false);
 });
 
 Deno.test("an attribute update propagates to an effect reading the prop", () => {
@@ -56,7 +53,7 @@ Deno.test("an attribute update propagates to an effect reading the prop", () => 
 	const seen: number[] = [];
 
 	const stop = new Signal.subtle.Watcher(() => {});
-	const computed = new Signal.Computed(() => el.signals.$count.get() as number);
+	const computed = new Signal.Computed(() => el.count.get());
 	stop.watch(computed);
 	seen.push(computed.get());
 
@@ -70,13 +67,13 @@ Deno.test("an attribute update propagates to an effect reading the prop", () => 
 Deno.test("undeclared attributes are ignored", () => {
 	const el = new Counter();
 	el.attributeChangedCallback("nonsense", null, "x");
-	assertEquals(el.signals.$nonsense, undefined);
+	assertEquals((el as unknown as Record<string, unknown>).nonsense, undefined);
 });
 
 Deno.test("props are inherited by subclasses", () => {
 	class Extended extends Counter {
 		@prop()
-		accessor extra = "";
+		accessor extra = this.signal("");
 	}
 
 	assertEquals(Extended.observedAttributes.toSorted(), ["count", "extra", "label", "open"]);
@@ -88,7 +85,19 @@ Deno.test("each instance gets its own signal", () => {
 	const a = new Counter();
 	const b = new Counter();
 
-	a.count = 5;
-	assertEquals(a.count, 5);
-	assertEquals(b.count, 0);
+	a.count.set(5);
+	assertEquals(a.count.get(), 5);
+	assertEquals(b.count.get(), 0);
+});
+
+Deno.test("an explicit type is used when the signal's initial value can't infer one", () => {
+	class WithUndefined extends BMElement {
+		@prop(Number)
+		accessor maybe = this.signal<number | undefined>(undefined);
+	}
+
+	assertEquals(WithUndefined.observedAttributes.toSorted(), ["maybe"]);
+	const el = new WithUndefined();
+	el.attributeChangedCallback("maybe", null, "9");
+	assertEquals(el.maybe.get(), 9);
 });
