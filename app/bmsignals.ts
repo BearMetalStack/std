@@ -1,5 +1,6 @@
 import { getCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import { Signal } from "./signals/wrapper.ts";
+import type { SignalOf } from "./types.ts";
 
 export class DebouncedSignal<T> extends Signal.State<T> {
 	constructor(initial: T, private debounceDurationMs: number) {
@@ -51,5 +52,46 @@ export class IntervalSignal<T> extends Signal.State<T> implements IntervalManage
 	restart() {
 		this.cancel();
 		this.#prime();
+	}
+}
+
+export class DirtySignal<T> extends Signal.State<T> {
+	#dirty: boolean = false;
+	set(val: T) {
+		super.set(val);
+		this.#dirty = true;
+	}
+	isDirty() {
+		return this.#dirty;
+	}
+	clearDirty() {
+		this.#dirty = false;
+	}
+}
+
+export class LazySignal<T> extends Signal.State<T> {
+	#fetcher: () => Promise<T>;
+	constructor(initial: T, fetcher: () => Promise<T>) {
+		super(initial);
+		this.#fetcher = fetcher;
+	}
+	set(val: T) {
+		super.set(val);
+	}
+	get() {
+		this.#fetcher().then((val) => super.set(val));
+		return super.get();
+	}
+}
+
+export class DerivedSignal<T> extends Signal.Computed<T> {
+	constructor(private pinitial: SignalOf<T>, callback: (val: T) => void) {
+		super(() => pinitial.get());
+		this.#callback = callback;
+	}
+	#callback: (val: T) => void;
+
+	set(val: T) {
+		this.#callback(val);
 	}
 }
