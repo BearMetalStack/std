@@ -2,6 +2,8 @@ import { getCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import { Signal } from "./signals/wrapper.ts";
 import type { SignalOf } from "./types.ts";
 
+export { Signal } from "./signals/wrapper.ts";
+
 export class DebouncedSignal<T> extends Signal.State<T> {
 	constructor(initial: T, private debounceDurationMs: number) {
 		super(initial);
@@ -46,7 +48,7 @@ export class IntervalSignal<T> extends Signal.State<T> implements IntervalManage
 		this.#duration = durationMs;
 		this.#prime;
 	}
-	getDurationMs() {
+	getDurationMs(): number {
 		return this.#duration;
 	}
 	restart() {
@@ -61,16 +63,17 @@ export class DirtySignal<T> extends Signal.State<T> {
 		super.set(val);
 		this.#dirty = true;
 	}
-	isDirty() {
+	isDirty(): boolean {
 		return this.#dirty;
 	}
-	clearDirty() {
+	clearDirty(): void {
 		this.#dirty = false;
 	}
 }
 
 export class LazySignal<T> extends Signal.State<T> {
 	#fetcher: () => Promise<T>;
+	#fetched = false;
 	constructor(initial: T, fetcher: () => Promise<T>) {
 		super(initial);
 		this.#fetcher = fetcher;
@@ -78,8 +81,14 @@ export class LazySignal<T> extends Signal.State<T> {
 	set(val: T) {
 		super.set(val);
 	}
-	get() {
-		this.#fetcher().then((val) => super.set(val));
+	get(): T {
+		if (!this.#fetched) {
+			this.#fetcher().then((val) => super.set(val)).catch((e) => {
+				this.#fetched = false;
+				throw e;
+			});
+			this.#fetched = true;
+		}
 		return super.get();
 	}
 }
