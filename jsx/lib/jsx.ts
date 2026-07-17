@@ -131,6 +131,19 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 			_currentOwner.registerRef(val, el);
 			continue;
 		}
+		// A prop whose slot already holds a writable signal (e.g. a `@prop`
+		// accessor, which always initializes to one) is bound, not copied: swap
+		// the accessor's signal for the incoming one so parent and child share
+		// the exact same Signal.State. That makes the binding bidirectional by
+		// construction — either side writing through `.set()` is visible to the
+		// other — with no attribute mirroring involved.
+		// deno-lint-ignore no-explicit-any
+		const existing = (el as any)[key];
+		if (isWritableSignal(val) && isWritableSignal(existing)) {
+			// deno-lint-ignore no-explicit-any
+			(el as any)[key] = val;
+			continue;
+		}
 		if (isSignal(val)) {
 			reactiveEffect(() => applyProp(el, key, val.get()));
 		} else {
