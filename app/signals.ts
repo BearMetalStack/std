@@ -73,7 +73,22 @@ export function createSignal<T>(init: T): Signal.State<T> {
 }
 
 export function createComputed<T>(init: () => T): Signal.Computed<T> {
-	return new Signal.Computed(init);
+	// A computed's body can be pulled by the reactive graph outside any effect —
+	// notably during the dependency-freshness poll the graph runs before a
+	// consuming effect's body, which recomputes dirty producers first. That poll
+	// happens outside the effect's owner scope, so a render-bearing computed
+	// (Show/Switch) would otherwise re-render with no owner. Capture the ambient
+	// owner at creation and re-establish it around the body, same as effect().
+	const owner = getCurrentOwner();
+	return new Signal.Computed(() => {
+		const prev = getCurrentOwner();
+		setCurrentOwner(owner);
+		try {
+			return init();
+		} finally {
+			setCurrentOwner(prev);
+		}
+	});
 }
 
 export function isSignal<T>(v: SignalOf<T> | unknown): v is SignalOf<T> {

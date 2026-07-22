@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { getCurrentOwner, type Owner, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
-import { createSignal, effect } from "./signals.ts";
+import { createComputed, createSignal, effect } from "./signals.ts";
 
 // Effects re-run inside a microtask-scheduled Watcher flush; a macrotask tick
 // guarantees that queue has fully drained.
@@ -33,6 +33,34 @@ Deno.test("effect re-establishes its creation-time owner on late re-runs", async
 	assertEquals(seen.length, 2);
 	assertEquals(seen[0], owner, "the synchronous first run sees the owner");
 	assertEquals(seen[1], owner, "the late re-run re-establishes the same owner, not null");
+});
+
+Deno.test("computed re-establishes its owner when the graph recomputes it late", async () => {
+	// A render-bearing computed (Show/Switch) is recomputed by the reactive
+	// graph during the consuming effect's dependency-freshness poll — before,
+	// and outside, the effect body's owner scope. Without the computed carrying
+	// its own owner, that late recompute would render with no owner.
+	const owner = fakeOwner();
+	const trigger = createSignal(0);
+	const seen: Owner[] = [];
+
+	setCurrentOwner(owner);
+	const derived = createComputed(() => {
+		seen.push(getCurrentOwner());
+		return trigger.get();
+	});
+	const stop = effect(() => {
+		derived.get();
+	});
+	setCurrentOwner(null);
+
+	trigger.set(1);
+	await flush();
+	stop();
+
+	assertEquals(seen.length, 2);
+	assertEquals(seen[0], owner, "the synchronous first computation sees the owner");
+	assertEquals(seen[1], owner, "the late graph-driven recompute re-establishes the owner");
 });
 
 Deno.test("effect restores the ambient owner after a late run — no global leak", async () => {
