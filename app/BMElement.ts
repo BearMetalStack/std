@@ -155,13 +155,18 @@ export abstract class BMElement<
 				const t = this.template;
 				if (t !== undefined) {
 					if (isSignal(t)) {
-						const frag = document.createDocumentFragment();
-						frag.appendChild(toNode(t.get()));
-						this.#runInit();
-						this.root.appendChild(frag);
+						// A signal template is driven by a single effect: its
+						// immediate first run paints the initial content and it
+						// re-renders on change. Don't pre-render into a fragment
+						// first — a template computed that resolves to a
+						// DocumentFragment is emptied by that append, and the
+						// effect's (cached) second read would then render the now
+						// empty fragment, wiping the content. `replaceChildren`
+						// accepts a fragment and spreads its children.
 						this.addEffect(() => {
 							this.replaceChildren(toNode(t.get()));
 						});
+						this.#runInit();
 					} else {
 						const frag = document.createDocumentFragment();
 						frag.appendChild(t as Node);
