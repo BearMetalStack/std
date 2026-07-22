@@ -166,29 +166,54 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 }
 
 function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalLike) {
-	let current: Node = document.createTextNode("");
-	let currentIsText = true;
-	parent.appendChild(current);
+	// `start`/`end` are empty text-node markers that bracket this child's
+	// content and always stay in the tree — so they travel with any parent
+	// DocumentFragment that is later inserted elsewhere, and the live parent is
+	// always `end.parentNode`. Everything between them is the child's current
+	// render; each update clears that range and inserts the new value.
+	//
+	// The previous implementation held the rendered node in a single `current`
+	// variable and replaced it in place. That silently broke for
+	// DocumentFragment values — a component's `<>...</>`, or a Switch/Show branch
+	// wrapping one: inserting a fragment empties and detaches it, so `current`
+	// became a fragment with no parent and every later update no-op'd. Bracketing
+	// a range also handles nested reactive children mutating within it.
+	const start = document.createTextNode("");
+	const end = document.createTextNode("");
+	parent.appendChild(start);
+	parent.appendChild(end);
+
+	function clearRange(parentNode: Node) {
+		let node = start.nextSibling;
+		while (node && node !== end) {
+			const next = node.nextSibling;
+			parentNode.removeChild(node);
+			node = next;
+		}
+	}
 
 	reactiveEffect(() => {
 		const v = signal.get();
+		const parentNode = end.parentNode;
+		if (!parentNode) return;
+
 		if (v instanceof Node) {
-			if (v !== current) {
-				current.parentNode?.replaceChild(v, current);
-				current = v;
-				currentIsText = false;
-			}
+			clearRange(parentNode);
+			// A DocumentFragment inserts all of its children and empties itself.
+			parentNode.insertBefore(v, end);
 			return;
 		}
+
 		const text = v == null ? "" : String(v);
-		if (currentIsText) {
-			(current as Text).data = text;
-		} else {
-			const node = document.createTextNode(text);
-			current.parentNode?.replaceChild(node, current);
-			current = node;
-			currentIsText = true;
+		const only = start.nextSibling;
+		// Fast path: a single text node already fills the range — update in place
+		// rather than churning the node (the common reactive-text-child case).
+		if (only && only.nextSibling === end && only.nodeType === 3) {
+			(only as Text).data = text;
+			return;
 		}
+		clearRange(parentNode);
+		if (text !== "") parentNode.insertBefore(document.createTextNode(text), end);
 	});
 }
 
