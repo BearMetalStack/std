@@ -40,7 +40,7 @@ export function each<T>(
 	const owner = getCurrentOwner();
 
 	const stop = reconcile(anchor, signal, render as (i: T, ii: number) => Element, key);
-	if (owner) {
+	if (!owner) {
 		console.warn(
 			"each() called without an owner — list cleanup won't be automatic.\n" +
 				"Call the returned anchor's cleanup manually, or call each() inside:\n" +
