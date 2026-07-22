@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await no-explicit-any
 import { assertEquals } from "@std/assert";
-import { beforeEach, describe, it } from "@std/testing/bdd";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import Router from "./router.ts";
 
 describe("Router", () => {
@@ -237,6 +237,85 @@ describe("Router", () => {
 				assertEquals(res.status, 200);
 				assertEquals(await res.text(), method);
 			});
+		});
+	});
+
+	describe("Param Decoding", () => {
+		it("should percent-decode route parameters", async () => {
+			router.route("/files/:name")
+				.get(async (ctx) => new Response(ctx.params.name));
+
+			const req = new Request("http://localhost/files/Chapter%201", {
+				method: "GET",
+			});
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "Chapter 1");
+		});
+
+		it("should pass malformed percent sequences through undecoded", async () => {
+			router.route("/files/:name")
+				.get(async (ctx) => new Response(ctx.params.name));
+
+			const req = new Request("http://localhost/files/bad%2", {
+				method: "GET",
+			});
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "bad%2");
+		});
+	});
+
+	describe("Static SPA Serving", () => {
+		let dir: string;
+
+		beforeEach(async () => {
+			dir = await Deno.makeTempDir();
+			await Deno.writeTextFile(dir + "/index.html", "<html>shell</html>");
+			await Deno.writeTextFile(dir + "/chunk-ABC.js", "flat chunk");
+			await Deno.mkdir(dir + "/nested/deep", { recursive: true });
+			await Deno.writeTextFile(
+				dir + "/nested/deep/chunk-XYZ.js",
+				"nested chunk",
+			);
+		});
+
+		afterEach(async () => {
+			await Deno.remove(dir, { recursive: true });
+		});
+
+		it("should serve nested assets by their full path", async () => {
+			router.serveDirectory(dir, "/", { spa: true });
+
+			const req = new Request("http://localhost/nested/deep/chunk-XYZ.js", {
+				method: "GET",
+			});
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "nested chunk");
+		});
+
+		it("should serve root assets requested from a nested SPA route", async () => {
+			router.serveDirectory(dir, "/", { spa: true });
+
+			const req = new Request("http://localhost/some/route/chunk-ABC.js", {
+				method: "GET",
+			});
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "flat chunk");
+		});
+
+		it("should fall back to index.html for unknown routes", async () => {
+			router.serveDirectory(dir, "/", { spa: true });
+
+			const req = new Request("http://localhost/some/view", { method: "GET" });
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "<html>shell</html>");
+		});
+
+		it("should still 404 unknown paths without spa", async () => {
+			router.serveDirectory(dir, "/", { showIndex: true });
+
+			const req = new Request("http://localhost/some/view", { method: "GET" });
+			const res = await router.handle(req, {} as any);
+			assertEquals(res.status, 404);
 		});
 	});
 });

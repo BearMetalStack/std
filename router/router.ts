@@ -311,7 +311,9 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 	private findMatchingRoutes(url: URL) {
 		return this.routes.values().map((route) => {
 			const result = route.pattern.exec(url);
-			if (result) return { config: route, params: result.pathname.groups };
+			if (result) {
+				return { config: route, params: decodeGroups(result.pathname.groups) };
+			}
 		}).filter((r) => !!r).toArray();
 	}
 
@@ -360,6 +362,29 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			return resolveStaticFile(effectiveDir, root, path, spa, showIndex);
 		});
 	}
+}
+
+/**
+ * URLPattern hands back match groups still percent-encoded, so a route param
+ * like `/chapters/Chapter%201` would surface as `"Chapter%201"`. Decode each
+ * group; malformed sequences fall through undecoded rather than throwing.
+ */
+function decodeGroups(
+	groups: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+	const decoded: Record<string, string | undefined> = {};
+	for (const [key, value] of Object.entries(groups)) {
+		if (value === undefined) {
+			decoded[key] = value;
+			continue;
+		}
+		try {
+			decoded[key] = decodeURIComponent(value);
+		} catch {
+			decoded[key] = value;
+		}
+	}
+	return decoded;
 }
 
 export default Router;
