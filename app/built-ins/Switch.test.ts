@@ -92,3 +92,17 @@ Deno.test("renders nothing when no Case matches and no Default exists", async ()
 	});
 	assertEquals(await rendered(out), null);
 });
+
+Deno.test("Switch invokes the matched renderer exactly once per activation", async () => {
+	let calls = 0;
+	const counting = (() => {
+		calls++;
+		return "X";
+	}) as unknown as () => JSX.Element;
+	const out = Switch({
+		$: createSignal("a"),
+		children: [Case({ $: "a", children: counting })],
+	});
+	await rendered(out);
+	assertEquals(calls, 1, "the branch must render once, not twice");
+});

@@ -1,4 +1,4 @@
-import { getCurrentOwner, type JSX } from "@bearmetal/jsx/jsx-runtime";
+import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal } from "../signals/wrapper.ts";
 import { createComputed } from "../signals.ts";
 import { borrowOwnership } from "../util/ownership.ts";
@@ -33,7 +33,6 @@ export function Switch<T>(
 	const cache = new Map<T, JSX.Element | null>();
 
 	const cleanups: (() => void)[] = [];
-	const owner = getCurrentOwner();
 
 	let prevVal: T | undefined = undefined;
 	let prevNode: JSX.Element | null = null;
@@ -45,7 +44,10 @@ export function Switch<T>(
 
 		if ($$) {
 			const node = cache.get(val);
-			if (node !== undefined) return node;
+			if (node !== undefined) {
+				prevNode = node;
+				return node;
+			}
 		}
 
 		let renderer = map.get(val);
@@ -57,6 +59,10 @@ export function Switch<T>(
 				}
 			}
 		}
+		// The parent owner is resolved from the ambient owner at render time.
+		// This computed runs inside an owner-aware effect (the reactive child
+		// that consumes it), so getCurrentOwner() is the owning component even
+		// on late re-renders — no need to capture it up front.
 		prevNode = borrowOwnership(
 			{
 				registerCleanup(e) {
@@ -65,11 +71,9 @@ export function Switch<T>(
 			},
 			() => (renderer ?? fallback)?.() ?? null,
 			() => drain(cleanups, (e) => e()),
-			owner
 		);
 		if ($$) cache.set(val, prevNode);
-		// return prevNode;
-		return (renderer ?? fallback)?.() ?? null;
+		return prevNode;
 	});
 }
 

@@ -1,5 +1,5 @@
 import { Signal } from "@signals";
-import { getCurrentOwner } from "@bearmetal/jsx/client";
+import { getCurrentOwner, setCurrentOwner } from "@bearmetal/jsx/client";
 import type { SignalOf } from "./types.ts";
 
 let needsFlush = true;
@@ -23,9 +23,26 @@ type CleanupFn = () => void;
 export function effect(fn: () => CleanupFn | void): CleanupFn {
 	let cleanup: CleanupFn | void;
 
+	// Ownership is a synchronous global that is only set during a component's
+	// init call stack. An effect, however, re-runs later inside a microtask
+	// flush where that global is back to null — so capture the ambient owner at
+	// creation and re-establish it around every run. This makes getCurrentOwner()
+	// resolve to the correct owner for anything rendered synchronously within the
+	// effect (e.g. a For rendered late by a Switch), exactly as it does at init.
+	// The first run happens synchronously during init, where prev === owner, so
+	// this is a no-op there; restoring to `prev` (not `owner`) keeps sibling
+	// effects flushing in the same microtask from leaking owners onto each other.
+	const owner = getCurrentOwner();
+
 	const computed = new Signal.Computed(() => {
-		if (typeof cleanup === "function") cleanup();
-		cleanup = fn();
+		const prev = getCurrentOwner();
+		setCurrentOwner(owner);
+		try {
+			if (typeof cleanup === "function") cleanup();
+			cleanup = fn();
+		} finally {
+			setCurrentOwner(prev);
+		}
 	});
 
 	watcher.watch(computed);
