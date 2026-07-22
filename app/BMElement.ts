@@ -1,5 +1,4 @@
 import { BMC, getCurrentOwner, setCurrentOwner, setEffectImpl } from "@bearmetal/jsx/client";
-import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal as Signals } from "@signals";
 import { Signal } from "@signals";
 import type { ContextMap } from "./context/mod.ts";
@@ -7,6 +6,7 @@ import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import { effect } from "./signals.ts";
 import { coerceProp, declaredProps } from "./prop.ts";
 import { each } from "./built-ins/For.ts";
+import type { BMTemplate } from "./types.ts";
 
 setEffectImpl(effect);
 
@@ -44,16 +44,19 @@ export abstract class BMElement<
 	): Promise<string> {
 		const inst = new (this as unknown as new () => BMElement)();
 		for (const [k, v] of Object.entries(props)) {
+			// SSR is a one-shot render with no owner to keep a binding alive, so
+			// a signal prop is snapshotted rather than shared by reference.
+			const value = isSignal(v) ? v.get() : v;
 			// A `@prop`-declared field's accessor is already the signal; write
 			// through it directly. Anything undeclared falls back to the signals
 			// bag and a plain property, since there's no accessor to reach it by.
 			const declared = (inst as Record<string, unknown>)[k];
 			if (declared instanceof Signal.State) {
-				declared.set(v);
+				declared.set(value);
 				continue;
 			}
-			if (!inst.signals[`$${k}`]) inst.signals[`$${k}`] = new Signal.State(v);
-			(inst as Record<string, unknown>)[k] = v;
+			if (!inst.signals[`$${k}`]) inst.signals[`$${k}`] = new Signal.State(value);
+			(inst as Record<string, unknown>)[k] = value;
 		}
 		// deno-lint-ignore no-explicit-any
 		const tpl = await (inst as any).template;
@@ -186,11 +189,7 @@ export abstract class BMElement<
 	 * If you have `noImplicitOverride` enabled, use the `override` keyword:
 	 * `protected override get template() { ... }`
 	 */
-	protected get template():
-		| JSX.Element
-		| Signals.State<JSX.Element | null>
-		| Signals.Computed<JSX.Element | null>
-		| undefined {
+	protected get template(): BMTemplate {
 		return undefined;
 	}
 

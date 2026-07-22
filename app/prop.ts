@@ -97,6 +97,15 @@ export function coerceProp(type: PropType, value: string | null): unknown {
  * are never observed via `observedAttributes` — but as a signal, `count` is
  * still watchable regardless of value type.
  *
+ * Passing a signal itself as the prop value (`<my-counter count={parentSignal} />`)
+ * is different from passing its current value: the JSX runtime (`applyProps` in
+ * `jsx/lib/jsx.ts`) sees that `count`'s accessor already holds a writable signal
+ * and swaps it for the incoming one instead of mirroring through an attribute.
+ * Parent and child then read and write the exact same `Signal.State` — the
+ * binding is bidirectional because there is only one signal, not two kept in
+ * sync. This only fires when the incoming value is itself a signal; a bare
+ * value still flows one-way through the attribute as above.
+ *
  * @example
  * ```tsx
  * @define("my-counter")
@@ -121,7 +130,6 @@ export function prop(type?: PropType): PropDecorator {
 		if (!Object.hasOwn(context.metadata, PROPS)) context.metadata[PROPS] = {};
 		const declared = context.metadata[PROPS] as DeclaredProps;
 		declared[name] = type;
-
 		return {
 			// get/set are intentionally omitted: the field's own initializer is
 			// already a Signal.State, so the auto-accessor's default storage is

@@ -36,8 +36,12 @@ reactive child. It's usable anywhere a bare signal is — `each()`, effects, `Sh
 
 ## Reactivity
 
-Declaring a prop adds its name to the element's `observedAttributes`. When a parent writes the
-attribute, the signal updates:
+Declaring a prop adds its name to the element's `observedAttributes`. Passing a plain value writes
+it once as an attribute; the child's `observedAttributes` picks that up and updates its own signal.
+Passing a signal is different — and this is the common case for anything that needs to change after
+the initial render.
+
+### Passing a signal binds it, it doesn't copy it
 
 ```tsx
 @define("my-parent")
@@ -50,9 +54,47 @@ export class MyParent extends BMElement {
 }
 ```
 
-Passing a signal as a prop makes the parent the owner: the JSX runtime opens an effect that writes
-the attribute whenever the parent's signal changes, and the child's `observedAttributes` picks that
-up and updates its own signal. Neither side has to know about the other.
+`count`'s accessor on `<my-counter>` already holds its own `Signal.State` (from
+`accessor count = this.signal(0)`). When the JSX runtime sees that the incoming prop value is _also_
+a signal, it swaps the child's signal for the parent's instead of mirroring the value through an
+attribute. From then on `#count` on the parent and `count` on the child are the same `Signal.State`
+object — either side calling `.set()` is immediately visible to the other, with no attribute
+round-trip and no code on either side aware of the other.
+
+This is what makes multi-step flows and things like a file picker's "current directory" work: pass a
+signal down, let the child read and write it, and the parent sees every update without wiring up
+callbacks.
+
+```tsx
+@define("wizard-step")
+export class WizardStep extends BMElement {
+	@prop()
+	accessor value = this.signal("");
+
+	get template() {
+		return <input $bind={this.value} />;
+	}
+}
+
+@define("signup-wizard")
+export class SignupWizard extends BMElement {
+	#name = this.signal("");
+
+	get template() {
+		// #name updates as the step's own input changes - same signal, both directions.
+		return <wizard-step value={this.#name} />;
+	}
+}
+```
+
+Only a _writable_ signal (something with both `.get()` and `.set()`) triggers this — a read-only
+`Signal.Computed` passed as a prop falls back to the one-way, attribute-mirrored behavior below,
+since there's nothing for the child to write back to.
+
+Passing a bare value (`count={5}`) still goes through the one-way path: the JSX runtime writes the
+attribute once, `attributeChangedCallback` coerces it back to the declared type and calls `.set()`
+on the child's own signal. That signal is private to the child; the parent has no reference to it
+and won't see further writes.
 
 ## Types
 
@@ -94,12 +136,14 @@ empty string.
 ### Objects
 
 Objects and functions are set as properties on the element rather than as attributes, so there's no
-attribute for `observedAttributes` to watch. As a signal, `count`-style props are still watchable
-regardless of value type — this only affects whether a _parent writing an attribute_ is observed.
+attribute for `observedAttributes` to watch.
 
 ```tsx
 <my-list items={["a", "b"]} />;
 ```
+
+A signal is also an object, but it's handled by the binding behavior described above, not this one —
+passing a signal never lands in `items` as a raw value; it replaces `items`'s own signal.
 
 ## Accessing Server Side Props
 

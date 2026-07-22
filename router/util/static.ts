@@ -20,34 +20,50 @@ export async function resolveStaticFile(
 	spa: boolean,
 	showIndex: boolean,
 ): Promise<Response> {
-	let normalizedPath = spa
-		? joinPath(dir, pathname.split("/").pop()!)
-		: (dir + "/" + pathname.replace(new RegExp("^" + root), ""))
-			.trim()
-			.replace("//", "/")
-			.replace(/\/\s?$/, "");
+	const normalizedPath = (dir + "/" + pathname.replace(new RegExp("^" + root), ""))
+		.trim()
+		.replace("//", "/")
+		.replace(/\/\s?$/, "");
 
-	let fileInfo: Deno.FileInfo;
+	const served = await tryServeFile(normalizedPath, spa, showIndex);
+	if (served) return served;
+
+	if (spa) {
+		// Hashed assets referenced relative to index.html get requested from
+		// whatever SPA route the browser is on (/some/route/chunk-XYZ.js) -
+		// retry against the dist root before falling back to the app shell.
+		const flattened = joinPath(dir, pathname.split("/").pop()!);
+		if (flattened !== normalizedPath) {
+			const asset = await tryServeFile(flattened, spa, showIndex);
+			if (asset) return asset;
+		}
+		try {
+			return await fileResponse(dir + "/index.html");
+		} catch (e) {
+			if (e instanceof Deno.errors.NotFound) return NotFound();
+			throw e;
+		}
+	}
+
+	return NotFound();
+}
+
+/** Serves the file (or its directory index) at `path`, or null if it doesn't resolve to one. */
+async function tryServeFile(
+	path: string,
+	spa: boolean,
+	showIndex: boolean,
+): Promise<Response | null> {
+	let resolved = path;
 	try {
-		fileInfo = await Deno.stat(normalizedPath);
+		const fileInfo = await Deno.stat(resolved);
+		if (fileInfo.isDirectory) {
+			if (!showIndex && !spa) return NotFound();
+			resolved += "/index.html";
+		}
+		return await fileResponse(resolved);
 	} catch (error) {
-		if (error instanceof Deno.errors.NotFound) {
-			return spa ? fileResponse(dir + "/index.html") : NotFound();
-		}
+		if (error instanceof Deno.errors.NotFound) return null;
 		throw error;
-	}
-
-	if (fileInfo.isDirectory) {
-		if (!showIndex && !spa) return NotFound();
-		normalizedPath += "/index.html";
-	}
-
-	try {
-		return await fileResponse(normalizedPath);
-	} catch (e) {
-		if (e instanceof Deno.errors.NotFound) {
-			return spa ? fileResponse(dir + "/index.html") : NotFound();
-		}
-		throw e;
 	}
 }
