@@ -1,6 +1,6 @@
 import { assertEquals, assertExists } from "@std/assert";
 import "./_dom_shim.ts";
-import type { MiniElement } from "./_dom_shim.ts";
+import { MiniElement, MiniText } from "./_dom_shim.ts";
 import { each, For } from "./For.ts";
 import { createSignal } from "../signals.ts";
 import { getCurrentOwner, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
@@ -39,8 +39,19 @@ class FakeOwnerWithRefs {
 	}
 }
 
-function tags(anchor: MiniElement): string[] {
-	return anchor.children.map((c) => c.tag);
+/**
+ * Mounts an `each()` fragment into a fresh host and returns the host. `each()`
+ * is transparent — its items land as direct children of the host — so tests
+ * inspect the host, not a wrapper.
+ */
+function mount(fragment: unknown, hostTag = "div"): MiniElement {
+	const host = document.createElement(hostTag) as unknown as MiniElement;
+	(host as unknown as { appendChild(n: unknown): void }).appendChild(fragment);
+	return host;
+}
+
+function tags(host: MiniElement): string[] {
+	return host.children.map((c) => c.tag);
 }
 
 interface Item {
@@ -56,9 +67,27 @@ Deno.test("each renders items in initial signal order", async () => {
 	setCurrentOwner(fakeOwner());
 	try {
 		const signal = createSignal<Item[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }]);
-		const anchor = each(signal, render, (i) => i.id) as unknown as MiniElement;
+		const host = mount(each(signal, render, (i) => i.id));
 		await flush();
-		assertEquals(tags(anchor), ["a", "b"]);
+		assertEquals(tags(host), ["a", "b"]);
+	} finally {
+		setCurrentOwner(null);
+	}
+});
+
+Deno.test("each is transparent — items are direct children of the host, no wrapper", async () => {
+	setCurrentOwner(fakeOwner());
+	try {
+		const signal = createSignal<Item[]>([{ id: 1, label: "option" }, { id: 2, label: "option" }]);
+		// A <select> only renders <option> children directly — a <slot> wrapper
+		// would suppress them entirely.
+		const host = mount(each(signal, render, (i) => i.id), "select");
+		await flush();
+		assertEquals(tags(host), ["option", "option"]);
+		// The only non-element child is the single empty text-node anchor marker.
+		const nonElements = host.childNodes.filter((n) => !(n instanceof MiniElement));
+		assertEquals(nonElements.length, 1);
+		assertEquals(nonElements.every((n) => n instanceof MiniText), true);
 	} finally {
 		setCurrentOwner(null);
 	}
@@ -68,13 +97,13 @@ Deno.test("each inserts new items at their signal-order position, not the end", 
 	setCurrentOwner(fakeOwner());
 	try {
 		const signal = createSignal<Item[]>([{ id: 1, label: "a" }, { id: 3, label: "c" }]);
-		const anchor = each(signal, render, (i) => i.id) as unknown as MiniElement;
+		const host = mount(each(signal, render, (i) => i.id));
 		await flush();
-		assertEquals(tags(anchor), ["a", "c"]);
+		assertEquals(tags(host), ["a", "c"]);
 
 		signal.set([{ id: 1, label: "a" }, { id: 2, label: "b" }, { id: 3, label: "c" }]);
 		await flush();
-		assertEquals(tags(anchor), ["a", "b", "c"]);
+		assertEquals(tags(host), ["a", "b", "c"]);
 	} finally {
 		setCurrentOwner(null);
 	}
@@ -85,16 +114,16 @@ Deno.test("each removes items and runs their cleanup", async () => {
 	try {
 		const removed: number[] = [];
 		const signal = createSignal<Item[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }]);
-		const anchor = each(signal, (item) => {
+		const host = mount(each(signal, (item) => {
 			getCurrentOwner()?.registerCleanup(() => removed.push(item.id));
 			return render(item);
-		}, (i) => i.id) as unknown as MiniElement;
+		}, (i) => i.id));
 		await flush();
-		assertEquals(tags(anchor), ["a", "b"]);
+		assertEquals(tags(host), ["a", "b"]);
 
 		signal.set([{ id: 2, label: "b" }]);
 		await flush();
-		assertEquals(tags(anchor), ["b"]);
+		assertEquals(tags(host), ["b"]);
 		assertEquals(removed, [1]);
 	} finally {
 		setCurrentOwner(null);
@@ -107,20 +136,20 @@ Deno.test("each re-renders and cleans up the old node when an item's shallow pro
 		let renderCount = 0;
 		const cleaned: number[] = [];
 		const signal = createSignal<Item[]>([{ id: 1, label: "v0" }]);
-		const anchor = each(signal, (item) => {
+		const host = mount(each(signal, (item) => {
 			renderCount++;
 			const thisRender = renderCount;
 			getCurrentOwner()?.registerCleanup(() => cleaned.push(thisRender));
 			return render(item);
-		}, (i) => i.id) as unknown as MiniElement;
+		}, (i) => i.id));
 		await flush();
 		assertEquals(renderCount, 1);
-		assertEquals(tags(anchor), ["v0"]);
+		assertEquals(tags(host), ["v0"]);
 
 		signal.set([{ id: 1, label: "v1" }]);
 		await flush();
 		assertEquals(renderCount, 2);
-		assertEquals(tags(anchor), ["v1"]);
+		assertEquals(tags(host), ["v1"]);
 		assertEquals(cleaned, [1]);
 	} finally {
 		setCurrentOwner(null);
@@ -134,17 +163,17 @@ Deno.test("each reorders existing nodes without re-rendering unchanged items", a
 		const a: Item = { id: 1, label: "a" };
 		const b: Item = { id: 2, label: "b" };
 		const signal = createSignal<Item[]>([a, b]);
-		const anchor = each(signal, (item) => {
+		const host = mount(each(signal, (item) => {
 			renderCount++;
 			return render(item);
-		}, (i) => i.id) as unknown as MiniElement;
+		}, (i) => i.id));
 		await flush();
-		assertEquals(tags(anchor), ["a", "b"]);
+		assertEquals(tags(host), ["a", "b"]);
 		assertEquals(renderCount, 2);
 
 		signal.set([b, a]);
 		await flush();
-		assertEquals(tags(anchor), ["b", "a"]);
+		assertEquals(tags(host), ["b", "a"]);
 		assertEquals(renderCount, 2, "reordering unchanged objects should not re-render them");
 	} finally {
 		setCurrentOwner(null);
@@ -156,11 +185,11 @@ Deno.test("refs registered by a render callback land on the real owning componen
 	setCurrentOwner(owner);
 	try {
 		const signal = createSignal<Item[]>([{ id: 1, label: "a" }]);
-		each(signal, (item) => {
+		mount(each(signal, (item) => {
 			const el = render(item);
 			getCurrentOwner()?.registerRef?.(`item-${item.id}`, el);
 			return el;
-		}, (i) => i.id);
+		}, (i) => i.id));
 		await flush();
 		assertExists(owner.getRef("item-1"), "ref declared inside the render callback should register");
 	} finally {
@@ -188,15 +217,15 @@ Deno.test("each registers its stop function as a cleanup on the current owner", 
 	setCurrentOwner(owner);
 	try {
 		const signal = createSignal<Item[]>([{ id: 1, label: "a" }]);
-		const anchor = each(signal, render, (i) => i.id) as unknown as MiniElement;
+		const host = mount(each(signal, render, (i) => i.id));
 		await flush();
-		assertEquals(tags(anchor), ["a"]);
+		assertEquals(tags(host), ["a"]);
 
 		owner.runCleanups();
 		signal.set([{ id: 2, label: "b" }]);
 		await flush();
 		assertEquals(
-			tags(anchor),
+			tags(host),
 			["a"],
 			"stopped reconciliation should no longer react to signal changes",
 		);
@@ -209,14 +238,13 @@ Deno.test("For delegates to each", async () => {
 	setCurrentOwner(fakeOwner());
 	try {
 		const signal = createSignal<Item[]>([{ id: 1, label: "a" }]);
-		const anchor = For({
+		const host = mount(For({
 			$: signal,
 			keyOn: (i) => i.id,
 			children: render,
-		}) as unknown as MiniElement;
+		}));
 		await flush();
-		assertExists(anchor);
-		assertEquals(tags(anchor), ["a"]);
+		assertEquals(tags(host), ["a"]);
 	} finally {
 		setCurrentOwner(null);
 	}

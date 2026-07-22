@@ -30,12 +30,31 @@ function ownerScope() {
 	};
 }
 
+/**
+ * Renders a keyed, reconciled list.
+ *
+ * The managed nodes are anchored after a single empty text-node marker rather
+ * than parented under a wrapper element. That keeps the list **transparent** in
+ * the DOM: its items become direct siblings of whatever the returned fragment is
+ * inserted into, so `each()` works inside parents that only accept specific
+ * children — `<select>` (`<option>`), `<table>`/`<tbody>` (`<tr>`), `<ul>`
+ * (`<li>`) — where an intervening `<slot>` would suppress rendering entirely.
+ *
+ * The returned fragment carries the marker; inserting it (via JSX or
+ * `appendChild`) empties the fragment and moves the marker into the live parent,
+ * which is thereafter always `anchor.parentNode`. Reconciliation only ever
+ * positions items relative to that anchor, so the list stays contiguous even
+ * with other siblings before or after it. See `appendReactiveChild` in
+ * `jsx/lib/jsx.ts` for the related marker-range technique.
+ */
 export function each<T>(
 	signal: Signal.State<T[] | Set<T>> | Signal.Computed<T[] | Set<T>>,
 	render: (item: T, index: number) => Element | JSX.Element | null,
 	key: (item: T) => string | number,
-): HTMLSlotElement {
-	const anchor = document.createElement("slot");
+): DocumentFragment {
+	const anchor = document.createTextNode("");
+	const fragment = document.createDocumentFragment();
+	fragment.append(anchor);
 
 	const owner = getCurrentOwner();
 
@@ -43,14 +62,14 @@ export function each<T>(
 	if (!owner) {
 		console.warn(
 			"each() called without an owner — list cleanup won't be automatic.\n" +
-				"Call the returned anchor's cleanup manually, or call each() inside:\n" +
+				"Call the returned fragment's cleanup manually, or call each() inside:\n" +
 				"  • a BmElement.init() method\n" +
 				"  • an each() render callback",
 		);
 	}
 	owner?.registerCleanup(stop);
 
-	return anchor;
+	return fragment;
 }
 
 function shallowDiff<T>(
@@ -89,7 +108,7 @@ function shallowDiff<T>(
 }
 
 function reconcile<T>(
-	parent: Element,
+	anchor: Text,
 	signal: Signal.State<T[] | Set<T>> | Signal.Computed<T[] | Set<T>>,
 	render: (item: T, index: number) => Element | null,
 	key: (item: T) => string | number,
@@ -133,17 +152,18 @@ function reconcile<T>(
 			keyMap.set(k, { node, cleanup: () => scope.cleanups.forEach((fn) => fn()) });
 		}
 
-		let previousNode: Element | null = null;
+		// Reorder in place, walking the sibling chain from `anchor`. Each managed
+		// node is moved only when it is not already where signal order wants it,
+		// so untouched items keep their identity (and DOM state) across updates.
+		// Newly added nodes, still detached, are inserted here on their first pass.
+		let previousNode: ChildNode = anchor;
 		for (const item of items) {
 			const k = key(item);
 			const entry = keyMap.get(k);
 			if (!entry) continue;
 			const { node } = entry;
-			const expectedPrev: Element | null = previousNode
-				? previousNode.nextElementSibling
-				: parent.firstElementChild;
-			if (node !== expectedPrev) {
-				previousNode ? previousNode.after(node) : parent.prepend(node);
+			if (previousNode.nextSibling !== node) {
+				previousNode.after(node);
 			}
 			previousNode = node;
 		}
