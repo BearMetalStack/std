@@ -4,14 +4,15 @@ export function borrowOwnership<T>(
 	newOwner: Owner,
 	action: () => T,
 	cleanup: () => void,
+	prevOwner: Owner,
 ): T {
 	if (!newOwner) return action();
-	const prevOwner = getCurrentOwner();
+	prevOwner = prevOwner ?? getCurrentOwner();
 	prevOwner?.registerCleanup(cleanup);
 	newOwner.refs = prevOwner?.refs;
 	newOwner.registerRef = prevOwner?.registerRef?.bind(prevOwner);
 	setCurrentOwner(newOwner);
 	const result = action();
-	setCurrentOwner(prevOwner);
+	setCurrentOwner(prevOwner)
 	return result;
 }

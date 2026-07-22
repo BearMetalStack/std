@@ -1,13 +1,9 @@
-import type { JSX } from "@bearmetal/jsx/jsx-runtime";
+import { getCurrentOwner, type JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal } from "../signals/wrapper.ts";
 import { createComputed } from "../signals.ts";
 import { borrowOwnership } from "../util/ownership.ts";
 import { drain } from "../util/drain.ts";
 
-// TS types every JSX expression as JSX.Element regardless of the component's
-// declared return type, so <Case>/<Default> can't honestly return CaseTuple.
-// Like SolidJS's <Match>, they claim JSX.Element and return branded data that
-// <Switch> narrows back out at runtime via isCaseTuple.
 const CASE: unique symbol = Symbol.for("bearmetal.case");
 
 interface SwitchProps<T> {
@@ -37,6 +33,7 @@ export function Switch<T>(
 	const cache = new Map<T, JSX.Element | null>();
 
 	const cleanups: (() => void)[] = [];
+	const owner = getCurrentOwner();
 
 	let prevVal: T | undefined = undefined;
 	let prevNode: JSX.Element | null = null;
@@ -68,9 +65,11 @@ export function Switch<T>(
 			},
 			() => (renderer ?? fallback)?.() ?? null,
 			() => drain(cleanups, (e) => e()),
+			owner
 		);
 		if ($$) cache.set(val, prevNode);
-		return prevNode;
+		// return prevNode;
+		return (renderer ?? fallback)?.() ?? null;
 	});
 }
 

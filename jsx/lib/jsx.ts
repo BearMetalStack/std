@@ -146,6 +146,8 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 		}
 		if (isSignal(val)) {
 			reactiveEffect(() => applyProp(el, key, val.get()));
+		} else if (isWritableSignal(existing)) {
+			existing.set(val);
 		} else {
 			applyProp(el, key, val);
 		}

@@ -17,10 +17,6 @@ function ownerScope() {
 	const cleanups: Array<() => void> = [];
 	setCurrentOwner({
 		registerCleanup: (fn) => cleanups.push(fn),
-		// Refs registered by a render callback (e.g. `ref="foo"` on a list item)
-		// must land on the real owning component, not this per-item scope, or
-		// they'd silently never be recorded — `clientJsx` only special-cases
-		// `ref` when `_currentOwner.registerRef` exists.
 		registerRef: prev?.registerRef?.bind(prev),
 		get refs() {
 			return prev?.refs;
@@ -41,8 +37,10 @@ export function each<T>(
 ): HTMLSlotElement {
 	const anchor = document.createElement("slot");
 
+	const owner = getCurrentOwner();
+
 	const stop = reconcile(anchor, signal, render as (i: T, ii: number) => Element, key);
-	if (!getCurrentOwner()) {
+	if (owner) {
 		console.warn(
 			"each() called without an owner — list cleanup won't be automatic.\n" +
 				"Call the returned anchor's cleanup manually, or call each() inside:\n" +
@@ -50,7 +48,7 @@ export function each<T>(
 				"  • an each() render callback",
 		);
 	}
-	getCurrentOwner()?.registerCleanup(stop);
+	owner?.registerCleanup(stop);
 
 	return anchor;
 }

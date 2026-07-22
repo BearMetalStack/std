@@ -1,6 +1,5 @@
 import { getCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import { Signal } from "./signals/wrapper.ts";
-import type { SignalOf } from "./types.ts";
 
 export { Signal } from "./signals/wrapper.ts";
 
@@ -74,9 +73,9 @@ export class DirtySignal<T> extends Signal.State<T> {
 export class LazySignal<T> extends Signal.State<T> {
 	#fetcher: () => Promise<T>;
 	#fetched = false;
-	constructor(initial: T, fetcher: () => Promise<T>) {
+	constructor(initial: T, fetcher: () => T | Promise<T>) {
 		super(initial);
-		this.#fetcher = fetcher;
+		this.#fetcher = async () => await fetcher();
 	}
 	set(val: T) {
 		super.set(val);
@@ -94,13 +93,43 @@ export class LazySignal<T> extends Signal.State<T> {
 }
 
 export class DerivedSignal<T> extends Signal.Computed<T> {
-	constructor(private pinitial: SignalOf<T>, callback: (val: T) => void) {
-		super(() => pinitial.get());
+	constructor(init: () => T, callback: (val: T) => void) {
+		super(init);
 		this.#callback = callback;
 	}
 	#callback: (val: T) => void;
 
 	set(val: T) {
 		this.#callback(val);
+	}
+}
+
+// TODO: figure out a good name for this
+export class SpreadSignal<T extends object> extends Signal.State<T> {
+	$: T = {} as T;
+	constructor(init: T) {
+		super(init);
+		this.#buildShadow(init);
+	}
+
+	#buildShadow(from: T) {
+		if (!from) return;
+		this.$ = {} as T;
+		Object.keys(from).map((k) =>
+			Object.assign(
+				this.$,
+				k,
+				new DerivedSignal(() => this.get()[k as keyof T], (v) => {
+					const obj = this.get();
+					Object.assign(obj, k, v);
+					super.set(obj);
+				}),
+			)
+		);
+	}
+
+	set(val: T) {
+		super.set(val);
+		this.#buildShadow(val);
 	}
 }

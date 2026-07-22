@@ -6,7 +6,7 @@ export function injectStyle(id: string, css: string): void {
 	const el = document.createElement("style");
 	el.id = id;
 	el.textContent = css;
-	document.head.appendChild(el);
+	// document.head.appendChild(el);
 }
 
 type ThemeEntry = {
