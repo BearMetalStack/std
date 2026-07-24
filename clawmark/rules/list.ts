@@ -157,6 +157,9 @@ export function createListRules(): AnyRule[] {
 		renderOpen: () => "<ol>",
 		renderClose: () => "</ol>",
 
+		matchTag: "ol",
+		match: () => ({ kind: "wrap", tag: "md:orderedlist", data: { phase: "open" } }),
+
 		serializeKind: "block",
 		serialize: (node, ctx) => serializeList("ordered", node, ctx),
 	};
@@ -205,6 +208,18 @@ export function createListRules(): AnyRule[] {
 		renderOpen: (node) => `<ul${node.data.style === "none" ? ' class="none"' : ""}>`,
 		renderClose: () => "</ul>",
 
+		matchTag: "ul",
+		match(el) {
+			// class="none" is what this rule's own renderOpen emits for a
+			// checklist's container.
+			const none = (el.attrs.get("class") ?? "").split(/\s+/).includes("none");
+			return {
+				kind: "wrap",
+				tag: "md:unorderedlist",
+				data: none ? { phase: "open", style: "none" } : { phase: "open" },
+			};
+		},
+
 		serializeKind: "block",
 		serialize: (node, ctx) => serializeList("unordered", node, ctx),
 	};
@@ -222,6 +237,20 @@ export function createListRules(): AnyRule[] {
 
 		renderOpen: (node) => `<li${node.data.style ? ' class="none"' : ""}>`,
 		renderClose: () => "</li>",
+
+		matchTag: "li",
+		match(el, ctx) {
+			// A checklist item is <li><input type="checkbox" disabled [checked]>.
+			const input = ctx.child("input", el);
+			if (input?.attrs.get("type") === "checkbox") {
+				return {
+					kind: "wrap",
+					tag: "md:checkitem",
+					data: { phase: "open", checked: input.attrs.has("checked") },
+				};
+			}
+			return { kind: "wrap", tag: "md:listitem", data: { phase: "open" } };
+		},
 
 		serializeKind: "block",
 		serialize(node, ctx) {
@@ -245,6 +274,12 @@ export function createListRules(): AnyRule[] {
 		renderOpen: (node) =>
 			`<li><input type="checkbox" disabled${node.data.checked ? " checked" : ""}>`,
 		renderClose: () => "</li>",
+
+		// The <li> is claimed by listItemRule above, which decides between the
+		// two item kinds; the checkbox <input> itself is then dropped so it does
+		// not leak into the item's text.
+		matchTag: "input",
+		match: (el) => el.attrs.get("type") === "checkbox" ? { kind: "drop" } : null,
 
 		serializeKind: "block",
 		serialize: (node, ctx) =>

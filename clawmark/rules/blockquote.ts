@@ -33,6 +33,9 @@ export const blockquoteRule: Rule<Data> = {
 		}
 	},
 
+	matchTag: "blockquote",
+	match: () => ({ kind: "wrap", tag: "md:blockquote", data: { phase: "open" } }),
+
 	renderOpen: () => "<blockquote>",
 	renderClose: () => "</blockquote>",
 
@@ -61,6 +64,12 @@ export const lineItemRule: Rule<LineItemData> = {
 		closeIfCurrentIs(ctx, "md:lineitem");
 		openNode(ctx, "md:lineitem", { phase: "open" });
 	},
+
+	matchTag: "p",
+	match: (_el, ctx) =>
+		ctx.parentTag === "md:blockquote"
+			? { kind: "wrap", tag: "md:lineitem", data: { phase: "open" } }
+			: null,
 
 	renderOpen: () => "<p>",
 	renderClose: () => "</p>",

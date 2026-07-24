@@ -27,6 +27,18 @@ export const imageRule: Rule<ImageData> = {
 		return `<img src="${escapeHtml(node.data.src)}"${alt}${title}>`;
 	},
 
+	matchTag: "img",
+	match(el) {
+		const src = el.attrs.get("src");
+		if (!src) return null;
+		const data: Record<string, unknown> = { src };
+		const alt = el.attrs.get("alt");
+		const title = el.attrs.get("title");
+		if (alt) data.alt = alt;
+		if (title) data.title = title;
+		return { kind: "leaf", tag: "md:image", data };
+	},
+
 	serialize(node, ctx) {
 		const alt = ctx.escape(node.data.alt ?? "", "linkText");
 		const src = ctx.escape(node.data.src, "linkDest");

@@ -218,6 +218,8 @@ export interface MatchContext {
 	child(localName: string, el?: XmlElement): XmlElement | undefined;
 	/** Flattened, whitespace-normalized, trimmed text of a subtree. */
 	text(el?: XmlElement): string;
+	/** Verbatim text of a subtree, with no whitespace collapsing (`<pre>`). */
+	raw(el?: XmlElement): string;
 
 	/** Recurse into an element's children, appending under `parent`. */
 	crawlChildren(parent: Node, el?: XmlElement): void;

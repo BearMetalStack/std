@@ -1,4 +1,5 @@
 import type { AnyRule, Node, Rule, SerializeContext, Token } from "../types.ts";
+import type { XmlElement } from "../xml/types.ts";
 import { appendLeaf, closeNode, escapeHtml, openNode } from "./helpers.ts";
 
 type TableData = { columns: number; phase: "open" | "close" };
@@ -53,6 +54,14 @@ function serializeTable(node: Node, ctx: SerializeContext): string {
 	].join("\n");
 }
 
+/** Reads a cell's alignment from its inline style or legacy `align` attribute. */
+function alignOf(cell: XmlElement): "l" | "c" | "r" {
+	const raw = `${cell.attrs.get("style") ?? ""} ${cell.attrs.get("align") ?? ""}`;
+	if (/center/i.test(raw)) return "c";
+	if (/right/i.test(raw)) return "r";
+	return "l";
+}
+
 export function createTableRules(): AnyRule[] {
 	let renderState: { head: boolean; columnAlign?: ("l" | "c" | "r")[] } | null = null;
 
@@ -101,6 +110,54 @@ export function createTableRules(): AnyRule[] {
 
 		renderOpen: () => "<table>",
 		renderClose: () => "</table>",
+
+		matchTag: "table",
+		/**
+		 * The whole table is claimed at once rather than rule-per-element,
+		 * because the delimiter row has no HTML counterpart: it has to be
+		 * synthesized between the head row and the body, and markdown does not
+		 * see a table at all without it.
+		 *
+		 * Alignment comes from the *first body row*, not the header. This
+		 * rule's own renderOpen forces `text-align:center` on every `<th>`
+		 * regardless of the real alignment, so head cells carry no signal - a
+		 * header-only table cannot recover its alignment at all.
+		 */
+		match(el, ctx) {
+			const rows = ctx.findAll("tr", el);
+			if (rows.length === 0) return null;
+
+			const cellsOf = (row: XmlElement) =>
+				row.children.filter(
+					(c): c is XmlElement => c.kind === "element" && (c.name === "td" || c.name === "th"),
+				);
+
+			const nodes: Node[] = rows.map((row) => ({
+				tag: "md:tablerow",
+				data: { columns: cellsOf(row).map((cell) => ctx.text(cell)) },
+				children: [],
+			}));
+
+			const bodyRow = rows.find((row) => cellsOf(row).some((c) => c.name === "td"));
+			const align = (bodyRow ? cellsOf(bodyRow) : []).map((cell) => alignOf(cell));
+
+			if (align.length > 0) {
+				nodes.splice(1, 0, {
+					tag: "md:tableformat",
+					data: { columns: align },
+					children: [],
+				});
+			}
+
+			return {
+				kind: "nodes",
+				nodes: [{
+					tag: "md:table",
+					data: { columns: align.length, phase: "open" },
+					children: nodes,
+				}],
+			};
+		},
 
 		serializeKind: "block",
 		serialize: (node, ctx) => serializeTable(node, ctx),

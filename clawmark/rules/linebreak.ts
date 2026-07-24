@@ -43,6 +43,9 @@ export const linebreakRule: Rule<Data> = {
 
 	tree: (_token, ctx) => appendLeaf(ctx, "md:linebreak", {}),
 	renderOpen: () => "<br>",
+	matchTag: "br",
+	match: () => ({ kind: "leaf", tag: "md:linebreak", data: {} }),
+
 	serialize: () => "\\\n",
 };
 

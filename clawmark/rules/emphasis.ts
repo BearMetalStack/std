@@ -68,6 +68,9 @@ export const italicRule: Rule<EmphasisData> = {
 	validate: () => false,
 	tokenize: () => ({ tag: "md:italic", data: {} }),
 	tree: (_token, ctx) => toggle("md:italic", ctx),
+	matchTag: ["em", "i"],
+	match: () => ({ kind: "wrap", tag: "md:italic", data: {} }),
+
 	renderOpen: () => "<em>",
 	renderClose: () => "</em>",
 
@@ -83,6 +86,9 @@ export const boldRule: Rule<EmphasisData> = {
 	validate: () => false,
 	tokenize: () => ({ tag: "md:bold", data: {} }),
 	tree: (_token, ctx) => toggle("md:bold", ctx),
+	matchTag: ["strong", "b"],
+	match: () => ({ kind: "wrap", tag: "md:bold", data: {} }),
+
 	renderOpen: () => "<strong>",
 	renderClose: () => "</strong>",
 

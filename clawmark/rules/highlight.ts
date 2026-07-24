@@ -24,5 +24,13 @@ export const highlightRule: Rule<Data> = {
 	renderOpen: () => `<span class="highlight">`,
 	renderClose: () => "</span>",
 
+	matchTag: ["mark", "span"],
+	// <span class="highlight"> is exactly what this rule's own renderOpen
+	// emits; a bare <span> is presentational and falls through to unwrap.
+	match: (el) =>
+		el.name === "mark" || (el.attrs.get("class") ?? "").split(/\s+/).includes("highlight")
+			? { kind: "wrap", tag: "md:highlight", data: {} }
+			: null,
+
 	serialize: (node, ctx) => `==${ctx.children(node)}==`,
 };

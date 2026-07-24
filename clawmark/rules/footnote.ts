@@ -34,6 +34,16 @@ export const footnoteRule: Rule<RefData> = {
 		return `<sup><a href="#fn-${id}" id="fnref-${id}">${id}</a></sup>`;
 	},
 
+	matchTag: "sup",
+	// <sup><a href="#fn-ID" id="fnref-ID">ID</a></sup> is exactly this rule's
+	// own renderOpen output.
+	match(el, ctx) {
+		const anchor = ctx.find("a", el);
+		const href = anchor?.attrs.get("href");
+		if (!href?.startsWith("#fn-")) return null;
+		return { kind: "leaf", tag: "md:footnote", data: { id: href.slice(4) } };
+	},
+
 	serialize: (node) => `[^${node.data.id}]`,
 };
 
@@ -70,6 +80,13 @@ export const footnoteDefRule: Rule<DefData> = {
 		return `<aside id="${id}"><a href="#fnref-${id}">↩</a> `;
 	},
 	renderClose: () => "</aside>",
+
+	matchTag: "aside",
+	match(el) {
+		const id = el.attrs.get("id");
+		if (!id) return null;
+		return { kind: "wrap", tag: "md:footnotedef", data: { id, phase: "open" } };
+	},
 
 	serializeKind: "block",
 	// Definitions keep their position in the tree rather than being hoisted to

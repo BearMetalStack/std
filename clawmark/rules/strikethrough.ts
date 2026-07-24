@@ -24,5 +24,8 @@ export const strikethroughRule: Rule<Data> = {
 	renderOpen: () => "<s>",
 	renderClose: () => "</s>",
 
+	matchTag: ["s", "del", "strike"],
+	match: () => ({ kind: "wrap", tag: "md:strikethrough", data: {} }),
+
 	serialize: (node, ctx) => `~~${ctx.children(node)}~~`,
 };

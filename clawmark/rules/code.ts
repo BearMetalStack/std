@@ -50,6 +50,23 @@ export const codeBlockRule: Rule<CodeData> = {
 		return `<pre class="code"><code${cls}>${escapeForCode(node.data.value)}</code>`;
 	},
 	renderClose: () => "</pre>",
+	matchTag: "pre",
+	preserveWhitespace: true,
+	// <pre class="code"><code class="language-ts"> is this rule's own output,
+	// but a bare <pre> from elsewhere works identically.
+	match(el, ctx) {
+		const code = ctx.child("code", el);
+		const target = code ?? el;
+		const cls = target.attrs.get("class") ?? "";
+		const lang = /(?:^|\s)language-([\w+#.-]+)/.exec(cls)?.[1];
+		// Drop one leading/trailing newline, the same way tokenize() does for a
+		// fenced block - `<pre><code>x\n</code></pre>` is visually one line.
+		const value = ctx.raw(target).replace(/^\n/, "").replace(/\n$/, "");
+		const data: Record<string, unknown> = { value };
+		if (lang) data.lang = lang;
+		return { kind: "leaf", tag: "md:codeblock", data };
+	},
+
 	serializeKind: "block",
 
 	serialize(node) {
@@ -74,6 +91,12 @@ export const inlineCodeRule: Rule<CodeData> = {
 		}
 		return { tag: "md:code", data: { value: content } };
 	},
+
+	matchTag: "code",
+	preserveWhitespace: true,
+	// A <code> directly inside a <pre> was already consumed by codeBlockRule,
+	// which does not recurse; reaching here means a standalone inline span.
+	match: (el, ctx) => ({ kind: "leaf", tag: "md:code", data: { value: ctx.raw(el) } }),
 
 	tree: (token, ctx) => appendLeaf(ctx, "md:code", token.data),
 

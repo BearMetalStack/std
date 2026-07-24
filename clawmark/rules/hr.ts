@@ -16,6 +16,9 @@ export const hrRule: Rule<Data> = {
 	tree: (_token, ctx) => appendLeaf(ctx, "md:hr", {}),
 	renderOpen: () => "<hr>",
 
+	matchTag: "hr",
+	match: () => ({ kind: "leaf", tag: "md:hr", data: {} }),
+
 	serializeKind: "block",
 	serialize: () => "---",
 };

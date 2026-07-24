@@ -39,6 +39,23 @@ export const linkRule: Rule<LinkData> = {
 		return `<a href="${escapeHtml(node.data.href)}"${title}>${escapeHtml(node.data.text)}</a>`;
 	},
 
+	matchTag: "a",
+	match(el, ctx) {
+		const href = el.attrs.get("href");
+		// <a name="x"> and <a id="x"> are anchors, not links.
+		if (!href) return null;
+		// The backlink inside a footnote definition; footnoteDefRule owns it.
+		if (href.startsWith("#fnref-")) return { kind: "drop" };
+		// The anchor inside a footnote reference; footnoteRule owns the <sup>.
+		if (href.startsWith("#fn-") && ctx.parentTag === "md:footnote") {
+			return { kind: "drop" };
+		}
+		const data: Record<string, unknown> = { href, text: ctx.text(el) };
+		const title = el.attrs.get("title");
+		if (title) data.title = title;
+		return { kind: "leaf", tag: "md:link", data };
+	},
+
 	/**
 	 * Link text and destination live in `data`, never as child nodes, so they
 	 * never pass through core:text and need their own escaping pass.
