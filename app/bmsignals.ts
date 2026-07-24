@@ -57,16 +57,16 @@ export class IntervalSignal<T> extends Signal.State<T> implements IntervalManage
 }
 
 export class DirtySignal<T> extends Signal.State<T> {
-	#dirty: boolean = false;
+	#dirty = new Signal.State(false);
 	set(val: T) {
 		super.set(val);
-		this.#dirty = true;
+		this.#dirty.set(true);
 	}
 	isDirty(): boolean {
-		return this.#dirty;
+		return this.#dirty.get();
 	}
 	clearDirty(): void {
-		this.#dirty = false;
+		this.#dirty.set(false);
 	}
 }
 
@@ -131,5 +131,70 @@ export class SpreadSignal<T extends object> extends Signal.State<T> {
 	set(val: T) {
 		super.set(val);
 		this.#buildShadow(val);
+	}
+}
+
+export class ArraySignal<T> extends Signal.State<T[]> {
+	static #proxiedProps = new Set<keyof unknown[]>(["push", "pop", "shift", "unshift", "splice", "sort", "reverse"]);
+
+	constructor(init: T[]) {
+		super(init);
+	}
+
+	get(): T[] {
+		const targetArray = super.get();
+
+		const handler: ProxyHandler<T[]> = {
+			get: (target, prop) => {
+				if (typeof prop === "string" && ArraySignal.#proxiedProps.has(prop as keyof unknown[])) {
+					const methodName = prop as Extract<keyof T[], string>;
+
+					return (...args: unknown[]) => {
+						const clone = [...target];
+						const method = clone[methodName];
+
+						if (typeof method === "function") {
+							// deno-lint-ignore ban-types
+							const result = (method as Function).apply(clone, args);
+							this.set(clone);
+							return result;
+						}
+					};
+				}
+
+				return Reflect.get(target, prop);
+			},
+			set: (target, prop, value, receiver) => {
+				if (prop === "length") {
+					return Reflect.set(target, prop, value, receiver);
+				}
+
+				const success = Reflect.set(target, prop, value, receiver);
+
+				if (success) {
+					this.set([...target]);
+				}
+
+				return success;
+			}
+		};
+
+		return new Proxy(targetArray, handler);
+	}
+}
+
+
+export class DirtyArraySignal<T> extends ArraySignal<T> {
+	#dirty = new Signal.State(false);
+
+	set(val: T[]) {
+		super.set(val);
+		this.#dirty.set(true);
+	}
+	isDirty(): boolean {
+		return this.#dirty.get();
+	}
+	clearDirty(): void {
+		this.#dirty.set(false);
 	}
 }
