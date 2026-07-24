@@ -31,7 +31,13 @@ const ITEM_TAGS: TokenIdentifier[] = ["md:listitem", "md:checkitem"];
 export function createListRules(): AnyRule[] {
 	const stack: StackEntry[] = [];
 
-	function openList(ctx: LexerContext, indent: number, tag: ListTag, tokens: Token[], style?: "none") {
+	function openList(
+		ctx: LexerContext,
+		indent: number,
+		tag: ListTag,
+		tokens: Token[],
+		style?: "none",
+	) {
 		stack.push({ indent, tag });
 		ctx.pushBlock(tag);
 		tokens.push({ tag, data: { phase: "open", style } });

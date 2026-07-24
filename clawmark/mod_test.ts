@@ -23,11 +23,17 @@ Deno.test("heading then paragraph", () => {
 });
 
 Deno.test("emphasis: italic, bold, bolditalic", () => {
-	assertEquals(toHtml("*a* _b_ **c** ***d***"), "<p><em>a</em> <em>b</em> <strong>c</strong> <strong><em>d</em></strong></p>");
+	assertEquals(
+		toHtml("*a* _b_ **c** ***d***"),
+		"<p><em>a</em> <em>b</em> <strong>c</strong> <strong><em>d</em></strong></p>",
+	);
 });
 
 Deno.test("strikethrough and highlight", () => {
-	assertEquals(toHtml("~~gone~~ ==important=="), "<p><s>gone</s> <span class=\"highlight\">important</span></p>");
+	assertEquals(
+		toHtml("~~gone~~ ==important=="),
+		'<p><s>gone</s> <span class="highlight">important</span></p>',
+	);
 });
 
 Deno.test("inline code does not parse markup inside it", () => {
@@ -35,7 +41,10 @@ Deno.test("inline code does not parse markup inside it", () => {
 });
 
 Deno.test("code block", () => {
-	assertEquals(toHtml("```\nconst x = 1;\n```"), '<pre class="code"><code>const x = 1;</code></pre>');
+	assertEquals(
+		toHtml("```\nconst x = 1;\n```"),
+		'<pre class="code"><code>const x = 1;</code></pre>',
+	);
 });
 
 Deno.test("link", () => {
