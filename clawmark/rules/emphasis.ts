@@ -70,6 +70,11 @@ export const italicRule: Rule<EmphasisData> = {
 	tree: (_token, ctx) => toggle("md:italic", ctx),
 	renderOpen: () => "<em>",
 	renderClose: () => "</em>",
+
+	serialize: (node, ctx) => {
+		const d = ctx.options.emphasis;
+		return `${d}${ctx.children(node)}${d}`;
+	},
 };
 
 export const boldRule: Rule<EmphasisData> = {
@@ -80,6 +85,11 @@ export const boldRule: Rule<EmphasisData> = {
 	tree: (_token, ctx) => toggle("md:bold", ctx),
 	renderOpen: () => "<strong>",
 	renderClose: () => "</strong>",
+
+	serialize: (node, ctx) => {
+		const d = ctx.options.strong;
+		return `${d}${ctx.children(node)}${d}`;
+	},
 };
 
 export const boldItalicRule: Rule<EmphasisData> = {
@@ -90,6 +100,11 @@ export const boldItalicRule: Rule<EmphasisData> = {
 	tree: (_token, ctx) => toggle("md:bolditalic", ctx),
 	renderOpen: () => "<strong><em>",
 	renderClose: () => "</em></strong>",
+
+	serialize: (node, ctx) => {
+		const d = ctx.options.strong + ctx.options.emphasis;
+		return `${d}${ctx.children(node)}${d}`;
+	},
 };
 
 export const emphasisRules: AnyRule[] = [

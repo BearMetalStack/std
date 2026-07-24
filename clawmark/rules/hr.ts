@@ -15,4 +15,7 @@ export const hrRule: Rule<Data> = {
 
 	tree: (_token, ctx) => appendLeaf(ctx, "md:hr", {}),
 	renderOpen: () => "<hr>",
+
+	serializeKind: "block",
+	serialize: () => "---",
 };

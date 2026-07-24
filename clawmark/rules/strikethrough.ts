@@ -23,4 +23,6 @@ export const strikethroughRule: Rule<Data> = {
 
 	renderOpen: () => "<s>",
 	renderClose: () => "</s>",
+
+	serialize: (node, ctx) => `~~${ctx.children(node)}~~`,
 };

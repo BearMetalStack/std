@@ -33,6 +33,8 @@ export const footnoteRule: Rule<RefData> = {
 		const id = escapeHtml(node.data.id);
 		return `<sup><a href="#fn-${id}" id="fnref-${id}">${id}</a></sup>`;
 	},
+
+	serialize: (node) => `[^${node.data.id}]`,
 };
 
 /** Definition, e.g. `[^1]: Some note text`. */
@@ -68,4 +70,10 @@ export const footnoteDefRule: Rule<DefData> = {
 		return `<aside id="${id}"><a href="#fnref-${id}">↩</a> `;
 	},
 	renderClose: () => "</aside>",
+
+	serializeKind: "block",
+	// Definitions keep their position in the tree rather than being hoisted to
+	// the document end - that is where the forward lexer puts them, so
+	// preserving position is what round-trips.
+	serialize: (node, ctx) => `[^${node.data.id}]: ${ctx.children(node)}`,
 };

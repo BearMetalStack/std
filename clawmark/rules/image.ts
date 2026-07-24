@@ -26,4 +26,11 @@ export const imageRule: Rule<ImageData> = {
 		const title = node.data.title ? ` title="${escapeHtml(node.data.title)}"` : "";
 		return `<img src="${escapeHtml(node.data.src)}"${alt}${title}>`;
 	},
+
+	serialize(node, ctx) {
+		const alt = ctx.escape(node.data.alt ?? "", "linkText");
+		const src = ctx.escape(node.data.src, "linkDest");
+		const title = node.data.title ? ` "${ctx.escape(node.data.title, "title")}"` : "";
+		return `![${alt}](${src}${title})`;
+	},
 };

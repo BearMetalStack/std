@@ -33,4 +33,7 @@ export const headingRule: Rule<HeadingData> = {
 	renderClose(node) {
 		return `</h${node.data.level}>`;
 	},
+
+	serializeKind: "block",
+	serialize: (node, ctx) => `${"#".repeat(node.data.level)} ${ctx.children(node)}`,
 };

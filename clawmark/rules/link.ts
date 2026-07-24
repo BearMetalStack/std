@@ -38,4 +38,15 @@ export const linkRule: Rule<LinkData> = {
 		const title = node.data.title ? ` title="${escapeHtml(node.data.title)}"` : "";
 		return `<a href="${escapeHtml(node.data.href)}"${title}>${escapeHtml(node.data.text)}</a>`;
 	},
+
+	/**
+	 * Link text and destination live in `data`, never as child nodes, so they
+	 * never pass through core:text and need their own escaping pass.
+	 */
+	serialize(node, ctx) {
+		const text = ctx.escape(node.data.text, "linkText");
+		const href = ctx.escape(node.data.href, "linkDest");
+		const title = node.data.title ? ` "${ctx.escape(node.data.title, "title")}"` : "";
+		return `[${text}](${href}${title})`;
+	},
 };

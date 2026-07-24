@@ -8,10 +8,11 @@
  * footnotes, code, hr) behavior possible.
  */
 
-import type { AnyRule, Node } from "./types.ts";
+import type { AnyRule, EngineRule, Node, SerializeOptions } from "./types.ts";
 import { Lexer } from "./lexer.ts";
 import { TreeBuilder } from "./tree.ts";
 import { Renderer } from "./render.ts";
+import { MarkdownSerializer } from "./serialize.ts";
 import { defaultRules } from "./rules/mod.ts";
 
 export * from "./types.ts";
@@ -19,6 +20,7 @@ export { defaultRules } from "./rules/mod.ts";
 export { Lexer } from "./lexer.ts";
 export { TreeBuilder } from "./tree.ts";
 export { Renderer } from "./render.ts";
+export { MarkdownSerializer, prefixLines } from "./serialize.ts";
 
 /** Parses `input` into a tree using `rules` (a fresh `defaultRules()` set by default). */
 export function parse(input: string, rules: AnyRule[] = defaultRules()): Node {
@@ -40,4 +42,13 @@ export function toDom(
 ): DocumentFragment {
 	const tree = parse(input, rules);
 	return new Renderer(rules).renderDom(tree, doc);
+}
+
+/** Serializes a tree back to markdown text - the inverse of `parse`. */
+export function toMarkdown(
+	tree: Node,
+	rules: EngineRule[] = defaultRules(),
+	options?: SerializeOptions,
+): string {
+	return new MarkdownSerializer(rules, options).serialize(tree);
 }

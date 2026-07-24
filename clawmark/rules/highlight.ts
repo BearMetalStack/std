@@ -23,4 +23,6 @@ export const highlightRule: Rule<Data> = {
 
 	renderOpen: () => `<span class="highlight">`,
 	renderClose: () => "</span>",
+
+	serialize: (node, ctx) => `==${ctx.children(node)}==`,
 };

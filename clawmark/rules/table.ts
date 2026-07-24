@@ -1,4 +1,4 @@
-import type { AnyRule, Rule, Token } from "../types.ts";
+import type { AnyRule, Node, Rule, SerializeContext, Token } from "../types.ts";
 import { appendLeaf, closeNode, escapeHtml, openNode } from "./helpers.ts";
 
 type TableData = { columns: number; phase: "open" | "close" };
@@ -13,6 +13,46 @@ type FormatData = { columns: ("l" | "c" | "r")[] };
  * across parses, so - like the list rules - this is a factory rather than
  * a plain object, instantiated fresh each time `defaultRules()` runs.
  */
+
+const DELIMITER: Record<"l" | "c" | "r", string> = { l: ":-", c: ":-:", r: "-:" };
+
+/**
+ * The table owns its whole layout because the delimiter row is not a sibling
+ * that can be emitted in place: it must sit between the head row and the body,
+ * and it must exist even when the tree carries no md:tableformat node, since
+ * without it markdown does not see a table at all.
+ */
+function serializeTable(node: Node, ctx: SerializeContext): string {
+	const rows = node.children.filter((c) => c.tag === "md:tablerow");
+	const format = node.children.find((c) => c.tag === "md:tableformat");
+	if (rows.length === 0) return "";
+
+	const columns = Math.max(...rows.map((r) => (r.data as RowData).columns.length));
+	const align = ((format?.data as FormatData | undefined)?.columns ?? [])
+		.slice(0, columns);
+	while (align.length < columns) align.push("l");
+
+	const line = (cells: string[]) => {
+		const padded = [...cells];
+		while (padded.length < columns) padded.push("");
+		// tableRule.tokenize splits on a bare `|` with no escape awareness, so a
+		// pipe inside a cell cannot survive a re-lex. Emit the escape anyway -
+		// it is correct markdown and degrades gracefully elsewhere - and warn.
+		return `|${padded.map((c) => ctx.escape(c.replace(/\n/g, " "), "cell")).join("|")}|`;
+	};
+
+	if (rows.some((r) => (r.data as RowData).columns.some((c) => c.includes("|")))) {
+		ctx.warn("`|` inside a table cell will not survive a re-parse", node);
+	}
+
+	const [head, ...body] = rows;
+	return [
+		line((head.data as RowData).columns),
+		`|${align.map((a) => DELIMITER[a]).join("|")}|`,
+		...body.map((r) => line((r.data as RowData).columns)),
+	].join("\n");
+}
+
 export function createTableRules(): AnyRule[] {
 	let renderState: { head: boolean; columnAlign?: ("l" | "c" | "r")[] } | null = null;
 
@@ -61,6 +101,9 @@ export function createTableRules(): AnyRule[] {
 
 		renderOpen: () => "<table>",
 		renderClose: () => "</table>",
+
+		serializeKind: "block",
+		serialize: (node, ctx) => serializeTable(node, ctx),
 	};
 
 	const tableRowRule: Rule<RowData> = {
@@ -69,6 +112,10 @@ export function createTableRules(): AnyRule[] {
 		validate: () => false,
 		tokenize: () => ({ tag: "md:tablerow", data: { columns: [] } }),
 		tree: (token, ctx) => appendLeaf(ctx, "md:tablerow", (token as Token<RowData>).data),
+
+		serializeKind: "block",
+		// Emitted by the table, which owns row ordering and the delimiter row.
+		serialize: () => "",
 
 		renderOpen(node) {
 			const state = renderState ?? { head: false };
@@ -97,6 +144,9 @@ export function createTableRules(): AnyRule[] {
 		validate: () => false,
 		tokenize: () => ({ tag: "md:tableformat", data: { columns: [] } }),
 		tree: (token, ctx) => appendLeaf(ctx, "md:tableformat", (token as Token<FormatData>).data),
+
+		serializeKind: "block",
+		serialize: () => "",
 
 		renderOpen(node) {
 			if (renderState) {
