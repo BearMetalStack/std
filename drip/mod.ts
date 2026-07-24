@@ -4,6 +4,8 @@ export * from "./inject.ts";
 export * from "./config.ts";
 export * from "./theme.ts";
 export * from "./palette/ThemeUtils.ts";
+export * from "./css/compliantCSS.ts";
+export * from "./module.ts";
 
 import { generateStylesheets } from "./theme.ts";
 

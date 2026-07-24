@@ -23,3 +23,5 @@ export type BinaryOp = {
 	left: CalcNode;
 	right: CalcNode;
 };
+
+export type { CompliantID } from "./css/compliantCSS.ts";
