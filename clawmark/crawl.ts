@@ -207,7 +207,7 @@ export class Crawler {
 				this.#flushOwed(parent, "md:raw");
 				const node: Node = {
 					tag: "md:raw",
-					data: { value: serializeXml(el, "html") },
+					data: { value: serializeXml(el, this.#opts.mode ?? "xml") },
 					children: [],
 					parent,
 				};

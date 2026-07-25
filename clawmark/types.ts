@@ -233,6 +233,12 @@ export type UnmatchedHandler = (el: XmlElement, ctx: MatchContext) => MatchResul
 
 export interface CrawlOptions {
 	rules?: EngineRule[];
+	/**
+	 * Serialization mode for the `raw` policy. Defaults to "xml"; an html
+	 * profile wants "html" so void elements stay void instead of gaining a
+	 * closing tag.
+	 */
+	mode?: "xml" | "html";
 	/** Default "unwrap". */
 	unmatched?: UnmatchedPolicy | UnmatchedHandler;
 	/** Keyed by element local name; overrides `unmatched`. */

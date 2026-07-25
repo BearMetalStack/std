@@ -7,7 +7,7 @@
  */
 
 /** Never have children and never need a closing tag. */
-export const VOID = new Set([
+export const VOID: Set<string> = new Set([
 	"area",
 	"base",
 	"br",
@@ -25,10 +25,10 @@ export const VOID = new Set([
 ]);
 
 /** Content is scanned verbatim to the matching close tag and never decoded. */
-export const RAW_TEXT = new Set(["script", "style"]);
+export const RAW_TEXT: Set<string> = new Set(["script", "style"]);
 
 /** Content is scanned verbatim to the matching close tag, but entity-decoded. */
-export const ESCAPABLE_RAW = new Set(["textarea", "title"]);
+export const ESCAPABLE_RAW: Set<string> = new Set(["textarea", "title"]);
 
 /**
  * Opening one of the value-set elements implicitly closes an open key element
@@ -82,4 +82,4 @@ export const AUTO_CLOSE: Record<string, Set<string>> = {
 };
 
 /** Elements that imply `white-space: pre` for the crawler's normalizer. */
-export const PRE_ELEMENTS = new Set(["pre", "textarea", "listing", "plaintext"]);
+export const PRE_ELEMENTS: Set<string> = new Set(["pre", "textarea", "listing", "plaintext"]);

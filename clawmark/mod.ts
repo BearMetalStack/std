@@ -30,6 +30,7 @@ export { MarkdownSerializer, prefixLines } from "./serialize.ts";
 export { Crawler, postProcess } from "./crawl.ts";
 export * from "./xml/mod.ts";
 export * from "./style.ts";
+export * from "./dsl.ts";
 export { htmlProfile } from "./profiles/html/mod.ts";
 export type { HtmlProfileOptions } from "./profiles/html/mod.ts";
 
@@ -75,6 +76,7 @@ export function fromXml(source: string | XmlElement, profile: Profile): Node {
 		: source;
 	return new Crawler({
 		rules: profile.rules,
+		mode: profile.parse?.mode ?? "xml",
 		styles: profile.styles,
 		styleTable: profile.styleTable,
 		unmatched: profile.unmatched,
