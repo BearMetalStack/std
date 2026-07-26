@@ -127,12 +127,14 @@ Character formatting lives on `<w:r>`, either as direct `<w:rPr>` properties or 
 | `<w:i/>`                         | `*italic*`      |
 | `<w:b/><w:i/>`                   | `***both***`    |
 | `<w:strike/>`                    | `~~gone~~`      |
+| `<w:u w:val="single"/>`          | `++under++`     |
 | `<w:highlight w:val="yellow"/>`  | `==highlight==` |
 | `<w:rFonts w:ascii="Consolas"/>` | `` `code` ``    |
 | none of the above                | unwrapped       |
 
-Bold-and-italic is matched **before** bold-only, because array order is precedence and the first
-match wins.
+A run carrying several of these keeps them all, as one nested chain — `<w:b/><w:u/>` comes out
+`++**both**++`. The one exception is mono, which wins outright: a code span cannot nest emphasis in
+markdown.
 
 ### Explicit off toggles
 

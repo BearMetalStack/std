@@ -327,31 +327,31 @@ assigned automatically.
 
 The tags produced by `defaultRules()`, and therefore the tags a reverse matcher can target:
 
-| Tag                                       | Data                             | Kind                         |
-| ----------------------------------------- | -------------------------------- | ---------------------------- |
-| `core:root`                               | —                                | Document root.               |
-| `core:text`                               | `{ value }`                      | Text. Not owned by any rule. |
-| `core:paragraph`                          | `{ phase }`                      | Block                        |
-| `md:heading`                              | `{ level, phase }`               | Block                        |
-| `md:blockquote`                           | `{ phase }`                      | Block                        |
-| `md:lineitem`                             | `{ phase }`                      | A line within a blockquote.  |
-| `md:orderedlist` / `md:unorderedlist`     | `{ phase, style? }`              | Block                        |
-| `md:listitem`                             | `{ phase }`                      | Block                        |
-| `md:checkitem`                            | `{ phase, checked }`             | Block                        |
-| `md:table`                                | `{ columns, phase }`             | Block                        |
-| `md:tablerow`                             | `{ columns: string[] }`          | Block                        |
-| `md:tableformat`                          | `{ columns: ("l"\|"c"\|"r")[] }` | Block                        |
-| `md:codeblock`                            | `{ value, lang? }`               | Block                        |
-| `md:hr`                                   | —                                | Block                        |
-| `md:footnotedef`                          | `{ id }`                         | Block                        |
-| `md:raw`                                  | `{ value }`                      | Block. Emitted verbatim.     |
-| `md:italic` / `md:bold` / `md:bolditalic` | —                                | Inline                       |
-| `md:strikethrough` / `md:highlight`       | —                                | Inline                       |
-| `md:code`                                 | `{ value }`                      | Inline                       |
-| `md:link`                                 | `{ href, text, title? }`         | Inline leaf                  |
-| `md:image`                                | `{ src, alt? }`                  | Inline leaf                  |
-| `md:footnote`                             | `{ id }`                         | Inline leaf                  |
-| `md:linebreak`                            | —                                | Inline leaf                  |
+| Tag                                                  | Data                             | Kind                         |
+| ---------------------------------------------------- | -------------------------------- | ---------------------------- |
+| `core:root`                                          | —                                | Document root.               |
+| `core:text`                                          | `{ value }`                      | Text. Not owned by any rule. |
+| `core:paragraph`                                     | `{ phase }`                      | Block                        |
+| `md:heading`                                         | `{ level, phase }`               | Block                        |
+| `md:blockquote`                                      | `{ phase }`                      | Block                        |
+| `md:lineitem`                                        | `{ phase }`                      | A line within a blockquote.  |
+| `md:orderedlist` / `md:unorderedlist`                | `{ phase, style? }`              | Block                        |
+| `md:listitem`                                        | `{ phase }`                      | Block                        |
+| `md:checkitem`                                       | `{ phase, checked }`             | Block                        |
+| `md:table`                                           | `{ columns, phase }`             | Block                        |
+| `md:tablerow`                                        | `{ columns: string[] }`          | Block                        |
+| `md:tableformat`                                     | `{ columns: ("l"\|"c"\|"r")[] }` | Block                        |
+| `md:codeblock`                                       | `{ value, lang? }`               | Block                        |
+| `md:hr`                                              | —                                | Block                        |
+| `md:footnotedef`                                     | `{ id }`                         | Block                        |
+| `md:raw`                                             | `{ value }`                      | Block. Emitted verbatim.     |
+| `md:italic` / `md:bold` / `md:bolditalic`            | —                                | Inline                       |
+| `md:strikethrough` / `md:underline` / `md:highlight` | —                                | Inline                       |
+| `md:code`                                            | `{ value }`                      | Inline                       |
+| `md:link`                                            | `{ href, text, title? }`         | Inline leaf                  |
+| `md:image`                                           | `{ src, alt? }`                  | Inline leaf                  |
+| `md:footnote`                                        | `{ id }`                         | Inline leaf                  |
+| `md:linebreak`                                       | —                                | Inline leaf                  |
 
 `md:link` and `md:image` keep their text in `data`, never as child nodes — which is why markup
 inside link text is opaque in both directions.

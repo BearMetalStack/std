@@ -101,6 +101,16 @@ on("t").wrap("md:heading", { level: 2 });
 // <d><t>hi</t></d>  ->  "## hi"
 ```
 
+An array of tags opens a nested chain, outermost first, recursing into the innermost — one element
+can carry several formattings at once (an odt span that is bold _and_ underlined), and a single wrap
+tag would force every profile to hand-build that nesting via `custom`. `data` lands on the outermost
+node.
+
+```ts
+on("t").wrap(["md:underline", "md:bold"]);
+// <p><t>hi</t></p>  ->  "++**hi**++"
+```
+
 An optional `whitespace: "pre"` suppresses whitespace collapsing for the subtree.
 
 ### leaf

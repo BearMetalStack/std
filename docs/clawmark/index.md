@@ -87,6 +87,7 @@ The office profiles take the XML parts as strings — they do **not** unzip an a
 | Bold            | `**c**`                                                                    | `<strong>c</strong>`                                                          |
 | Bold italic     | `***d***`                                                                  | `<strong><em>d</em></strong>`                                                 |
 | Strikethrough   | `~~gone~~`                                                                 | `<s>gone</s>`                                                                 |
+| Underline       | `++under++`                                                                | `<u>under</u>`                                                                |
 | Highlight       | `==important==`                                                            | `<span class="highlight">important</span>`                                    |
 | Inline code     | `` `x` ``                                                                  | `<code>x</code>`                                                              |
 | Code block      | <code>\`\`\`ts … \`\`\`</code>                                             | `<pre class="code"><code>…</code></pre>`                                      |
