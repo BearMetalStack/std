@@ -1,5 +1,5 @@
 import { BadRequest, InternalError, MethodNotAllowed, NotFound } from "@/util/response.ts";
-import { resolveStaticFile } from "@/util/static.ts";
+import { resolveStaticFile, toDirectoryUrl } from "@/util/static.ts";
 import { styleAlias, styles, stylizer } from "./logstyles.ts";
 import { FormDataSchema, QuerySchema, SchemaError } from "./schema.ts";
 import {
@@ -319,8 +319,17 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 
 	// ─── Static file serving ───────────────────────────────────────────────────
 
+	/**
+	 * Serves the contents of `dir` under the URL prefix `root`.
+	 *
+	 * `dir` may be a path string (resolved against `Deno.cwd()`) or a `file:`
+	 * URL. Pass a URL - typically `new URL("./public/", import.meta.url)` - when
+	 * the directory should be located relative to the module rather than the
+	 * working directory, which is what keeps assets reachable from a
+	 * `deno compile` binary that embedded them.
+	 */
 	serveDirectory(
-		dir: string,
+		dir: string | URL,
 		root: string,
 		{
 			flatten = false,
@@ -336,12 +345,18 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			favicon?: string;
 		} = {},
 	): void {
-		let effectiveDir = dir;
+		// `flatten` rewrites the directory itself - a RegExp strips whatever it
+		// matches, `true` keeps only the last segment - and the result is taken
+		// relative to the cwd. For a URL that operates on the pathname, so the
+		// option keeps the meaning it has for strings.
+		let dirSpec: string | URL = dir;
 		if (flatten) {
-			effectiveDir = flatten instanceof RegExp
-				? dir.replace(flatten, "")
-				: (dir.split("/").at(-1) ?? dir);
+			const source = dir instanceof URL ? dir.pathname.replace(/\/+$/, "") : dir;
+			dirSpec = flatten instanceof RegExp
+				? source.replace(flatten, "")
+				: (source.split("/").filter(Boolean).at(-1) ?? source);
 		}
+		const effectiveDir = toDirectoryUrl(dirSpec);
 
 		if (queryable) {
 			this.get(root + "/_dir", async () => {

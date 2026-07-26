@@ -126,6 +126,18 @@ router.serveDirectory("./dist", "/", {
 });
 ```
 
+The directory may be a path string or a `file:` URL. Strings are resolved against `Deno.cwd()`,
+which is what you want during development. A URL is used as given, so pass one - usually built
+from `import.meta.url` - when the assets should be located relative to the module rather than the
+working directory:
+
+```ts
+router.serveDirectory(new URL("./public/", import.meta.url), "/static");
+```
+
+That form keeps working inside a `deno compile` binary, where the embedded files live in the
+module graph and the cwd is wherever the binary was launched.
+
 ---
 
 ## RouterContext

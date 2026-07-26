@@ -417,7 +417,15 @@ router.serveDirectory('dirWithIndexHtml', '/indexes', { showIndex: true });
 
 // SPA mode - fall back to index.html for unmatched paths
 router.serveDirectory('dist', '/', { spa: true });
+
+// A file: URL works too, and is resolved without consulting the cwd - use one
+// (typically built from import.meta.url) so the assets stay reachable from a
+// `deno compile` binary that embedded them
+router.serveDirectory(new URL('./public/', import.meta.url), '/url-root');
 ```
+
+Path strings are resolved against `Deno.cwd()`, so `'dirname'`, `'./dirname'` and
+`'/abs/dirname'` all keep their usual meanings.
 
 ### File-based Routing
 

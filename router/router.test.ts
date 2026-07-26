@@ -318,4 +318,102 @@ describe("Router", () => {
 			assertEquals(res.status, 404);
 		});
 	});
+
+	describe("Static Directory Sources", () => {
+		let dir: string;
+
+		beforeEach(async () => {
+			dir = await Deno.makeTempDir();
+			await Deno.writeTextFile(dir + "/app.js", "app bundle");
+			await Deno.writeTextFile(dir + "/index.html", "<html>index</html>");
+			await Deno.mkdir(dir + "/nested");
+			await Deno.writeTextFile(dir + "/nested/deep.txt", "deep file");
+		});
+
+		afterEach(async () => {
+			await Deno.remove(dir, { recursive: true });
+		});
+
+		it("should accept a file URL as the directory", async () => {
+			router.serveDirectory(new URL(`file://${dir}`), "/assets");
+
+			const req = new Request("http://localhost/assets/app.js", { method: "GET" });
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "app bundle");
+		});
+
+		it("should accept a file URL with a trailing slash", async () => {
+			router.serveDirectory(new URL(`file://${dir}/`), "/assets");
+
+			const req = new Request("http://localhost/assets/nested/deep.txt", {
+				method: "GET",
+			});
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "deep file");
+		});
+
+		it("should serve a directory index from a file URL", async () => {
+			router.serveDirectory(new URL(`file://${dir}`), "/assets", {
+				showIndex: true,
+			});
+
+			const req = new Request("http://localhost/assets/", { method: "GET" });
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "<html>index</html>");
+		});
+
+		it("should resolve a relative string directory against the cwd", async () => {
+			const cwd = Deno.cwd();
+			Deno.chdir(dir);
+			try {
+				router.serveDirectory("./nested", "/assets");
+
+				const req = new Request("http://localhost/assets/deep.txt", {
+					method: "GET",
+				});
+				const res = await router.handle(req, {} as any);
+				assertEquals(await res.text(), "deep file");
+			} finally {
+				Deno.chdir(cwd);
+			}
+		});
+
+		it("should resolve an absolute string directory as-is", async () => {
+			router.serveDirectory(dir, "/assets");
+
+			const req = new Request("http://localhost/assets/app.js", { method: "GET" });
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "app bundle");
+		});
+
+		it("should serve directories whose path contains spaces", async () => {
+			const spaced = dir + "/with space";
+			await Deno.mkdir(spaced);
+			await Deno.writeTextFile(spaced + "/file.txt", "spaced file");
+
+			router.serveDirectory(new URL(`file://${spaced}`), "/assets");
+
+			const req = new Request("http://localhost/assets/file.txt", { method: "GET" });
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "spaced file");
+		});
+
+		it("should flatten a file URL down to its last segment", async () => {
+			const cwd = Deno.cwd();
+			Deno.chdir(dir);
+			try {
+				router.serveDirectory(new URL(`file://${dir}/nested`), "/assets", {
+					flatten: true,
+				});
+
+				const req = new Request("http://localhost/assets/deep.txt", {
+					method: "GET",
+				});
+				const res = await router.handle(req, {} as any);
+				assertEquals(await res.text(), "deep file");
+			} finally {
+				Deno.chdir(cwd);
+			}
+		});
+	});
 });
