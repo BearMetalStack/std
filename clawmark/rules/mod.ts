@@ -3,6 +3,7 @@ import { paragraphRule } from "./paragraph.ts";
 import { headingRule } from "./heading.ts";
 import { emphasisRules } from "./emphasis.ts";
 import { strikethroughRule } from "./strikethrough.ts";
+import { underlineRule } from "./underline.ts";
 import { highlightRule } from "./highlight.ts";
 import { codeBlockRule, inlineCodeRule } from "./code.ts";
 import { hrRule } from "./hr.ts";
@@ -30,6 +31,7 @@ export function defaultRules(): AnyRule[] {
 		headingRule,
 		...emphasisRules,
 		strikethroughRule,
+		underlineRule,
 		highlightRule,
 		linebreakRule,
 		blockquoteRule,

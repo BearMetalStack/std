@@ -6,12 +6,13 @@ OpenDocument text (ODF) back to markdown.
 import { odtProfile } from "@bearmetal/clawmark/profiles/odt";
 import { xmlToMarkdown } from "@bearmetal/clawmark";
 
-const md = xmlToMarkdown(contentXml, odtProfile({ styles, content: contentXml }));
+const md = xmlToMarkdown(contentXml, odtProfile({ styles }));
 ```
 
-Structurally friendlier than [docx](./docx): headings and lists are real elements
-(`<text:h text:outline-level>`, `<text:list>` / `<text:list-item>`) rather than styled paragraphs,
-so only character formatting needs the style table.
+Structurally friendlier than [docx](./docx): headings and lists _can_ be real elements
+(`<text:h text:outline-level>`, `<text:list>` / `<text:list-item>`) — but real exports are not that
+tidy. Google Docs, for one, writes headings as `<text:p>` with a `Title` / `Subtitle` / `Heading N`
+paragraph style, so styled paragraphs run through the same name heuristics as docx.
 
 ## Scope boundary: no unzipping
 
@@ -21,29 +22,19 @@ optionally `styles.xml`.
 ```ts
 interface OdtParts {
 	styles?: string | XmlElement; // styles.xml
-	content?: string | XmlElement; // content.xml, when its automatic styles must be indexed
+	content?: string | XmlElement; // content.xml, to index its automatic styles up front
 	rules?: AnyReverseRule[]; // extra rules, consulted before the built-ins
 }
 ```
 
-The `content` part looks redundant next to the first argument of `xmlToMarkdown`, and it isn't:
 ODF's _automatic styles_ — the generated `T1`, `P2` names carrying the direct formatting an author
-actually applied — live in `content.xml` itself, and the profile has to index them **before** the
-crawl starts. Passing the same string twice is the normal case:
+actually applied — live in `content.xml` itself. The profile indexes the crawled document's own
+`<office:automatic-styles>` when the crawl reaches them, which is before any body element resolves a
+style, so `odtProfile({ styles })` is all a normal call needs. The `content` part remains for the
+rare case where the automatic styles must be available before the crawl starts (say, resolving
+styles from `parts.rules` setup code).
 
-```ts
-const contentXml = text("content.xml")!;
-
-xmlToMarkdown(
-	contentXml,
-	odtProfile({
-		styles: text("styles.xml"),
-		content: contentXml,
-	}),
-);
-```
-
-Both `content.xml` and `styles.xml` contribute definitions, and automatic styles win, since those
+`content.xml` and `styles.xml` both contribute definitions, and automatic styles win, since those
 carry the direct formatting.
 
 ## Blocks
@@ -62,6 +53,27 @@ carry the direct formatting.
 
 ### Sub
 ```
+
+A `<text:p>` whose resolved style has `blockRole: "heading"` becomes a heading too. The role comes
+from either a non-empty `style:default-outline-level` on the style, or — far more often in the wild
+— the style-name heuristics: `Title` is level 1, `Subtitle` level 2, `Heading N` level N
+(`style:display-name` when present, otherwise the decoded `style:name`, so `Heading_20_1` reads as
+"Heading 1"). `style:parent-style-name` chains count: a `P4` automatic style based on `Heading_20_1`
+inherits the heading role.
+
+```xml
+<text:p text:style-name="Title">The Book</text:p>
+<text:p text:style-name="Subtitle">A Subtitle</text:p>
+```
+
+```
+# The Book
+
+## A Subtitle
+```
+
+Google Docs exports contain no `<text:h>` at all and write `default-outline-level=""` (empty) on
+every heading style — the name heuristics are what carry them.
 
 ### Paragraphs and quotes
 
@@ -84,6 +96,9 @@ A paragraph whose resolved style has `blockRole: "quote"` becomes a blockquote i
 every item's content in a paragraph, and honoring it would put a blank line inside each item, which
 re-lexes as "the list ended".
 
+A paragraph style's _character_ formatting still applies, in and out of lists — a paragraph whose
+style is italic wraps its content in `*…*`.
+
 ### Dropped elements
 
 Discarded with their subtrees: `office:automatic-styles`, `office:styles`, `office:font-face-decls`,
@@ -97,8 +112,8 @@ Discarded with their subtrees: `office:automatic-styles`, `office:styles`, `offi
 a
 ```
 
-The style elements are dropped as _content_; the style table reads them separately, up front, from
-the `content`/`styles` parts.
+The style elements are dropped as _content_ only after being harvested into the style table — that
+mid-crawl harvest is what lets `odtProfile({ styles })` resolve the document's own automatic styles.
 
 ## Lists
 
@@ -127,8 +142,9 @@ and dropping it would lose the text.
 
 ### Ordered vs bulleted
 
-The list's `text:style-name` is looked up in the `<text:list-style>` definitions. A style containing
-a `<text:list-level-style-number>` is ordered; anything else is bulleted.
+The list's `text:style-name` is looked up in the `<text:list-style>` definitions, **at the list's
+nesting level**: a `<text:list-level-style-number>` at that `text:level` makes it ordered, a
+`-bullet` (or anything else) bulleted.
 
 ```xml
 <text:list-style style:name="L1"><text:list-level-style-bullet text:level="1"/></text:list-style>
@@ -140,13 +156,19 @@ a `<text:list-level-style-number>` is ordered; anything else is bulleted.
 1. a     <!-- text:style-name="L2" -->
 ```
 
-Unknown or absent list styles default to unordered, for the same reason as docx: guessing "numbered"
-invents ordinals.
+Per level is not optional. Exporters routinely define all ten levels of a style, and they need not
+agree — Google Docs writes bulleted list styles whose levels 1–9 are bullets while level 10 is
+numbered, so any whole-style answer would turn every bulleted list in such a document ordered.
+
+Nested `<text:list>` elements usually carry no `text:style-name` of their own; the nearest named
+ancestor list supplies it. Unknown or absent list styles default to unordered, for the same reason
+as docx: guessing "numbered" invents ordinals.
 
 ```ts
 import { odtListStyles } from "@bearmetal/clawmark/profiles/odt";
 
-odtListStyles(stylesXml, contentXml); // Map { "L1" => "unordered", "L2" => "ordered" }
+// Map { "L1" => Map { 1 => "unordered" }, "L2" => Map { 1 => "ordered" } }
+odtListStyles(stylesXml, contentXml);
 ```
 
 ## Character formatting
@@ -172,6 +194,11 @@ odtListStyles(stylesXml, contentXml); // Map { "L1" => "unordered", "L2" => "ord
 
 `T2` comes out bold _and_ italic because `style:parent-style-name` is ODF's `basedOn`, running
 through the same chain-flattening machinery.
+
+A span carrying several formattings keeps them all, as one nested chain — bold + italic + underline
+comes out `++***all***++`. Spans resolve their **own** named style, not the ancestor cascade:
+paragraph-level formatting is already wrapped by the paragraph rules, and re-matching it at the span
+would nest the same emphasis twice.
 
 | Text property                                                             | Recognized as |
 | ------------------------------------------------------------------------- | ------------- |
@@ -256,7 +283,7 @@ import {
 	DRAW_NS,
 	FO_NS,
 	ODT_NS, // the full prefix -> URI map
-	odtListStyles, // -> Map<styleName, "ordered" | "unordered">
+	odtListStyles, // -> Map<styleName, Map<level, "ordered" | "unordered">>
 	odtProfile,
 	odtStyleResolver,
 	odtStyleTable,
@@ -283,7 +310,6 @@ const t = scopedOn(ODT_NS);
 
 odtProfile({
 	styles,
-	content: contentXml,
 	rules: [
 		// a template's "Callout" paragraph style becomes a blockquote
 		t("text:p").whereStyle((s) => s.named === "Callout").wrap("md:blockquote", { phase: "open" }),

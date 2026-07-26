@@ -159,20 +159,34 @@ export class Crawler {
 
 		switch (result.kind) {
 			case "wrap": {
-				this.#flushOwed(parent, result.tag);
-				const node: Node = {
-					tag: result.tag,
-					data: result.data ?? {},
-					children: [],
-					parent,
-				};
-				parent.children.push(node);
+				const tags = Array.isArray(result.tag) ? result.tag : [result.tag];
+				if (tags.length === 0) {
+					// A wrap with nothing to wrap in is an unwrap.
+					this.#visitChildren(el, parent, ancestors);
+					break;
+				}
+				this.#flushOwed(parent, tags[0]);
+				const chain: Node[] = [];
+				let target = parent;
+				for (const tag of tags) {
+					const node: Node = {
+						tag,
+						// Outermost only - an inner md:bold has no use for the
+						// outer paragraph's { phase: "open" }.
+						data: chain.length === 0 ? result.data ?? {} : {},
+						children: [],
+						parent: target,
+					};
+					target.children.push(node);
+					chain.push(node);
+					target = node;
+				}
 				const previousMode = this.#wsMode;
 				if (result.whitespace) this.#wsMode = result.whitespace;
 				else if (PRE_ELEMENTS.has(el.name)) this.#wsMode = "pre";
-				this.#enterBlock(node);
-				this.#visitChildren(el, node, ancestors);
-				this.#exitBlock(node);
+				for (const node of chain) this.#enterBlock(node);
+				this.#visitChildren(el, target, ancestors);
+				for (let i = chain.length - 1; i >= 0; i--) this.#exitBlock(chain[i]);
 				this.#wsMode = previousMode;
 				break;
 			}

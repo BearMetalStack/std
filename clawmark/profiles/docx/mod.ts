@@ -19,6 +19,7 @@
 import type { AnyReverseRule, MatchContext, Node, Profile } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
 import { defaultRules } from "../../rules/mod.ts";
+import { emphasisTags } from "../../style.ts";
 import { on } from "../../dsl.ts";
 import {
 	DOCX_NS,
@@ -162,19 +163,18 @@ export function docxProfile(parts: DocxParts = {}): Profile {
 		})),
 		w("w:p").wrap("core:paragraph", { phase: "open" }),
 
-		// Runs carry the character formatting. Order matters: the most
-		// specific combination has to be tried first.
-		w("w:r").whereStyle((s) => !!s.bold && !!s.italic).wrap("md:bolditalic"),
-		w("w:r").whereStyle((s) => !!s.bold).wrap("md:bold"),
-		w("w:r").whereStyle((s) => !!s.italic).wrap("md:italic"),
-		w("w:r").whereStyle((s) => !!s.strike).wrap("md:strikethrough"),
-		w("w:r").whereStyle((s) => !!s.highlight).wrap("md:highlight"),
+		// Runs carry the character formatting. Mono wins outright (a code span
+		// cannot nest emphasis in markdown); everything else composes into one
+		// nested chain so a bold *and* underlined run keeps both.
 		w("w:r").whereStyle((s) => !!s.mono).to((el, ctx) => ({
 			kind: "leaf",
 			tag: "md:code",
 			data: { value: ctx.text(el) },
 		})),
-		w("w:r").unwrap(),
+		w("w:r").to((_el, ctx) => {
+			const chain = emphasisTags(ctx.style);
+			return chain.length === 0 ? { kind: "unwrap" } : { kind: "wrap", tag: chain };
+		}),
 
 		// `xml:space="preserve"` means the run's spacing is deliberate, so the
 		// text node is built directly rather than going through the crawler's

@@ -1,6 +1,6 @@
 import type { ResolvedStyle, StyleDef, StyleResolver, StyleTable } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
-import { createStyleTable, lookupAttr, onOff } from "../../style.ts";
+import { createStyleTable, lookupAttr, onOff, styleFromName } from "../../style.ts";
 import { XmlParser } from "../../xml/parser.ts";
 
 export const WML_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -8,37 +8,13 @@ export const REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/rel
 
 export const DOCX_NS: Record<string, string> = { w: WML_NS, r: REL_NS };
 
-/**
- * Heuristics for documents supplied without a styles.xml.
- *
- * Matched against the style *name* first and the id second, which is not
- * pedantry: Word writes a localized `w:styleId` alongside an English `w:name`
- * (`<w:style w:styleId="Uberschrift1"><w:name w:val="heading 1"/>`), so
- * checking the id first would silently lose every heading in a document
- * authored on a non-English installation.
- */
-const HEURISTICS: [RegExp, ResolvedStyle][] = [
-	[/^heading\s*([1-6])$/i, {}], // level filled in below
-	[/^title$/i, { blockRole: "heading", headingLevel: 1 }],
-	[/^subtitle$/i, { blockRole: "heading", headingLevel: 2 }],
-	[/^(intense\s*)?quote$/i, { blockRole: "quote" }],
-	[/^block\s*text$/i, { blockRole: "quote" }],
-	[/^(source\s*)?code$/i, { blockRole: "code", mono: true }],
-	[/^html\s*preformatted$/i, { blockRole: "code", mono: true }],
-	[/^list\s*paragraph$/i, { blockRole: "list" }],
-];
-
-/** Maps a style name or id to a normalized style using the built-in heuristics. */
-export function styleFromName(name: string): ResolvedStyle {
-	const heading = /^heading\s*([1-6])$/i.exec(name);
-	if (heading) {
-		return { blockRole: "heading", headingLevel: Number(heading[1]) };
-	}
-	for (const [pattern, style] of HEURISTICS) {
-		if (pattern.test(name)) return { ...style };
-	}
-	return {};
-}
+// The name heuristics live in style.ts now (odt needs them too), but they are
+// matched against the style *name* first and the id second, which is not
+// pedantry: Word writes a localized `w:styleId` alongside an English `w:name`
+// (`<w:style w:styleId="Uberschrift1"><w:name w:val="heading 1"/>`), so
+// checking the id first would silently lose every heading in a document
+// authored on a non-English installation.
+export { styleFromName } from "../../style.ts";
 
 function parseIfString(source: string | XmlElement | undefined): XmlElement | undefined {
 	if (source === undefined) return undefined;

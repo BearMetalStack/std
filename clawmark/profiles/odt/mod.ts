@@ -2,9 +2,12 @@
  * @module
  * The odt (OpenDocument text) profile.
  *
- * Structurally friendlier than docx: headings and lists are real elements
- * (`<text:h text:outline-level>`, `<text:list>/<text:list-item>`) rather than
- * styled paragraphs, so only character formatting needs the style table.
+ * Structurally friendlier than docx: headings and lists *can* be real elements
+ * (`<text:h text:outline-level>`, `<text:list>/<text:list-item>`) - but real
+ * exports are not that tidy. Google Docs, for one, writes headings as
+ * `<text:p>` with a `Title`/`Subtitle`/`Heading N` paragraph style and an
+ * *empty* `style:default-outline-level`, so styled paragraphs are matched by
+ * name heuristics exactly as in docx.
  *
  * Same scope boundary as docx - this does not unzip an `.odt`. Hand over
  * `content.xml` as the document, and optionally `styles.xml`:
@@ -12,12 +15,17 @@
  * ```ts
  * const md = xmlToMarkdown(contentXml, odtProfile({ styles }));
  * ```
+ *
+ * The `<office:automatic-styles>` of the crawled document itself (the
+ * generated `T1`/`P2` names carrying the formatting an author applied
+ * directly) are indexed when the crawl reaches them, so they never need to be
+ * passed separately.
  */
 
 import type { AnyReverseRule, MatchContext, Node, Profile, StyleTable } from "../../types.ts";
 import type { ResolvedStyle, StyleDef, StyleResolver } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
-import { createStyleTable, lookupAttr } from "../../style.ts";
+import { createStyleTable, emphasisTags, lookupAttr, styleFromName } from "../../style.ts";
 import { XmlParser } from "../../xml/parser.ts";
 import { defaultRules } from "../../rules/mod.ts";
 import { on } from "../../dsl.ts";
@@ -66,6 +74,11 @@ function firstChild(el: XmlElement | undefined, localName: string): XmlElement |
 	);
 }
 
+/** Decodes ODF's `_XX_` hex escapes: `Heading_20_1` is "Heading 1". */
+function decodeStyleName(name: string): string {
+	return name.replace(/_([0-9a-fA-F]{2})_/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
 /** Reads `<style:text-properties>` into a normalized style. */
 function textProperties(props: XmlElement | undefined): ResolvedStyle {
 	if (!props) return {};
@@ -85,6 +98,41 @@ function textProperties(props: XmlElement | undefined): ResolvedStyle {
 	return out;
 }
 
+/** Reads every `<style:style>` under `root` into style definitions. */
+function styleDefsFrom(root: XmlElement): StyleDef[] {
+	const defs: StyleDef[] = [];
+	for (const el of descendants(root, "style")) {
+		const id = lookupAttr(el, "name");
+		if (!id) continue;
+		const display = lookupAttr(el, "display-name") ?? decodeStyleName(id);
+		const family = lookupAttr(el, "family");
+		const parent = lookupAttr(el, "parent-style-name");
+
+		// Block roles only make sense for paragraph styles - a *text* style
+		// named "Title" must not turn its span into a heading.
+		const style: ResolvedStyle = {
+			named: id,
+			...(family === undefined || family === "paragraph" ? styleFromName(display) : {}),
+			...textProperties(firstChild(el, "text-properties")),
+		};
+		// An explicit outline level beats the name heuristic. Google Docs
+		// writes `default-outline-level=""` on every heading style, so only a
+		// non-empty value counts.
+		const outline = lookupAttr(el, "default-outline-level");
+		if (outline) {
+			style.blockRole = "heading";
+			style.headingLevel = Number(outline);
+		}
+
+		const def: StyleDef = { id, style };
+		if (display !== id) def.name = display;
+		// style:parent-style-name is odt's basedOn - same machinery.
+		if (parent) def.basedOn = parent;
+		defs.push(def);
+	}
+	return defs;
+}
+
 /**
  * Builds a style table from `<office:automatic-styles>` and `<office:styles>`.
  *
@@ -97,38 +145,42 @@ export function odtStyleTable(...sources: (string | XmlElement | undefined)[]): 
 	for (const source of sources) {
 		const root = parseIfString(source);
 		if (!root) continue;
-		for (const el of descendants(root, "style")) {
-			const id = lookupAttr(el, "name");
-			if (!id) continue;
-			const parent = lookupAttr(el, "parent-style-name");
-			const def: StyleDef = {
-				id,
-				style: { named: id, ...textProperties(firstChild(el, "text-properties")) },
-			};
-			// style:parent-style-name is odt's basedOn - same machinery.
-			if (parent) def.basedOn = parent;
-			defs.push(def);
-		}
+		defs.push(...styleDefsFrom(root));
 	}
 	return createStyleTable(defs);
 }
 
-/** Maps a list style name to ordered/unordered. */
-export function odtListStyles(
-	...sources: (string | XmlElement | undefined)[]
-): Map<string, "ordered" | "unordered"> {
-	const out = new Map<string, "ordered" | "unordered">();
+/** Per-level list kinds, keyed by list style name then `text:level`. */
+export type OdtListStyles = Map<string, Map<number, "ordered" | "unordered">>;
+
+function collectListStyles(root: XmlElement, out: OdtListStyles): void {
+	for (const el of descendants(root, "list-style")) {
+		const name = lookupAttr(el, "name");
+		if (!name) continue;
+		const levels = new Map<number, "ordered" | "unordered">();
+		for (const child of el.children) {
+			if (child.kind !== "element" || !child.name.startsWith("list-level-style")) continue;
+			const level = Number(lookupAttr(child, "level") ?? "1");
+			levels.set(level, child.name === "list-level-style-number" ? "ordered" : "unordered");
+		}
+		out.set(name, levels);
+	}
+}
+
+/**
+ * Maps a list style name to ordered/unordered, **per nesting level**.
+ *
+ * Per level is not optional: exporters routinely define all ten levels, and
+ * they need not agree - Google Docs writes bulleted lists whose levels 1-9 are
+ * `list-level-style-bullet` while level 10 is `list-level-style-number`. Any
+ * whole-style answer turns every bulleted list in such a document ordered.
+ */
+export function odtListStyles(...sources: (string | XmlElement | undefined)[]): OdtListStyles {
+	const out: OdtListStyles = new Map();
 	for (const source of sources) {
 		const root = parseIfString(source);
 		if (!root) continue;
-		for (const el of descendants(root, "list-style")) {
-			const name = lookupAttr(el, "name");
-			if (!name) continue;
-			const numbered = el.children.some(
-				(c) => c.kind === "element" && c.name === "list-level-style-number",
-			);
-			out.set(name, numbered ? "ordered" : "unordered");
-		}
+		collectListStyles(root, out);
 	}
 	return out;
 }
@@ -146,41 +198,106 @@ export function odtStyleResolver(): StyleResolver {
 export interface OdtParts {
 	/** `styles.xml`; `content.xml` is passed as the document itself. */
 	styles?: string | XmlElement;
-	/** `content.xml`, when its automatic styles must be indexed up front. */
+	/**
+	 * `content.xml`, when its automatic styles must be indexed up front.
+	 * Rarely needed: the crawl indexes the document's own
+	 * `<office:automatic-styles>` when it reaches them, which is before any
+	 * body element resolves a style.
+	 */
 	content?: string | XmlElement;
 	rules?: AnyReverseRule[];
 }
 
 /** A profile that turns OpenDocument text back into markdown. */
 export function odtProfile(parts: OdtParts = {}): Profile {
-	const table = odtStyleTable(parts.styles, parts.content);
-	const listStyles = odtListStyles(parts.styles, parts.content);
+	// The table is rebuilt on the fly because the crawled document contributes
+	// its own automatic styles mid-crawl. Later definitions win on id
+	// collision, so document styles override a styles.xml entry of the same
+	// name - those carry the direct formatting an author actually applied.
+	const defs: StyleDef[] = [];
+	let table = createStyleTable(defs);
+	const addDefs = (more: StyleDef[]) => {
+		if (more.length === 0) return;
+		defs.push(...more);
+		table = createStyleTable(defs);
+	};
+	const live: StyleTable = {
+		get: (key) => table.get(key),
+		resolve: (key) => table.resolve(key),
+		get defaults() {
+			return table.defaults;
+		},
+	};
+	const listStyles: OdtListStyles = new Map();
+	for (const source of [parts.styles, parts.content]) {
+		const root = parseIfString(source);
+		if (!root) continue;
+		addDefs(styleDefsFrom(root));
+		collectListStyles(root, listStyles);
+	}
+
 	const t = (tag: string | string[]) => on(tag, ODT_NS);
+
+	/** The style the element references by name, without ancestor cascade. */
+	const ownStyle = (el: XmlElement, ctx: MatchContext): ResolvedStyle => {
+		const named = ctx.attr("style-name", el);
+		return named ? live.resolve(named) : {};
+	};
 
 	const rules: AnyReverseRule[] = [
 		...(parts.rules ?? []),
 
-		t(["office:automatic-styles", "office:styles", "office:font-face-decls"]).drop(),
+		// The document's own automatic styles (and, should a whole styles.xml
+		// ever be crawled, its common styles) are harvested before dropping:
+		// they hold the T1/P2 direct formatting the body is about to use.
+		t(["office:automatic-styles", "office:styles"]).to((el) => {
+			addDefs(styleDefsFrom(el));
+			collectListStyles(el, listStyles);
+			return { kind: "drop" };
+		}),
+		t("office:font-face-decls").drop(),
 		t(["text:tracked-changes", "text:sequence-decls", "text:bookmark"]).drop(),
 
 		t("text:h").wrap("md:heading", (el, ctx) => ({
-			level: Number(ctx.attr("outline-level", el) ?? "1"),
+			level: Number(ctx.attr("outline-level", el) ?? ctx.style.headingLevel ?? 1),
 			phase: "open",
 		})),
 
 		// A paragraph inside a list item is the item's content, not a block of
-		// its own - unwrapping keeps the item tight.
+		// its own - unwrapping keeps the item tight. Its style's character
+		// formatting still applies (an all-italic list is a real thing).
 		t("text:p").where((_el, ctx) =>
 			ctx.parentTag === "md:listitem" || ctx.parentTag === "md:checkitem"
-		).unwrap(),
+		).to((el, ctx) => {
+			const chain = emphasisTags(ownStyle(el, ctx));
+			return chain.length === 0 ? { kind: "unwrap" } : { kind: "wrap", tag: chain };
+		}),
+		t("text:p").whereStyle((s) => s.blockRole === "heading").wrap(
+			"md:heading",
+			(_el, ctx) => ({ level: ctx.style.headingLevel ?? 1, phase: "open" }),
+		),
 		t("text:p").whereStyle((s) => s.blockRole === "quote").wrap("md:blockquote", {
 			phase: "open",
 		}),
-		t("text:p").wrap("core:paragraph", { phase: "open" }),
+		t("text:p").to((el, ctx) => ({
+			kind: "wrap",
+			tag: ["core:paragraph", ...emphasisTags(ownStyle(el, ctx))],
+			data: { phase: "open" },
+		})),
 
 		t("text:list").to((el, ctx) => {
-			const name = ctx.attr("style-name", el);
-			const kind = (name && listStyles.get(name)) ?? "unordered";
+			// Nested <text:list> elements usually leave style-name to the
+			// outermost one; the nearest named ancestor list carries it.
+			let name = ctx.attr("style-name", el);
+			if (!name) {
+				for (let i = ctx.ancestors.length - 1; i >= 0 && !name; i--) {
+					const a = ctx.ancestors[i];
+					if (a.name === "list") name = lookupAttr(a, "style-name");
+				}
+			}
+			const depth = ctx.ancestors.filter((a) => a.name === "list").length + 1;
+			const levels = name ? listStyles.get(name) : undefined;
+			const kind = levels?.get(depth) ?? levels?.get(1) ?? "unordered";
 			return {
 				kind: "wrap",
 				tag: kind === "ordered" ? "md:orderedlist" : "md:unorderedlist",
@@ -190,18 +307,18 @@ export function odtProfile(parts: OdtParts = {}): Profile {
 		t("text:list-item").wrap("md:listitem", { phase: "open" }),
 		t("text:list-header").wrap("md:listitem", { phase: "open" }),
 
-		// Character styles resolve through the automatic-style table.
-		t("text:span").whereStyle((s) => !!s.bold && !!s.italic).wrap("md:bolditalic"),
-		t("text:span").whereStyle((s) => !!s.bold).wrap("md:bold"),
-		t("text:span").whereStyle((s) => !!s.italic).wrap("md:italic"),
-		t("text:span").whereStyle((s) => !!s.strike).wrap("md:strikethrough"),
-		t("text:span").whereStyle((s) => !!s.highlight).wrap("md:highlight"),
-		t("text:span").whereStyle((s) => !!s.mono).to((el, ctx) => ({
-			kind: "leaf",
-			tag: "md:code",
-			data: { value: ctx.text(el) },
-		})),
-		t("text:span").unwrap(),
+		// Character styles resolve through the style table. Deliberately the
+		// span's *own* style, not the ancestor cascade: paragraph-level
+		// formatting is already wrapped by the paragraph rules above, and
+		// re-matching it here would nest the same emphasis twice.
+		t("text:span").to((el, ctx) => {
+			const own = ownStyle(el, ctx);
+			if (own.mono) {
+				return { kind: "leaf", tag: "md:code", data: { value: ctx.text(el) } };
+			}
+			const chain = emphasisTags(own);
+			return chain.length === 0 ? { kind: "unwrap" } : { kind: "wrap", tag: chain };
+		}),
 
 		t("text:a").to((el, ctx) => ({
 			kind: "leaf",
@@ -233,7 +350,7 @@ export function odtProfile(parts: OdtParts = {}): Profile {
 		parse: { mode: "xml" },
 		nsMap: ODT_NS,
 		styles: odtStyleResolver(),
-		styleTable: table,
+		styleTable: live,
 		rules,
 		unmatched: "unwrap",
 	};
