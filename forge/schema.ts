@@ -856,8 +856,14 @@ export class QuerySchema<S extends SchemaShape> extends Schema<InferShape<S>> {
 		for (const [key, schema] of Object.entries(this.shape)) {
 			const all = value.getAll(key);
 			// Single value → unwrap; multiple values → keep as array; missing → undefined
-			const raw: unknown = all.length === 0 ? undefined : all.length === 1 ? all[0] : all;
+			let raw: unknown = all.length === 0 ? undefined : all.length === 1 ? all[0] : all;
 
+			if (
+				(schema instanceof OptionalSchema && schema["inner"] instanceof ArraySchema) ||
+				schema instanceof ArraySchema
+			) {
+				raw = all;
+			}
 			const fieldResult = schema._parse(raw, [...path, key]);
 			if (fieldResult.success) {
 				if (fieldResult.data !== undefined) result[key] = fieldResult.data;

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://cdn.bear-metal.dev/resources/images/dripicon.svg" alt="BearMetal" width="240">
+</p>
+
 # @bearmetal/drip
 
 [![License: GPL v3](https://badger.bear-metal.dev/?label=License&value=GPL+v3&extra=&labelColor=label-light&valueColor=info-invert&extraColor=&variant=)](https://www.gnu.org/licenses/gpl-3.0)

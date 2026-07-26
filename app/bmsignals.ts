@@ -2,7 +2,7 @@ import { getCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import { Signal } from "./signals/wrapper.ts";
 
 export { Signal } from "./signals/wrapper.ts";
-export * from "./signals.ts"
+export * from "./signals.ts";
 
 export class DebouncedSignal<T> extends Signal.State<T> {
 	constructor(initial: T, private debounceDurationMs: number) {
@@ -37,7 +37,10 @@ export class IntervalSignal<T> extends Signal.State<T> implements IntervalManage
 		getCurrentOwner()?.registerCleanup(this.cancel);
 	}
 	#prime() {
-		this.#timer = setInterval(() => this.set(this.#callback(this.get())), this.#duration);
+		this.#timer = setInterval(
+			() => this.set(this.#callback(this.get())),
+			this.#duration,
+		);
 	}
 	#timer?: ReturnType<typeof setInterval>;
 	cancel() {
@@ -79,16 +82,17 @@ export class LazySignal<T> extends Signal.State<T> {
 		this.#fetcher = async () => await fetcher();
 	}
 	set(val: T) {
-		this.#fetched = true
+		this.#fetched = true;
 		super.set(val);
 	}
 	get(): T {
 		if (!this.#fetched) {
-			this.#fetched = true;
-			this.#fetcher().then((val) => this.set(val)).catch((e) => {
-				this.#fetched = false;
-				throw e;
-			});
+			// this.#fetched = true;
+			this.#fetcher().then((val) => !this.#fetched && this.set(val))
+				.catch((e) => {
+					this.#fetched = false;
+					throw e;
+				});
 		}
 		return super.get();
 	}
@@ -137,7 +141,15 @@ export class SpreadSignal<T extends object> extends Signal.State<T> {
 }
 
 export class ArraySignal<T> extends Signal.State<T[]> {
-	static #proxiedProps = new Set<keyof unknown[]>(["push", "pop", "shift", "unshift", "splice", "sort", "reverse"]);
+	static #proxiedProps = new Set<keyof unknown[]>([
+		"push",
+		"pop",
+		"shift",
+		"unshift",
+		"splice",
+		"sort",
+		"reverse",
+	]);
 
 	constructor(init: T[]) {
 		super(init);
@@ -148,7 +160,10 @@ export class ArraySignal<T> extends Signal.State<T[]> {
 
 		const handler: ProxyHandler<T[]> = {
 			get: (target, prop) => {
-				if (typeof prop === "string" && ArraySignal.#proxiedProps.has(prop as keyof unknown[])) {
+				if (
+					typeof prop === "string" &&
+					ArraySignal.#proxiedProps.has(prop as keyof unknown[])
+				) {
 					const methodName = prop as Extract<keyof T[], string>;
 
 					return (...args: unknown[]) => {
@@ -157,7 +172,10 @@ export class ArraySignal<T> extends Signal.State<T[]> {
 
 						if (typeof method === "function") {
 							// deno-lint-ignore ban-types
-							const result = (method as Function).apply(clone, args);
+							const result = (method as Function).apply(
+								clone,
+								args,
+							);
 							this.set(clone);
 							return result;
 						}
@@ -178,13 +196,12 @@ export class ArraySignal<T> extends Signal.State<T[]> {
 				}
 
 				return success;
-			}
+			},
 		};
 
 		return new Proxy(targetArray, handler);
 	}
 }
-
 
 export class DirtyArraySignal<T> extends ArraySignal<T> {
 	#dirty = new Signal.State(false);
