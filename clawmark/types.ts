@@ -174,10 +174,17 @@ export function isForwardRule(rule: EngineRule): rule is AnyRule {
 export type WhitespaceMode = "normal" | "pre";
 
 export type MatchResult =
-	/** Open a node, recurse into the element's children, close it. */
+	/**
+	 * Open a node, recurse into the element's children, close it. An array of
+	 * tags opens a nested chain, outermost first, and recurses into the
+	 * innermost - one element can carry several formattings at once (an odt
+	 * span that is bold *and* underlined), and a single wrap tag would force
+	 * every profile to hand-build that nesting via `custom`. `data` lands on
+	 * the outermost node.
+	 */
 	| {
 		kind: "wrap";
-		tag: TokenIdentifier;
+		tag: TokenIdentifier | TokenIdentifier[];
 		data?: Record<string, unknown>;
 		whitespace?: WhitespaceMode;
 	}

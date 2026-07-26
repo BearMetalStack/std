@@ -36,6 +36,7 @@ Deno.test("round trip: headings", () => {
 });
 Deno.test("round trip: emphasis", () => assertBoth("*a* **c** ***d***"));
 Deno.test("round trip: strikethrough and highlight", () => assertBoth("~~gone~~ ==important=="));
+Deno.test("round trip: underline", () => assertBoth("++under++ ++***all three***++"));
 Deno.test("round trip: inline code", () => assertBoth("`*not bold*`"));
 Deno.test("round trip: code block", () => assertBoth("```\nconst x = 1;\n```"));
 Deno.test("round trip: code block with a language", () => assertBoth("```ts\nconst x = 1;\n```"));

@@ -8,7 +8,7 @@
  * `ResolvedStyle` and matches on that.
  */
 
-import type { ResolvedStyle, StyleDef, StyleTable } from "./types.ts";
+import type { ResolvedStyle, StyleDef, StyleTable, TokenIdentifier } from "./types.ts";
 import type { XmlElement } from "./xml/types.ts";
 
 /**
@@ -28,6 +28,38 @@ export const DEFAULT_INHERITS: readonly (keyof ResolvedStyle)[] = [
 	"highlight",
 	"align",
 ];
+
+/**
+ * Heuristics mapping well-known style names to normalized roles, shared by the
+ * docx and odt profiles.
+ *
+ * In docx these cover documents supplied without a styles.xml; in odt they are
+ * the *only* way a `Title`/`Subtitle`/`Heading N` styled paragraph is
+ * recognized at all - plenty of real exports (Google Docs among them) write
+ * heading-styled `<text:p>` elements with an empty
+ * `style:default-outline-level` instead of `<text:h>`.
+ */
+const NAME_HEURISTICS: [RegExp, ResolvedStyle][] = [
+	[/^title$/i, { blockRole: "heading", headingLevel: 1 }],
+	[/^subtitle$/i, { blockRole: "heading", headingLevel: 2 }],
+	[/^(intense\s*)?quote$/i, { blockRole: "quote" }],
+	[/^block\s*text$/i, { blockRole: "quote" }],
+	[/^(source\s*)?code$/i, { blockRole: "code", mono: true }],
+	[/^html\s*preformatted$/i, { blockRole: "code", mono: true }],
+	[/^list\s*paragraph$/i, { blockRole: "list" }],
+];
+
+/** Maps a style name or id to a normalized style using the built-in heuristics. */
+export function styleFromName(name: string): ResolvedStyle {
+	const heading = /^heading\s*([1-6])$/i.exec(name);
+	if (heading) {
+		return { blockRole: "heading", headingLevel: Number(heading[1]) };
+	}
+	for (const [pattern, style] of NAME_HEURISTICS) {
+		if (pattern.test(name)) return { ...style };
+	}
+	return {};
+}
 
 /**
  * Attribute lookup tolerant of namespace-prefix variance: `lookupAttr(el,
@@ -59,6 +91,22 @@ export function onOff(el: XmlElement | undefined, attr = "val"): boolean | undef
 	const value = lookupAttr(el, attr);
 	if (value === undefined) return true;
 	return !(value === "0" || value === "false" || value === "off" || value === "none");
+}
+
+/**
+ * The nested wrap chain (outermost first) for a style's character formatting.
+ * One styled span/run can carry several formattings at once; a first-match
+ * cascade of single-property rules keeps only one and silently drops the rest.
+ */
+export function emphasisTags(style: ResolvedStyle): TokenIdentifier[] {
+	const out: TokenIdentifier[] = [];
+	if (style.underline) out.push("md:underline");
+	if (style.strike) out.push("md:strikethrough");
+	if (style.highlight) out.push("md:highlight");
+	if (style.bold && style.italic) out.push("md:bolditalic");
+	else if (style.bold) out.push("md:bold");
+	else if (style.italic) out.push("md:italic");
+	return out;
 }
 
 /** Merges `over` onto `base`. `undefined` does not clobber; `false` does. */

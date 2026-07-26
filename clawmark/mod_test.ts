@@ -36,6 +36,11 @@ Deno.test("strikethrough and highlight", () => {
 	);
 });
 
+Deno.test("underline", () => {
+	assertEquals(toHtml("++under++"), "<p><u>under</u></p>");
+	assertEquals(toHtml("a + b"), "<p>a + b</p>");
+});
+
 Deno.test("inline code does not parse markup inside it", () => {
 	assertEquals(toHtml("`*not bold*`"), "<p><code>*not bold*</code></p>");
 });

@@ -115,8 +115,11 @@ export interface RuleBuilder {
 	/** Overrides the generated `rev:` id, for readable debugging. */
 	named(id: string): RuleBuilder;
 
-	/** Emit a node and crawl the element's children into it. */
-	wrap(tag: TokenIdentifier, data?: DataSpec): AnyReverseRule;
+	/**
+	 * Emit a node and crawl the element's children into it. An array of tags
+	 * opens a nested chain, outermost first; `data` lands on the outermost.
+	 */
+	wrap(tag: TokenIdentifier | TokenIdentifier[], data?: DataSpec): AnyReverseRule;
 	/** Emit a childless node; the element's subtree is consumed. */
 	emit(tag: TokenIdentifier, data?: DataSpec): AnyReverseRule;
 	/** Emit several ready-built siblings. */
