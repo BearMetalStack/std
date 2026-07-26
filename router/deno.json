@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/router",
 	"description": "A simple router for Deno",
-	"version": "0.5.2",
+	"version": "0.5.3",
 	"stable": true,
 	"tasks": {
 		"dirty": {

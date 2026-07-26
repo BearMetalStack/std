@@ -1,9 +1,9 @@
 {
-    "name": "@bearmetal/internal",
-    "version": "1.0.0",
-    "exports": {
-        ".": "./mod.ts",
-        "./symbol": "./symbols.ts"
-    },
-    "publish": false
+	"name": "@bearmetal/internal",
+	"version": "1.0.1",
+	"exports": {
+		".": "./mod.ts",
+		"./symbol": "./symbols.ts"
+	},
+	"publish": false
 }
