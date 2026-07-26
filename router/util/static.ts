@@ -28,9 +28,23 @@ function cwdUrl(): URL {
 	return new URL(`file://${cwd.startsWith("/") ? "" : "/"}${cwd}/`);
 }
 
-/** Resolves a relative subpath under `dir`, tolerating leading/trailing slashes. */
-function childUrl(dir: URL, subPath: string): URL {
-	return new URL(subPath.replace(/^\/+/, "").replace(/\/+\s*$/, ""), dir);
+/**
+ * Resolves a relative subpath under `dir`, or null if it escapes the directory.
+ *
+ * `new URL()` collapses `..` before the filesystem is ever touched, so without
+ * this check a request for `/static/../../etc/passwd` would resolve to a real
+ * path outside the served directory. The URL parser also folds every encoded
+ * spelling of a dot segment (`%2e%2e`, `.%2e`, ...) into the same `..`, so
+ * comparing the resolved href is enough - there is no encoding left to smuggle
+ * one through. The trailing slash on `dir` is load-bearing: it stops
+ * `/srv/public-secrets` from passing as a child of `/srv/public`.
+ *
+ * This bounds the path, not the inode - a symlink inside `dir` pointing out of
+ * it is still followed, same as before.
+ */
+function childUrl(dir: URL, subPath: string): URL | null {
+	const url = new URL(subPath.replace(/^\/+/, "").replace(/\/+\s*$/, ""), dir);
+	return url.href.startsWith(dir.href) ? url : null;
 }
 
 export async function fileResponse(path: string | URL): Promise<Response> {
@@ -54,6 +68,9 @@ export async function resolveStaticFile(
 	const dirUrl = toDirectoryUrl(dir);
 	const relative = pathname.replace(new RegExp("^" + root), "").trim();
 	const target = childUrl(dirUrl, relative);
+	// A path that climbs out of the directory is never a real route, so it 404s
+	// rather than falling through to the SPA shell.
+	if (!target) return NotFound();
 
 	const served = await tryServeFile(target, spa, showIndex);
 	if (served) return served;
@@ -63,7 +80,7 @@ export async function resolveStaticFile(
 		// whatever SPA route the browser is on (/some/route/chunk-XYZ.js) -
 		// retry against the dist root before falling back to the app shell.
 		const flattened = childUrl(dirUrl, pathname.split("/").pop()!);
-		if (flattened.href !== target.href) {
+		if (flattened && flattened.href !== target.href) {
 			const asset = await tryServeFile(flattened, spa, showIndex);
 			if (asset) return asset;
 		}
