@@ -70,6 +70,12 @@ export abstract class BMElement<
 
 	#cleanups: Array<() => void> = [];
 
+	/**
+	 * True from `disconnectedCallback()` until the deferred teardown it schedules
+	 * either runs or is cancelled by a same-tick reconnect. See `disconnectedCallback`.
+	 */
+	#disconnectPending = false;
+
 	signals: Record<string, Signals.State<unknown>> = {};
 
 	#refs = new Map<string, Element>();
@@ -117,6 +123,20 @@ export abstract class BMElement<
 	}
 
 	connectedCallback(): void {
+		if (this.#disconnectPending) {
+			// disconnectedCallback() fired but its deferred teardown hasn't run yet -
+			// we're being reconnected in the same tick, e.g. a reactive child slot
+			// (Switch, Show, appendReactiveChild) just removed and reinserted this
+			// exact instance. We never really left: cancel the teardown and leave
+			// everything (effects, refs, rendered content) exactly as it was. Custom
+			// elements can't otherwise distinguish this from a real removal, since both
+			// fire disconnectedCallback identically - re-running init() here would
+			// re-arm any one-shot mount effects and, for a component whose init writes
+			// state that influences its own slot, cascade into an unbounded remount loop.
+			this.#disconnectPending = false;
+			return;
+		}
+
 		const raw = this.dataset.serverProps;
 		if (raw) {
 			const loaded = JSON.parse(atob(raw));
@@ -175,8 +195,19 @@ export abstract class BMElement<
 	}
 
 	disconnectedCallback(): void {
-		for (const cleanup of this.#cleanups) cleanup();
-		this.#cleanups = [];
+		// Defer teardown by a microtask instead of running it synchronously: a
+		// same-document move (which is exactly what a reactive child slot does when
+		// it reinserts already-rendered content) fires disconnectedCallback then
+		// connectedCallback back-to-back, and the two are indistinguishable from a
+		// real removal at this point. If connectedCallback() sees the pending flag
+		// before this runs, it cancels the teardown instead.
+		this.#disconnectPending = true;
+		queueMicrotask(() => {
+			if (!this.#disconnectPending) return;
+			this.#disconnectPending = false;
+			for (const cleanup of this.#cleanups) cleanup();
+			this.#cleanups = [];
+		});
 	}
 
 	/**

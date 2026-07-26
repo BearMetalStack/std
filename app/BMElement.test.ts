@@ -16,7 +16,18 @@ function connectable<T extends BMElement>(el: T): T {
 	return el;
 }
 
-Deno.test("init() teardown return runs on disconnect", () => {
+/**
+ * Teardown is deferred by a microtask (see BMElement.disconnectedCallback) so a
+ * same-tick reconnect can cancel it - a real disconnect only finishes settling once
+ * these have run.
+ */
+function flush(times = 3): Promise<void> {
+	let p = Promise.resolve();
+	for (let i = 0; i < times; i++) p = p.then(() => {});
+	return p;
+}
+
+Deno.test("init() teardown return runs on disconnect", async () => {
 	const calls: string[] = [];
 
 	class Component extends BMElement {
@@ -32,10 +43,31 @@ Deno.test("init() teardown return runs on disconnect", () => {
 	assertEquals(calls, ["init"]);
 
 	el.disconnectedCallback();
+	await flush();
 	assertEquals(calls, ["init", "cleanup"]);
 });
 
-Deno.test("init() teardown is re-registered across reconnects", () => {
+Deno.test("a same-tick reconnect cancels the pending teardown and does not re-run init", () => {
+	let inits = 0;
+	let cleanups = 0;
+
+	class Component extends BMElement {
+		override init() {
+			inits++;
+			return () => cleanups++;
+		}
+	}
+
+	const el = connectable(new Component());
+
+	el.connectedCallback();
+	el.disconnectedCallback();
+	el.connectedCallback(); // reconnected before the deferred teardown ran
+	assertEquals(inits, 1, "the component never really left, so init must not re-run");
+	assertEquals(cleanups, 0, "the cancelled teardown must not run either");
+});
+
+Deno.test("init() teardown is re-registered across settled reconnects", async () => {
 	let cleanups = 0;
 
 	class Component extends BMElement {
@@ -48,14 +80,16 @@ Deno.test("init() teardown is re-registered across reconnects", () => {
 
 	el.connectedCallback();
 	el.disconnectedCallback();
+	await flush();
 	assertEquals(cleanups, 1);
 
 	el.connectedCallback();
 	el.disconnectedCallback();
+	await flush();
 	assertEquals(cleanups, 2);
 });
 
-Deno.test("init() returning nothing stays supported", () => {
+Deno.test("init() returning nothing stays supported", async () => {
 	class Component extends BMElement {
 		override init() {}
 	}
@@ -63,9 +97,10 @@ Deno.test("init() returning nothing stays supported", () => {
 	const el = connectable(new Component());
 	el.connectedCallback();
 	el.disconnectedCallback();
+	await flush();
 });
 
-Deno.test("init() teardown runs alongside addEffect cleanups", () => {
+Deno.test("init() teardown runs alongside addEffect cleanups", async () => {
 	const calls: string[] = [];
 
 	class Component extends BMElement {
@@ -78,6 +113,7 @@ Deno.test("init() teardown runs alongside addEffect cleanups", () => {
 	const el = connectable(new Component());
 	el.connectedCallback();
 	el.disconnectedCallback();
+	await flush();
 
 	assert(calls.includes("effect"));
 	assert(calls.includes("init"));
