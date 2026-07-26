@@ -2,6 +2,7 @@ import { getCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import { Signal } from "./signals/wrapper.ts";
 
 export { Signal } from "./signals/wrapper.ts";
+export * from "./signals.ts"
 
 export class DebouncedSignal<T> extends Signal.State<T> {
 	constructor(initial: T, private debounceDurationMs: number) {
@@ -78,15 +79,16 @@ export class LazySignal<T> extends Signal.State<T> {
 		this.#fetcher = async () => await fetcher();
 	}
 	set(val: T) {
+		this.#fetched = true
 		super.set(val);
 	}
 	get(): T {
 		if (!this.#fetched) {
-			this.#fetcher().then((val) => super.set(val)).catch((e) => {
+			this.#fetched = true;
+			this.#fetcher().then((val) => this.set(val)).catch((e) => {
 				this.#fetched = false;
 				throw e;
 			});
-			this.#fetched = true;
 		}
 		return super.get();
 	}

@@ -125,10 +125,10 @@ pre {
 	border: var(--border-1) solid var(--color-border);
 }
 
-/*ol,
+ol,
 ul {
-	padding-left: 1rem;
-}*/
+	list-style: none;
+}
 
 span.highlight {
 	background-color: var(--color-bearmetal-400);
