@@ -19,9 +19,9 @@ class DripModule extends TrustedModule {
 
 			return Style(this.#stylesheet ?? "");
 		});
-		this.route("/@bearmetal/style/:compliantId").get((ctx) => {
+		this.route("/@bearmetal/style/:compliantId").get(async (ctx) => {
 			const id = ctx.params.compliantId as CompliantID;
-			const stylesheet = compliantCSS(id);
+			const stylesheet = await compliantCSS(id);
 
 			return Style(stylesheet);
 		});
