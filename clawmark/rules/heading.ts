@@ -33,4 +33,14 @@ export const headingRule: Rule<HeadingData> = {
 	renderClose(node) {
 		return `</h${node.data.level}>`;
 	},
+
+	matchTag: ["h1", "h2", "h3", "h4", "h5", "h6"],
+	match: (el) => ({
+		kind: "wrap",
+		tag: "md:heading",
+		data: { level: Number(el.name[1]), phase: "open" },
+	}),
+
+	serializeKind: "block",
+	serialize: (node, ctx) => `${"#".repeat(node.data.level)} ${ctx.children(node)}`,
 };

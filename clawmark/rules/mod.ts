@@ -13,6 +13,7 @@ import { footnoteDefRule, footnoteRule } from "./footnote.ts";
 import { blockquoteRule, lineItemRule } from "./blockquote.ts";
 import { createListRules } from "./list.ts";
 import { createTableRules } from "./table.ts";
+import { rawRule } from "./raw.ts";
 
 /**
  * Fresh rule set for one parse/render pass. Stateful rules (lists, tables)
@@ -38,5 +39,6 @@ export function defaultRules(): AnyRule[] {
 		footnoteDefRule,
 		footnoteRule,
 		linkRule,
+		rawRule,
 	];
 }

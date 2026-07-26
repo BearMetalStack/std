@@ -1,12 +1,22 @@
 {
-    "name": "@bearmetal/clawmark",
-    "version": "0.1.0",
-    "exports": {
-        ".": "./mod.ts",
-        "./rules/extra": "./rules/extra/mod.ts"
-    },
-    "tasks": {
-        "dev": "deno test --watch"
-    },
-    "license": "GPL-3.0-only"
+	"name": "@bearmetal/clawmark",
+	"description": "A rule-based markup engine: markdown to HTML, and arbitrary XML back to markdown",
+	"version": "0.1.0",
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts",
+		"./xml": "./xml/mod.ts",
+		"./crawl": "./crawl.ts",
+		"./serialize": "./serialize.ts",
+		"./style": "./style.ts",
+		"./dsl": "./dsl.ts",
+		"./profiles/html": "./profiles/html/mod.ts",
+		"./profiles/docx": "./profiles/docx/mod.ts",
+		"./profiles/odt": "./profiles/odt/mod.ts",
+		"./rules/extra": "./rules/extra/mod.ts"
+	},
+	"tasks": {
+		"dev": "deno test --watch"
+	},
+	"license": "GPL-3.0-only"
 }

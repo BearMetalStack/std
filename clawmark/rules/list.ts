@@ -1,4 +1,13 @@
-import type { AnyRule, LexerContext, Rule, Token, TokenIdentifier, TreeContext } from "../types.ts";
+import type {
+	AnyRule,
+	LexerContext,
+	Node,
+	Rule,
+	SerializeContext,
+	Token,
+	TokenIdentifier,
+	TreeContext,
+} from "../types.ts";
 import { closeIfCurrentIs, closeNode, openNode } from "./helpers.ts";
 
 type ListTag = "md:orderedlist" | "md:unorderedlist";
@@ -12,6 +21,48 @@ interface StackEntry {
 }
 
 const ITEM_TAGS: TokenIdentifier[] = ["md:listitem", "md:checkitem"];
+
+const LIST_TAGS: TokenIdentifier[] = ["md:orderedlist", "md:unorderedlist"];
+
+/**
+ * Items join with a single newline, never a blank line: clawmark's lexer has
+ * no loose-list concept at all, since a blank line closes the enclosing block
+ * outright (Lexer.#handleNewline). Ordinals come from sibling position because
+ * orderedListRule.validate calls ctx.discardBuffer() - the digits the author
+ * wrote never reach the tree.
+ */
+function serializeList(
+	kind: "ordered" | "unordered",
+	node: Node,
+	ctx: SerializeContext,
+): string {
+	const indent = " ".repeat(ctx.options.listIndent);
+	return node.children
+		.map((item, i) => ctx.withList({ kind, ordinal: i + 1, indent }, () => ctx.node(item)))
+		.join("\n");
+}
+
+/**
+ * Splits an item's own content from any nested list, so the nested list
+ * attaches with a single newline rather than the blank line `children()` would
+ * otherwise insert between two blocks.
+ *
+ * A fixed indent per level is enough because clawmark's list rules only ever
+ * compare indentation *magnitude* (`top.indent < indent` in enterItem), never
+ * marker width.
+ */
+function serializeItem(node: Node, ctx: SerializeContext, marker: string): string {
+	const frame = ctx.lists[ctx.lists.length - 1];
+	const nested = node.children.filter((c) => LIST_TAGS.includes(c.tag));
+	const own = node.children.filter((c) => !LIST_TAGS.includes(c.tag));
+
+	let body = ctx.children({ ...node, children: own });
+	for (const list of nested) body += "\n" + ctx.node(list);
+	if (own.filter((c) => ctx.isBlock(c)).length > 1) {
+		ctx.warn("multi-block list item flattened; markdown cannot represent it", node);
+	}
+	return ctx.prefixLines(body, marker, frame?.indent ?? "  ", "");
+}
 
 /**
  * Nested list open/close, list-item, and checklist-item all need to share
@@ -31,7 +82,13 @@ const ITEM_TAGS: TokenIdentifier[] = ["md:listitem", "md:checkitem"];
 export function createListRules(): AnyRule[] {
 	const stack: StackEntry[] = [];
 
-	function openList(ctx: LexerContext, indent: number, tag: ListTag, tokens: Token[], style?: "none") {
+	function openList(
+		ctx: LexerContext,
+		indent: number,
+		tag: ListTag,
+		tokens: Token[],
+		style?: "none",
+	) {
 		stack.push({ indent, tag });
 		ctx.pushBlock(tag);
 		tokens.push({ tag, data: { phase: "open", style } });
@@ -99,6 +156,12 @@ export function createListRules(): AnyRule[] {
 
 		renderOpen: () => "<ol>",
 		renderClose: () => "</ol>",
+
+		matchTag: "ol",
+		match: () => ({ kind: "wrap", tag: "md:orderedlist", data: { phase: "open" } }),
+
+		serializeKind: "block",
+		serialize: (node, ctx) => serializeList("ordered", node, ctx),
 	};
 
 	const unorderedListRule: Rule<ListData> = {
@@ -144,6 +207,21 @@ export function createListRules(): AnyRule[] {
 
 		renderOpen: (node) => `<ul${node.data.style === "none" ? ' class="none"' : ""}>`,
 		renderClose: () => "</ul>",
+
+		matchTag: "ul",
+		match(el) {
+			// class="none" is what this rule's own renderOpen emits for a
+			// checklist's container.
+			const none = (el.attrs.get("class") ?? "").split(/\s+/).includes("none");
+			return {
+				kind: "wrap",
+				tag: "md:unorderedlist",
+				data: none ? { phase: "open", style: "none" } : { phase: "open" },
+			};
+		},
+
+		serializeKind: "block",
+		serialize: (node, ctx) => serializeList("unordered", node, ctx),
 	};
 
 	const listItemRule: Rule<ItemData> = {
@@ -159,6 +237,27 @@ export function createListRules(): AnyRule[] {
 
 		renderOpen: (node) => `<li${node.data.style ? ' class="none"' : ""}>`,
 		renderClose: () => "</li>",
+
+		matchTag: "li",
+		match(el, ctx) {
+			// A checklist item is <li><input type="checkbox" disabled [checked]>.
+			const input = ctx.child("input", el);
+			if (input?.attrs.get("type") === "checkbox") {
+				return {
+					kind: "wrap",
+					tag: "md:checkitem",
+					data: { phase: "open", checked: input.attrs.has("checked") },
+				};
+			}
+			return { kind: "wrap", tag: "md:listitem", data: { phase: "open" } };
+		},
+
+		serializeKind: "block",
+		serialize(node, ctx) {
+			const frame = ctx.lists[ctx.lists.length - 1];
+			const marker = frame?.kind === "ordered" ? `${frame.ordinal}. ` : `${ctx.options.bullet} `;
+			return serializeItem(node, ctx, marker);
+		},
 	};
 
 	const checkItemRule: Rule<CheckItemData> = {
@@ -175,6 +274,16 @@ export function createListRules(): AnyRule[] {
 		renderOpen: (node) =>
 			`<li><input type="checkbox" disabled${node.data.checked ? " checked" : ""}>`,
 		renderClose: () => "</li>",
+
+		// The <li> is claimed by listItemRule above, which decides between the
+		// two item kinds; the checkbox <input> itself is then dropped so it does
+		// not leak into the item's text.
+		matchTag: "input",
+		match: (el) => el.attrs.get("type") === "checkbox" ? { kind: "drop" } : null,
+
+		serializeKind: "block",
+		serialize: (node, ctx) =>
+			serializeItem(node, ctx, `${ctx.options.bullet} [${node.data.checked ? "x" : " "}] `),
 	};
 
 	return [orderedListRule, unorderedListRule, listItemRule, checkItemRule];

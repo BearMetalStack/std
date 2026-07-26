@@ -33,6 +33,18 @@ export const footnoteRule: Rule<RefData> = {
 		const id = escapeHtml(node.data.id);
 		return `<sup><a href="#fn-${id}" id="fnref-${id}">${id}</a></sup>`;
 	},
+
+	matchTag: "sup",
+	// <sup><a href="#fn-ID" id="fnref-ID">ID</a></sup> is exactly this rule's
+	// own renderOpen output.
+	match(el, ctx) {
+		const anchor = ctx.find("a", el);
+		const href = anchor?.attrs.get("href");
+		if (!href?.startsWith("#fn-")) return null;
+		return { kind: "leaf", tag: "md:footnote", data: { id: href.slice(4) } };
+	},
+
+	serialize: (node) => `[^${node.data.id}]`,
 };
 
 /** Definition, e.g. `[^1]: Some note text`. */
@@ -68,4 +80,17 @@ export const footnoteDefRule: Rule<DefData> = {
 		return `<aside id="${id}"><a href="#fnref-${id}">↩</a> `;
 	},
 	renderClose: () => "</aside>",
+
+	matchTag: "aside",
+	match(el) {
+		const id = el.attrs.get("id");
+		if (!id) return null;
+		return { kind: "wrap", tag: "md:footnotedef", data: { id, phase: "open" } };
+	},
+
+	serializeKind: "block",
+	// Definitions keep their position in the tree rather than being hoisted to
+	// the document end - that is where the forward lexer puts them, so
+	// preserving position is what round-trips.
+	serialize: (node, ctx) => `[^${node.data.id}]: ${ctx.children(node)}`,
 };

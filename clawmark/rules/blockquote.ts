@@ -33,8 +33,25 @@ export const blockquoteRule: Rule<Data> = {
 		}
 	},
 
+	matchTag: "blockquote",
+	match: () => ({ kind: "wrap", tag: "md:blockquote", data: { phase: "open" } }),
+
 	renderOpen: () => "<blockquote>",
 	renderClose: () => "</blockquote>",
+
+	serializeKind: "block",
+	/**
+	 * Line items join with a *single* newline, never a blank line. A blank
+	 * line closes the block in the forward lexer, and a bare `>` line makes
+	 * `blockquoteRule.tokenize` emit an md:linebreak instead of an
+	 * md:lineitem - so `> a\n>\n> b` is not a fixed point. Nested quotes fall
+	 * out for free: the inner one already returned `> x`, and prefixing again
+	 * gives `> > x`.
+	 */
+	serialize(node, ctx) {
+		const inner = node.children.map((child) => ctx.node(child)).join("\n");
+		return ctx.prefixLines(inner, "> ", "> ", ">");
+	},
 };
 
 export const lineItemRule: Rule<LineItemData> = {
@@ -48,6 +65,15 @@ export const lineItemRule: Rule<LineItemData> = {
 		openNode(ctx, "md:lineitem", { phase: "open" });
 	},
 
+	matchTag: "p",
+	match: (_el, ctx) =>
+		ctx.parentTag === "md:blockquote"
+			? { kind: "wrap", tag: "md:lineitem", data: { phase: "open" } }
+			: null,
+
 	renderOpen: () => "<p>",
 	renderClose: () => "</p>",
+
+	serializeKind: "block",
+	serialize: (node, ctx) => ctx.children(node),
 };

@@ -32,4 +32,7 @@ features:
   - title: "@bearmetal/sockpuppet"
     details: WebSocket channel server with a matching browser client. Channels, middleware, pub/sub, and connection pooling — all wired to the router.
     link: /sockpuppet
+  - title: "@bearmetal/clawmark"
+    details: A rule-based markup engine that runs both ways. Markdown to HTML, and HTML, docx, or odt back to markdown — driven by a swappable rule set rather than a fixed grammar.
+    link: /clawmark/
 ---
