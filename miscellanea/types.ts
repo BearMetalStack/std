@@ -17,16 +17,23 @@ export type DotBearmetalDir = {
 	ensure(): Promise<void>;
 };
 // URL-based, read-only counterparts for use inside compiled binaries,
-// where .bearmetal is embedded in the binary's read-only file system
+// where .bearmetal is embedded in the binary's read-only file system.
+// `url` is null when no .bearmetal root is reachable at all.
 // deno-lint-ignore ban-types
 export type DotBearmetalFileUrl<T = {}> = {
 	read(): Promise<string | undefined>;
 	readJson<J = T>(): Promise<J>;
-	url: URL;
+	url: URL | null;
 };
 export type DotBearmetalDirUrl = {
 	read(): Promise<Deno.DirEntry[] | undefined>;
-	url: URL;
+	url: URL | null;
+};
+export type DotBearmetalUrlOptions = {
+	/** Module URL to anchor the embedded-filesystem search on, typically `import.meta.url`. */
+	base?: string | URL;
+	/** Whether to also consider a real `.bearmetal` found by walking up from `Deno.cwd()`. Defaults to true. */
+	searchCwd?: boolean;
 };
 export type DotBearmetalNamespace = string | string[];
 export type DotBearmetalNamespaceManifest = {
