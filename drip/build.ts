@@ -1,4 +1,4 @@
-import { dotBearmetalFile } from "../miscellanea/fs/dotBearmetal.ts";
+import { dotBearmetalFile } from "@bearmetal/miscellanea/fs";
 import { storeStylesheets } from "./css/compliantCSS.ts";
 import { themeCSS } from "./css/generate.ts";
 import { namespaces } from "./namespaces.ts";
