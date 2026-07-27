@@ -30,6 +30,12 @@ async function loadCustomTheme(name: string): Promise<Theme | undefined> {
 	return Object.keys(data).length ? data : undefined;
 }
 
+export async function loadStylesheet(name: string): Promise<string | undefined> {
+	const file = await dotBearmetalFile(namespaces.stylesheets, `${name}.css`);
+	const data = await file.read();
+	return data ? data : undefined;
+}
+
 /** Names of every `.theme.json` a project has defined under `.bearmetal/drip/themes`. */
 export async function listCustomThemeNames(): Promise<string[]> {
 	const dir = await dotBearmetalDirUrl(namespaces.themes, { base: import.meta.url });

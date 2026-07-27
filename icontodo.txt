@@ -1,0 +1,43 @@
+Navigation/chrome (you've started this)
+
+Home
+Search
+Settings/gear
+More (ellipsis, horizontal and vertical variants — they mean different things in different UI conventions)
+External link (arrow-out-of-box)
+
+Actions
+
+Delete/trash
+Save
+Duplicate
+Share
+
+State/feedback
+
+Warning
+Error/alert
+Info
+Loading/spinner (or at least a base you can animate)
+
+Content manipulation (relevant for Graver specifically)
+
+Bold / Italic / Underline / Strikethrough
+Link/chain
+Image
+List (ordered, unordered)
+Quote
+Code
+
+Visibility/toggles
+
+Eye / Eye-slash (show/hide, password visibility)
+Lock / Unlock
+Star/favorite (filled and outline states)
+Pin
+
+People/identity
+
+User/person
+Users/group
+Notification/bell

@@ -2,11 +2,15 @@
 // import ComponentsCSS from "./components.css" with { type: "css" };
 // import AnimationsCSS from "./animations.css" with { type: "css" };
 
+import { dotBearmetalFile } from "@bearmetal/miscellanea/fs";
+import { namespaces } from "../namespaces.ts";
+
 // const base = Array.from(BaseCSS.cssRules).map((rule) => rule.cssText).join("\n");
 // const components = Array.from(ComponentsCSS.cssRules).map((rule) => rule.cssText).join("\n");
 // const animations = Array.from(AnimationsCSS.cssRules).map((rule) => rule.cssText).join("\n");
 
-export type CompliantID = "base" | "components" | "animations";
+const COMPLIANT_IDS = ["base", "components", "animations"] as const;
+export type CompliantID = typeof COMPLIANT_IDS[number];
 
 export default async function compliantCSS(compliantId: CompliantID): Promise<string> {
 	const url = new URL(`./${compliantId}.css`, import.meta.url);
@@ -19,4 +23,12 @@ export default async function compliantCSS(compliantId: CompliantID): Promise<st
 	// 	case "animations":
 	// 		return animations;
 	// }
+}
+
+export async function storeStylesheets() {
+	for (const id of COMPLIANT_IDS) {
+		const stylesheet = await compliantCSS(id);
+		const file = await dotBearmetalFile(namespaces.stylesheets, `${id}.css`);
+		file.write(stylesheet);
+	}
 }

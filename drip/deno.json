@@ -5,7 +5,8 @@
 		".": "./mod.ts",
 		"./ssr": "./ssr.tsx",
 		"./namespaces": "./namespaces.ts",
-		"./palette": "./palette/mod.tsx"
+		"./palette": "./palette/mod.tsx",
+		"./build": "./build.ts"
 	},
 	"compilerOptions": {
 		"jsx": "react-jsx",

@@ -1,8 +1,9 @@
-import { Style, TrustedModule } from "@bearmetal/router";
+import { NotFound, Style, TrustedModule } from "@bearmetal/router";
 import type { Theme } from "./types.ts";
 import { getDefaultTheme, loadTheme } from "@bearmetal/drip";
 import { themeCSS } from "./css/generate.ts";
-import compliantCSS, { type CompliantID } from "./css/compliantCSS.ts";
+import type { CompliantID } from "./css/compliantCSS.ts";
+import { loadStylesheet } from "./theme.ts";
 
 class DripModule extends TrustedModule {
 	#themes: Promise<Theme[]> = Promise.resolve([]);
@@ -21,7 +22,9 @@ class DripModule extends TrustedModule {
 		});
 		this.route("/@bearmetal/style/:compliantId").get(async (ctx) => {
 			const id = ctx.params.compliantId as CompliantID;
-			const stylesheet = await compliantCSS(id);
+			const stylesheet = await loadStylesheet(id);
+
+			if (!stylesheet) return NotFound(`Stylesheet ${id} not found`);
 
 			return Style(stylesheet);
 		});
