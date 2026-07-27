@@ -1,8 +1,8 @@
 import { colorize } from "@bearmetal/cli/style";
-import { getDripConfig, listCustomThemeNames } from "@bearmetal/drip";
+import { listCustomThemeNames, readDripConfig } from "@bearmetal/drip";
 
 export async function listDripThemes() {
-	const dripConfig = await (await getDripConfig()).readJson();
+	const dripConfig = await readDripConfig();
 	const defaultTheme = dripConfig.defaultTheme ?? "bearmetal";
 	const themes = await listCustomThemeNames();
 	if (!dripConfig.disableBearmetal) themes.push("bearmetal");
