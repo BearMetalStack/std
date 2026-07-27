@@ -306,29 +306,33 @@ export function isValidHex(hex: string): boolean {
 }
 
 /**
- * Generates a lightness map where every stop is spaced uniformly, derived
- * entirely from one seed stop's lightness value — rather than anchoring to
- * fixed endpoints (e.g. always 0.97 at 50, always 0.14 at 950).
+ * Generates a lightness map derived from one seed stop's lightness value,
+ * spanning the full range of the given bounds: the lightest stop lands on
+ * `bounds.max` (nearly white) and the darkest on `bounds.min` (nearly black).
+ * Steps are evenly spaced within each side of the seed, but the two sides
+ * may pace differently so both extremes are always reached.
  *
- * The step size is computed from whichever side of the seed has less room
- * to work with (so the ramp never proposes an L outside the given bounds),
- * and both sides use that same step size for consistency. This means a seed
- * placed at an unusual position — e.g. stop 200 = 0.5 — won't force
- * neighboring stops toward extreme values; they'll step out from 0.5 by a
- * modest, uniform amount instead.
+ * With `uniformStep` set, both sides instead share a single step size — the
+ * smaller of the two — so the ramp is evenly spaced across the whole scale.
+ * The trade-off is that the roomier side no longer reaches its extreme: a
+ * seed placed at an unusual position — e.g. stop 200 = 0.5 — steps out by a
+ * modest, uniform amount rather than stretching to the bounds.
  *
  * @param lightnessSeed - L value (0-1) for the seed stop
  * @param seedStop - which stop index the seed lightness represents
  * @param stops - full ordered list of stop indices, lightest to darkest
  *   (defaults to a Tailwind-style 50-950 scale)
- * @param bounds - the L range step size is allowed to fill, so extreme
- *   stops never overshoot into implausible lightness/darkness
+ * @param bounds - the L range the ramp fills, so extreme stops never
+ *   overshoot into implausible lightness/darkness
+ * @param uniformStep - share one step size across both sides of the seed
+ *   instead of reaching both extremes
  */
 export function generateRelativeLightnessMap(
 	lightnessSeed: number,
 	seedStop: number,
 	stops: number[] = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950],
 	bounds: { min: number; max: number } = { min: 0.1, max: 0.98 },
+	uniformStep: boolean = false,
 ): Record<number, number> {
 	const seedIndex = stops.indexOf(seedStop);
 	if (seedIndex === -1) {
@@ -342,23 +346,28 @@ export function generateRelativeLightnessMap(
 	const roomAbove = bounds.max - lightnessSeed;
 	const roomBelow = lightnessSeed - bounds.min;
 
-	// Step size per side — if a side has zero steps to take (seed is the
-	// first/last stop), fall back to the other side's step size so we still
-	// get a sensible uniform value rather than dividing by zero.
-	const stepAbove = stepsAboveSeed > 0 ? roomAbove / stepsAboveSeed : 0;
-	const stepBelow = stepsBelowSeed > 0 ? roomBelow / stepsBelowSeed : 0;
+	// Step size per side — each side paces itself to land exactly on its
+	// bound, so the scale always reaches nearly-white and nearly-black.
+	let stepAbove = stepsAboveSeed > 0 ? roomAbove / stepsAboveSeed : 0;
+	let stepBelow = stepsBelowSeed > 0 ? roomBelow / stepsBelowSeed : 0;
 
-	// Use the smaller of the two non-zero steps as the shared uniform step,
-	// so the ramp feels evenly spaced across the whole scale rather than
-	// having a visibly different pace above vs. below the seed.
-	const candidateSteps = [stepAbove, stepBelow].filter((s) => s > 0);
-	const uniformStep = candidateSteps.length > 0 ? Math.min(...candidateSteps) : 0;
+	if (uniformStep) {
+		// Share the smaller of the two non-zero steps across both sides, so the
+		// ramp feels evenly spaced across the whole scale rather than having a
+		// visibly different pace above vs. below the seed. The roomier side
+		// will fall short of its bound.
+		const candidateSteps = [stepAbove, stepBelow].filter((s) => s > 0);
+		const sharedStep = candidateSteps.length > 0 ? Math.min(...candidateSteps) : 0;
+		stepAbove = sharedStep;
+		stepBelow = sharedStep;
+	}
 
 	const map: Record<number, number> = {};
 
 	stops.forEach((stop, index) => {
 		const distanceFromSeed = seedIndex - index; // positive = lighter side
-		const l = lightnessSeed + distanceFromSeed * uniformStep;
+		const step = distanceFromSeed > 0 ? stepAbove : stepBelow;
+		const l = lightnessSeed + distanceFromSeed * step;
 		map[stop] = Math.min(bounds.max, Math.max(bounds.min, l));
 	});
 
