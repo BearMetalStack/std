@@ -1,6 +1,10 @@
-import { dotBearmetal, dotBearmetalDir, dotBearmetalFile } from "@bearmetal/miscellanea/fs";
+import {
+	dotBearmetalDirUrl,
+	dotBearmetalFile,
+	dotBearmetalFileUrl,
+} from "@bearmetal/miscellanea/fs";
 import { namespaces } from "./namespaces.ts";
-import { getDripConfig } from "./config.ts";
+import { readDripConfig } from "./config.ts";
 import { getRegisteredTheme } from "./inject.ts";
 import { cssFromJson } from "./css/generate.ts";
 import type { Theme } from "./types.ts";
@@ -19,25 +23,20 @@ async function loadBuiltinTheme(name: string): Promise<Theme | undefined> {
 }
 
 async function loadCustomTheme(name: string): Promise<Theme | undefined> {
-	const file = await dotBearmetalFile<Theme>(namespaces.themes, `${name}${THEME_SUFFIX}`);
+	const file = await dotBearmetalFileUrl<Theme>(namespaces.themes, `${name}${THEME_SUFFIX}`, {
+		base: import.meta.url,
+	});
 	const data = await file.readJson<Theme>();
 	return Object.keys(data).length ? data : undefined;
 }
 
 /** Names of every `.theme.json` a project has defined under `.bearmetal/drip/themes`. */
 export async function listCustomThemeNames(): Promise<string[]> {
-	const dir = await dotBearmetal(namespaces.themes);
-	const names: string[] = [];
-	try {
-		for await (const entry of Deno.readDir(dir)) {
-			if (entry.isFile && entry.name.endsWith(THEME_SUFFIX)) {
-				names.push(entry.name.slice(0, -THEME_SUFFIX.length));
-			}
-		}
-	} catch {
-		// themes directory doesn't exist yet - no custom themes
-	}
-	return names;
+	const dir = await dotBearmetalDirUrl(namespaces.themes, { base: import.meta.url });
+	// missing themes directory - no custom themes
+	return (await dir.read())
+		?.filter((entry) => entry.isFile && entry.name.endsWith(THEME_SUFFIX))
+		.map((entry) => entry.name.slice(0, -THEME_SUFFIX.length)) ?? [];
 }
 
 /**
@@ -58,7 +57,7 @@ export async function loadTheme(name: string): Promise<Theme> {
 }
 
 export async function getDefaultThemeName(): Promise<string> {
-	const config = await (await getDripConfig()).readJson();
+	const config = await readDripConfig();
 	return config.defaultTheme ?? "bearmetal";
 }
 
@@ -73,7 +72,7 @@ export async function getDefaultTheme(): Promise<Theme> {
  * theme, writing each to `.bearmetal/drip/stylesheets/<name>.css`.
  */
 export async function generateStylesheets(): Promise<string[]> {
-	const config = await (await getDripConfig()).readJson();
+	const config = await readDripConfig();
 	const names = new Set<string>();
 	if (!config.disableBearmetal) names.add("bearmetal");
 	for (const name of await listCustomThemeNames()) names.add(name);
@@ -97,7 +96,7 @@ export async function generateStylesheets(): Promise<string[]> {
 }
 
 export async function listCustomThemes(): Promise<string[]> {
-	const dir = await dotBearmetalDir(namespaces.themes);
+	const dir = await dotBearmetalDirUrl(namespaces.themes, { base: import.meta.url });
 	return (await dir.read())?.filter((e) => e.name.endsWith(THEME_SUFFIX)).map((e) =>
 		e.name.replace(THEME_SUFFIX, "")
 	) ?? [];
