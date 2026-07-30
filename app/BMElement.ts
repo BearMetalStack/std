@@ -112,8 +112,7 @@ export abstract class BMElement<
 	attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
 		const type = declaredProps(this.constructor)[name];
 		if (!type) return;
-		// The attribute name matches the accessor name directly (props are
-		// required to be a single lowercase word) — no `.signals` bag needed.
+
 		const signal = (this as unknown as Record<string, unknown>)[name];
 		if (signal instanceof Signal.State) signal.set(coerceProp(type, value));
 	}
@@ -124,15 +123,6 @@ export abstract class BMElement<
 
 	connectedCallback(): void {
 		if (this.#disconnectPending) {
-			// disconnectedCallback() fired but its deferred teardown hasn't run yet -
-			// we're being reconnected in the same tick, e.g. a reactive child slot
-			// (Switch, Show, appendReactiveChild) just removed and reinserted this
-			// exact instance. We never really left: cancel the teardown and leave
-			// everything (effects, refs, rendered content) exactly as it was. Custom
-			// elements can't otherwise distinguish this from a real removal, since both
-			// fire disconnectedCallback identically - re-running init() here would
-			// re-arm any one-shot mount effects and, for a component whose init writes
-			// state that influences its own slot, cascade into an unbounded remount loop.
 			this.#disconnectPending = false;
 			return;
 		}
@@ -161,46 +151,25 @@ export abstract class BMElement<
 		const prevOwner = getCurrentOwner();
 		setCurrentOwner(this);
 		try {
-			if (this.root.hasChildNodes()) {
-				const t = this.template;
-				if (t !== undefined && isSignal(t)) {
-					this.addEffect(() => this.replaceChildren(toNode(t.get())));
-				}
-
-				for (const el of this.root.querySelectorAll("[ref]")) {
-					this.registerRef(el.getAttribute("ref")!, el);
-				}
+			const t = this.template;
+			this.addEffect(() => {
+				const tmplNode = isSignal(t) ? toNode(t.get()) : toNode(t);
+				(tmplNode as HTMLElement).querySelectorAll("[ref]")?.forEach((el) =>
+					this.registerRef(el.getAttribute("ref")!, el)
+				);
 				this.#runInit();
-			} else {
-				const t = this.template;
-				if (t !== undefined) {
-					if (isSignal(t)) {
-						this.addEffect(() => {
-							this.replaceChildren(toNode(t.get()));
-						});
-						this.#runInit();
-					} else {
-						const frag = document.createDocumentFragment();
-						frag.appendChild(t as Node);
-						this.#runInit();
-						this.root.appendChild(frag);
-					}
+				if (this.root.hasChildNodes()) {
+					this.root.replaceChildren(tmplNode);
 				} else {
-					this.#runInit();
+					this.root.appendChild(tmplNode);
 				}
-			}
+			});
 		} finally {
 			setCurrentOwner(prevOwner);
 		}
 	}
 
 	disconnectedCallback(): void {
-		// Defer teardown by a microtask instead of running it synchronously: a
-		// same-document move (which is exactly what a reactive child slot does when
-		// it reinserts already-rendered content) fires disconnectedCallback then
-		// connectedCallback back-to-back, and the two are indistinguishable from a
-		// real removal at this point. If connectedCallback() sees the pending flag
-		// before this runs, it cancels the teardown instead.
 		this.#disconnectPending = true;
 		queueMicrotask(() => {
 			if (!this.#disconnectPending) return;
@@ -269,13 +238,16 @@ export abstract class BMElement<
 	injectOrThrow<K extends keyof ContextMap>(key: K): ContextMap[K] {
 		return injectOrThrow(this.parentElement ?? this, key);
 	}
+	#shadowRootRef?: ShadowRoot;
 
 	protected useShadow(mode: ShadowRootMode = "open"): ShadowRoot {
-		return this.shadowRoot ?? this.attachShadow({ mode });
+		if (this.#shadowRootRef) return this.#shadowRootRef;
+		this.#shadowRootRef = this.attachShadow({ mode });
+		return this.#shadowRootRef!;
 	}
 
 	protected get root(): ShadowRoot | this {
-		return this.shadowRoot ?? this;
+		return this.#shadowRootRef ?? this;
 	}
 
 	each = each;
@@ -283,7 +255,7 @@ export abstract class BMElement<
 	protected adoptStyleSheet(css: CSSStyleSheet) {
 		if (!this.shadowRoot) {
 			console.warn(
-				`${this.tagName}: setShadowStyle called but no shadow root exists. Call useShadow() first.`,
+				`${this.tagName}: adoptStyleSheet called but no shadow root exists. Call useShadow() first.`,
 			);
 			return;
 		}

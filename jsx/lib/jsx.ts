@@ -69,7 +69,7 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 		val = val + "px";
 	}
 	if (key === "class") {
-		el.className = val as string;
+		el.classList.add(...(val as string).split(" "));
 	} else if (key.startsWith("on") && typeof val === "function") {
 		el.addEventListener(key.slice(2).toLowerCase(), val as EventListener);
 	} else if (typeof val === "boolean") {
@@ -90,6 +90,32 @@ function isPixelable(key: string, val: unknown): boolean {
 
 function isCheckable(type: unknown): boolean {
 	return type === "checkbox" || type === "radio";
+}
+
+function isTagSVG(tag: string): boolean {
+	return [
+		"svg",
+		"g",
+		"circle",
+		"rect",
+		"path",
+		"ellipse",
+		"line",
+		"text",
+		"polygon",
+		"polyline",
+		"defs",
+		"tspan",
+		"textPath",
+		"animate",
+		"animateTransform",
+		"set",
+		"use",
+		"linearGradient",
+		"radialGradient",
+		"filter",
+	]
+		.includes(tag) || Boolean(tag.match(/^(fe)/));
 }
 
 function coerceBindValue(
@@ -131,13 +157,6 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 			_currentOwner.registerRef(val, el);
 			continue;
 		}
-		// A prop whose slot already holds a writable signal (e.g. a `@prop`
-		// accessor, which always initializes to one) is bound, not copied: swap
-		// the accessor's signal for the incoming one so parent and child share
-		// the exact same Signal.State. That makes the binding bidirectional by
-		// construction — either side writing through `.set()` is visible to the
-		// other — with no attribute mirroring involved.
-		// deno-lint-ignore no-explicit-any
 		const existing = (el as any)[key];
 		if (isWritableSignal(val) && isWritableSignal(existing)) {
 			// deno-lint-ignore no-explicit-any
@@ -258,6 +277,13 @@ export function clientJsx(
 		applyProps(templateEl, rest);
 		appendFlatChildren(templateEl.content, flat);
 		return templateEl;
+	}
+
+	if (isTagSVG(tag)) {
+		const svgEl = document.createElementNS("http://www.w3.org/2000/svg", tag);
+		applyProps(svgEl as unknown as HTMLElement, rest);
+		appendFlatChildren(svgEl, flat);
+		return svgEl;
 	}
 
 	const el = document.createElement(tag);

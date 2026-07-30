@@ -1,0 +1,13 @@
+{
+	"name": "sledge",
+	"version": "0.1.0",
+	"exports": "./mod.tsx",
+	"tasks": {
+		"dev": "deno run --watch -A main.tsx"
+	},
+	"license": "MIT",
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx"
+	}
+}
