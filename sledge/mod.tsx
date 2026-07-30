@@ -1,10 +1,147 @@
+// deno-lint-ignore-file no-window
 import { BMElement, type BMTemplate, define } from "@bearmetal/app";
+import { css } from "@bearmetal/miscellanea";
+
+const styles = new CSSStyleSheet();
+styles.replaceSync(css`
+	:host,
+	svg {
+		overflow: visible;
+	}
+	svg {
+		width: 100%;
+		height: 100%;
+	}
+	.layer {
+		--depth: 0;
+		--base-transform: translate(0,0);
+		transform:
+			translate(
+			calc(var(--offset-x,0) * var(--depth) * 1.5px),
+			calc(var(--offset-y,0) * var(--depth) * 1.5px)
+		)
+			var(--base-transform);
+	}
+	#eyes {
+		--blink: 1;
+	}
+	.eye {
+		transition: transform .2s;
+		transform-origin: center;
+		transform-box: fill-box;
+		transform: rotate(calc(var(--tilt,0) * 1deg)) scaleY(var(--blink,1));
+	}
+`);
+
+/**
+ * Central offset state for Sledge's "gaze", the target the mouse (or later,
+ * an idle/random look generator) sets, and a smoothed current value that
+ * everything visual (parallax layers, eye tilt) reads from every frame.
+ */
+class GazeOffset {
+	#targetX = 0;
+	#targetY = 0;
+	#currentX = 0;
+	#currentY = 0;
+	#damping: number;
+	#onUpdate: (x: number, y: number) => void;
+	#raf?: number;
+
+	constructor(onUpdate: (x: number, y: number) => void, damping = 0.1) {
+		this.#onUpdate = onUpdate;
+		this.#damping = damping;
+	}
+
+	/** Anything driving the gaze — mouse, idle wander, whatever — calls this. */
+	setTarget(x: number, y: number) {
+		this.#targetX = x;
+		this.#targetY = y;
+	}
+
+	start() {
+		const tick = () => {
+			this.#currentX += (this.#targetX - this.#currentX) * this.#damping;
+			this.#currentY += (this.#targetY - this.#currentY) * this.#damping;
+			this.#onUpdate(this.#currentX, this.#currentY);
+			this.#raf = requestAnimationFrame(tick);
+		};
+		this.#raf = requestAnimationFrame(tick);
+	}
+
+	stop() {
+		if (this.#raf) cancelAnimationFrame(this.#raf);
+	}
+}
 
 @define("bm-sledge")
-export class Sledge extends BMElement {
+export class Sledge extends BMElement<{ root: SVGSVGElement }> {
+	#eyes?: SVGGElement;
+	#gaze = new GazeOffset((x, y) => {
+		this.refs.root.style.setProperty("--offset-x", x.toFixed(4));
+		this.refs.root.style.setProperty("--offset-y", y.toFixed(4));
+
+		this.#updateEyeTilt(x, y);
+	});
+
 	init() {
-		this.useShadow("closed");
+		this.useShadow("open");
+		this.root.adoptedStyleSheets = [styles];
+
+		queueMicrotask(() => this.#bootstrap());
+		this.#connectMouse();
+		this.#gaze.start();
+		this.addEffect(() => () => this.#gaze.stop());
 	}
+
+	#bootstrap() {
+		this.#eyes = this.root.querySelector("#eyes");
+		this.blink();
+		for (const layer of this.root.querySelectorAll(".layer")) {
+			let transform: string = layer.getAttribute("transform");
+			if (transform) {
+				console.log(layer.id, transform);
+				transform = transform.replace(
+					/translate\(([^)]+)\)/g,
+					(_, args: string) => {
+						const [x, y] = args.split(",").map((n) => n.trim());
+						return `translate(${x}px, ${y}px)`;
+					},
+				);
+				layer.style.setProperty("--base-transform", transform);
+				layer.removeAttribute("transform");
+			}
+			layer.style.setProperty("--depth", layer.getAttribute("data-layer") ?? "0");
+		}
+	}
+
+	#updateEyeTilt(x: number, y: number) {
+		const horizontalWeight = 6;
+		const verticalWeight = 0;
+		const tilt = (x * horizontalWeight) + (y * verticalWeight);
+		this.#eyes?.style.setProperty("--tilt", tilt.toFixed(2));
+	}
+
+	#connectMouse() {
+		document.addEventListener("mousemove", (e) => {
+			const rect = this.refs.root.getBoundingClientRect();
+			const centerX = rect.left + rect.width / 2;
+			const centerY = rect.top + rect.height / 2;
+
+			const x = Math.max(-1, Math.min(1, (e.clientX - centerX) / (rect.width / 2)));
+			const y = Math.max(-1, Math.min(1, (e.clientY - centerY) / (rect.height / 2)));
+
+			this.#gaze.setTarget(x, y);
+		});
+	}
+
+	blink() {
+		this.#eyes?.style.setProperty("--blink", "0");
+		setTimeout(() => {
+			this.#eyes?.style.setProperty("--blink", "1");
+		}, 300);
+		setTimeout(() => this.blink(), Math.random() * 10000);
+	}
+
 	protected get template(): BMTemplate {
 		return (
 			<slot>
@@ -15,6 +152,7 @@ export class Sledge extends BMElement {
 					version="1.1"
 					id="svg1"
 					xmlns="http://www.w3.org/2000/svg"
+					ref="root"
 				>
 					<defs id="defs1" />
 					<g
@@ -29,14 +167,16 @@ export class Sledge extends BMElement {
 						<path
 							style="fill:#442868;fill-opacity:1;stroke:#3a2050;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
 							id="right-ear-rear"
-							class="layer-1"
+							class="layer"
+							data-layer="-1"
 							d="m 48.06029,16.436188 c -0.38607,0.668693 -5.914783,3.860697 -6.686923,3.860697 -0.772139,0 -6.300853,-3.192004 -6.686922,-3.860697 -0.38607,-0.668692 -0.38607,-7.0527004 0,-7.7213927 0.386069,-0.6686922 5.914783,-3.8606965 6.686922,-3.8606965 0.77214,0 6.300853,3.1920043 6.686923,3.8606966 0.38607,0.6686922 0.38607,7.0527006 0,7.7213926 z"
 							transform="translate(5.1501593,10.395093)"
 						/>
 						<path
 							style="fill:#442868;fill-opacity:1;stroke:#3a2050;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
 							id="left-ear-rear"
-							class="layer-1"
+							class="layer"
+							data-layer="-1"
 							d="m 48.06029,16.436188 c -0.38607,0.668693 -5.914783,3.860697 -6.686923,3.860697 -0.772139,0 -6.300853,-3.192004 -6.686922,-3.860697 -0.38607,-0.668692 -0.38607,-7.0527004 0,-7.7213927 0.386069,-0.6686922 5.914783,-3.8606965 6.686922,-3.8606965 0.77214,0 6.300853,3.1920043 6.686923,3.8606966 0.38607,0.6686922 0.38607,7.0527006 0,7.7213926 z"
 							transform="translate(34.840772,10.395093)"
 						/>
@@ -48,47 +188,47 @@ export class Sledge extends BMElement {
 						<path
 							style="fill:#6e4890;fill-opacity:1;stroke:#442868;stroke-width:2.79059;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-dasharray:none;stroke-opacity:1"
 							id="right-ear-fore"
-							class="layer-1"
+							class="layer"
+							data-layer="-1"
 							d="m 111.8205,32.841647 c -0.66869,0.38607 -7.0527,0.386069 -7.72139,0 -0.66869,-0.38607 -3.86069,-5.914784 -3.86069,-6.686923 0,-0.77214 3.192,-6.300853 3.86069,-6.686923 0.66869,-0.386069 7.0527,-0.386069 7.7214,10e-7 0.66869,0.386069 3.86069,5.914783 3.86069,6.686922 0,0.77214 -3.192,6.300853 -3.8607,6.686923 z"
 							transform="matrix(0,0.6450249,-0.6450249,0,63.393975,-46.666182)"
 						/>
 						<path
 							style="fill:#6e4890;fill-opacity:1;stroke:#442868;stroke-width:2.79059;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-dasharray:none;stroke-opacity:1"
 							id="left-ear-fore"
-							class="layer-1"
+							class="layer"
+							data-layer="-1"
 							d="m 111.8205,32.841647 c -0.66869,0.38607 -7.0527,0.386069 -7.72139,0 -0.66869,-0.38607 -3.86069,-5.914784 -3.86069,-6.686923 0,-0.77214 3.192,-6.300853 3.86069,-6.686923 0.66869,-0.386069 7.0527,-0.386069 7.7214,10e-7 0.66869,0.386069 3.86069,5.914783 3.86069,6.686922 0,0.77214 -3.192,6.300853 -3.8607,6.686923 z"
 							transform="matrix(0,0.64502491,-0.64502491,0,93.084589,-46.66618)"
 						/>
 						<path
 							style="fill:#6e4890;fill-opacity:1;stroke:none;stroke-width:2.58218;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
 							id="snout"
-							class="layer1"
+							class="layer"
+							data-layer="1"
 							d="m 51.906649,51.308006 c 0,-0.946176 3.911466,-7.721033 4.730878,-8.194121 0.819412,-0.473088 8.642344,-0.473087 9.461756,10e-7 0.819412,0.473087 4.730877,7.247945 4.730877,8.194121 0,0.946175 -3.911466,7.721033 -4.730878,8.19412 -0.819412,0.473088 -8.642344,0.473088 -9.461756,0 -0.819412,-0.473088 -4.730877,-7.247946 -4.730877,-8.194121 z"
 							transform="matrix(1.1618101,0,0,1.1618101,-9.9300245,-9.3105891)"
 						/>
 						<path
 							style="fill:#3a2050;fill-opacity:1;stroke:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
 							id="nose"
-							class="layer2"
+							class="layer"
+							data-layer="2"
 							d="m 110.91584,38.379149 c -0.91896,0 -5.05427,-7.162567 -4.59479,-7.958408 0.45948,-0.795841 8.7301,-0.795841 9.18958,-1e-6 0.45948,0.795841 -3.67583,7.958409 -4.59479,7.958409 z"
 							transform="translate(-49.547985,11.927344)"
 						/>
-						<g id="eyes" class="eyes">
-							<ellipse
-								style="display:inline;fill:#3a2050;fill-opacity:1;stroke:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
-								id="left-eye"
-								cx="72.361168"
-								cy="38.292374"
-								rx="1.9492012"
-								ry="5.0930743"
+						<g id="eyes" class="eyes layer" data-layer="1">
+							<path
+								id="eye-right"
+								class="eye"
+								style="display:inline;fill:#3a2050;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0"
+								d="m 74.310369,38.292374 a 1.9492012,5.0930743 0 0 1 -1.949201,5.093074 1.9492012,5.0930743 0 0 1 -1.949201,-5.093074 1.9492012,5.0930743 0 0 1 1.949201,-5.093075 1.9492012,5.0930743 0 0 1 1.949201,5.093075 z"
 							/>
-							<ellipse
-								style="display:inline;fill:#3a2050;fill-opacity:1;stroke:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
-								id="right-eye"
-								cx="50.375645"
-								cy="38.292374"
-								rx="1.9492012"
-								ry="5.0930743"
+							<path
+								id="eye-left"
+								class="eye"
+								style="display:inline;fill:#3a2050;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0"
+								d="m 52.324846,38.292374 a 1.9492012,5.0930743 0 0 1 -1.949201,5.093074 1.9492012,5.0930743 0 0 1 -1.949202,-5.093074 1.9492012,5.0930743 0 0 1 1.949202,-5.093075 1.9492012,5.0930743 0 0 1 1.949201,5.093075 z"
 							/>
 						</g>
 					</g>

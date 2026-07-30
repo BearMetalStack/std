@@ -7,8 +7,31 @@
    viewBox="0 0 48.468754 54.664119"
    version="1.1"
    id="svg1"
+   sodipodi:docname="sledge.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="5.7743163"
+     inkscape:cx="91.525987"
+     inkscape:cy="103.30227"
+     inkscape:window-width="3440"
+     inkscape:window-height="1406"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
   <defs
      id="defs1" />
   <g
@@ -54,20 +77,14 @@
        transform="translate(-49.547985,11.927344)" />
     <g
        id="g1">
-      <ellipse
-         style="display:inline;fill:#3a2050;fill-opacity:1;stroke:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
+      <path
          id="path16"
-         cx="72.361168"
-         cy="38.292374"
-         rx="1.9492012"
-         ry="5.0930743" />
-      <ellipse
-         style="display:inline;fill:#3a2050;fill-opacity:1;stroke:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
+         style="display:inline;fill:#3a2050;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0"
+         d="m 74.310369,38.292374 a 1.9492012,5.0930743 0 0 1 -1.949201,5.093074 1.9492012,5.0930743 0 0 1 -1.949201,-5.093074 1.9492012,5.0930743 0 0 1 1.949201,-5.093075 1.9492012,5.0930743 0 0 1 1.949201,5.093075 z" />
+      <path
          id="ellipse16"
-         cx="50.375645"
-         cy="38.292374"
-         rx="1.9492012"
-         ry="5.0930743" />
+         style="display:inline;fill:#3a2050;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0"
+         d="m 52.324846,38.292374 a 1.9492012,5.0930743 0 0 1 -1.949201,5.093074 1.9492012,5.0930743 0 0 1 -1.949202,-5.093074 1.9492012,5.0930743 0 0 1 1.949202,-5.093075 1.9492012,5.0930743 0 0 1 1.949201,5.093075 z" />
     </g>
   </g>
 </svg>
