@@ -68,7 +68,6 @@ function inferType(value: unknown): PropType | undefined {
 /** Turns an attribute value back into the prop's declared type. */
 export function coerceProp(type: PropType, value: string | null): unknown {
 	switch (type) {
-		// An attribute is either present or it isn't; `disabled=""` is `true`.
 		case Boolean:
 			return value !== null;
 		case Number:
@@ -125,15 +124,11 @@ export function prop(type?: PropType): PropDecorator {
 		context: ClassAccessorDecoratorContext<This, Signal.State<T>>,
 	): ClassAccessorDecoratorResult<This, Signal.State<T>> {
 		const name = String(context.name);
-		// Give this class its own declarations rather than inheriting the parent's
-		// object, which a subclass's `@prop` would otherwise write into.
+
 		if (!Object.hasOwn(context.metadata, PROPS)) context.metadata[PROPS] = {};
 		const declared = context.metadata[PROPS] as DeclaredProps;
 		declared[name] = type;
 		return {
-			// get/set are intentionally omitted: the field's own initializer is
-			// already a Signal.State, so the auto-accessor's default storage is
-			// the signal itself — no redirection needed.
 			init(value: Signal.State<T>): Signal.State<T> {
 				declared[name] ??= inferType(value.get());
 				return value;

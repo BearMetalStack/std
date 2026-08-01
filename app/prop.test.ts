@@ -41,7 +41,6 @@ Deno.test("attributeChangedCallback coerces back to the declared type", () => {
 	el.attributeChangedCallback("label", null, "Total");
 	assertEquals(el.label.get(), "Total");
 
-	// An attribute is present or absent; `open=""` is true, removal is false.
 	el.attributeChangedCallback("open", null, "");
 	assertEquals(el.open.get(), true);
 	el.attributeChangedCallback("open", "", null);

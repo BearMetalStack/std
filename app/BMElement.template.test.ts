@@ -7,17 +7,13 @@ import { installTestDom, TElement } from "./_test_dom.ts";
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
-// Backs a BMElement instance with a mini-DOM host so its template can render.
 // deno-lint-ignore no-explicit-any
 function mountable<T extends BMElement>(el: T): T & { innerHTML: string; childNodes: any[] } {
 	const backing = new TElement("host");
 	Object.assign(el, {
 		dataset: {},
-		// deno-lint-ignore no-explicit-any
 		hasChildNodes: () => backing.hasChildNodes(),
-		// deno-lint-ignore no-explicit-any
 		appendChild: (n: any) => backing.appendChild(n),
-		// deno-lint-ignore no-explicit-any
 		replaceChildren: (...n: any[]) => backing.replaceChildren(...n),
 	});
 	Object.defineProperties(el, {
@@ -68,8 +64,6 @@ Deno.test("template returning a computed that yields a fragment renders and stay
 		}
 		const el = mountable(new C());
 		el.connectedCallback();
-		// Before the fix this was "" — the pre-render emptied the fragment and the
-		// effect's cached second read then wiped the content.
 		assertEquals(el.innerHTML, "<div>FRAG 0</div>", "initial fragment content renders");
 		s.set(1);
 		await flush();

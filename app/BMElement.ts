@@ -131,7 +131,6 @@ export abstract class BMElement<
 		if (raw) {
 			const loaded = JSON.parse(atob(raw));
 			for (const [key, value] of Object.entries(loaded)) {
-				// A `@prop`-declared field's accessor is already the signal.
 				const declared = (this as unknown as Record<string, unknown>)[key];
 				if (declared instanceof Signal.State) {
 					declared.set(value);
@@ -152,6 +151,10 @@ export abstract class BMElement<
 		setCurrentOwner(this);
 		try {
 			const t = this.template;
+			if (!t) {
+				this.#runInit();
+				return;
+			}
 			this.addEffect(() => {
 				const tmplNode = isSignal(t) ? toNode(t.get()) : toNode(t);
 				if (tmplNode.nodeType !== Node.TEXT_NODE) {
@@ -160,11 +163,11 @@ export abstract class BMElement<
 					);
 				}
 				this.#runInit();
-				this.root.replaceChildren(tmplNode);
-				// if (this.root.hasChildNodes()) {
-				// } else {
-				// 	this.root.appendChild(tmplNode);
-				// }
+				if (this.root.hasChildNodes()) {
+					this.root.replaceChildren(tmplNode);
+				} else {
+					this.root.appendChild(tmplNode);
+				}
 			});
 		} catch (e) {
 			console.log(this.tag, e);

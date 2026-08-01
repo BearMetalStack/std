@@ -62,7 +62,7 @@ Deno.test("a same-tick reconnect cancels the pending teardown and does not re-ru
 
 	el.connectedCallback();
 	el.disconnectedCallback();
-	el.connectedCallback(); // reconnected before the deferred teardown ran
+	el.connectedCallback();
 	assertEquals(inits, 1, "the component never really left, so init must not re-run");
 	assertEquals(cleanups, 0, "the cancelled teardown must not run either");
 });

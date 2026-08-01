@@ -87,7 +87,6 @@ export class LazySignal<T> extends Signal.State<T> {
 	}
 	get(): T {
 		if (!this.#fetched) {
-			// this.#fetched = true;
 			this.#fetcher().then((val) => !this.#fetched && this.set(val))
 				.catch((e) => {
 					this.#fetched = false;

@@ -48,8 +48,6 @@ Deno.test("reconnecting the same instance in the same tick does not re-run init(
 	await flushMicrotasks();
 	assertEquals(counts(), { initCount: 1, cleanupCount: 0 }, "first connect runs init once");
 
-	// Exactly what a reactive child slot does when its wrapping effect re-fires and
-	// reinserts already-rendered content: remove, then immediately reinsert.
 	root.removeChild(el);
 	root.appendChild(el);
 	await flushMicrotasks();
@@ -92,7 +90,6 @@ Deno.test("reconnecting after teardown has already run starts a fresh lifecycle"
 	await flushMicrotasks();
 	assertEquals(counts(), { initCount: 1, cleanupCount: 1 }, "teardown ran");
 
-	// A genuine later reconnect (teardown already settled) is a real second mount.
 	root.appendChild(el);
 	await flushMicrotasks();
 
@@ -111,7 +108,6 @@ Deno.test("rapid disconnect/reconnect flip-flops within one tick settle on the f
 	root.appendChild(el);
 	await flushMicrotasks();
 
-	// disconnect -> reconnect -> disconnect, all synchronous, ending disconnected.
 	root.removeChild(el);
 	root.appendChild(el);
 	root.removeChild(el);

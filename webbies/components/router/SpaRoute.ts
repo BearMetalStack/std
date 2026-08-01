@@ -29,7 +29,7 @@ export class SpaRoute extends BMElement {
 		super.connectedCallback();
 	}
 
-	init() {
+	init(): () => void {
 		this.style.display = "none";
 
 		return () => {

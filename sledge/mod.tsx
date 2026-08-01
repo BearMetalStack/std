@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-window
 import { BMElement, type BMTemplate, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 

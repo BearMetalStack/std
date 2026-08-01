@@ -2,8 +2,6 @@ import { assertEquals } from "@std/assert";
 import { getCurrentOwner, type Owner, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import { createComputed, createSignal, effect } from "./signals.ts";
 
-// Effects re-run inside a microtask-scheduled Watcher flush; a macrotask tick
-// guarantees that queue has fully drained.
 function flush(): Promise<void> {
 	return new Promise((r) => setTimeout(r, 0));
 }
@@ -18,12 +16,12 @@ Deno.test("effect re-establishes its creation-time owner on late re-runs", async
 	const seen: Owner[] = [];
 
 	setCurrentOwner(owner);
-	// First run is synchronous, inside the init call stack where the owner is set.
+
 	const stop = effect(() => {
 		s.get();
 		seen.push(getCurrentOwner());
 	});
-	// Leave the init call stack: the ambient owner is gone from here on.
+
 	setCurrentOwner(null);
 
 	s.set(1);
@@ -36,10 +34,6 @@ Deno.test("effect re-establishes its creation-time owner on late re-runs", async
 });
 
 Deno.test("computed re-establishes its owner when the graph recomputes it late", async () => {
-	// A render-bearing computed (Show/Switch) is recomputed by the reactive
-	// graph during the consuming effect's dependency-freshness poll — before,
-	// and outside, the effect body's owner scope. Without the computed carrying
-	// its own owner, that late recompute would render with no owner.
 	const owner = fakeOwner();
 	const trigger = createSignal(0);
 	const seen: Owner[] = [];
