@@ -17,8 +17,13 @@
  *
  * ```ts
  * import "@bearmetal/slag/global"; // must come first
- * import { BMElement } from "@bearmetal/app";
+ * import { MyComponent } from "./my-component.ts"; // reaches jsx/app
  * ```
+ *
+ * The second line names a local module on purpose. `dep_graph.ts` scans source
+ * text for import specifiers and cannot tell a doc comment from real code, so
+ * spelling a workspace package here would invent a `slag -> app` edge and
+ * reverse the publish order.
  *
  * Calling {@linkcode installGlobals} from inside a test body is too late for
  * those two, though it is fine for anything that reads `document` lazily.
