@@ -154,16 +154,20 @@ export abstract class BMElement<
 			const t = this.template;
 			this.addEffect(() => {
 				const tmplNode = isSignal(t) ? toNode(t.get()) : toNode(t);
-				(tmplNode as HTMLElement).querySelectorAll("[ref]")?.forEach((el) =>
-					this.registerRef(el.getAttribute("ref")!, el)
-				);
-				this.#runInit();
-				if (this.root.hasChildNodes()) {
-					this.root.replaceChildren(tmplNode);
-				} else {
-					this.root.appendChild(tmplNode);
+				if (tmplNode.nodeType !== Node.TEXT_NODE) {
+					(tmplNode as HTMLElement).querySelectorAll("[ref]")?.forEach((el) =>
+						this.registerRef(el.getAttribute("ref")!, el)
+					);
 				}
+				this.#runInit();
+				this.root.replaceChildren(tmplNode);
+				// if (this.root.hasChildNodes()) {
+				// } else {
+				// 	this.root.appendChild(tmplNode);
+				// }
 			});
+		} catch (e) {
+			console.log(this.tag, e);
 		} finally {
 			setCurrentOwner(prevOwner);
 		}

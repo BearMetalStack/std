@@ -157,6 +157,7 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 			_currentOwner.registerRef(val, el);
 			continue;
 		}
+		// deno-lint-ignore no-explicit-any
 		const existing = (el as any)[key];
 		if (isWritableSignal(val) && isWritableSignal(existing)) {
 			// deno-lint-ignore no-explicit-any
