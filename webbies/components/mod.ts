@@ -1,5 +1,5 @@
 // [GENERATED:link-mods] DO NOT EDIT BELOW
-import "@style"
+import "@style";
 export * from "./data/mod.ts";
 export * from "./feedback/mod.ts";
 export * from "./inputs/mod.ts";

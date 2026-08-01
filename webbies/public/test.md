@@ -4,9 +4,8 @@
 
 ### Heading 3
 
-This is a paragraph with **bold text**, _italic text_, and _**bold italic**_.
-Also some `inline code` and a [link](https://example.com) and an
-![image](./cat.jpg "a cat").
+This is a paragraph with **bold text**, _italic text_, and _**bold italic**_. Also some
+`inline code` and a [link](https://example.com) and an ![image](./cat.jpg "a cat").
 
 ---
 

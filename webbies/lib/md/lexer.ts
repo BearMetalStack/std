@@ -187,10 +187,9 @@ export class MarkdownLexer {
 						{
 							if (this.peek(2) === "` ") break;
 							this.flush();
-							const tag =
-								this.peek(3) === "```" && this.cursor === this.lineStart
-									? "codeblock"
-									: "code";
+							const tag = this.peek(3) === "```" && this.cursor === this.lineStart
+								? "codeblock"
+								: "code";
 							this.emit({
 								tag,
 							});
@@ -272,9 +271,7 @@ export class MarkdownLexer {
 										const entry = this.listStack.pop()!;
 										this.emit({
 											type: "close",
-											tag: entry.type === "ol"
-												? "orderedlist"
-												: "unorderedlist",
+											tag: entry.type === "ol" ? "orderedlist" : "unorderedlist",
 										});
 									}
 									if (
@@ -340,9 +337,7 @@ export class MarkdownLexer {
 										) {
 											const prev = this.listStack.pop();
 											this.emit({
-												tag: prev?.type === "ul"
-													? "unorderedlist"
-													: "orderedlist",
+												tag: prev?.type === "ul" ? "unorderedlist" : "orderedlist",
 												type: "close",
 											});
 										}
@@ -468,8 +463,7 @@ export class MarkdownLexer {
 								break;
 							}
 							this.flush();
-							const rx =
-								/!\[(?<alt>[\s\S]*)\]\((?<src>[\S]*)(?: "(?<title>[\s\S]*)")?\)/;
+							const rx = /!\[(?<alt>[\s\S]*)\]\((?<src>[\S]*)(?: "(?<title>[\s\S]*)")?\)/;
 							const { alt, src, title } = imgStr.match(rx)?.groups ??
 								{ alt: undefined, src: "", title: undefined };
 							this.emit({
@@ -517,8 +511,7 @@ export class MarkdownLexer {
 									break;
 								}
 								this.flush();
-								const rx =
-									/\[(?<text>[\s\S]*)\]\((?<href>[\S]*)(?: "(?<title>[\s\S]*)")?\)/;
+								const rx = /\[(?<text>[\s\S]*)\]\((?<href>[\S]*)(?: "(?<title>[\s\S]*)")?\)/;
 								const { text, href, title } = linkStr.match(rx)?.groups ??
 									{ text: "", href: "#", title: undefined };
 

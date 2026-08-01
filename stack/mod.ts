@@ -5,7 +5,7 @@ import { walkDir } from "@bearmetal/miscellanea/fs";
 import { isDev } from "@bearmetal/miscellanea/environment";
 import { html, joinPath } from "@bearmetal/miscellanea";
 
-export * from "./optimization/fonts/google.tsx"
+export * from "./optimization/fonts/google.tsx";
 
 const scriptFiles = ["js", "ts", "jsx", "tsx"];
 
@@ -156,7 +156,7 @@ class StackComponentsModule extends TrustedModule {
 	}
 }
 
-export function createStack(importfn: (specifier:string) => Promise<unknown>): Module {
+export function createStack(importfn: (specifier: string) => Promise<unknown>): Module {
 	const bus = new EventTarget();
 	/** Bundles keyed by the name they are served under at the components endpoint. */
 	let compBundle: Map<string, string> = new Map();
@@ -247,16 +247,17 @@ export function createStack(importfn: (specifier:string) => Promise<unknown>): M
 					const n = body.replace(
 						/<head>/,
 						html`
-						    <head>
+							<head>
 								<script>
-								    const ev = new EventSource("/__event/reload")
-									ev.addEventListener("reload", () => location.reload());
-									ev.onerror= (e) => {
-									    if (ev.readyState === EventSource.CONNECTING) {
-											setTimeout(() => location.reload(), 100);
+									    const ev = new EventSource("/__event/reload")
+										ev.addEventListener("reload", () => location.reload());
+										ev.onerror= (e) => {
+										    if (ev.readyState === EventSource.CONNECTING) {
+												setTimeout(() => location.reload(), 100);
+											}
 										}
-									}
-								</script>`,
+									</script>
+						`,
 					);
 					return new Response(n, res);
 				}

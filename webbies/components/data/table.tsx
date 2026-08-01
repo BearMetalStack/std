@@ -13,7 +13,8 @@ injectStyle(
 			border: 0;
 			border-collapse: collapse;
 
-			td, th {
+			td,
+			th {
 				color: var(--color-text);
 				padding: var(--space-2);
 				border: 0;
@@ -27,13 +28,17 @@ injectStyle(
 				}
 			}
 
-			tr:not(:last-child), thead, tbody:not(:last-child) {
+			tr:not(:last-child),
+			thead,
+			tbody:not(:last-child) {
 				border-bottom: var(--color-bearmetal-200) 1px solid;
 			}
 
-			thead, tfoot {
+			thead,
+			tfoot {
 				background-color: #00000030;
-				td, th {
+				td,
+				th {
 					color: var(--color-text-subtle);
 				}
 			}

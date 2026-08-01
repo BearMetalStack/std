@@ -4,79 +4,79 @@
 		<meta charset="UTF-8" />
 		<title>BearMetal Badge Test Sheet</title>
 		<style>
-			body {
-				font-family: monospace;
-				background: #0d0018;
-				color: #e8ccff;
-				padding: 2rem;
+		body {
+			font-family: monospace;
+			background: #0d0018;
+			color: #e8ccff;
+			padding: 2rem;
+		}
+		h1 {
+			font-size: 1rem;
+			color: #7711cc;
+			margin: 0 0 2rem;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+		}
+		h2 {
+			font-size: 0.75rem;
+			color: #7711cc;
+			margin: 2rem 0 0.75rem;
+			letter-spacing: 0.08em;
+			text-transform: uppercase;
+			opacity: 0.7;
+		}
+		.row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 12px;
+			align-items: center;
+			margin-bottom: 0.5rem;
+		}
+		.row-label {
+			font-size: 0.65rem;
+			color: #554d5e;
+			margin-bottom: 0.25rem;
+		}
+		.anchor {
+			anchor-name: --anchor;
+		}
+		[popover] {
+			position: absolute;
+			position-anchor: --anchor;
+			inset: auto;
+			top: anchor(top);
+			left: anchor(right);
+			bottom: anchor(bottom);
+			& > p {
+				margin: 0;
 			}
-			h1 {
-				font-size: 1rem;
-				color: #7711cc;
-				margin: 0 0 2rem;
-				letter-spacing: 0.1em;
-				text-transform: uppercase;
-			}
-			h2 {
-				font-size: 0.75rem;
-				color: #7711cc;
-				margin: 2rem 0 0.75rem;
-				letter-spacing: 0.08em;
-				text-transform: uppercase;
-				opacity: 0.7;
-			}
-			.row {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 12px;
-				align-items: center;
-				margin-bottom: 0.5rem;
-			}
-			.row-label {
-				font-size: 0.65rem;
-				color: #554d5e;
-				margin-bottom: 0.25rem;
-			}
-			.anchor {
-				anchor-name: --anchor;
-			}
-			[popover] {
-				position: absolute;
-				position-anchor: --anchor;
-				inset: auto;
-				top: anchor(top);
-				left: anchor(right);
-				bottom: anchor(bottom);
-				& > p {
-					margin: 0;
-				}
-			}
+		}
 
-			form {
-				position: sticky;
-				top: 0;
-				display: flex;
-				flex-direction: column;
-				padding: 1rem 0;
-			}
+		form {
+			position: sticky;
+			top: 0;
+			display: flex;
+			flex-direction: column;
+			padding: 1rem 0;
+		}
 
-			fieldset {
-				margin: 0.5rem 0;
-				border-radius: 0.5rem;
-				border-width: 1px;
-				display: grid;
-				gap: 0.25rem;
-				padding: 0.5rem;
-			}
+		fieldset {
+			margin: 0.5rem 0;
+			border-radius: 0.5rem;
+			border-width: 1px;
+			display: grid;
+			gap: 0.25rem;
+			padding: 0.5rem;
+		}
 
-			input,
-			select {
-				background-color: #290047;
-				border-radius: 0.25rem;
-				padding: 0.25rem;
-				border: none;
-				color: #e8ccff;
-			}
+		input,
+		select {
+			background-color: #290047;
+			border-radius: 0.25rem;
+			padding: 0.25rem;
+			border: none;
+			color: #e8ccff;
+		}
 		</style>
 
 		<link rel="stylesheet" href="/styles.css" />
@@ -320,77 +320,75 @@
 		</div>
 
 		<script>
-			const popover = document.querySelector("[popover]");
-			const copyImg = (e) => {
-				const url = new URL(location.href);
-				url.pathname = "/";
-				url.search = e.target.getAttribute("src").substring(1);
-				navigator.clipboard.writeText(url.toString());
-				popover.showPopover();
-				e.target.classList.add("anchor");
-				setTimeout(() => {
-					popover.hidePopover();
-					e.target.classList.remove("anchor");
-				}, 2000);
-			};
-			document.querySelectorAll("img").forEach((img) => {
-				img.addEventListener("click", copyImg);
-				measureBadge(img);
-			});
-			async function measureBadge(img) {
-				const res = await fetch(img.src);
-				const blob = await res.blob();
-				const bytes = blob.size;
-				const label = document.createElement("div");
-				label.style.cssText =
-					"font-size:9px;color:#554d5e;font-family:monospace;margin-top:3px";
-				label.textContent =
-					bytes < 1024 ? `${bytes}b` : `${(bytes / 1024).toFixed(1)}kb`;
+		const popover = document.querySelector("[popover]");
+		const copyImg = (e) => {
+			const url = new URL(location.href);
+			url.pathname = "/";
+			url.search = e.target.getAttribute("src").substring(1);
+			navigator.clipboard.writeText(url.toString());
+			popover.showPopover();
+			e.target.classList.add("anchor");
+			setTimeout(() => {
+				popover.hidePopover();
+				e.target.classList.remove("anchor");
+			}, 2000);
+		};
+		document.querySelectorAll("img").forEach((img) => {
+			img.addEventListener("click", copyImg);
+			measureBadge(img);
+		});
+		async function measureBadge(img) {
+			const res = await fetch(img.src);
+			const blob = await res.blob();
+			const bytes = blob.size;
+			const label = document.createElement("div");
+			label.style.cssText = "font-size:9px;color:#554d5e;font-family:monospace;margin-top:3px";
+			label.textContent = bytes < 1024 ? `${bytes}b` : `${(bytes / 1024).toFixed(1)}kb`;
 
-				const box = document.createElement("div");
-				box.style.cssText = "display:flex;flex-direction:column";
-				img.insertAdjacentElement("beforebegin", box);
-				box.append(img);
-				img.insertAdjacentElement("afterend", label);
-			}
+			const box = document.createElement("div");
+			box.style.cssText = "display:flex;flex-direction:column";
+			img.insertAdjacentElement("beforebegin", box);
+			box.append(img);
+			img.insertAdjacentElement("afterend", label);
+		}
 
-			let img;
-			const form = document.querySelector("form");
-			form.addEventListener("submit", (e) => {
-				e.preventDefault();
-				const params = new URLSearchParams(new FormData(e.target));
-				const path = "/?" + params.toString();
-				img?.parentElement?.remove();
-				img = document.createElement("img");
-				img.style.cssText = "width:min-content;";
-				img.src = path;
-				img.addEventListener("click", copyImg);
-				form.insertAdjacentElement("afterbegin", img);
-				measureBadge(img);
-			});
+		let img;
+		const form = document.querySelector("form");
+		form.addEventListener("submit", (e) => {
+			e.preventDefault();
+			const params = new URLSearchParams(new FormData(e.target));
+			const path = "/?" + params.toString();
+			img?.parentElement?.remove();
+			img = document.createElement("img");
+			img.style.cssText = "width:min-content;";
+			img.src = path;
+			img.addEventListener("click", copyImg);
+			form.insertAdjacentElement("afterbegin", img);
+			measureBadge(img);
+		});
 
-			async function loadColors() {
-				const fieldset = document.querySelector("fieldset.colors");
-				const res = await fetch("/__colors");
-				const colors = await res.json();
-				const selectNames = ["labelColor", "valueColor", "extraColor"];
-				for (const name of selectNames) {
-					const select = document.createElement("select");
-					select.name = name;
-					const opt = document.createElement("option");
-					opt.value = "";
-					opt.textContent = "default";
-					select.appendChild(opt);
-					for (const [value, label] of colors) {
-						const option = document.createElement("option");
-						option.value = value;
-						option.textContent = label;
-						select.appendChild(option);
-					}
-					fieldset.appendChild(select);
+		async function loadColors() {
+			const fieldset = document.querySelector("fieldset.colors");
+			const res = await fetch("/__colors");
+			const colors = await res.json();
+			const selectNames = ["labelColor", "valueColor", "extraColor"];
+			for (const name of selectNames) {
+				const select = document.createElement("select");
+				select.name = name;
+				const opt = document.createElement("option");
+				opt.value = "";
+				opt.textContent = "default";
+				select.appendChild(opt);
+				for (const [value, label] of colors) {
+					const option = document.createElement("option");
+					option.value = value;
+					option.textContent = label;
+					select.appendChild(option);
 				}
+				fieldset.appendChild(select);
 			}
-			loadColors();
+		}
+		loadColors();
 		</script>
 	</body>
 </html>

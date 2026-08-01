@@ -1,4 +1,4 @@
 // [GENERATED:link-mods] DO NOT EDIT BELOW
-import "@style"
+import "@style";
 export * from "./icon.tsx";
 // [/GENERATED:link-mods]

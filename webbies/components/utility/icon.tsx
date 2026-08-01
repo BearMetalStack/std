@@ -6,7 +6,18 @@ import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 injectStyle(
 	"bm-icon",
 	css`
-		p, h1, h2, h3, h4, h5, h6, th, td, button, input, a {
+		p,
+		h1,
+		h2,
+		h3,
+		h4,
+		h5,
+		h6,
+		th,
+		td,
+		button,
+		input,
+		a {
 			bm-icon {
 				fill: currentColor;
 				height: 1em;

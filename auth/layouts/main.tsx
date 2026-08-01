@@ -45,7 +45,8 @@ export const mainLayout: LayoutEl = (props) => {
 							gap: 0.5rem;
 							margin: 0.5rem;
 
-							&::before, &::after {
+							&::before,
+							&::after {
 								content: "";
 								flex: 1;
 								border-top: 1px solid currentColor;

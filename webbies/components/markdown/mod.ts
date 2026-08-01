@@ -20,7 +20,8 @@ const STYLE = css`
 		font-size: 0.75rem;
 	}
 
-	sup > a, aside > a {
+	sup > a,
+	aside > a {
 		text-decoration: none;
 	}
 
