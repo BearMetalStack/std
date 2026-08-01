@@ -12,9 +12,7 @@ export class SpaRoute extends BMElement {
 	private _observer?: MutationObserver;
 	private _importedNodes: ChildNode[] = [];
 
-	init(): void {
-		this.style.display = "none";
-
+	override connectedCallback() {
 		const glorp = () => {
 			if (this._templ) return true;
 			this._templ = this.querySelector(":scope > template");
@@ -28,6 +26,15 @@ export class SpaRoute extends BMElement {
 		) {
 			this.noTemplateNoSubroute();
 		}
+		super.connectedCallback();
+	}
+
+	init() {
+		this.style.display = "none";
+
+		return () => {
+			this._observer?.disconnect();
+		};
 	}
 
 	private noTemplateNoSubroute() {
@@ -52,11 +59,6 @@ export class SpaRoute extends BMElement {
 			`;
 			return true;
 		}
-	}
-
-	override disconnectedCallback() {
-		super.disconnectedCallback();
-		this._observer?.disconnect();
 	}
 
 	params: Map<string, string | undefined> = new Map();
