@@ -70,6 +70,14 @@
 	"exclude": [
 		"docs/.vitepress"
 	],
+	"publish": {
+		"exclude": [
+			"**/*.test.ts",
+			"**/*.test.tsx",
+			"**/*_test.ts",
+			"**/*_test.tsx"
+		]
+	},
 	"unstable": [
 		"raw-imports",
 		"bundle"

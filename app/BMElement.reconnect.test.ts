@@ -6,8 +6,16 @@
 // on every such reconnect - a component whose init() writes state that influences its
 // own slot would cascade into an unbounded remount loop that a node-preservation
 // cache could not prevent, since the cache only dedupes construction, not reconnection.
+//
+// The DOM here is @bearmetal/slag. The side-effect import must stay first: `BMC`
+// captures `globalThis.HTMLElement` as its base class when `@bearmetal/jsx` is
+// evaluated, and the jsx runtime picks its client/server half from `typeof
+// document` at the same moment - both of which happen on the `./BMElement.ts`
+// import below.
+import "@bearmetal/slag/global";
 import { assertEquals } from "@std/assert";
-import { createRoot, flushMicrotasks, type TestNode } from "./_test_dom_ce.ts";
+import { createRoot, flushMicrotasks } from "@bearmetal/slag/testing";
+import type { SlagElement } from "@bearmetal/slag";
 import { BMElement } from "./BMElement.ts";
 import { define } from "./define.ts";
 
@@ -34,7 +42,7 @@ function defineProbe() {
 	}
 
 	return {
-		make: (): TestNode => document.createElement(Probe.tag) as unknown as TestNode,
+		make: (): SlagElement => document.createElement(Probe.tag) as unknown as SlagElement,
 		counts: () => ({ initCount, cleanupCount }),
 	};
 }
@@ -117,5 +125,27 @@ Deno.test("rapid disconnect/reconnect flip-flops within one tick settle on the f
 		counts(),
 		{ initCount: 1, cleanupCount: 1 },
 		"final state is disconnected, so exactly one teardown must run - no double cleanup",
+	);
+});
+
+Deno.test("a same-document move keeps the instance mounted", async () => {
+	// The move case the old shim modelled but this file could not previously
+	// exercise directly: no explicit remove, just a reparent.
+	const { make, counts } = defineProbe();
+	const from = createRoot();
+	const to = createRoot();
+	const el = make();
+
+	from.appendChild(el);
+	await flushMicrotasks();
+	assertEquals(counts(), { initCount: 1, cleanupCount: 0 });
+
+	to.appendChild(el);
+	await flushMicrotasks();
+
+	assertEquals(
+		counts(),
+		{ initCount: 1, cleanupCount: 0 },
+		"reparenting is a disconnect/connect pair the debounce must absorb",
 	);
 });

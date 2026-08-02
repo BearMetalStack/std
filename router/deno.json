@@ -4,6 +4,9 @@
 	"version": "0.5.4",
 	"stable": true,
 	"tasks": {
+		"test": {
+			"command": "deno test -RW"
+		},
 		"dirty": {
 			"command": "deno publish --allow-dirty"
 		},

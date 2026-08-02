@@ -1,6 +1,9 @@
+// The DOM here is @bearmetal/slag. The side-effect import must stay first:
+// `./For.ts` reaches `@bearmetal/jsx/jsx-runtime`, which picks its client or
+// server half from `typeof document !== "undefined"` once, at import time.
+import "@bearmetal/slag/global";
 import { assertEquals, assertExists } from "@std/assert";
-import "./_dom_shim.ts";
-import { MiniElement, MiniText } from "./_dom_shim.ts";
+import { type SlagElement, SlagText } from "@bearmetal/slag";
 import { each, For } from "./For.ts";
 import { createSignal } from "../signals.ts";
 import { getCurrentOwner, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
@@ -44,14 +47,14 @@ class FakeOwnerWithRefs {
  * is transparent — its items land as direct children of the host — so tests
  * inspect the host, not a wrapper.
  */
-function mount(fragment: unknown, hostTag = "div"): MiniElement {
-	const host = document.createElement(hostTag) as unknown as MiniElement;
+function mount(fragment: unknown, hostTag = "div"): SlagElement {
+	const host = document.createElement(hostTag) as unknown as SlagElement;
 	(host as unknown as { appendChild(n: unknown): void }).appendChild(fragment);
 	return host;
 }
 
-function tags(host: MiniElement): string[] {
-	return host.children.map((c) => c.tag);
+function tags(host: SlagElement): string[] {
+	return host.children.map((child) => child.localName);
 }
 
 interface Item {
@@ -85,9 +88,9 @@ Deno.test("each is transparent — items are direct children of the host, no wra
 		await flush();
 		assertEquals(tags(host), ["option", "option"]);
 		// The only non-element child is the single empty text-node anchor marker.
-		const nonElements = host.childNodes.filter((n) => !(n instanceof MiniElement));
+		const nonElements = host.childNodes.filter((n) => n.nodeType !== 1);
 		assertEquals(nonElements.length, 1);
-		assertEquals(nonElements.every((n) => n instanceof MiniText), true);
+		assertEquals(nonElements.every((n) => n instanceof SlagText), true);
 	} finally {
 		setCurrentOwner(null);
 	}

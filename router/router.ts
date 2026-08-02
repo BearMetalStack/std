@@ -1,4 +1,10 @@
-import { BadRequest, InternalError, MethodNotAllowed, NotFound } from "@/util/response.ts";
+import {
+	BadRequest,
+	InternalError,
+	MethodNotAllowed,
+	NotFound,
+	NotImplemented,
+} from "@/util/response.ts";
 import { resolveStaticFile, toDirectoryUrl } from "@/util/static.ts";
 import { styleAlias, styles, stylizer } from "./logstyles.ts";
 import { FormDataSchema, QuerySchema, SchemaError } from "./schema.ts";
@@ -298,7 +304,10 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 				const res = await middlewareStack[index++]?.(ctx, executeMiddleware);
 				if (res instanceof Response) return res;
 			}
-			return new Response("End of stack", { status: 500 });
+			// The stack always ends in a terminator that returns a Response, so
+			// getting here means a handler returned a non-Response without calling
+			// next() — the route matched, but nothing implements it.
+			return NotImplemented();
 		};
 
 		try {
