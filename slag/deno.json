@@ -1,7 +1,12 @@
 {
-	"name": "slag",
+	"name": "@bearmetal/slag",
 	"version": "0.1.0",
-	"exports": "./mod.ts",
+	"exports": {
+		".": "./mod.ts",
+		"./global": "./global.ts",
+		"./testing": "./testing.ts",
+		"./types": "./types.ts"
+	},
 	"tasks": {
 		"dev": "deno test --watch"
 	},
