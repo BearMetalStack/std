@@ -14,7 +14,8 @@ injectStyle(
 			height: 100%;
 			background-color: var(--color-bg-subtle);
 
-			a, ul > li > button {
+			a,
+			ul > li > button {
 				text-decoration: none;
 				font-size: var(--text-md);
 				color: var(--color-text-subtle);

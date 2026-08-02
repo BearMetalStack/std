@@ -1,5 +1,5 @@
 // [GENERATED:link-mods] DO NOT EDIT BELOW
-import "@style"
+import "@style";
 export * from "./drawer.ts";
 export * from "./modal.ts";
 export * from "./popover/base.ts";

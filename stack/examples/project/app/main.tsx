@@ -44,7 +44,8 @@ export class App extends BMElement {
 			}
 
 			@keyframes drift-warm {
-				0%, 100% {
+				0%,
+				100% {
 					transform: translate(0, 0) scale(1);
 				}
 				40% {
@@ -56,7 +57,8 @@ export class App extends BMElement {
 			}
 
 			@keyframes drift-cool {
-				0%, 100% {
+				0%,
+				100% {
 					transform: translate(0, 0) scale(1);
 				}
 				35% {

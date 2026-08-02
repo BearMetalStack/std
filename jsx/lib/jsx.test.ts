@@ -50,7 +50,11 @@ Deno.test("reactive child swaps a DocumentFragment value and keeps updating", ()
 	mode.set("b");
 	assertEquals(container.innerHTML, "", "switching away clears the fragment content");
 	mode.set("a");
-	assertEquals(container.innerHTML, "<div>DRAFT</div>", "switching back re-renders (this was the bug)");
+	assertEquals(
+		container.innerHTML,
+		"<div>DRAFT</div>",
+		"switching back re-renders (this was the bug)",
+	);
 });
 
 Deno.test("reactive child updates text in place, then transitions text<->node", () => {
@@ -62,7 +66,11 @@ Deno.test("reactive child updates text in place, then transitions text<->node", 
 	const textNode = container.childNodes[1];
 	val.set("world");
 	assertEquals(container.innerHTML, "world");
-	assertStrictEquals(container.childNodes[1], textNode, "text updates reuse the same node (fast path)");
+	assertStrictEquals(
+		container.childNodes[1],
+		textNode,
+		"text updates reuse the same node (fast path)",
+	);
 
 	const span = document.createElement("span");
 	span.textContent = "X";

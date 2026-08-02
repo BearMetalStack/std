@@ -29,42 +29,42 @@
    ============================================================ */
 
 :root {
-    /* ------ Brand color ramp (replace with your palette) ----- */
-    /* --color-bearmetal-50:    #fefce8; */
-    /* --color-bearmetal-600:   #eab308; */
-    /* --color-bearmetal-500:   #ca8a04; */
-    /* --color-bearmetal-700:   #a16207; */
+	/* ------ Brand color ramp (replace with your palette) ----- */
+	/* --color-bearmetal-50:    #fefce8; */
+	/* --color-bearmetal-600:   #eab308; */
+	/* --color-bearmetal-500:   #ca8a04; */
+	/* --color-bearmetal-700:   #a16207; */
 
-    /* ------ Fonts -------------------------------------------- */
-    /* --font-sans:     'DM Sans', sans-serif;                    */
-    /* --font-display:  'Syne', sans-serif;                       */
-    /* --font-mono:     'JetBrains Mono', monospace;              */
+	/* ------ Fonts -------------------------------------------- */
+	/* --font-sans:     'DM Sans', sans-serif;                    */
+	/* --font-display:  'Syne', sans-serif;                       */
+	/* --font-mono:     'JetBrains Mono', monospace;              */
 
-    /* ------ Radius feel (sharp → soft → bubbly) -------------- */
-    /* Sharp:   set --radius-md: 0; --radius-lg: 2px;             */
-    /* Default: leave as-is                                       */
-    /* Bubbly:  set --radius-md: 0.75rem; --radius-lg: 1rem;      */
+	/* ------ Radius feel (sharp → soft → bubbly) -------------- */
+	/* Sharp:   set --radius-md: 0; --radius-lg: 2px;             */
+	/* Default: leave as-is                                       */
+	/* Bubbly:  set --radius-md: 0.75rem; --radius-lg: 1rem;      */
 
-    /* ------ Spacing density ---------------------------------- */
-    /* Compact: --space-unit: 0.2rem;                             */
-    /* Default: --space-unit: 0.25rem;                            */
-    /* Roomy:   --space-unit: 0.3125rem;                          */
+	/* ------ Spacing density ---------------------------------- */
+	/* Compact: --space-unit: 0.2rem;                             */
+	/* Default: --space-unit: 0.25rem;                            */
+	/* Roomy:   --space-unit: 0.3125rem;                          */
 
-    /* ------ Surface / background overrides ------------------- */
-    /* --color-bg:       #0d0d0d;                                 */
-    /* --color-surface:  #161616;                                 */
-    /* --color-border:   #2a2a2a;                                 */
+	/* ------ Surface / background overrides ------------------- */
+	/* --color-bg:       #0d0d0d;                                 */
+	/* --color-surface:  #161616;                                 */
+	/* --color-border:   #2a2a2a;                                 */
 
-    /* ------ Interactive color aliases ------------------------ */
-    /* --color-interactive:        var(--color-bearmetal-500);        */
-    /* --color-interactive-hover:  var(--color-bearmetal-700);        */
+	/* ------ Interactive color aliases ------------------------ */
+	/* --color-interactive:        var(--color-bearmetal-500);        */
+	/* --color-interactive-hover:  var(--color-bearmetal-700);        */
 
-    /* ------ Component-specific overrides --------------------- */
-    /* --card-radius:    var(--radius-2xl);                       */
-    /* --btn-radius-base: var(--radius-full);                     */
-    /* --input-radius:   var(--radius-lg);                        */
-    /* --nav-height:     3.5rem;                                  */
-    /* --sidebar-width:  18rem;                                   */
+	/* ------ Component-specific overrides --------------------- */
+	/* --card-radius:    var(--radius-2xl);                       */
+	/* --btn-radius-base: var(--radius-full);                     */
+	/* --input-radius:   var(--radius-lg);                        */
+	/* --nav-height:     3.5rem;                                  */
+	/* --sidebar-width:  18rem;                                   */
 }
 
 /* ============================================================

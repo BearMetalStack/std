@@ -1,3 +1,3 @@
 // [GENERATED:link-mods] DO NOT EDIT BELOW
-import "@style"
+import "@style";
 // [/GENERATED:link-mods]

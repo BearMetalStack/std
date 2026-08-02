@@ -67,7 +67,12 @@ injectStyle(
 				--bar-color: var(--color-success-vibrant);
 			}
 
-			h1, h2, h3, h4, h5, h6 {
+			h1,
+			h2,
+			h3,
+			h4,
+			h5,
+			h6 {
 				font-weight: var(--weight-bold);
 				font-size: var(--toast-font-size);
 				color: currentColor;
@@ -140,7 +145,8 @@ injectStyle(
 					margin-left: var(--space-2);
 				}
 			}
-			&[direction="left"], &[direction="right"] {
+			&[direction="left"],
+			&[direction="right"] {
 				bm-toast {
 					--shrink-anim: shrink-width;
 					max-width: calc(var(--toast-max-width) / 2);

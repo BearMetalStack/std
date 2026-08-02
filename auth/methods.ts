@@ -216,7 +216,11 @@ function passwordRoutesModule(includeInToken: string[]): Module {
 			const db = ctx.getService(dbToken);
 			const { alias, password } = ctx.body;
 			const user = await db.invoke("table", "bma_users").select(
-				["alias", "password", ...includeInToken] as (keyof TableRegistry["bma_users"])[] as string[],
+				[
+					"alias",
+					"password",
+					...includeInToken,
+				] as (keyof TableRegistry["bma_users"])[] as string[],
 			).where({ alias }).query as unknown as Partial<TableRegistry["bma_users"]>;
 			if (!user || !await Password.verify(password, user.password!)) {
 				return Unauthorized(new Error("Invalid credentials"));

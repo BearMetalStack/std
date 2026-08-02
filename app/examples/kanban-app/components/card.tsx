@@ -37,9 +37,7 @@ export function KanbanCard(card: Card, h: CardHandlers): Element {
 				</button>
 			</div>
 			<p class="card-title">{card.title}</p>
-			{card.description
-				? <p class="card-desc">{card.description}</p>
-				: null}
+			{card.description ? <p class="card-desc">{card.description}</p> : null}
 			<div class="card-moves">
 				<button
 					type="button"

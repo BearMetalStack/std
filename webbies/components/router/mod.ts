@@ -1,5 +1,5 @@
 // [GENERATED:link-mods] DO NOT EDIT BELOW
-import "@style"
+import "@style";
 export * from "./SpaNav.ts";
 export * from "./SpaRoute.ts";
 export * from "./SpaRouter.ts";

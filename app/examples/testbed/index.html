@@ -1,401 +1,401 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Kanban</title>
-        <script type="module" src="./main.tsx"></script>
-        <style>
-            *,
-            *::before,
-            *::after {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Kanban</title>
+		<script type="module" src="./main.tsx"></script>
+		<style>
+		*,
+		*::before,
+		*::after {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
 
-            :root {
-                --bg: #0d0f14;
-                --bg-raised: #13151c;
-                --bg-card: #1a1d27;
-                --bg-hover: #21253300;
-                --border: #2a2d3d;
-                --text: #e2e5f0;
-                --text-muted: #6b7280;
-                --text-dim: #4b5263;
-                --radius-sm: 6px;
-                --radius-md: 10px;
-                --radius-pill: 9999px;
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-                font-size: 14px;
-                line-height: 1.5;
-                color: var(--text);
-                background: var(--bg);
-            }
+		:root {
+			--bg: #0d0f14;
+			--bg-raised: #13151c;
+			--bg-card: #1a1d27;
+			--bg-hover: #21253300;
+			--border: #2a2d3d;
+			--text: #e2e5f0;
+			--text-muted: #6b7280;
+			--text-dim: #4b5263;
+			--radius-sm: 6px;
+			--radius-md: 10px;
+			--radius-pill: 9999px;
+			font-family:
+				-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			font-size: 14px;
+			line-height: 1.5;
+			color: var(--text);
+			background: var(--bg);
+		}
 
-            body {
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-            }
+		body {
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+		}
 
-            /* ─── App shell ──────────────────────────────── */
+		/* ─── App shell ──────────────────────────────── */
 
-            kanban-app {
-                display: contents;
-            }
-            kanban-board {
-                display: contents;
-            }
-            kanban-column {
-                display: contents;
-            }
+		kanban-app {
+			display: contents;
+		}
+		kanban-board {
+			display: contents;
+		}
+		kanban-column {
+			display: contents;
+		}
 
-            /* ─── Board ──────────────────────────────────── */
+		/* ─── Board ──────────────────────────────────── */
 
-            .board {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 16px;
-                padding: 24px;
-                flex: 1;
-                align-items: start;
-                max-width: 1100px;
-                margin: 0 auto;
-                width: 100%;
-            }
+		.board {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 16px;
+			padding: 24px;
+			flex: 1;
+			align-items: start;
+			max-width: 1100px;
+			margin: 0 auto;
+			width: 100%;
+		}
 
-            /* ─── Column ─────────────────────────────────── */
+		/* ─── Column ─────────────────────────────────── */
 
-            .column {
-                background: var(--bg-raised);
-                border: 1px solid var(--border);
-                border-radius: var(--radius-md);
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
+		.column {
+			background: var(--bg-raised);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-md);
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+		}
 
-            .column-header {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 14px 14px 12px;
-                border-bottom: 1px solid var(--border);
-            }
+		.column-header {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 14px 14px 12px;
+			border-bottom: 1px solid var(--border);
+		}
 
-            .col-pip {
-                width: 10px;
-                height: 10px;
-                border-radius: 50%;
-                background: var(--col);
-                flex-shrink: 0;
-            }
+		.col-pip {
+			width: 10px;
+			height: 10px;
+			border-radius: 50%;
+			background: var(--col);
+			flex-shrink: 0;
+		}
 
-            .col-title {
-                font-size: 13px;
-                font-weight: 700;
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
-                color: var(--col);
-                flex: 1;
-            }
+		.col-title {
+			font-size: 13px;
+			font-weight: 700;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+			color: var(--col);
+			flex: 1;
+		}
 
-            .col-count {
-                font-size: 12px;
-                font-weight: 600;
-                color: var(--text-muted);
-                background: var(--bg-card);
-                border-radius: var(--radius-pill);
-                padding: 1px 7px;
-                min-width: 22px;
-                text-align: center;
-            }
+		.col-count {
+			font-size: 12px;
+			font-weight: 600;
+			color: var(--text-muted);
+			background: var(--bg-card);
+			border-radius: var(--radius-pill);
+			padding: 1px 7px;
+			min-width: 22px;
+			text-align: center;
+		}
 
-            .card-list {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                padding: 10px;
-                min-height: 40px;
-            }
+		.card-list {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			padding: 10px;
+			min-height: 40px;
+		}
 
-            /* slot is the anchor element from each() */
-            slot {
-                display: contents;
-            }
+		/* slot is the anchor element from each() */
+		slot {
+			display: contents;
+		}
 
-            /* ─── Card ───────────────────────────────────── */
+		/* ─── Card ───────────────────────────────────── */
 
-            .card {
-                background: var(--bg-card);
-                border: 1px solid var(--border);
-                border-radius: var(--radius-sm);
-                padding: 10px 12px;
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                transition:
-                    border-color 0.15s,
-                    box-shadow 0.15s;
-            }
+		.card {
+			background: var(--bg-card);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			padding: 10px 12px;
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+			transition:
+				border-color 0.15s,
+				box-shadow 0.15s;
+		}
 
-            .card:hover {
-                border-color: var(--text-dim);
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            }
+		.card:hover {
+			border-color: var(--text-dim);
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+		}
 
-            .card--high {
-                border-left: 3px solid #ef4444;
-            }
-            .card--medium {
-                border-left: 3px solid #f59e0b;
-            }
-            .card--low {
-                border-left: 3px solid #6366f1;
-            }
+		.card--high {
+			border-left: 3px solid #ef4444;
+		}
+		.card--medium {
+			border-left: 3px solid #f59e0b;
+		}
+		.card--low {
+			border-left: 3px solid #6366f1;
+		}
 
-            .card-top {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
+		.card-top {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
 
-            .prio-pip {
-                font-size: 10px;
-                font-weight: 700;
-                letter-spacing: 0.06em;
-                text-transform: uppercase;
-                padding: 2px 7px;
-                border-radius: var(--radius-pill);
-                border: none;
-                cursor: pointer;
-                transition: opacity 0.15s;
-            }
-            .prio-pip:hover {
-                opacity: 0.75;
-            }
+		.prio-pip {
+			font-size: 10px;
+			font-weight: 700;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			padding: 2px 7px;
+			border-radius: var(--radius-pill);
+			border: none;
+			cursor: pointer;
+			transition: opacity 0.15s;
+		}
+		.prio-pip:hover {
+			opacity: 0.75;
+		}
 
-            .prio-pip--high {
-                background: rgba(239, 68, 68, 0.15);
-                color: #ef4444;
-            }
-            .prio-pip--medium {
-                background: rgba(245, 158, 11, 0.15);
-                color: #f59e0b;
-            }
-            .prio-pip--low {
-                background: rgba(99, 102, 241, 0.15);
-                color: #818cf8;
-            }
+		.prio-pip--high {
+			background: rgba(239, 68, 68, 0.15);
+			color: #ef4444;
+		}
+		.prio-pip--medium {
+			background: rgba(245, 158, 11, 0.15);
+			color: #f59e0b;
+		}
+		.prio-pip--low {
+			background: rgba(99, 102, 241, 0.15);
+			color: #818cf8;
+		}
 
-            .card-delete {
-                background: none;
-                border: none;
-                color: var(--text-dim);
-                cursor: pointer;
-                font-size: 13px;
-                padding: 2px 5px;
-                border-radius: var(--radius-sm);
-                line-height: 1;
-                transition:
-                    color 0.15s,
-                    background 0.15s;
-            }
-            .card-delete:hover {
-                color: #ef4444;
-                background: rgba(239, 68, 68, 0.1);
-            }
+		.card-delete {
+			background: none;
+			border: none;
+			color: var(--text-dim);
+			cursor: pointer;
+			font-size: 13px;
+			padding: 2px 5px;
+			border-radius: var(--radius-sm);
+			line-height: 1;
+			transition:
+				color 0.15s,
+				background 0.15s;
+		}
+		.card-delete:hover {
+			color: #ef4444;
+			background: rgba(239, 68, 68, 0.1);
+		}
 
-            .card-title {
-                font-size: 13px;
-                font-weight: 500;
-                color: var(--text);
-                line-height: 1.4;
-            }
+		.card-title {
+			font-size: 13px;
+			font-weight: 500;
+			color: var(--text);
+			line-height: 1.4;
+		}
 
-            .card-desc {
-                font-size: 12px;
-                color: var(--text-muted);
-                line-height: 1.4;
-            }
+		.card-desc {
+			font-size: 12px;
+			color: var(--text-muted);
+			line-height: 1.4;
+		}
 
-            .card-moves {
-                display: flex;
-                gap: 4px;
-                margin-top: 2px;
-            }
+		.card-moves {
+			display: flex;
+			gap: 4px;
+			margin-top: 2px;
+		}
 
-            .move-btn {
-                background: none;
-                border: 1px solid var(--border);
-                color: var(--text-muted);
-                border-radius: var(--radius-sm);
-                padding: 3px 9px;
-                cursor: pointer;
-                font-size: 13px;
-                transition:
-                    border-color 0.15s,
-                    color 0.15s;
-            }
-            .move-btn:hover:not(:disabled) {
-                border-color: var(--text-muted);
-                color: var(--text);
-            }
-            .move-btn:disabled {
-                opacity: 0.2;
-                cursor: default;
-            }
+		.move-btn {
+			background: none;
+			border: 1px solid var(--border);
+			color: var(--text-muted);
+			border-radius: var(--radius-sm);
+			padding: 3px 9px;
+			cursor: pointer;
+			font-size: 13px;
+			transition:
+				border-color 0.15s,
+				color 0.15s;
+		}
+		.move-btn:hover:not(:disabled) {
+			border-color: var(--text-muted);
+			color: var(--text);
+		}
+		.move-btn:disabled {
+			opacity: 0.2;
+			cursor: default;
+		}
 
-            /* ─── Add-card form ──────────────────────────── */
+		/* ─── Add-card form ──────────────────────────── */
 
-            .add-wrap {
-                border-top: 1px solid var(--border);
-            }
+		.add-wrap {
+			border-top: 1px solid var(--border);
+		}
 
-            .add-trigger {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                width: 100%;
-                background: none;
-                border: none;
-                color: var(--text-muted);
-                cursor: pointer;
-                padding: 10px 14px;
-                font-size: 13px;
-                text-align: left;
-                transition:
-                    color 0.15s,
-                    background 0.15s;
-            }
-            .add-trigger:hover {
-                color: var(--text);
-                background: rgba(255, 255, 255, 0.03);
-            }
-            .add-trigger span {
-                font-size: 16px;
-                line-height: 1;
-                color: var(--text-dim);
-            }
+		.add-trigger {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			width: 100%;
+			background: none;
+			border: none;
+			color: var(--text-muted);
+			cursor: pointer;
+			padding: 10px 14px;
+			font-size: 13px;
+			text-align: left;
+			transition:
+				color 0.15s,
+				background 0.15s;
+		}
+		.add-trigger:hover {
+			color: var(--text);
+			background: rgba(255, 255, 255, 0.03);
+		}
+		.add-trigger span {
+			font-size: 16px;
+			line-height: 1;
+			color: var(--text-dim);
+		}
 
-            .add-form {
-                display: none;
-                flex-direction: column;
-                gap: 8px;
-                padding: 10px;
-            }
+		.add-form {
+			display: none;
+			flex-direction: column;
+			gap: 8px;
+			padding: 10px;
+		}
 
-            .add-wrap--open .add-trigger {
-                display: none;
-            }
-            .add-wrap--open .add-form {
-                display: flex;
-            }
+		.add-wrap--open .add-trigger {
+			display: none;
+		}
+		.add-wrap--open .add-form {
+			display: flex;
+		}
 
-            .add-input {
-                width: 100%;
-                background: var(--bg);
-                border: 1px solid var(--border);
-                border-radius: var(--radius-sm);
-                color: var(--text);
-                font-size: 13px;
-                padding: 7px 10px;
-                outline: none;
-                font-family: inherit;
-                transition: border-color 0.15s;
-            }
-            .add-input:focus {
-                border-color: var(--text-dim);
-            }
-            .add-input::placeholder {
-                color: var(--text-dim);
-            }
+		.add-input {
+			width: 100%;
+			background: var(--bg);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			color: var(--text);
+			font-size: 13px;
+			padding: 7px 10px;
+			outline: none;
+			font-family: inherit;
+			transition: border-color 0.15s;
+		}
+		.add-input:focus {
+			border-color: var(--text-dim);
+		}
+		.add-input::placeholder {
+			color: var(--text-dim);
+		}
 
-            .prio-row {
-                display: flex;
-                gap: 4px;
-            }
+		.prio-row {
+			display: flex;
+			gap: 4px;
+		}
 
-            .prio-opt {
-                flex: 1;
-                background: var(--bg);
-                border: 1px solid var(--border);
-                border-radius: var(--radius-pill);
-                color: var(--text-muted);
-                cursor: pointer;
-                font-size: 11px;
-                font-weight: 600;
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
-                padding: 4px 0;
-                transition:
-                    border-color 0.15s,
-                    color 0.15s;
-            }
+		.prio-opt {
+			flex: 1;
+			background: var(--bg);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-pill);
+			color: var(--text-muted);
+			cursor: pointer;
+			font-size: 11px;
+			font-weight: 600;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+			padding: 4px 0;
+			transition:
+				border-color 0.15s,
+				color 0.15s;
+		}
 
-            .prio-opt--active {
-                border-color: var(--text-muted);
-                color: var(--text);
-            }
+		.prio-opt--active {
+			border-color: var(--text-muted);
+			color: var(--text);
+		}
 
-            .add-actions {
-                display: flex;
-                gap: 6px;
-            }
+		.add-actions {
+			display: flex;
+			gap: 6px;
+		}
 
-            .btn-add {
-                background: #6366f1;
-                border: none;
-                border-radius: var(--radius-sm);
-                color: #fff;
-                cursor: pointer;
-                font-size: 13px;
-                font-weight: 600;
-                padding: 6px 14px;
-                transition: opacity 0.15s;
-            }
-            .btn-add:hover {
-                opacity: 0.85;
-            }
+		.btn-add {
+			background: #6366f1;
+			border: none;
+			border-radius: var(--radius-sm);
+			color: #fff;
+			cursor: pointer;
+			font-size: 13px;
+			font-weight: 600;
+			padding: 6px 14px;
+			transition: opacity 0.15s;
+		}
+		.btn-add:hover {
+			opacity: 0.85;
+		}
 
-            .btn-cancel {
-                background: none;
-                border: 1px solid var(--border);
-                border-radius: var(--radius-sm);
-                color: var(--text-muted);
-                cursor: pointer;
-                font-size: 13px;
-                padding: 6px 10px;
-                transition: color 0.15s;
-            }
-            .btn-cancel:hover {
-                color: var(--text);
-            }
+		.btn-cancel {
+			background: none;
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			color: var(--text-muted);
+			cursor: pointer;
+			font-size: 13px;
+			padding: 6px 10px;
+			transition: color 0.15s;
+		}
+		.btn-cancel:hover {
+			color: var(--text);
+		}
 
-            /* ─── Header ─────────────────────────────────── */
+		/* ─── Header ─────────────────────────────────── */
 
-            header.app-header {
-                padding: 16px 24px 0;
-                max-width: 1100px;
-                margin: 0 auto;
-                width: 100%;
-            }
+		header.app-header {
+			padding: 16px 24px 0;
+			max-width: 1100px;
+			margin: 0 auto;
+			width: 100%;
+		}
 
-            .app-title {
-                font-size: 20px;
-                font-weight: 800;
-                letter-spacing: -0.3px;
-                color: var(--text);
-            }
+		.app-title {
+			font-size: 20px;
+			font-weight: 800;
+			letter-spacing: -0.3px;
+			color: var(--text);
+		}
 
-            .app-sub {
-                font-size: 12px;
-                color: var(--text-dim);
-                margin-top: 2px;
-            }
-        </style>
-    </head>
-    <body></body>
+		.app-sub {
+			font-size: 12px;
+			color: var(--text-dim);
+			margin-top: 2px;
+		}
+		</style>
+	</head>
+	<body></body>
 </html>
