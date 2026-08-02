@@ -8,6 +8,10 @@ BearMetal is a zero-dependency web stack for Deno: SSR, JSX, and TC39 Signals-ba
 
 The workspace is declared in the root `deno.json`: `"workspace": ["./*", "./*/examples/*"]`.
 
+## Comments
+
+JSDoc comments are useful and should be included in the public APIs per JSR recommendations. Inline and block comments explaining specific parts of the code are not super useful and tend to take up space in the code. Use them sparingly. Comments used for code organization are allowed.
+
 ## Worktrees
 
 All work happens in a dedicated git worktree and branch, never directly on
@@ -58,12 +62,12 @@ There is no CI configured (no `.github/workflows`). Nothing enforces fmt/lint/te
 - Internal deps are always `jsr:@bearmetal/<pkg>` style imports, referenced by package name (see each package's `deno.json` `imports` map for local aliases like `@lib/`, `@fs`, `@components`).
 - The workspace tooling lives in `workspace_scripts/`. `workspace.ts` is the single source of truth for package discovery — `discoverPackages()` expands the root `workspace` globs and keeps directories whose `deno.json` has a `name` under the `@bearmetal/` scope. Never re-derive that; every other script (`check.ts`, `dep_graph.ts`, `manifest.ts`, `version_bump.ts`, `publish_workspace.ts`) imports it. `run.ts` holds the subprocess and concurrency helpers.
 - A package whose `deno.json` `name` is unscoped is invisible to all of this tooling. `cog/` is named `cog` rather than `@bearmetal/cog`, so it is never checked, versioned, or published.
-- `@bearmetal/internal` (`internal/`) is `"publish": false` and, as of the `TrustedModule` change, **has no importers left** — `router` and `stack` used to depend on it, which would have shipped a dangling `jsr:@bearmetal/internal` reference to consumers (`deno publish --dry-run` does *not* catch this; it rewrites bare workspace specifiers into `jsr:` ones at publish time). Don't reintroduce a dependency on it from a published package. `publish_workspace.ts` refuses to publish any package that imports it.
+- `@bearmetal/internal` (`internal/`) is `"publish": false` and, as of the `TrustedModule` change, **has no importers left** — `router` and `stack` used to depend on it, which would have shipped a dangling `jsr:@bearmetal/internal` reference to consumers (`deno publish --dry-run` does _not_ catch this; it rewrites bare workspace specifiers into `jsr:` ones at publish time). Don't reintroduce a dependency on it from a published package. `publish_workspace.ts` refuses to publish any package that imports it.
 - JSX packages set `compilerOptions.jsx: "react-jsx"` and `jsxImportSource` to either `@bearmetal/jsx/client` (DOM output, web components) or `@bearmetal/jsx/server` (SSR, produces `Html` string wrappers). Get this backwards and JSX either won't render server-side or won't produce real DOM nodes client-side — check the consuming package's `deno.json` before assuming which runtime is active.
 
 ### compilerOptions belong to the root
 
-A package's effective config is the root `deno.json` merged with its own, key by key, the package's winning. **`lib` is replaced wholesale, not unioned.** Workspace dependencies resolve to local source and are type-checked under the *importing* package's `compilerOptions`, so a package that narrows `lib` breaks its dependencies' sources rather than its own — e.g. a `lib` without `deno.ns` makes `Deno` undefined inside `router/` and `miscellanea/` when checked from `webbies/`.
+A package's effective config is the root `deno.json` merged with its own, key by key, the package's winning. **`lib` is replaced wholesale, not unioned.** Workspace dependencies resolve to local source and are type-checked under the _importing_ package's `compilerOptions`, so a package that narrows `lib` breaks its dependencies' sources rather than its own — e.g. a `lib` without `deno.ns` makes `Deno` undefined inside `router/` and `miscellanea/` when checked from `webbies/`.
 
 So `lib` is defined **once, at the root**, as the union every package needs, and no package overrides it. Packages should only set genuinely package-specific `compilerOptions` (`jsx`, `jsxImportSource`, `types`). If you find yourself adding `lib` to a package, you are about to break its dependents. Run `deno task workspace:check` after touching any `deno.json`.
 
@@ -79,7 +83,7 @@ Routes under `/@bearmetal/*` may only be registered by a `TrustedModule` (`route
 
 Warnings and trust claims bubble upward through `resolveModuleStack` when a sub-`Router` is mounted; without that a violation below the root would never reach the `handle` check. Note `Module.use()` only takes middleware — mounting a module is `Router.use()`.
 
-Handlers on reserved routes are tagged with `__module` on their *deepest* merge so the declaring module survives bubbling; don't re-tag on every level or trust gets laundered onto whatever plain `Module` carried it up.
+Handlers on reserved routes are tagged with `__module` on their _deepest_ merge so the declaring module survives bubbling; don't re-tag on every level or trust gets laundered onto whatever plain `Module` carried it up.
 
 ## Architecture
 
@@ -89,7 +93,7 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
 - **`jsx/`** — JSX runtime, split into `client` (real DOM via `document.createElement`) and `server` (HTML strings via an `Html` wrapper class). Both share primitives (`Html`, `escapeHtml`, `BMC`) from the root export.
 - **`forge/`** — runtime schema validation + TypeScript inference + JSON Schema generation (Zod-like). `f.object()`, `.parse()`/`.safeParse()`, `Infer<T>`. Portable — used standalone or through router/db.
 - **`router/`** — type-safe HTTP router for Deno. Core concepts: `Router` (top-level, extends `Module`), `Module<TState>` (composable bundle of routes/middleware/services, mountable via `.use()`), `Service`/`createServiceToken` (typed DI retrievable via `ctx.getService()`), schema-validated route bodies via forge (re-exported as `s`), typed response helpers (`Ok`, `Created`, `NotFound`, etc. returning `TypedResponse<T, Status>`). Almost every other server-side package (`app/ssr`, `db`, `auth`, `sockpuppet`) plugs into this as a `Module`.
-  - Module lifecycle: `onAdopted(parent)` runs at mount time, return `false` to defer if a dependency isn't registered yet (retried up the tree, then once more at `ready()` — still failing at that point throws). `onStart()` runs once after all `onAdopted` checks pass, for async init like migrations.
+    - Module lifecycle: `onAdopted(parent)` runs at mount time, return `false` to defer if a dependency isn't registered yet (retried up the tree, then once more at `ready()` — still failing at that point throws). `onStart()` runs once after all `onAdopted` checks pass, for async init like migrations.
 - **`app/`** — the component framework: `BMElement` (custom element base class wiring signals/effects/refs/context into the Custom Elements lifecycle), `@define(tag, import.meta)` decorator, `app/signals` (pinned TC39 Signals polyfill), `app/context` (both call-stack-scoped "stack context" for SSR and DOM-tree-walking "DOM context" for components — extend via declaration-merging `ContextMap`), `app/ssr` (`Layout`/`Page` router middleware that renders JSX, scans for used custom elements, and bundles only those components' client modules into the response).
 - **`db/`** — Postgres/KV connector exposed as a router `Module` + `Service`. See the **TableRegistry pattern** below — this is the one non-obvious cross-cutting mechanism in the codebase.
 - **`auth/`**, **`sockpuppet/`** (WebSocket channels), **`devproxy/`**, **`drip/`** (theme/stylesheet generation), **`webbies/`** (UI component library) — feature packages, each a router `Module` or standalone toolset following the same conventions.
@@ -102,9 +106,9 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
 
 ```ts
 declare module "@bearmetal/db" {
-  interface TableRegistry {
-    my_table: { id: string; name: string };
-  }
+	interface TableRegistry {
+		my_table: { id: string; name: string };
+	}
 }
 ```
 
