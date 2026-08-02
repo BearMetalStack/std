@@ -13,7 +13,8 @@
 		"./types": "./types.ts"
 	},
 	"tasks": {
-		"dev": "deno test --watch"
+		"test": "deno test -RW",
+		"dev": "deno test --watch -RW"
 	},
 	"license": "GPL-3.0-only",
 	"imports": {
