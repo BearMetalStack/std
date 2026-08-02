@@ -121,8 +121,6 @@ export class SlagElement extends SlagNode {
 			);
 		}
 		this.namespaceURI = namespaceURI;
-		// HTML tag names are case-insensitive and canonically lowercase; SVG's
-		// are not (`linearGradient`, `textPath`), so those pass through as given.
 		this.localName = namespaceURI === HTML_NAMESPACE ? tag.toLowerCase() : tag;
 	}
 

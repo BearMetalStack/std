@@ -61,8 +61,6 @@ function serializeAttributes(element: SlagElement): string {
 	return element.getAttributeNames()
 		.map((name) => {
 			const value = element.getAttribute(name);
-			// A valueless attribute round-trips as a bare name; browsers parse
-			// `disabled` and `disabled=""` identically.
 			if (value === "" || value == null) return ` ${name}`;
 			return ` ${name}="${escapeHtml(value)}"`;
 		})
@@ -112,7 +110,6 @@ function serializeNode(
 		case NodeType.ELEMENT_NODE:
 			return serializeElement(node as SlagElement, options, slots);
 		default:
-			// Documents and fragments have no tag of their own.
 			return serializeChildren(node, options, slots);
 	}
 }
@@ -122,8 +119,6 @@ function serializeElement(
 	options: Required<SerializeOptions>,
 	slots: Map<string, SlagNode[]> | null,
 ): string {
-	// A `<slot>` inside a shadow tree is replaced by whatever the host assigned
-	// to it, falling back to its own children when nothing was.
 	if (slots && element.localName === "slot") {
 		const assigned = slots.get(element.getAttribute("name") ?? "");
 		if (assigned?.length) {
@@ -146,7 +141,6 @@ function serializeElement(
 		return `${open}${serializeChildren(shadow, options, assignedNodes(element))}</${tag}>`;
 	}
 
-	// `<template>`'s children live in its `content` fragment, not on the element.
 	const content = (element as unknown as { content?: SlagNode }).content;
 	if (content) return `${open}${serializeChildren(content, options, slots)}</${tag}>`;
 

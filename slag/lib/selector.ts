@@ -195,7 +195,7 @@ const cache = new Map<string, ParsedSelector>();
 export function parseSelector(selector: string): ParsedSelector {
 	const cached = cache.get(selector);
 	if (cached) return cached;
-	// No functional pseudo-classes are supported, so commas are always top-level.
+
 	const parsed = selector.split(",").map((alternative) => {
 		const trimmed = alternative.trim();
 		if (!trimmed) unsupported(selector, "an empty selector in the list");

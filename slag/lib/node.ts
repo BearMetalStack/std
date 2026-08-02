@@ -200,17 +200,11 @@ export abstract class SlagNode extends EventTarget {
 			);
 		}
 
-		// A fragment inserts its children and is left empty — each child's own
-		// insertion detaches it from the fragment.
 		if (node.nodeType === NodeType.DOCUMENT_FRAGMENT_NODE) {
 			for (const child of [...node.childNodes]) this.insertBefore(child, reference);
 			return node;
 		}
 
-		// A same-tree move is a removal followed by an insertion, and each phase
-		// fires its own custom element reaction — exactly like a real browser.
-		// BMElement's disconnect debounce exists to absorb that disconnect/connect
-		// pair, so getting the order wrong here silently breaks its remount logic.
 		const wasConnected = node.isConnected;
 		this.#detach(node);
 		if (wasConnected && !node.isConnected) dispatchDisconnected(node);
@@ -267,8 +261,6 @@ export abstract class SlagNode extends EventTarget {
 	after(...nodes: SlagInsertable[]): void {
 		const parent = this.parentNode;
 		if (!parent) return;
-		// Capture the reference once: re-reading it would insert each node before
-		// the previous one and reverse the list.
 		const reference = this.nextSibling;
 		for (const node of nodes) parent.insertBefore(this.#coerce(node), reference);
 	}
