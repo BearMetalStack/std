@@ -1,4 +1,19 @@
-import { type BMC, isBMC } from "../lib/bmc.ts";
+/**
+ * The JSX runtime. One implementation, both sides.
+ *
+ * Every element is a real DOM node built with `document.createElement`. On a
+ * server that `document` is `@bearmetal/slag`, and the finished tree serializes
+ * itself — so there is no second, string-building runtime to keep in step, and
+ * no component that behaves differently depending on where it ran.
+ *
+ * Rendering is synchronous throughout. Asynchronous values are not awaited
+ * here; they are registered with `./pending.ts` and patched in when they
+ * settle, which is the same thing that happens to a signal.
+ */
+
+import { type BMC, isBMC } from "./bmc.ts";
+import { Html } from "./html.ts";
+import { trackPending } from "./pending.ts";
 
 type SignalLike = { get(): unknown };
 type WritableSignalLike = SignalLike & { set(value: unknown): void };
@@ -18,6 +33,24 @@ function isWritableSignal(value: unknown): value is WritableSignalLike {
 		// deno-lint-ignore no-explicit-any
 		typeof (value as any).set === "function"
 	);
+}
+
+/**
+ * Pre-escaped markup, duck-typed rather than `instanceof Html`.
+ *
+ * Two bundles of this package produce two `Html` classes, and markup handed
+ * across that seam has to keep working.
+ */
+export type HtmlLike = { raw: string; toString(): string };
+
+function isHtmlLike(value: unknown): value is HtmlLike {
+	return value !== null && typeof value === "object" &&
+		typeof (value as HtmlLike).raw === "string";
+}
+
+function isThenable(value: unknown): value is Promise<unknown> {
+	// deno-lint-ignore no-explicit-any
+	return value !== null && typeof value === "object" && typeof (value as any).then === "function";
 }
 
 type CleanupFn = () => void;
@@ -62,7 +95,21 @@ export function flatChildren(children: unknown): unknown[] {
 	return [children];
 }
 
-// -- client impl --
+/**
+ * Parses raw markup into nodes.
+ *
+ * `<template>` because its content is inert: no `<img>` fetches, no script
+ * evaluation, and none of the reparenting the host element's own parser rules
+ * would impose. Slag has no HTML parser and keeps the markup verbatim instead,
+ * which serializes back out unchanged — the only thing a server needs from it.
+ */
+function rawFragment(markup: string): DocumentFragment {
+	const template = document.createElement("template") as HTMLTemplateElement;
+	template.innerHTML = markup;
+	return template.content;
+}
+
+// -- props --
 
 function applyProp(el: HTMLElement, key: string, val: unknown) {
 	if (isPixelable(key, val)) {
@@ -194,20 +241,60 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 	}
 }
 
-function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalLike) {
+// -- children --
+
+/**
+ * Inserts one resolved value before `before`.
+ *
+ * `raw` decides what a bare string means: escaped text by default, markup under
+ * `$raw`. An `Html` value is markup either way — being already escaped is what
+ * the type says about it.
+ */
+function insertValue(
+	parent: Node,
+	value: unknown,
+	before: Node | null,
+	raw = false,
+): void {
+	if (value == null || value === false || value === true) return;
+	if (Array.isArray(value)) {
+		for (const item of value.flat(Infinity as 0)) insertValue(parent, item, before, raw);
+		return;
+	}
+	if (isHtmlLike(value)) {
+		parent.insertBefore(rawFragment(value.raw), before);
+		return;
+	}
+	if (value instanceof Node) {
+		parent.insertBefore(value, before);
+		return;
+	}
+	const text = String(value);
+	if (text === "") return;
+	parent.insertBefore(raw ? rawFragment(text) : document.createTextNode(text), before);
+}
+
+/** Removes everything strictly between two marker nodes. */
+function clearRange(parent: Node, start: Node, end: Node): void {
+	let node = start.nextSibling;
+	while (node && node !== end) {
+		const next = node.nextSibling;
+		parent.removeChild(node);
+		node = next;
+	}
+}
+
+/** A pair of empty text nodes bracketing a slot whose content changes. */
+function markRange(parent: Node): { start: Node; end: Node } {
 	const start = document.createTextNode("");
 	const end = document.createTextNode("");
 	parent.appendChild(start);
 	parent.appendChild(end);
+	return { start, end };
+}
 
-	function clearRange(parentNode: Node) {
-		let node = start.nextSibling;
-		while (node && node !== end) {
-			const next = node.nextSibling;
-			parentNode.removeChild(node);
-			node = next;
-		}
-	}
+function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalLike, raw: boolean) {
+	const { start, end } = markRange(parent);
 
 	reactiveEffect(() => {
 		const v = signal.get();
@@ -223,52 +310,89 @@ function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalL
 			// the same node (a memoised branch, a route whose params changed but
 			// whose component did not) must not cost any of that.
 			if (start.nextSibling === v && v.nextSibling === end) return;
-			clearRange(parentNode);
+			clearRange(parentNode, start, end);
 			parentNode.insertBefore(v, end);
 			return;
 		}
 
-		const text = v == null ? "" : String(v);
-		const only = start.nextSibling;
-		if (only && only.nextSibling === end && only.nodeType === 3) {
-			(only as Text).data = text;
+		if (!raw && !isHtmlLike(v) && !Array.isArray(v)) {
+			// Text in, text out: rewrite the existing node's data rather than
+			// swapping it, so a ticking counter does not churn nodes.
+			const text = v == null || v === false || v === true ? "" : String(v);
+			const only = start.nextSibling;
+			if (only && only.nextSibling === end && only.nodeType === 3) {
+				(only as Text).data = text;
+				return;
+			}
+			clearRange(parentNode, start, end);
+			if (text !== "") parentNode.insertBefore(document.createTextNode(text), end);
 			return;
 		}
-		clearRange(parentNode);
-		if (text !== "") parentNode.insertBefore(document.createTextNode(text), end);
+
+		clearRange(parentNode, start, end);
+		insertValue(parentNode, v, end, raw);
 	});
+}
+
+/**
+ * Reserves a slot for a value that has not arrived yet, and registers the wait
+ * with the current server render.
+ *
+ * In a browser this is only a promise filling its slot in when it resolves;
+ * nothing is tracking it and nothing waits. On a server the renderer holds the
+ * markup back until every registered promise has settled, so an `async`
+ * component's output lands in the response instead of racing it.
+ */
+function appendPendingChild(
+	parent: Element | DocumentFragment,
+	work: Promise<unknown>,
+	raw: boolean,
+) {
+	const { start, end } = markRange(parent);
+
+	trackPending(
+		work.then((value) => {
+			const parentNode = end.parentNode;
+			if (!parentNode) return;
+			clearRange(parentNode, start, end);
+			insertValue(parentNode, value, end, raw);
+		}),
+	);
 }
 
 function appendFlatChildren(
 	parent: Element | DocumentFragment,
 	children: unknown[],
+	raw = false,
 ) {
 	for (const child of children) {
-		if (child == null) continue;
-		if (isSignal(child)) {
-			appendReactiveChild(parent, child);
-		} else if (child instanceof Node) {
-			parent.appendChild(child);
+		if (child == null || child === false || child === true) continue;
+		if (isThenable(child)) {
+			appendPendingChild(parent, child, raw);
+		} else if (isSignal(child)) {
+			appendReactiveChild(parent, child, raw);
 		} else {
-			parent.appendChild(document.createTextNode(String(child)));
+			insertValue(parent, child, null, raw);
 		}
 	}
 }
 
-export function clientJsx<T>(
+// -- the runtime --
+
+export function jsx<T>(
 	// deno-lint-ignore no-explicit-any
 	tag: (props: any) => T,
 	props: Record<string, unknown>,
 	_key?: unknown,
 ): T;
-export function clientJsx(
+export function jsx(
 	tag:
 		| string
 		| typeof BMC,
 	props: Record<string, unknown>,
 	_key?: unknown,
 ): Element | DocumentFragment;
-export function clientJsx(
+export function jsx(
 	tag:
 		| string
 		| ((props: Record<string, unknown>) => Element | DocumentFragment)
@@ -278,11 +402,12 @@ export function clientJsx(
 ): unknown {
 	const { children, $raw, ...rest } = props;
 	const flat = flatChildren(children);
+	const raw = Boolean($raw);
 
 	if (isBMC(tag)) {
 		const el = document.createElement(tag.tag) as HTMLElement;
 		applyProps(el, rest);
-		appendFlatChildren(el, flat);
+		appendFlatChildren(el, flat, raw);
 		return el;
 	}
 
@@ -291,163 +416,33 @@ export function clientJsx(
 	}
 
 	if (tag === "template") {
-		const templateEl = document.createElement("template");
+		const templateEl = document.createElement("template") as HTMLTemplateElement;
 		applyProps(templateEl, rest);
-		appendFlatChildren(templateEl.content, flat);
+		appendFlatChildren(templateEl.content, flat, raw);
 		return templateEl;
 	}
 
 	if (isTagSVG(tag)) {
 		const svgEl = document.createElementNS("http://www.w3.org/2000/svg", tag);
 		applyProps(svgEl as unknown as HTMLElement, rest);
-		appendFlatChildren(svgEl, flat);
+		appendFlatChildren(svgEl, flat, raw);
 		return svgEl;
 	}
 
 	const el = document.createElement(tag);
 	applyProps(el, rest);
-	if ($raw) {
-		for (const child of flat) {
-			if (child == null) continue;
-			if (isSignal(child)) {
-				appendReactiveChild(el, child);
-			} else if (typeof child === "string") {
-				el.insertAdjacentHTML("beforeend", child);
-			} else if (child instanceof Node) {
-				el.appendChild(child);
-			}
-		}
-	} else {
-		appendFlatChildren(el, flat);
-	}
+	appendFlatChildren(el, flat, raw);
 	return el;
 }
 
-export function clientFragment(
-	{ children }: { children?: unknown },
+export { jsx as jsxs };
+
+export function Fragment(
+	{ children, $raw }: { children?: unknown; $raw?: unknown },
 ): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	appendFlatChildren(frag, flatChildren(children));
+	appendFlatChildren(frag, flatChildren(children), Boolean($raw));
 	return frag;
 }
 
-// -- server impl --
-
-const voidElements = new Set([
-	"area",
-	"base",
-	"br",
-	"col",
-	"embed",
-	"hr",
-	"img",
-	"input",
-	"link",
-	"meta",
-	"param",
-	"source",
-	"track",
-	"wbr",
-]);
-
-export type HtmlLike = { raw: string; toString(): string };
-type HtmlCtor = new (raw: string) => HtmlLike;
-
-export function makeServerJsx(Html: HtmlCtor, escapeHtml: (s: string) => string) {
-	function childToStr(c: unknown): string {
-		if (c && typeof c === "object" && "raw" in c) return (c as HtmlLike).raw;
-		if (c == null || c === false) return "";
-		if (typeof c === "string") return escapeHtml(c);
-		return escapeHtml(String(c));
-	}
-
-	function childToStrRaw(c: unknown): string {
-		if (c && typeof c === "object" && "raw" in c) return (c as HtmlLike).raw;
-		if (c == null || c === false) return "";
-		return String(c);
-	}
-
-	function buildAttrs(props: Record<string, unknown>): string {
-		return Object.entries(props)
-			.filter(([k]) => k !== "children")
-			.flatMap(([k, v]) => {
-				if (v == null || v === false || typeof v === "function") return [];
-				if (v === true) return [` ${k}`];
-				return [` ${k}="${escapeHtml(String(v))}"`];
-			})
-			.join("");
-	}
-
-	async function resolveChild(c: unknown): Promise<string> {
-		if (isSignal(c)) c = c.get();
-		if (c instanceof Promise) c = await c;
-		return childToStr(c);
-	}
-
-	async function resolveChildRaw(c: unknown): Promise<string> {
-		if (isSignal(c)) c = c.get();
-		if (c instanceof Promise) c = await c;
-		return childToStrRaw(c);
-	}
-
-	async function serverJsx<T extends HtmlLike>(
-		tag: (props: Record<string, unknown>) => T | Promise<T>,
-		props: Record<string, unknown>,
-		_key?: unknown,
-	): Promise<T>;
-	async function serverJsx(
-		tag:
-			| string
-			| typeof BMC,
-		props: Record<string, unknown>,
-		_key?: unknown,
-	): Promise<HtmlLike>;
-	async function serverJsx(
-		tag:
-			| string
-			| ((props: Record<string, unknown>) => HtmlLike | Promise<HtmlLike>)
-			| typeof BMC,
-		props: Record<string, unknown>,
-		_key?: unknown,
-	): Promise<unknown> {
-		const { children, $raw, ...rest } = props;
-		const flat = flatChildren(children);
-
-		if (isBMC(tag)) {
-			if (tag.client) {
-				return new Html(`<${tag.tag}${buildAttrs(rest)}></${tag.tag}>`);
-			}
-
-			const loaded = tag.serverLoad ? await tag.serverLoad(rest) : {};
-			const loadedProps = { ...rest, ...loaded };
-			const serialized = Object.keys(loaded).length
-				? { ...loadedProps, "data-server-props": btoa(JSON.stringify(loaded)) }
-				: loadedProps;
-
-			const childStr = (await Promise.all(flat.map($raw ? resolveChildRaw : resolveChild))).join(
-				"",
-			);
-			const inner = await tag.serverRender(loadedProps, childStr);
-			return new Html(`<${tag.tag}${buildAttrs(serialized)}>${inner}</${tag.tag}>`);
-		}
-
-		if (typeof tag === "function") {
-			return await tag(props);
-		}
-
-		const attrs = buildAttrs(rest);
-		if (voidElements.has(tag as string)) return new Html(`<${tag}${attrs}>`);
-		const childStr = (await Promise.all(flat.map($raw ? resolveChildRaw : resolveChild))).join("");
-		return new Html(`<${tag}${attrs}>${childStr}</${tag}>`);
-	}
-
-	async function serverFragment(
-		{ children }: { children?: unknown },
-	): Promise<HtmlLike> {
-		return new Html(
-			(await Promise.all(flatChildren(children).map(resolveChild))).join(""),
-		);
-	}
-
-	return { jsx: serverJsx, jsxs: serverJsx, Fragment: serverFragment };
-}
+export { Html };

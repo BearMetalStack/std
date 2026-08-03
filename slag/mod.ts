@@ -40,6 +40,7 @@ export {
 } from "./lib/element.ts";
 export { SlagDocument } from "./lib/document.ts";
 export { SlagWindow } from "./lib/window.ts";
+export { SlagHistory, SlagLocation } from "./lib/location.ts";
 export { createStyleDeclaration, SlagCSSStyleSheet } from "./lib/css.ts";
 export {
 	customElementRegistry,

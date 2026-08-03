@@ -6,7 +6,20 @@ import type { BMC } from "./lib/bmc.ts";
 type SignalLike<T = unknown> = { get(): T };
 
 export namespace JSX {
-	export type Element = globalThis.Element | Html | Promise<globalThis.Element | Html>;
+	/**
+	 * What a component may return.
+	 *
+	 * A `DocumentFragment` counts: `<>…</>`, `each()` and `<For>` all produce
+	 * one, and inserting it splices its contents in without a wrapper element.
+	 * `Html` is pre-escaped markup passing through untouched. A promise is a
+	 * value that has not arrived yet — the runtime holds a slot for it, and a
+	 * server render waits for it before serializing.
+	 */
+	export type Element =
+		| globalThis.Element
+		| globalThis.DocumentFragment
+		| Html
+		| Promise<globalThis.Element | globalThis.DocumentFragment | Html>;
 	export type Child = MakeChild<SignalLike>;
 	export type Children = MakeChildren<SignalLike>;
 	export type BaseProps = MakeBaseProps<SignalLike>;

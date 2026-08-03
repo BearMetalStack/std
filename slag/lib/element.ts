@@ -369,6 +369,25 @@ export class SlagTemplateElement extends SlagHTMLElement {
 		super(localName);
 	}
 
+	/**
+	 * Reads and writes `content`, not the element's own children — the same
+	 * redirection a browser applies, and what makes `<template>` the portable way
+	 * to turn a markup string into nodes. The JSX runtime relies on it for
+	 * `$raw` children and for `Html` values.
+	 *
+	 * The no-parser caveat from {@linkcode SlagElement.innerHTML} still applies:
+	 * the markup is kept verbatim and serializes back out unchanged, but nothing
+	 * can query inside it.
+	 */
+	override get innerHTML(): string {
+		return serializeInner(this.content);
+	}
+
+	override set innerHTML(markup: string) {
+		this.content.replaceChildren();
+		if (markup !== "") this.content.appendChild(new SlagRawMarkup(markup));
+	}
+
 	override cloneNode(deep = false): SlagTemplateElement {
 		const clone = super.cloneNode(false) as SlagTemplateElement;
 		if (deep) {

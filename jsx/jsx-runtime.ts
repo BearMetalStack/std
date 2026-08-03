@@ -1,13 +1,28 @@
-import type { BMC as _ } from "./lib/bmc.ts";
+/**
+ * The automatic-runtime entry point: `jsx`, `jsxs`, `Fragment`.
+ *
+ * There is one of these. It used to pick a client or a server half from
+ * `typeof document` at import time, which made the choice depend on module
+ * evaluation order — and a `.tsx` file could never win that race, because the
+ * transform injects this import above anything the source itself writes.
+ *
+ * Now the runtime builds DOM nodes unconditionally and lets whichever
+ * `document` it finds decide what that means: a browser's, or
+ * `@bearmetal/slag`'s. Point `jsxImportSource` at `@bearmetal/jsx` and that is
+ * the whole configuration, wherever the code runs.
+ *
+ * @module
+ */
 
-const j: typeof import("./client/mod.ts") = (
-	typeof document !== "undefined"
-		? await import("./client/mod.ts")
-		: await import("./server/mod.ts")
-) as typeof import("./client/mod.ts");
-const Fragment = j.Fragment;
-const jsx = j.jsx;
-const jsxs = j.jsxs;
-export { Fragment, jsx, jsxs };
-export { getCurrentOwner, type Owner, setCurrentOwner, setEffectImpl } from "./lib/jsx.ts";
+export {
+	flatChildren,
+	Fragment,
+	getCurrentOwner,
+	type HtmlLike,
+	jsx,
+	jsxs,
+	type Owner,
+	setCurrentOwner,
+	setEffectImpl,
+} from "./lib/jsx.ts";
 export type * from "./types.ts";
