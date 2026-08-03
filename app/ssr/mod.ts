@@ -1,3 +1,16 @@
+/**
+ * Router middleware that renders a page.
+ *
+ * `Layout()` puts a shell in the request state; `Page()` renders a view inside
+ * it, waits for the tree to settle, works out which components it used, and
+ * inlines their styles and client bundle before serializing.
+ *
+ * The render itself lives in `./render.ts` — this module is the part that knows
+ * about HTTP and about bundling.
+ *
+ * @module
+ */
+
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import {
 	Html as HTMLRes,
@@ -8,6 +21,17 @@ import {
 import { isDev } from "@bearmetal/miscellanea/environment";
 import { getComponentUrl, getTagStylesheet } from "../define.ts";
 import { stripServerCode } from "./stripServer.ts";
+import { renderToTree, serializeTree } from "./render.ts";
+
+export {
+	type RenderedTree,
+	type RenderOptions,
+	renderToString,
+	renderToTree,
+	serializeNode,
+	serializeTree,
+} from "./render.ts";
+export { RENDER_URL } from "./context.ts";
 
 export type LayoutState = {
 	layout?: LayoutEl;
@@ -27,64 +51,84 @@ export function Layout<T extends StateType>(
 		return await next();
 	};
 }
-const tagRx = /<(?<tag>[a-z\-]+?)[>\s]/ig;
-const endHeadRx = /<\/head>/;
 
+/**
+ * Renders `render` as a full response, inside the registered layout if there is
+ * one.
+ *
+ * The request URL is scoped to the render, so a `<Router>` anywhere in the page
+ * matches against it without having to be handed it explicitly.
+ */
 export function Page<T extends StateType>(
 	render: (ctx: RouterContext<T>) => JSX.Element,
 	title = "BearMetal SSR",
 ): RouterHandler<T> {
 	return async (ctx) => {
-		const usedTags = new Set<string>();
 		const layout = ctx.state.layout as LayoutState["layout"];
-		const html = await render(ctx);
-		if (typeof layout === "function") {
-			const page = (await layout({ children: html, title })).toString();
-			page.matchAll(tagRx).forEach((m: any) => usedTags.add(m.groups?.tag ?? ""));
+		const tree = await renderToTree(
+			() => typeof layout === "function" ? layout({ children: render(ctx), title }) : render(ctx),
+			{ url: ctx.request.url },
+		);
 
-			if (endHeadRx.test(page)) {
-				const [scripttag, styletag] = await buildTagBundle(usedTags);
+		try {
+			// Finding `<head>` in the tree rather than matching `</head>` in a string
+			// is one of the things a real DOM on this side buys: the injection point
+			// is an element, so there is nothing to escape, nothing to get the order
+			// of, and no way for a `</head>` inside a text node to hijack it.
+			const head = tree.root.querySelector("head");
+			if (!head) return HTMLRes(serializeTree(tree.root));
 
-				return HTMLRes(
-					"<!DOCTYPE html>" + page
-						.replace(
-							endHeadRx,
-							styletag + scripttag + "</head>",
-						),
-				);
-			}
-			return HTMLRes(page);
+			await injectBundle(head, usedTags(tree.root));
+			return HTMLRes("<!DOCTYPE html>" + serializeTree(tree.root));
+		} finally {
+			tree.dispose();
 		}
-		if (endHeadRx.test(html.toString())) {
-			const r = html.toString();
-			r.matchAll(tagRx).forEach((m: any) => usedTags.add(m.groups?.tag ?? ""));
-			const [scripttag, styletag] = await buildTagBundle(usedTags);
-			return HTMLRes(
-				r
-					.replace(
-						endHeadRx,
-						`${styletag}${scripttag}</head>`,
-					),
-			);
-		}
-		return HTMLRes(html.toString());
 	};
 }
-async function buildTagBundle(usedTags: Set<string>) {
-	const componentUrls = usedTags.values().map(getComponentUrl).filter(Boolean)
-		.toArray() as string[];
-	const componentStyles = usedTags.values()
-		.map(getTagStylesheet)
-		.filter((s): s is string => s != null).toArray()
-		.join("\n");
-	const [scripttag, styletag] = await buildBundle(componentUrls);
-	return [
-		scripttag.entries().filter(([k]) => !k.match(/-.*\.js/)).map(([_, s]) =>
-			`<script type="module">${s}</script>`
-		).toArray().join(""),
-		`<style>${componentStyles}${styletag}</style>`,
-	];
+
+/**
+ * The custom element tags actually present in a rendered tree.
+ *
+ * A hyphen in the name is what makes an element custom — the same test the
+ * browser applies.
+ */
+function usedTags(root: Element): Set<string> {
+	const tags = new Set<string>();
+	for (const el of root.querySelectorAll("*")) {
+		if (el.localName.includes("-")) tags.add(el.localName);
+	}
+	return tags;
 }
+
+/** Appends the styles and the client bundle for `tags` to a page's `<head>`. */
+async function injectBundle(head: Element, tags: Set<string>): Promise<void> {
+	const componentStyles = [...tags]
+		.map(getTagStylesheet)
+		.filter((s): s is string => s != null)
+		.join("\n");
+	const componentUrls = [...tags].map(getComponentUrl).filter(Boolean) as string[];
+
+	const [scripts, bundleStyles] = await buildBundle(componentUrls);
+
+	const doc = head.ownerDocument!;
+	const css = componentStyles + bundleStyles;
+	if (css) {
+		const style = doc.createElement("style");
+		style.textContent = css;
+		head.appendChild(style);
+	}
+
+	for (const [name, source] of scripts) {
+		// Shared chunks are imported by the entries that need them, by relative
+		// path; only entry outputs get inlined.
+		if (name.match(/-.*\.js/)) continue;
+		const script = doc.createElement("script");
+		script.setAttribute("type", "module");
+		script.textContent = source;
+		head.appendChild(script);
+	}
+}
+
 export async function buildBundle(
 	componentUrls: string[],
 ): Promise<[Map<string, string>, string]> {
@@ -96,7 +140,7 @@ export async function buildBundle(
 		entry,
 		`
          /** @jsxRuntime automatic */
-         /** @jsxImportSource jsr:@bearmetal/jsx/client */
+         /** @jsxImportSource jsr:@bearmetal/jsx */
          ${componentUrls.map((url) => `import "${url}"`).join("\n")}
         `,
 	);
@@ -115,13 +159,8 @@ export async function buildBundle(
 		if (b.path.endsWith(".css")) {
 			styletag = b.text();
 		} else {
-			let t = b.text();
-			t = stripServerCode(t, { names: ["serverRender", "serverLoad", "stylesheet"] });
-
-			const p = b.path.split("/").pop()!;
-			scripttag.set(p, t);
-			// await Deno.mkdir("dist", { recursive: true });
-			// Deno.writeTextFile(`dist/${p}`, t);
+			const t = stripServerCode(b.text(), { names: serverOnlyNames });
+			scripttag.set(b.path.split("/").pop()!, t);
 		}
 	}
 
@@ -129,6 +168,7 @@ export async function buildBundle(
 
 	return [scripttag, styletag];
 }
+
 /** Emitted files from a bundle: script text keyed by output filename, plus concatenated CSS. */
 export type BundleOutput = {
 	scripts: Map<string, string>;
@@ -173,7 +213,15 @@ export async function bundleEntrypoints(entrypoints: string[]): Promise<BundleOu
 	return { scripts, styles };
 }
 
-const serverOnlyNames = ["serverRender", "serverLoad", "stylesheet"];
+/**
+ * Members that exist only to serve a render, and must not reach a browser.
+ *
+ * `serverInit` is the one that matters: it is where a component's queries and
+ * file reads live, and shipping it would drag that entire dependency tree into
+ * the client bundle. `stylesheet` is already inlined into the page by
+ * `injectBundle`, so a second copy in the bundle is dead weight.
+ */
+const serverOnlyNames = ["serverInit", "stylesheet"];
 
 const imports = new Set<string>();
 export function getImports(): string[] {
@@ -182,18 +230,3 @@ export function getImports(): string[] {
 export function addImport(url: string) {
 	imports.add(url);
 }
-
-// if (import.meta.main) {
-// 	const router = new Router();
-// 	router.use(Layout(({ children }) => (
-// 		<html>
-// 			<head>
-// 				<title></title>
-// 			</head>
-// 			<body>{children}</body>
-// 		</html>
-// 	))).route("/").get<{ name: string | undefined }>(
-// 		Page((ctx) => <h1>Hello, {ctx.state.name ?? "World"}!</h1>),
-// 	);
-// 	Deno.serve(router.handle.bind(router));
-// }

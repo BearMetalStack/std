@@ -1,14 +1,22 @@
-import { BMC, getCurrentOwner, setCurrentOwner, setEffectImpl } from "@bearmetal/jsx/client";
+import {
+	BMC,
+	getCurrentOwner,
+	isServerRendering,
+	setCurrentOwner,
+	trackPending,
+} from "@bearmetal/jsx";
 import type { Signal as Signals } from "@signals";
 import { Signal } from "@signals";
 import type { ContextMap } from "./context/mod.ts";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import { effect } from "./signals.ts";
 import { coerceProp, declaredProps } from "./prop.ts";
+import { declaredState } from "./state.ts";
 import { each } from "./built-ins/For.ts";
 import type { BMTemplate } from "./types.ts";
 
-setEffectImpl(effect);
+/** Where a server render leaves the `@state` it wants the browser to pick up. */
+export const STATE_ATTRIBUTE = "data-bm-state";
 
 function isSignal(S: unknown): S is Signals.State<unknown> | Signals.Computed<unknown> {
 	return S instanceof Signal.State || S instanceof Signal.Computed;
@@ -38,32 +46,6 @@ export abstract class BMElement<
 		return this;
 	}
 
-	static override async serverRender(
-		props: Record<string, unknown>,
-		children: string,
-	): Promise<string> {
-		const inst = new (this as unknown as new () => BMElement)();
-		for (const [k, v] of Object.entries(props)) {
-			// SSR is a one-shot render with no owner to keep a binding alive, so
-			// a signal prop is snapshotted rather than shared by reference.
-			const value = isSignal(v) ? v.get() : v;
-			// A `@prop`-declared field's accessor is already the signal; write
-			// through it directly. Anything undeclared falls back to the signals
-			// bag and a plain property, since there's no accessor to reach it by.
-			const declared = (inst as Record<string, unknown>)[k];
-			if (declared instanceof Signal.State) {
-				declared.set(value);
-				continue;
-			}
-			if (!inst.signals[`$${k}`]) inst.signals[`$${k}`] = new Signal.State(value);
-			(inst as Record<string, unknown>)[k] = value;
-		}
-		// deno-lint-ignore no-explicit-any
-		const tpl = await (inst as any).template;
-		if (tpl == null) return children;
-		return String(tpl);
-	}
-
 	static get stylesheet(): string | CSSStyleSheet | undefined {
 		return undefined;
 	}
@@ -75,8 +57,6 @@ export abstract class BMElement<
 	 * either runs or is cancelled by a same-tick reconnect. See `disconnectedCallback`.
 	 */
 	#disconnectPending = false;
-
-	signals: Record<string, Signals.State<unknown>> = {};
 
 	#refs = new Map<string, Element>();
 
@@ -127,29 +107,25 @@ export abstract class BMElement<
 			return;
 		}
 
-		const raw = this.dataset.serverProps;
-		if (raw) {
-			const loaded = JSON.parse(atob(raw));
-			for (const [key, value] of Object.entries(loaded)) {
-				const declared = (this as unknown as Record<string, unknown>)[key];
-				if (declared instanceof Signal.State) {
-					declared.set(value);
-					continue;
-				}
-				const sig = this.signals[`$${key}`];
-				if (!sig) {
-					this.signals[`$${key}`] = this.signal(value);
-					continue;
-				}
-				if (sig instanceof Signal.State) {
-					sig.set(value);
-				}
-			}
-		}
+		const onServer = isServerRendering();
+
+		// A client-only component is its tag and its attributes on the server and
+		// nothing else. Whatever it needs — a canvas, a media element, a map — was
+		// never going to survive serialization, so the browser builds it from
+		// scratch when the element upgrades.
+		if (onServer && (this.constructor as typeof BMElement).client) return;
+
+		if (!onServer) this.#hydrateState();
 
 		const prevOwner = getCurrentOwner();
 		setCurrentOwner(this);
 		try {
+			// `serverInit()` starts before the template renders, so whatever it sets
+			// synchronously — everything up to its first `await` — is already in
+			// place for the first pass, and the rest arrives through the signals it
+			// writes once the renderer has awaited it.
+			if (onServer) this.#runServerInit();
+
 			const t = this.template;
 			if (!isSignal(t)) {
 				// One path for both "no template" and "static template", so `init()`
@@ -168,14 +144,14 @@ export abstract class BMElement<
 				//   fragment-templated view did the moment anything it read resolved.
 				const node = t ? toNode(t) : null;
 				if (node) this.#registerRefs(node);
-				this.#runInit();
+				if (!onServer) this.#runInit();
 				if (node) this.#attach(node);
 				return;
 			}
 			this.addEffect(() => {
 				const node = toNode(t.get());
 				this.#registerRefs(node);
-				this.#runInit();
+				if (!onServer) this.#runInit();
 				this.#attach(node);
 			});
 		} catch (e) {
@@ -220,6 +196,8 @@ export abstract class BMElement<
 	/**
 	 * Defines the component's DOM structure.
 	 *
+	 * One template, built by one runtime, on a server and in a browser alike.
+	 *
 	 * @remarks
 	 * If you have `noImplicitOverride` enabled, use the `override` keyword:
 	 * `protected override get template() { ... }`
@@ -229,10 +207,16 @@ export abstract class BMElement<
 	}
 
 	/**
-	 * Called once when the component connects to the DOM.
+	 * Called once when the component connects to the DOM **in a browser**.
 	 * Override this to set up effects, refs, or one-time logic.
 	 *
 	 * Returning a function registers it as a cleanup, run on disconnect.
+	 *
+	 * This is the client half of the lifecycle, and it does not run during a
+	 * server render: listeners, timers and subscriptions have nothing to attach
+	 * to there, and a page that is about to be serialized and thrown away should
+	 * not be starting them. Server-side work belongs in
+	 * {@linkcode BMElement.serverInit}.
 	 *
 	 * @example
 	 * ```ts
@@ -247,7 +231,34 @@ export abstract class BMElement<
 	 */
 	protected init(): void | (() => void) {}
 
-	/** True between `init()` running and the disconnect that tears it down. */
+	/**
+	 * Called once when the component renders **on the server**. Override it to
+	 * load whatever the markup needs.
+	 *
+	 * It is an ordinary async method on the instance, so it sets state directly
+	 * — `this.rows.set(await db.rows())` — with no props bag to thread a return
+	 * value back through. The renderer does not wait for it before rendering: it
+	 * renders immediately, collects every `serverInit()` in the tree, awaits them
+	 * together, and lets the signals they wrote patch the markup that already
+	 * exists. That is what keeps rendering synchronous while still allowing real
+	 * I/O, and it means sibling components load in parallel rather than in tree
+	 * order.
+	 *
+	 * Mark anything you set here `@state` and the browser picks it up on
+	 * hydration instead of fetching it a second time.
+	 *
+	 * @example
+	 * ```ts
+	 * @state() accessor rows = this.signal<Row[]>([]);
+	 *
+	 * override async serverInit() {
+	 *   this.rows.set(await db.query("select * from rows"));
+	 * }
+	 * ```
+	 */
+	protected serverInit(): void | Promise<void> {}
+
+	/** True between `init()`/`serverInit()` running and the teardown that ends it. */
 	#initialized = false;
 
 	/**
@@ -264,6 +275,63 @@ export abstract class BMElement<
 		this.#initialized = true;
 		const cleanup = Signal.subtle.untrack(() => this.init());
 		if (typeof cleanup === "function") this.registerCleanup(cleanup);
+	}
+
+	/**
+	 * Starts `serverInit()` and hands the promise to the renderer.
+	 *
+	 * Untracked for the reason `init()` is: what it reads is its own business,
+	 * not a dependency of whatever render happened to mount it.
+	 */
+	#runServerInit(): void {
+		if (this.#initialized) return;
+		this.#initialized = true;
+		const work = Signal.subtle.untrack(() => this.serverInit());
+		if (work) trackPending(work);
+	}
+
+	/** Every `@state` signal on this component, by name. */
+	#stateSignals(): Array<[string, Signals.State<unknown>]> {
+		const entries: Array<[string, Signals.State<unknown>]> = [];
+		for (const name of declaredState(this.constructor)) {
+			const signal = (this as unknown as Record<string, unknown>)[name];
+			if (signal instanceof Signal.State) entries.push([name, signal]);
+		}
+		return entries;
+	}
+
+	/**
+	 * Writes this component's `@state` into its own markup.
+	 *
+	 * The server renderer calls this once every `serverInit()` has settled — so
+	 * the values recorded are the ones the browser should start from, not the
+	 * empty ones the first pass rendered with.
+	 */
+	serializeState(): void {
+		const entries = this.#stateSignals();
+		if (entries.length === 0) return;
+		const snapshot: Record<string, unknown> = {};
+		for (const [name, signal] of entries) snapshot[name] = signal.get();
+		this.setAttribute(STATE_ATTRIBUTE, JSON.stringify(snapshot));
+	}
+
+	/** Reads server-rendered `@state` back into its signals, before the first render. */
+	#hydrateState(): void {
+		const raw = this.getAttribute(STATE_ATTRIBUTE);
+		if (raw == null) return;
+		this.removeAttribute(STATE_ATTRIBUTE);
+
+		let snapshot: Record<string, unknown>;
+		try {
+			snapshot = JSON.parse(raw);
+		} catch (error) {
+			console.warn(`${this.tag}: ignoring unparseable ${STATE_ATTRIBUTE}`, error);
+			return;
+		}
+
+		for (const [name, signal] of this.#stateSignals()) {
+			if (name in snapshot) signal.set(snapshot[name]);
+		}
 	}
 
 	protected addEffect(fn: () => (() => void) | void): void {

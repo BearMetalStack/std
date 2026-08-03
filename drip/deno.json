@@ -12,7 +12,7 @@
 	},
 	"compilerOptions": {
 		"jsx": "react-jsx",
-		"jsxImportSource": "@bearmetal/jsx/server"
+		"jsxImportSource": "@bearmetal/jsx"
 	},
 	"tasks": {
 		"dev": "deno test --watch",

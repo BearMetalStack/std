@@ -1,19 +1,27 @@
+// The DOM here is @bearmetal/slag. `BMC` extends whatever `HTMLElement` is
+// ambient, so these components are real custom elements — constructed through
+// `document.createElement` and connected by being put in the tree, the same way
+// a browser would do it.
+import { installGlobals } from "@bearmetal/slag";
+installGlobals();
+
 import { assert, assertEquals } from "@std/assert";
-import { setCurrentOwner } from "@bearmetal/jsx/client";
+import { setCurrentOwner } from "@bearmetal/jsx";
 import { BMElement, getRefs } from "./BMElement.ts";
 
+let nextTag = 0;
+
 /**
- * Outside a browser `BMC` extends a plain object, so a component can be
- * constructed and connected directly as long as the few DOM surfaces
- * `connectedCallback` touches are stubbed. A component with no template and no
- * pre-rendered children takes the branch that only calls `init()`.
+ * Registers `ctor` under a fresh tag and returns an instance of it.
+ *
+ * Fresh because the custom element registry is process-wide, in Slag as in a
+ * browser: defining a tag twice is an error in both.
  */
-function connectable<T extends BMElement>(el: T): T {
-	Object.assign(el, {
-		dataset: {},
-		hasChildNodes: () => false,
-	});
-	return el;
+function element<T extends BMElement>(ctor: new () => T): T {
+	const tag = `test-el-${nextTag++}`;
+	(ctor as unknown as typeof BMElement).tag = tag;
+	customElements.define(tag, ctor as unknown as CustomElementConstructor);
+	return document.createElement(tag) as unknown as T;
 }
 
 /**
@@ -30,14 +38,14 @@ function flush(times = 3): Promise<void> {
 Deno.test("init() teardown return runs on disconnect", async () => {
 	const calls: string[] = [];
 
-	class Component extends BMElement {
-		override init() {
-			calls.push("init");
-			return () => calls.push("cleanup");
-		}
-	}
-
-	const el = connectable(new Component());
+	const el = element(
+		class extends BMElement {
+			override init() {
+				calls.push("init");
+				return () => calls.push("cleanup");
+			}
+		},
+	);
 
 	el.connectedCallback();
 	assertEquals(calls, ["init"]);
@@ -51,14 +59,14 @@ Deno.test("a same-tick reconnect cancels the pending teardown and does not re-ru
 	let inits = 0;
 	let cleanups = 0;
 
-	class Component extends BMElement {
-		override init() {
-			inits++;
-			return () => cleanups++;
-		}
-	}
-
-	const el = connectable(new Component());
+	const el = element(
+		class extends BMElement {
+			override init() {
+				inits++;
+				return () => cleanups++;
+			}
+		},
+	);
 
 	el.connectedCallback();
 	el.disconnectedCallback();
@@ -70,13 +78,13 @@ Deno.test("a same-tick reconnect cancels the pending teardown and does not re-ru
 Deno.test("init() teardown is re-registered across settled reconnects", async () => {
 	let cleanups = 0;
 
-	class Component extends BMElement {
-		override init() {
-			return () => cleanups++;
-		}
-	}
-
-	const el = connectable(new Component());
+	const el = element(
+		class extends BMElement {
+			override init() {
+				return () => cleanups++;
+			}
+		},
+	);
 
 	el.connectedCallback();
 	el.disconnectedCallback();
@@ -90,11 +98,11 @@ Deno.test("init() teardown is re-registered across settled reconnects", async ()
 });
 
 Deno.test("init() returning nothing stays supported", async () => {
-	class Component extends BMElement {
-		override init() {}
-	}
-
-	const el = connectable(new Component());
+	const el = element(
+		class extends BMElement {
+			override init() {}
+		},
+	);
 	el.connectedCallback();
 	el.disconnectedCallback();
 	await flush();
@@ -103,14 +111,14 @@ Deno.test("init() returning nothing stays supported", async () => {
 Deno.test("init() teardown runs alongside addEffect cleanups", async () => {
 	const calls: string[] = [];
 
-	class Component extends BMElement {
-		override init() {
-			this.addEffect(() => () => calls.push("effect"));
-			return () => calls.push("init");
-		}
-	}
-
-	const el = connectable(new Component());
+	const el = element(
+		class extends BMElement {
+			override init() {
+				this.addEffect(() => () => calls.push("effect"));
+				return () => calls.push("init");
+			}
+		},
+	);
 	el.connectedCallback();
 	el.disconnectedCallback();
 	await flush();
@@ -120,10 +128,8 @@ Deno.test("init() teardown runs alongside addEffect cleanups", async () => {
 });
 
 Deno.test("getRefs() reaches the owning component's refs", () => {
-	class Component extends BMElement {}
-
-	const el = new Component();
-	const paragraph = { tagName: "P" } as unknown as Element;
+	const el = element(class extends BMElement {});
+	const paragraph = document.createElement("p");
 	el.registerRef("paragraph", paragraph);
 
 	setCurrentOwner(el);
@@ -135,15 +141,13 @@ Deno.test("getRefs() reaches the owning component's refs", () => {
 });
 
 Deno.test("getRefs() is a live view, readable after the ref registers", () => {
-	class Component extends BMElement {}
-
-	const el = new Component();
+	const el = element(class extends BMElement {});
 	setCurrentOwner(el);
 	try {
 		const refs = getRefs<{ late: Element }>();
 		assertEquals(refs.late, undefined);
 
-		const late = { tagName: "DIV" } as unknown as Element;
+		const late = document.createElement("div");
 		el.registerRef("late", late);
 		assertEquals(refs.late, late);
 	} finally {

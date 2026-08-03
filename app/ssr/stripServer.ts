@@ -268,10 +268,19 @@ function findServerFunctionNames(src: string, prefixes: string[]): string[] {
 	return [...names];
 }
 
-function stripStaticClassMethod(src: string, fnName: string): string {
-	// Matches: static [async] fnName(...) { ... }
+/**
+ * Empties a class method's body, static or not, leaving its signature behind.
+ *
+ * `static` is optional because the server half of a component is an *instance*
+ * method now (`serverInit`) rather than a static one. That makes a definition
+ * nearly indistinguishable from a call, so a match only counts in member
+ * position: at the start of the source, or straight after `{`, `;` or a
+ * newline. A call site is always preceded by a `.` or an `=`, and neither
+ * qualifies.
+ */
+function stripClassMethod(src: string, fnName: string): string {
 	const pattern = new RegExp(
-		`(static\\s+(?:async\\s+)?(?:get\\s+)?${fnName}\\s*\\([^)]*\\)\\s*)`,
+		`(^|[{};\\n])([ \\t\\n]*(?:static\\s+)?(?:async\\s+)?(?:get\\s+)?${fnName}\\s*\\([^)]*\\)\\s*)`,
 		"g",
 	);
 
@@ -279,20 +288,20 @@ function stripStaticClassMethod(src: string, fnName: string): string {
 	let match;
 
 	while ((match = pattern.exec(result)) !== null) {
-		const matchStart = match.index;
+		const matchStart = match.index + match[1].length;
 		if (isInStringOrComment(result, matchStart)) continue;
 
-		const braceIdx = result.indexOf("{", matchStart + match[0].length - 1);
+		const braceIdx = result.indexOf("{", matchStart + match[2].length - 1);
 		if (braceIdx === -1) continue;
 
 		const blockEnd = findBlockEnd(result, braceIdx);
 		if (blockEnd === -1) continue;
 
-		// Replace the method body with a stub that returns undefined
-		// Keeps the method signature intact so the class shape doesn't break
-		const stub = `${match[0]}{}`;
-		result = result.slice(0, matchStart) + stub + result.slice(blockEnd + 1);
-		pattern.lastIndex = matchStart + stub.length;
+		// Keep the signature so the class shape — and anything that checks whether
+		// the method was overridden — still holds; drop only what it does.
+		const stub = `${match[1]}${match[2]}{}`;
+		result = result.slice(0, match.index) + stub + result.slice(blockEnd + 1);
+		pattern.lastIndex = match.index + stub.length;
 	}
 
 	return result;
@@ -310,7 +319,7 @@ export function stripServerCode(
 
 	let result = src;
 	for (const name of allTargets) {
-		result = stripStaticClassMethod(result, name);
+		result = stripClassMethod(result, name);
 		result = stripFunctionDefinition(result, name);
 		result = stripCallsites(result, name);
 	}

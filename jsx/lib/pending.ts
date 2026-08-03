@@ -64,7 +64,10 @@ export function endRenderScope(scope: RenderScope): void {
  * call yields only work that is new since the last one — which is what lets a
  * renderer loop until a render stops producing any.
  */
-export function collectInto<T>(scope: RenderScope, fn: () => T): { result: T; work: Promise<unknown>[] } {
+export function collectInto<T>(
+	scope: RenderScope,
+	fn: () => T,
+): { result: T; work: Promise<unknown>[] } {
 	const previous = collecting;
 	collecting = scope;
 	try {
@@ -91,7 +94,13 @@ export function trackPending(work: Promise<unknown>): void {
 	for (const scope of live) scope.work.add(work);
 }
 
-/** Whether a server render is currently building its tree. */
+/**
+ * Whether a server render is in flight.
+ *
+ * True for the whole render, not just the synchronous segments — a component
+ * that connects while the renderer is awaiting a batch of work is still part of
+ * that render, and must take the server path rather than the browser one.
+ */
 export function isServerRendering(): boolean {
-	return collecting !== null;
+	return collecting !== null || live.size > 0;
 }

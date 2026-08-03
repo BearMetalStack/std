@@ -1,4 +1,5 @@
 import type { BMC } from "@bearmetal/jsx";
+import { isBrowser } from "./util/environment.ts";
 
 type BmElementConstructor = {
 	new (...args: any[]): BMC;
@@ -33,28 +34,41 @@ export function define(
 		tag = normalizeComponentName(tag);
 		const moduleUrl = meta?.url;
 		target.tag = tag;
-		if (typeof document !== "undefined") {
-			context.addInitializer(function () {
-				if (typeof customElements === "undefined") return;
-				if (!customElements.get(tag)) {
-					customElements.define(tag, target as unknown as CustomElementConstructor);
-				}
-			});
-			const s = target.stylesheet;
-			if (s && !document.head.querySelector(`style#${tag}`)) {
-				if (s instanceof CSSStyleSheet) {
-					document.adoptedStyleSheets = [...document.adoptedStyleSheets, s];
-				} else {
-					const style = document.createElement("style");
-					style.textContent = s.replaceAll(/:scope/gm, tag);
-					style.id = tag;
-					document.head.appendChild(style);
-				}
+
+		// Register the element wherever there is a registry to register it with.
+		// A server has one now — the microdom's — and that is precisely what lets
+		// one component render on both sides, so this can no longer be gated on
+		// `typeof document`.
+		context.addInitializer(function () {
+			if (typeof customElements === "undefined") return;
+			if (!customElements.get(tag)) {
+				customElements.define(tag, target as unknown as CustomElementConstructor);
 			}
-		} else {
-			if (moduleUrl) registry.set(tag, moduleUrl);
-			const s = target.stylesheet;
-			if (typeof s === "string") stylesheetRegistry.set(tag, s.replaceAll(/:scope/gm, tag));
+		});
+
+		// The registries the SSR bundler reads: where to find a tag's client
+		// module, and what CSS to inline for it. Filled in unconditionally — the
+		// cost is two Map entries, and the alternative is a component that
+		// silently ships without styles depending on where it was first imported.
+		if (moduleUrl) registry.set(tag, moduleUrl);
+		const s = target.stylesheet;
+		if (typeof s === "string") stylesheetRegistry.set(tag, s.replaceAll(/:scope/gm, tag));
+
+		// Adopting a stylesheet into `document.head`, on the other hand, is only
+		// meaningful in a browser. Doing it server-side would pile every
+		// component's CSS into one long-lived microdom that no response ever
+		// serializes.
+		if (!isBrowser() || !s) return;
+
+		if (!document.head.querySelector(`style#${tag}`)) {
+			if (s instanceof CSSStyleSheet) {
+				document.adoptedStyleSheets = [...document.adoptedStyleSheets, s];
+			} else {
+				const style = document.createElement("style");
+				style.textContent = s.replaceAll(/:scope/gm, tag);
+				style.id = tag;
+				document.head.appendChild(style);
+			}
 		}
 	};
 }

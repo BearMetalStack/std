@@ -5,12 +5,14 @@ export type WritableSignalLike<T = unknown> = SignalLike<T> & { set(value: T): v
 
 export type MakeChild<Extra = never> =
 	| globalThis.Element
-	// A DocumentFragment is a valid child on the client runtime — it is a Node,
-	// so `appendChild` splices its contents in. `each()`/`<For>` return one to
-	// keep their reconciled items transparent (no wrapper element) in the DOM.
+	// A DocumentFragment is a valid child — it is a Node, so `appendChild`
+	// splices its contents in. `<>…</>`, `each()` and `<For>` all return one, to
+	// keep what they render transparent (no wrapper element) in the DOM.
 	| globalThis.DocumentFragment
 	| Html
-	| Promise<globalThis.Element | Html>
+	// A value that has not arrived yet. The runtime holds a slot for it and
+	// fills it in when it settles; a server render waits before serializing.
+	| Promise<globalThis.Element | globalThis.DocumentFragment | Html>
 	| string
 	| number
 	| boolean

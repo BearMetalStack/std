@@ -8,7 +8,7 @@
 // and blamed the template. Slag has the method, so the component actually mounts.
 import "@bearmetal/slag/global";
 import { assertEquals, assertExists } from "@std/assert";
-import { setCurrentOwner } from "@bearmetal/jsx/client";
+import { setCurrentOwner } from "@bearmetal/jsx";
 import { createRoot } from "@bearmetal/slag/testing";
 import type { SlagElement } from "@bearmetal/slag";
 import { BMElement } from "./BMElement.ts";

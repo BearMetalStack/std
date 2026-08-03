@@ -1,4 +1,4 @@
-import { DetachedElement, type ElementBase, rebaseOnDom } from "./dom.ts";
+import { DetachedElement, rebaseOnDom } from "./dom.ts";
 
 const _MARKER: unique symbol = Symbol.for("bearmetal.bmc");
 
@@ -16,7 +16,7 @@ const _MARKER: unique symbol = Symbol.for("bearmetal.bmc");
  * What replaces them lives on `BMElement` in `@bearmetal/app`: one `template`,
  * and a `serverInit()` the server awaits before it serializes.
  */
-export abstract class BMC extends (DetachedElement as ElementBase) {
+export abstract class BMC extends DetachedElement {
 	static readonly [_MARKER] = true;
 	static tag: string;
 
@@ -32,7 +32,7 @@ export abstract class BMC extends (DetachedElement as ElementBase) {
 
 	/** The nearest ancestor element that is also a BearMetal component. */
 	get parentBMC(): BMC | null {
-		let current = (this as unknown as { parentElement: Element | null }).parentElement;
+		let current = this.parentElement;
 		while (current && !isBMC(current.constructor)) {
 			current = current.parentElement;
 		}

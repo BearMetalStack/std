@@ -32,8 +32,20 @@ export type ElementBase = abstract new (...args: any[]) => any;
  */
 export const DOM_REBASE_HOOKS: unique symbol = Symbol.for("bearmetal.dom.rebaseHooks");
 
-/** The base `BMC` extends before any DOM exists. Deliberately empty. */
-export class DetachedElement {}
+/** The placeholder implementation. Empty on purpose: everything real is grafted on. */
+class Detached {}
+
+/**
+ * The class `BMC` is declared against.
+ *
+ * At runtime this is an empty placeholder until a DOM shows up, at which point
+ * {@linkcode rebaseOnDom} re-points anything built on it at the real
+ * `HTMLElement`. To a type checker it is simply `HTMLElement`, which is what it
+ * will be by the time any instance exists — so components get the element API
+ * they actually have, without a cast at every use.
+ */
+export const DetachedElement: typeof globalThis.HTMLElement =
+	Detached as unknown as typeof globalThis.HTMLElement;
 
 function hooks(): Set<() => void> {
 	// deno-lint-ignore no-explicit-any

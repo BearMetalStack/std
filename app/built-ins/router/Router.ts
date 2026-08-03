@@ -8,13 +8,13 @@
  */
 
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
-import { getCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
+import { getCurrentOwner, isServerRendering } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal } from "../../signals/wrapper.ts";
 import { createComputed, createSignal } from "../../signals.ts";
 import { drain } from "../../util/drain.ts";
 import { borrowOwnership } from "../../util/ownership.ts";
 import { getRouteFrame, type RouterHandle, withRouteFrame } from "./frame.ts";
-import { currentHref, interceptLinkClicks, subscribeToUrl } from "./location.ts";
+import { currentHref, interceptLinkClicks, renderUrl, subscribeToUrl } from "./location.ts";
 import {
 	flattenRoutes,
 	isRouteDescriptor,
@@ -27,16 +27,6 @@ import {
 	type RouteMeta,
 	type RouteRenderer,
 } from "./match.ts";
-
-/**
- * The JSX runtime is chosen once, at import time, from `typeof document`. The
- * server half is `async`, which means nested `<Route>` elements arrive as
- * promises there and as plain descriptors on the client — the one place this
- * module has to care which half is live.
- */
-function isServerRuntime(): boolean {
-	return typeof document === "undefined";
-}
 
 function toURL(value: string | URL): URL {
 	return new URL(value, currentHref());
@@ -87,10 +77,6 @@ export type RouteChild = RouteRenderer | JSX.Element;
  * ```
  */
 export function Route(props: RouteProps): JSX.Element {
-	if (isServerRuntime()) {
-		return Promise.all(flatten(props.children))
-			.then((children) => build(props, children)) as unknown as JSX.Element;
-	}
 	return build(props, flatten(props.children)) as unknown as JSX.Element;
 }
 
@@ -149,10 +135,16 @@ export interface RouterProps {
  * Matches the current URL against its `<Route>` children and renders the
  * winner.
  *
- * On the client the result is a signal, so the JSX runtime swaps the rendered
- * route in place as the URL changes. A matched route's renderer runs again only
- * when the *route* changes: navigating `/users/1` → `/users/2` keeps the tree
- * and updates {@linkcode useParams} instead of rebuilding.
+ * The result is a signal, so the JSX runtime swaps the rendered route in place
+ * as the URL changes. A matched route's renderer runs again only when the
+ * *route* changes: navigating `/users/1` → `/users/2` keeps the tree and
+ * updates {@linkcode useParams} instead of rebuilding.
+ *
+ * Server-side it is the same function doing the same thing, pinned to the URL
+ * being rendered. That comes from the `url` prop if there is one, and otherwise
+ * from the render itself — `renderToString(view, { url: ctx.request.url })`
+ * scopes it to the call stack, so a `<Router>` deep inside a page needs no
+ * plumbing to find it.
  *
  * @example
  * ```tsx
@@ -163,31 +155,45 @@ export interface RouterProps {
  * ```
  */
 export function Router(props: RouterProps): JSX.Element {
-	if (isServerRuntime()) return renderOnServer(props) as unknown as JSX.Element;
-	return renderOnClient(props) as unknown as JSX.Element;
-}
-
-function collect(children: unknown[], base: string): RouteChain[] {
-	const routes: RouteDescriptor[] = [];
-	for (const child of children) {
-		if (child == null || child === false) continue;
-		if (isRouteDescriptor(child)) routes.push(child);
-		else console.warn("<Router> ignored a child that is not a <Route>.");
-	}
-	return flattenRoutes(routes, base);
-}
-
-function renderOnClient(props: RouterProps): Signal.Computed<JSX.Element | null> {
 	const base = props.base ?? "/";
 	const chains = collect(flatten(props.children), base);
 
-	if (props.interceptLinks !== false) {
+	// Pinned means "the URL is fixed for the life of this router": an explicit
+	// `url` prop, or a server render, where there is exactly one URL and no
+	// navigation to follow.
+	const pinnedUrl = props.url ?? (isServerRendering() ? renderUrl() : undefined);
+	const pinned = pinnedUrl != null;
+
+	// Without a URL there is nothing to match, and guessing is worse than
+	// rendering nothing: falling back to `/` emits the *wrong* route's markup on
+	// every other path, which the client then has to tear out and replace on
+	// hydration — a visible flash, and a full mount/unmount cycle for every
+	// component in the route that never should have rendered.
+	if (isServerRendering() && !pinned) {
+		console.warn(
+			"<Router> rendered on the server without a URL, so it rendered nothing. " +
+				"Pass the request URL to the renderer (renderToString(view, { url: ctx.request.url })) " +
+				"or to the router itself (<Router url={ctx.request.url}>).",
+		);
+		return null as unknown as JSX.Element;
+	}
+
+	if (props.interceptLinks !== false && !pinned) {
 		const release = interceptLinkClicks();
 		getCurrentOwner()?.registerCleanup(release);
 	}
 
-	const pinned = props.url != null;
-	const urlOf = (href: string) => toURL(pinned ? String(props.url) : href);
+	// The match is *pushed* from the URL commit path rather than derived by a
+	// computed, and the per-name param signals are writable. Both are forced by
+	// the same constraint: a signal written from inside an effect updates its
+	// value but never notifies its readers. Deriving params reactively and
+	// mirroring them onto a child through an attribute puts the write inside the
+	// JSX runtime's prop effect, which is exactly that dead path — the child's
+	// prop changes and nothing re-renders. Pushing from `subscribeToUrl`, which
+	// only ever runs from a DOM event or an explicit navigate(), keeps every
+	// write outside a reactive computation. Writable param signals then bind
+	// straight into a child's `@prop` accessor with no attribute round-trip.
+	const urlOf = (href: string) => toURL(pinned ? String(pinnedUrl) : href);
 	const match = createSignal(matchRoutes(chains, urlOf(currentHref())));
 	const params = new Map<string, Signal.State<string | undefined>>();
 
@@ -220,28 +226,17 @@ function renderOnClient(props: RouterProps): Signal.Computed<JSX.Element | null>
 			() => drain(cleanups, (fn) => fn()),
 		);
 		return lastNode;
-	});
+	}) as unknown as JSX.Element;
 }
 
-async function renderOnServer(props: RouterProps): Promise<JSX.Element | null> {
-	const base = props.base ?? "/";
-	const chains = collect(await Promise.all(flatten(props.children)), base);
-
-	if (props.url == null) {
-		console.warn(
-			"<Router> rendered without a `url` prop outside the browser, so it rendered nothing. " +
-				"Server-side there is no `location` to match against — pass the request URL " +
-				"(<Router url={ctx.request.url}>) to server-render routed content.",
-		);
-		return null;
+function collect(children: unknown[], base: string): RouteChain[] {
+	const routes: RouteDescriptor[] = [];
+	for (const child of children) {
+		if (child == null || child === false) continue;
+		if (isRouteDescriptor(child)) routes.push(child);
+		else console.warn("<Router> ignored a child that is not a <Route>.");
 	}
-
-	const url = toURL(props.url);
-	const current = matchRoutes(chains, url);
-	const handle: RouterHandle = { chains, base, match: { get: () => current } };
-
-	if (!current) return (await props.fallback?.()) ?? null;
-	return await renderChain(handle, current, 0);
+	return flattenRoutes(routes, base);
 }
 
 function renderChain(
