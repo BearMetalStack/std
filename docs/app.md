@@ -251,6 +251,180 @@ a nested render callback whenever possible.
 
 ---
 
+## Client routing
+
+`<Router>` matches the current URL against its `<Route>` children and renders the winner. Everything
+it shows is derived from the URL every time it renders — there is no activation state and no startup
+handshake, so a page loaded (or reloaded) at a deep URL renders that route immediately.
+
+```tsx
+import { Link, Outlet, Route, Router, useParam } from "@bearmetal/app";
+
+@define("my-app")
+class App extends BMElement {
+	protected override get template() {
+		return (
+			<div>
+				<nav>
+					<Link href="/" exact>Home</Link>
+					<Link href="/settings">Settings</Link>
+				</nav>
+				<Router fallback={() => <p>Not found</p>}>
+					<Route path="/">{() => <home-page />}</Route>
+					<Route path="/users/:id">{({ param }) => <user-page userid={param("id")} />}</Route>
+					<Route path="/settings" label="Settings">
+						{() => (
+							<settings-shell>
+								<Outlet />
+							</settings-shell>
+						)}
+						<Route path="/">{() => <settings-index />}</Route>
+						<Route path="/profile">{() => <settings-profile />}</Route>
+					</Route>
+				</Router>
+			</div>
+		);
+	}
+}
+```
+
+### `<Route>`
+
+Declares one route. It renders nothing itself — it returns a descriptor that the enclosing `Router`
+collects, so the whole route tree is known statically before anything is matched.
+
+`path` is a [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) pathname
+relative to the enclosing route: `:name` captures a segment, `*` matches the rest. It defaults to
+`/`.
+
+Route content goes in a **function**, not an element — that is what makes it render only when
+matched, and re-render when the match changes. Anything else passed as a child is dropped with a
+warning.
+
+A route with nested `<Route>` children acts as a layout. Give it a renderer containing an `<Outlet>`
+to wrap them, or leave the renderer off to use it as a bare path prefix. Children are matched before
+the parent's own path, so a `path="/"` child is the index route for its parent.
+
+Any other prop (`label`, `icon`, `hidden`, whatever you invent) is carried on the descriptor's
+`meta` and never affects matching — see [`useRoutes()`](#useroutes).
+
+### `<Router>`
+
+| Prop             | Description                                                                      |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `base`           | Path every route is mounted under. Defaults to `/`.                              |
+| `url`            | Match this URL instead of the live location. **Required when server-rendering.** |
+| `fallback`       | Rendered when no route matches.                                                  |
+| `interceptLinks` | Route same-origin `<a>` clicks through the router. Defaults to `true`.           |
+
+Routes are matched in declaration order — first match wins, not most specific. A matched route's
+renderer runs again only when the _route_ changes: navigating `/users/1` → `/users/2` keeps the
+rendered tree and updates `useParams()` instead of rebuilding it.
+
+Server-side there is no `location` to read, so pass the request URL:
+
+```tsx
+router.route("/app/*").get(Page((ctx) => <Router url={ctx.request.url}>{/* … */}</Router>));
+```
+
+**Without `url`, a server render produces nothing** (and warns). That is deliberate: guessing `/`
+would emit the wrong route's markup on every other path, which the client then has to tear out and
+replace on hydration — a visible flash of the wrong page, plus a full mount/unmount cycle for
+components that should never have rendered. Rendering nothing leaves the client to fill the slot in
+with the right route on mount.
+
+This matters when the `Router` lives inside a component: `BMElement.serverRender` has no access to
+the request, so a `<Router>` in a component's `template` will not server-render routed content
+unless you thread the URL down to it yourself.
+
+### `<Outlet>`
+
+Renders the matched child route inside its parent's layout. In an `async` route renderer, call it
+before the first `await` — the frame it reads is a synchronous call-stack variable.
+
+### `<Link>`
+
+An anchor that navigates through the router instead of reloading. It renders a real `href`, so
+middle-click, "open in new tab" and crawlers behave normally, and a cross-origin `href` is left
+entirely alone.
+
+While it points at the current location it carries `data-active` and `aria-current="page"`:
+
+```css
+a[data-active] {
+	font-weight: 600;
+}
+```
+
+By default a link is active for its section too (`/settings` is active on `/settings/profile`); pass
+`exact` to require the whole path. The root (`/`) always requires an exact match. `replace` swaps
+the current history entry instead of pushing a new one.
+
+### `navigate(to, options?)`
+
+Navigates imperatively, resolving `to` against the current URL. `{ replace, state }` map onto
+`history.replaceState`/`pushState`.
+
+```ts
+import { navigate } from "@bearmetal/app";
+
+navigate("/users/42");
+navigate("?tab=settings", { replace: true });
+```
+
+`pushState`/`replaceState` are patched once, so imperative navigation from anywhere in the app —
+including code that never heard of this router — still updates what is rendered.
+
+### Params
+
+A route's render function receives a `RouteContext`. **This is the reliable way to reach params**,
+and the only one that works when the route renders a custom element:
+
+| Field         | Description                                            |
+| ------------- | ------------------------------------------------------ |
+| `param(name)` | One reactive param, ready to hand to a child as a prop |
+| `params`      | All params, merged across the matched chain            |
+| `match`       | The router's live match                                |
+| `url`         | The URL as it stood when this route rendered           |
+
+```tsx
+<Route path="/users/:id">{({ param }) => <user-page userid={param("id")} />}</Route>;
+```
+
+Params are reactive, which is what lets a params-only navigation (`/users/1` → `/users/2`) update
+the page in place instead of rebuilding it. Passing `param("id")` straight into a `@prop` binds both
+sides to the same signal, so the child re-renders on its own with no attribute round-trip.
+
+::: warning A custom element cannot use the hooks `useParams()` and friends read the frame of the
+route that is _currently rendering_. A component's `init()` runs when its element enters the
+document — long after the renderer returned — so inside a custom element they are always empty (and
+say so). Take what you need from the render function's `RouteContext` and pass it down as a prop.
+:::
+
+### Hooks
+
+For plain function components, called synchronously during a route's render (and before any
+`await`):
+
+| Hook              | Returns                                                                  |
+| ----------------- | ------------------------------------------------------------------------ |
+| `useParams()`     | `Signal.Computed<Record<string, string>>`, merged across the whole chain |
+| `useParam(name)`  | `Signal.Computed<string \| undefined>`                                   |
+| `useRouteMatch()` | `Signal.Computed<RouteMatch \| null>`                                    |
+| `useRoutes()`     | Every chain the router can match, in match order                         |
+
+```tsx
+function UserPage() {
+	const id = useParam("id");
+	return <h1>User {id}</h1>;
+}
+```
+
+`useRoutes()` returns the flattened route tree — enough to build a nav, breadcrumbs or a sitemap
+without rendering anything, with each route's `meta` along for the ride.
+
+---
+
 ## Signals :: `@bearmetal/app/signals`
 
 A pinned build of the TC39 Signals proposal polyfill (v0.2.2).

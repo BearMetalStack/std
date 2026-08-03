@@ -206,6 +206,14 @@ function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalL
 		if (!parentNode) return;
 
 		if (v instanceof Node) {
+			// Already exactly where it belongs — leave it alone. Tearing an
+			// identical node out and putting it straight back is not a no-op in the
+			// DOM: it restarts CSS animations and transitions, drops focus and text
+			// selection, reloads iframes and media, and fires a disconnect/connect
+			// pair on every custom element inside it. A signal that recomputes to
+			// the same node (a memoised branch, a route whose params changed but
+			// whose component did not) must not cost any of that.
+			if (start.nextSibling === v && v.nextSibling === end) return;
 			clearRange(parentNode);
 			parentNode.insertBefore(v, end);
 			return;

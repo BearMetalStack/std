@@ -83,3 +83,37 @@ Deno.test("reactive child updates text in place, then transitions text<->node", 
 	val.set(null);
 	assertEquals(container.innerHTML, "", "null clears the range");
 });
+
+Deno.test("re-rendering to the same node leaves it in the DOM untouched", () => {
+	// A signal that recomputes to the value it already had — a memoised branch, or
+	// a route whose params changed but whose component did not. Removing and
+	// re-inserting an identical node is not a no-op in a real DOM: it restarts
+	// animations, drops focus, reloads iframes, and fires disconnect/connect on
+	// every custom element inside.
+	const bump = signal(0);
+	const stable = document.createElement("div");
+	stable.textContent = "STABLE";
+	const view = {
+		get() {
+			bump.get();
+			return stable;
+		},
+	};
+
+	const container = jsx("div", { children: view }) as unknown as El;
+	assertEquals(container.innerHTML, "<div>STABLE</div>");
+
+	let removals = 0;
+	const realRemove = (container as unknown as { removeChild(n: unknown): unknown }).removeChild;
+	(container as unknown as { removeChild(n: unknown): unknown }).removeChild = function (n) {
+		removals++;
+		return realRemove.call(this, n);
+	};
+
+	bump.set(1);
+	bump.set(2);
+
+	assertEquals(removals, 0, "an unchanged node should never be pulled out of the DOM");
+	assertEquals(container.innerHTML, "<div>STABLE</div>");
+	assertStrictEquals(container.childNodes[1], stable);
+});

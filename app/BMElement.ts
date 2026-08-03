@@ -151,23 +151,32 @@ export abstract class BMElement<
 		setCurrentOwner(this);
 		try {
 			const t = this.template;
-			if (!t) {
+			if (!isSignal(t)) {
+				// One path for both "no template" and "static template", so `init()`
+				// has a single call site and runs either way — a component may be pure
+				// behaviour with nothing to render.
+				//
+				// A static template has nothing to re-render, so mounting it inside a
+				// reactive effect buys nothing and costs two real bugs:
+				//
+				// - Every signal `init()` touches would become a dependency of the
+				//   mount itself, so the first unrelated store update re-renders the
+				//   whole component (and re-runs `init`).
+				// - `t` is captured once, and appending a DocumentFragment *empties*
+				//   it. A second pass would then `replaceChildren()` with an empty
+				//   fragment and blank the component outright — which is what a
+				//   fragment-templated view did the moment anything it read resolved.
+				const node = t ? toNode(t) : null;
+				if (node) this.#registerRefs(node);
 				this.#runInit();
+				if (node) this.#attach(node);
 				return;
 			}
 			this.addEffect(() => {
-				const tmplNode = isSignal(t) ? toNode(t.get()) : toNode(t);
-				if (tmplNode.nodeType !== Node.TEXT_NODE) {
-					(tmplNode as HTMLElement).querySelectorAll("[ref]")?.forEach((el) =>
-						this.registerRef(el.getAttribute("ref")!, el)
-					);
-				}
+				const node = toNode(t.get());
+				this.#registerRefs(node);
 				this.#runInit();
-				if (this.root.hasChildNodes()) {
-					this.root.replaceChildren(tmplNode);
-				} else {
-					this.root.appendChild(tmplNode);
-				}
+				this.#attach(node);
 			});
 		} catch (e) {
 			console.log(this.tag, e);
@@ -176,11 +185,33 @@ export abstract class BMElement<
 		}
 	}
 
+	/**
+	 * Registers the `ref=` attributes in a rendered tree.
+	 *
+	 * Runs before `init()`, which is documented to reach them as `this.refs`.
+	 */
+	#registerRefs(node: Node): void {
+		if (node.nodeType === Node.TEXT_NODE) return;
+		(node as HTMLElement).querySelectorAll?.("[ref]")?.forEach((el) =>
+			this.registerRef(el.getAttribute("ref")!, el)
+		);
+	}
+
+	/** Puts a rendered tree in the root, replacing whatever was there. */
+	#attach(node: Node): void {
+		if (this.root.hasChildNodes()) {
+			this.root.replaceChildren(node);
+		} else {
+			this.root.appendChild(node);
+		}
+	}
+
 	disconnectedCallback(): void {
 		this.#disconnectPending = true;
 		queueMicrotask(() => {
 			if (!this.#disconnectPending) return;
 			this.#disconnectPending = false;
+			this.#initialized = false;
 			for (const cleanup of this.#cleanups) cleanup();
 			this.#cleanups = [];
 		});
@@ -216,9 +247,22 @@ export abstract class BMElement<
 	 */
 	protected init(): void | (() => void) {}
 
-	/** Runs `init()` and registers any returned teardown function. */
+	/** True between `init()` running and the disconnect that tears it down. */
+	#initialized = false;
+
+	/**
+	 * Runs `init()` once per connection and registers any teardown it returns.
+	 *
+	 * Untracked, and guarded. `init()` is lifecycle, not rendering: a signal it
+	 * reads must not become a dependency of the template that mounted it, or an
+	 * ordinary store update would re-render the component — and re-run `init`,
+	 * which is documented to run once and is where subscriptions and fetches
+	 * live.
+	 */
 	#runInit(): void {
-		const cleanup = this.init();
+		if (this.#initialized) return;
+		this.#initialized = true;
+		const cleanup = Signal.subtle.untrack(() => this.init());
 		if (typeof cleanup === "function") this.registerCleanup(cleanup);
 	}
 

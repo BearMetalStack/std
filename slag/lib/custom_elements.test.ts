@@ -145,3 +145,44 @@ Deno.test("whenDefined resolves for a tag defined later", async () => {
 
 	assertStrictEquals(await pending, Later);
 });
+
+Deno.test("a connectedCallback that builds its own children does not double-dispatch", () => {
+	// The reaction walk snapshots the subtree before the callback runs. Children
+	// the callback appends are inserted into an already-connected node, so
+	// `insertBefore` has dispatched to them; walking the post-callback child list
+	// as well would connect them a second time — which reads, from inside a
+	// component, as mounting twice.
+	const inner = defineProbe();
+	const outerTag = freshTag();
+	const document = new SlagDocument();
+
+	class Outer extends SlagHTMLElement {
+		connectedCallback() {
+			this.appendChild(document.createElement(inner.tag));
+		}
+	}
+	customElementRegistry.define(outerTag, Outer);
+
+	document.body.appendChild(document.createElement(outerTag));
+
+	assertEquals(inner.log, ["connected"]);
+});
+
+Deno.test("a child removed by its parent's connectedCallback is never connected", () => {
+	const doomed = defineProbe();
+	const outerTag = freshTag();
+	const document = new SlagDocument();
+
+	class Outer extends SlagHTMLElement {
+		connectedCallback() {
+			this.removeChild(this.firstChild!);
+		}
+	}
+	customElementRegistry.define(outerTag, Outer);
+
+	const host = document.createElement(outerTag);
+	host.appendChild(document.createElement(doomed.tag));
+	document.body.appendChild(host);
+
+	assertEquals(doomed.log.includes("connected"), false);
+});
