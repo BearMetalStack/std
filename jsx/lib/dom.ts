@@ -40,12 +40,24 @@ class Detached {}
  *
  * At runtime this is an empty placeholder until a DOM shows up, at which point
  * {@linkcode rebaseOnDom} re-points anything built on it at the real
- * `HTMLElement`. To a type checker it is simply `HTMLElement`, which is what it
- * will be by the time any instance exists — so components get the element API
- * they actually have, without a cast at every use.
+ * `HTMLElement`. To a type checker its *instances* are `HTMLElement`, which is
+ * what they will be by the time any exists — so a component gets the element
+ * API it actually has, with no cast at each use.
+ *
+ * The constructor stays permissive on purpose. When a component class is used
+ * as a JSX tag (`<BmIcon icon="x" />`), TypeScript resolves the allowed props
+ * from the first constructor parameter; `HTMLElement`'s takes none, which would
+ * make every prop on every class tag an error.
  */
-export const DetachedElement: typeof globalThis.HTMLElement =
-	Detached as unknown as typeof globalThis.HTMLElement;
+export const DetachedElement: {
+	// deno-lint-ignore no-explicit-any
+	new (...args: any[]): globalThis.HTMLElement;
+	prototype: globalThis.HTMLElement;
+} = Detached as unknown as {
+	// deno-lint-ignore no-explicit-any
+	new (...args: any[]): globalThis.HTMLElement;
+	prototype: globalThis.HTMLElement;
+};
 
 function hooks(): Set<() => void> {
 	// deno-lint-ignore no-explicit-any

@@ -1,5 +1,6 @@
 import {
 	BMC,
+	Fragment,
 	getCurrentOwner,
 	isServerRendering,
 	setCurrentOwner,
@@ -23,16 +24,21 @@ function isSignal(S: unknown): S is Signals.State<unknown> | Signals.Computed<un
 }
 
 /**
- * A `template` signal may legitimately resolve to `null`/`undefined` (e.g. a
- * ternary that renders nothing). DOM APIs don't agree on what that means:
- * `appendChild` requires a real `Node` and throws on `null`, while
- * `replaceChildren` silently stringifies it into the text `"null"`. Route
- * every template value through here first so "nothing" reliably becomes an
- * empty text node instead of a crash or stray text.
+ * Turns whatever a `template` resolved to into something attachable.
+ *
+ * A template may legitimately be `null`/`undefined` — a ternary that renders
+ * nothing — and DOM APIs disagree about what that means: `appendChild` throws
+ * on it, `replaceChildren` stringifies it into the text `"null"`. So "nothing"
+ * becomes an empty text node here, once.
+ *
+ * Anything else that is not already a node goes through the JSX runtime's own
+ * child handling, which is what makes `Html` and plain strings work as
+ * templates and keeps their escaping rules identical to a child's.
  */
 function toNode(v: unknown): Node {
 	if (v instanceof Node) return v;
-	return document.createTextNode("");
+	if (v == null) return document.createTextNode("");
+	return Fragment({ children: v });
 }
 
 export abstract class BMElement<

@@ -145,24 +145,36 @@ attribute for `observedAttributes` to watch.
 A signal is also an object, but it's handled by the binding behavior described above, not this one —
 passing a signal never lands in `items` as a raw value; it replaces `items`'s own signal.
 
-## Accessing Server Side Props
+## Loading data on the server
 
-There is no element instance on the server, so `serverLoad` and `serverRender` receive props as
-their first argument. `serverRender` also sees any additional props produced by `serverLoad`.
+A component renders on the server as itself — same instance, same `template` — so loading is an
+ordinary method that sets state, not a static that returns a props bag.
 
 ```tsx
 export class MyComponent extends BMElement {
-	static async serverLoad(props: { id: string }) {
-		const user = await db.getUserById(props.id);
-		return { user }; // becomes a signal on the client
+	@prop()
+	accessor id = this.signal("");
+	@state()
+	accessor user = this.signal<User | null>(null);
+
+	override async serverInit() {
+		this.user.set(await db.getUserById(this.id.get()));
 	}
 
-	static serverRender(props: { id: string; user: User }) {
-		return <h1>Hello, {props.user.firstName}!</h1>;
+	override get template() {
+		return <h1>Hello, {this.computed(() => this.user.get()?.firstName ?? "…")}!</h1>;
 	}
 }
 ```
 
-Whatever `serverLoad` returns is serialized onto the element and rehydrated on the client: if a
-`@prop` declares that name, its signal is set directly; otherwise it falls back to a signal on
-`this.signals.$user`, since there's no accessor to reach an undeclared prop by.
+The renderer does not wait for `serverInit()` before rendering. It renders immediately, collects
+every `serverInit()` on the page, awaits them together, and lets the signals they wrote update the
+markup that already exists — so ten components cost one round trip rather than ten.
+
+Anything marked `@state` is written into the element's markup once the page has settled, and read
+back into the same signal when the element upgrades in the browser — before its first client render.
+`this.user` is already populated; nothing is fetched twice. `@state` is independent of `@prop`: a
+prop is an input from the parent, state is what the component worked out for itself.
+
+`init()` is the browser half of the lifecycle and does not run during a server render. Listeners,
+timers and subscriptions go there; loading goes in `serverInit()`.

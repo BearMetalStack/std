@@ -79,9 +79,9 @@ export class BmSockpuppet extends BMElement {
 		});
 
 		for (
-			const form of this.querySelectorAll(
+			const form of this.querySelectorAll<HTMLFormElement>(
 				"[data-sockpuppet-form]",
-			) as HTMLFormElement[]
+			)
 		) {
 			form.addEventListener("submit", (e) => {
 				e.preventDefault();

@@ -20,7 +20,8 @@
  * ```
  *
  * To run browser-targeted code unchanged, install it over the globals — see
- * `installGlobals`, and note the import-order caveat documented there.
+ * `installGlobals`. It can be called at any point; anything already loaded that
+ * had to pick a base class without a DOM is told to re-point itself.
  *
  * @module
  */

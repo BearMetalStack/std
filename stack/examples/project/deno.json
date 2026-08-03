@@ -5,8 +5,7 @@
 	},
 	"imports": {
 		"@app/": "app/",
-		"@views/": "views/",
-		"@bearmetal/jsx": "jsr:@bearmetal/jsx@^0.0.11"
+		"@views/": "views/"
 	},
 	"compilerOptions": {
 		"jsx": "react-jsx",

@@ -1,25 +1,27 @@
 // deno-lint-ignore-file no-namespace
 import type { MakeBaseProps, MakeChild, MakeChildren, MakeIntrinsicElements } from "./lib/types.ts";
-import type { Html } from "./lib/html.ts";
 import type { BMC } from "./lib/bmc.ts";
 
 type SignalLike<T = unknown> = { get(): T };
 
 export namespace JSX {
 	/**
-	 * What a component may return.
+	 * What the runtime produces: a node.
 	 *
-	 * A `DocumentFragment` counts: `<>…</>`, `each()` and `<For>` all produce
-	 * one, and inserting it splices its contents in without a wrapper element.
-	 * `Html` is pre-escaped markup passing through untouched. A promise is a
-	 * value that has not arrived yet — the runtime holds a slot for it, and a
-	 * server render waits for it before serializing.
+	 * Always a real one — this is the point of having a single runtime — so
+	 * `container.appendChild(<div />)` type-checks, on a server as much as in a
+	 * browser. A `DocumentFragment` counts: `<>…</>`, `each()` and `<For>` all
+	 * produce one, and inserting it splices its contents in with no wrapper
+	 * element. A promise is a node that has not arrived yet; the runtime holds a
+	 * slot for it and a server render waits before serializing.
+	 *
+	 * Deliberately *not* `Html`, and not a promise. Both are perfectly good
+	 * children — see {@linkcode JSX.Child} — but neither is a node, and every
+	 * JSX expression is typed as this one regardless of what tag produced it. A
+	 * union covering the two things only an `async` function component can
+	 * return would put a cast in front of every `appendChild`.
 	 */
-	export type Element =
-		| globalThis.Element
-		| globalThis.DocumentFragment
-		| Html
-		| Promise<globalThis.Element | globalThis.DocumentFragment | Html>;
+	export type Element = globalThis.Element | globalThis.DocumentFragment;
 	export type Child = MakeChild<SignalLike>;
 	export type Children = MakeChildren<SignalLike>;
 	export type BaseProps = MakeBaseProps<SignalLike>;

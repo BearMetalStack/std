@@ -93,11 +93,11 @@ them yourself.
   catch this; it rewrites bare workspace specifiers into `jsr:` ones at publish time). Don't
   reintroduce a dependency on it from a published package. `publish_workspace.ts` refuses to publish
   any package that imports it.
-- JSX packages set `compilerOptions.jsx: "react-jsx"` and `jsxImportSource` to either
-  `@bearmetal/jsx/client` (DOM output, web components) or `@bearmetal/jsx/server` (SSR, produces
-  `Html` string wrappers). Get this backwards and JSX either won't render server-side or won't
-  produce real DOM nodes client-side — check the consuming package's `deno.json` before assuming
-  which runtime is active.
+- JSX packages set `compilerOptions.jsx: "react-jsx"` and `jsxImportSource: "@bearmetal/jsx"`. There
+  is exactly one runtime and it always builds DOM nodes; on a server that `document` is
+  `@bearmetal/slag`, whose trees serialize themselves. There is no client/server variant to choose
+  between and no import-order rule to respect — `BMC` re-points its prototype chain at whichever
+  `HTMLElement` is ambient, whenever that changes (`jsx/lib/dom.ts`).
 
 ### compilerOptions belong to the root
 

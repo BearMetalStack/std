@@ -4,7 +4,7 @@ import { getDefaultTheme, loadTheme } from "./theme.ts";
 
 export async function ThemeStyle(
 	{ theme }: { theme?: string | null },
-): Promise<import("@bearmetal/jsx").Html> {
+): Promise<import("@bearmetal/jsx/jsx-runtime").JSX.Element> {
 	const data = theme ? await loadTheme(theme) : await getDefaultTheme();
 	return <style id="thingy" $raw>{themeCSS(data, ":root").replaceAll(/\n\s*/g, " ")}</style>;
 }

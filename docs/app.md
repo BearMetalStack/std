@@ -310,32 +310,38 @@ Any other prop (`label`, `icon`, `hidden`, whatever you invent) is carried on th
 
 ### `<Router>`
 
-| Prop             | Description                                                                      |
-| ---------------- | -------------------------------------------------------------------------------- |
-| `base`           | Path every route is mounted under. Defaults to `/`.                              |
-| `url`            | Match this URL instead of the live location. **Required when server-rendering.** |
-| `fallback`       | Rendered when no route matches.                                                  |
-| `interceptLinks` | Route same-origin `<a>` clicks through the router. Defaults to `true`.           |
+| Prop             | Description                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| `base`           | Path every route is mounted under. Defaults to `/`.                                              |
+| `url`            | Match this URL instead of the live location. Server-side, defaults to the one the render is for. |
+| `fallback`       | Rendered when no route matches.                                                                  |
+| `interceptLinks` | Route same-origin `<a>` clicks through the router. Defaults to `true`.                           |
 
 Routes are matched in declaration order — first match wins, not most specific. A matched route's
 renderer runs again only when the _route_ changes: navigating `/users/1` → `/users/2` keeps the
 rendered tree and updates `useParams()` instead of rebuilding it.
 
-Server-side there is no `location` to read, so pass the request URL:
+Server-side there is no `location` to read. `Page()` supplies the request URL to the render, and a
+`<Router>` anywhere inside it — including one several levels down in a component's `template` —
+picks that up with no plumbing:
 
 ```tsx
-router.route("/app/*").get(Page((ctx) => <Router url={ctx.request.url}>{/* … */}</Router>));
+router.route("/app/*").get(Page(() => <Router>{/* … */}</Router>));
 ```
 
-**Without `url`, a server render produces nothing** (and warns). That is deliberate: guessing `/`
-would emit the wrong route's markup on every other path, which the client then has to tear out and
-replace on hydration — a visible flash of the wrong page, plus a full mount/unmount cycle for
-components that should never have rendered. Rendering nothing leaves the client to fill the slot in
-with the right route on mount.
+That works because a render is synchronous: the URL is scoped to its call stack, so concurrent
+requests cannot see each other's. Pass `url` explicitly to pin a router to a fixed URL anyway, or
+when driving the renderer yourself:
 
-This matters when the `Router` lives inside a component: `BMElement.serverRender` has no access to
-the request, so a `<Router>` in a component's `template` will not server-render routed content
-unless you thread the URL down to it yourself.
+```ts
+await renderToString(() => <Router>{/* … */}</Router>, { url: ctx.request.url });
+```
+
+**With no URL from either source, a server render produces nothing** (and warns). That is
+deliberate: guessing `/` would emit the wrong route's markup on every other path, which the client
+then has to tear out and replace on hydration — a visible flash of the wrong page, plus a full
+mount/unmount cycle for components that should never have rendered. Rendering nothing leaves the
+client to fill the slot in with the right route on mount.
 
 ### `<Outlet>`
 
