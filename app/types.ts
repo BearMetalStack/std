@@ -8,3 +8,17 @@ export type BMTemplate =
 	| Signal.State<JSX.Element | null>
 	| Signal.Computed<JSX.Element | null>
 	| undefined;
+
+export type {
+	LinkProps,
+	NavigateOptions,
+	RouteChain,
+	RouteDescriptor,
+	RouteFrame,
+	RouteMatch,
+	RouteMeta,
+	RouteProps,
+	RouteRenderer,
+	RouterHandle,
+	RouterProps,
+} from "./built-ins/router/mod.ts";
