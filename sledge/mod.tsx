@@ -16,8 +16,8 @@ styles.replaceSync(css`
 		--base-transform: translate(0,0);
 		transform:
 			translate(
-			calc(var(--offset-x,0) * var(--depth) * 2px),
-			calc(var(--offset-y,0) * var(--depth) * 2px)
+			calc(var(--offset-x,0) * var(--depth) * 1.5px),
+			calc(var(--offset-y,0) * var(--depth) * 1.5px)
 		)
 			var(--base-transform);
 	}
@@ -115,6 +115,44 @@ interface Borrower {
 
 @define("bm-sledge")
 export class Sledge extends BMElement<{ root: SVGSVGElement }> {
+	static get stylesheet(): string {
+		return css`
+			bm-sledge {
+				display: block;
+				&[debug] {
+					position: relative;
+					transform: none;
+					inset: unset;
+					&::before,
+					&::after {
+						content: "";
+						position: absolute;
+					}
+					&::before {
+						bottom: 50%;
+						left: 50%;
+						width: 1rem;
+						height: 1rem;
+						border-left: 1px solid red;
+						border-bottom: 1px solid red;
+					}
+					&::after {
+						top: 50%;
+						left: 50%;
+						width: .5rem;
+						height: .5rem;
+						border-radius: 1rem;
+						background: blue;
+						transform:
+							translate(-50%, -50%)
+							translate(calc(var(--offset-x,0) * var(--width,10px)), calc(var(--offset-y,0) *
+							var(--height,10px)));
+					}
+				}
+			}
+		`;
+	}
+
 	#eyes?: SVGGElement;
 	#zMix: Map<SVGElement, [number, number, number, number]> = new Map();
 	#gaze = new GazeOffset((x, y) => {
@@ -126,17 +164,28 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 		this.refs.root.style.setProperty("--glance-offset-x", x.toFixed(4));
 		this.refs.root.style.setProperty("--glance-offset-y", y.toFixed(4));
 
+		if (this.hasAttribute("debug")) {
+			this.style.setProperty("--offset-x", x.toFixed(4));
+			this.style.setProperty("--offset-y", y.toFixed(4));
+		}
+
 		this.#updateEyeTilt(x, y);
 	});
 	#gazeEyesOnly = false;
 
 	init(): () => void {
-		this.useShadow("open");
+		this.useShadow("closed");
 		this.root.adoptedStyleSheets = [styles];
 
 		queueMicrotask(() => this.#bootstrap());
 		this.#connectMouse();
 		this.#gaze.start();
+		queueMicrotask(() => {
+			if (this.hasAttribute("debug")) {
+				this.style.setProperty("--width", this.clientWidth / 2 + "px");
+				this.style.setProperty("--height", this.clientHeight / 2 + "px");
+			}
+		});
 		return () => {
 			this.#gaze.stop();
 			clearTimeout(this.#blinkTimeout);
@@ -385,7 +434,7 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 							id="right-ear-fore"
 							class="layer"
 							data-layer="-1"
-							data-z-mix="[-0.5,-0.75]"
+							data-z-mix="[-0.5,-2]"
 							d="m 111.8205,32.841647 c -0.66869,0.38607 -7.0527,0.386069 -7.72139,0 -0.66869,-0.38607 -3.86069,-5.914784 -3.86069,-6.686923 0,-0.77214 3.192,-6.300853 3.86069,-6.686923 0.66869,-0.386069 7.0527,-0.386069 7.7214,10e-7 0.66869,0.386069 3.86069,5.914783 3.86069,6.686922 0,0.77214 -3.192,6.300853 -3.8607,6.686923 z"
 							transform="matrix(0,0.6450249,-0.6450249,0,63.393975,-46.666182)"
 						/>
@@ -394,7 +443,7 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 							id="left-ear-fore"
 							class="layer"
 							data-layer="-1"
-							data-z-mix="[0.5,-0.75]"
+							data-z-mix="[0.5,-2]"
 							d="m 111.8205,32.841647 c -0.66869,0.38607 -7.0527,0.386069 -7.72139,0 -0.66869,-0.38607 -3.86069,-5.914784 -3.86069,-6.686923 0,-0.77214 3.192,-6.300853 3.86069,-6.686923 0.66869,-0.386069 7.0527,-0.386069 7.7214,10e-7 0.66869,0.386069 3.86069,5.914783 3.86069,6.686922 0,0.77214 -3.192,6.300853 -3.8607,6.686923 z"
 							transform="matrix(0,0.64502491,-0.64502491,0,93.084589,-46.66618)"
 						/>

@@ -25,11 +25,14 @@ Deno.serve({ port: 3000 }, async (r) => {
 							html {
 								background: #1a1a1a;
 							}
-							bm-sledge {
+							:has(bm-sledge) {
 								position: fixed;
 								top: 50%;
 								left: 50%;
 								transform: translate(-50%, -50%);
+							}
+							bm-sledge {
+								width: 200px;
 							}
 							/*body {
 								display: flex;
@@ -42,10 +45,12 @@ Deno.serve({ port: 3000 }, async (r) => {
 					{_bundle.outputFiles?.map((f) => <script type="module" src={f.path}></script>)}
 				</head>
 				<body>
-					{Array.from({ length: 1 }, () => (
-						<bm-sledge>
-						</bm-sledge>
-					))}
+					<div>
+						{Array.from({ length: 1 }, () => (
+							<bm-sledge debug>
+							</bm-sledge>
+						))}
+					</div>
 				</body>
 			</html>
 		)).toString().replace(/^/g, "<!DOCTYPE html>"),
