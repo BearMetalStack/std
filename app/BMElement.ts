@@ -151,11 +151,11 @@ export abstract class BMElement<
 		setCurrentOwner(this);
 		try {
 			const t = this.template;
-			if (!t) {
-				this.#runInit();
-				return;
-			}
 			if (!isSignal(t)) {
+				// One path for both "no template" and "static template", so `init()`
+				// has a single call site and runs either way — a component may be pure
+				// behaviour with nothing to render.
+				//
 				// A static template has nothing to re-render, so mounting it inside a
 				// reactive effect buys nothing and costs two real bugs:
 				//
@@ -166,10 +166,18 @@ export abstract class BMElement<
 				//   it. A second pass would then `replaceChildren()` with an empty
 				//   fragment and blank the component outright — which is what a
 				//   fragment-templated view did the moment anything it read resolved.
-				this.#mount(toNode(t));
+				const node = t ? toNode(t) : null;
+				if (node) this.#registerRefs(node);
+				this.#runInit();
+				if (node) this.#attach(node);
 				return;
 			}
-			this.addEffect(() => this.#mount(toNode(t.get())));
+			this.addEffect(() => {
+				const node = toNode(t.get());
+				this.#registerRefs(node);
+				this.#runInit();
+				this.#attach(node);
+			});
 		} catch (e) {
 			console.log(this.tag, e);
 		} finally {
@@ -177,14 +185,20 @@ export abstract class BMElement<
 		}
 	}
 
-	/** Registers the rendered node's refs, runs `init()`, and puts it in the root. */
-	#mount(node: Node): void {
-		if (node.nodeType !== Node.TEXT_NODE) {
-			(node as HTMLElement).querySelectorAll?.("[ref]")?.forEach((el) =>
-				this.registerRef(el.getAttribute("ref")!, el)
-			);
-		}
-		this.#runInit();
+	/**
+	 * Registers the `ref=` attributes in a rendered tree.
+	 *
+	 * Runs before `init()`, which is documented to reach them as `this.refs`.
+	 */
+	#registerRefs(node: Node): void {
+		if (node.nodeType === Node.TEXT_NODE) return;
+		(node as HTMLElement).querySelectorAll?.("[ref]")?.forEach((el) =>
+			this.registerRef(el.getAttribute("ref")!, el)
+		);
+	}
+
+	/** Puts a rendered tree in the root, replacing whatever was there. */
+	#attach(node: Node): void {
 		if (this.root.hasChildNodes()) {
 			this.root.replaceChildren(node);
 		} else {

@@ -7,7 +7,7 @@
 // error, and the template was never appended — the assertion saw an empty host
 // and blamed the template. Slag has the method, so the component actually mounts.
 import "@bearmetal/slag/global";
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import { setCurrentOwner } from "@bearmetal/jsx/client";
 import { createRoot } from "@bearmetal/slag/testing";
 import type { SlagElement } from "@bearmetal/slag";
@@ -166,4 +166,43 @@ Deno.test("init() runs once per connection across a reactive template's re-rende
 	await flush();
 	assertEquals(el.innerHTML, "<div>V1</div>", "still reactive");
 	assertEquals(inits, 1, "but init() does not re-run on every re-render");
+});
+
+Deno.test("init() runs for a component with no template at all", () => {
+	setCurrentOwner(null);
+	let inits = 0;
+
+	@define(freshTag())
+	class C extends BMElement {
+		protected override init() {
+			inits++;
+		}
+	}
+
+	mount(C.tag);
+	assertEquals(inits, 1, "a component may be pure behaviour with nothing to render");
+});
+
+Deno.test("init() can reach refs from the template that mounted it", () => {
+	// Ordering constraint: refs are registered before init() runs, which is what
+	// the documented `this.refs.field` in init() depends on.
+	setCurrentOwner(null);
+	let seen: unknown;
+
+	@define(freshTag())
+	class C extends BMElement {
+		protected override get template(): BMTemplate {
+			const wrap = document.createElement("div");
+			const input = document.createElement("input");
+			input.setAttribute("ref", "field");
+			wrap.appendChild(input);
+			return wrap as unknown as BMTemplate;
+		}
+		protected override init() {
+			seen = this.refs.field;
+		}
+	}
+
+	mount(C.tag);
+	assertExists(seen, "refs must be registered before init() runs");
 });
