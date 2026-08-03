@@ -1,6 +1,6 @@
 /**
  * @module
- * A portable, zero-dependency XML/HTML parser.
+ * A portable, zero-dependency XML/HTML parser, serializer, and builder.
  *
  * One tokenizer serves both grammars via a mode flag - the HTML quirks (void
  * elements, raw-text elements, implicit close, case folding, unquoted
@@ -14,4 +14,5 @@ export { parseHtml, parseXml, XmlParser } from "./parser.ts";
 export { decodeEntities, namedEntities } from "./entities.ts";
 export { fromDom } from "./dom.ts";
 export { serializeXml } from "./serialize.ts";
+export { append, cdata, comment, declareNamespaces, el, txt, XML_DECL } from "./build.ts";
 export { AUTO_CLOSE, ESCAPABLE_RAW, PRE_ELEMENTS, RAW_TEXT, VOID } from "./html_tables.ts";

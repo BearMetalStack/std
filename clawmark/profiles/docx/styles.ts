@@ -16,12 +16,13 @@ export const DOCX_NS: Record<string, string> = { w: WML_NS, r: REL_NS };
 // authored on a non-English installation.
 export { styleFromName } from "../../style.ts";
 
-function parseIfString(source: string | XmlElement | undefined): XmlElement | undefined {
+/** Parses a part handed over as text, or passes an already-parsed one through. */
+export function parseIfString(source: string | XmlElement | undefined): XmlElement | undefined {
 	if (source === undefined) return undefined;
 	return typeof source === "string" ? new XmlParser(source, { mode: "xml" }).parse() : source;
 }
 
-function descendants(el: XmlElement, localName: string): XmlElement[] {
+export function descendants(el: XmlElement, localName: string): XmlElement[] {
 	const out: XmlElement[] = [];
 	const walk = (node: XmlElement) => {
 		for (const child of node.children) {
