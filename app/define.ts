@@ -1,4 +1,5 @@
 import type { BMC } from "@bearmetal/jsx";
+import { onDomChanged } from "@bearmetal/jsx";
 import { isBrowser } from "./util/environment.ts";
 
 type BmElementConstructor = {
@@ -9,6 +10,31 @@ type BmElementConstructor = {
 
 const registry = new Map<string, string>();
 const stylesheetRegistry = new Map<string, string>();
+
+/**
+ * Every `@define`d component, whether or not a registry has taken it yet.
+ *
+ * A class decorator runs when its module is evaluated. In a browser there is a
+ * `customElements` by then; on a server the microdom is not installed until the
+ * first render, which is much later — so a decorator that could only register
+ * *now* would silently register nothing, and every component would serialize as
+ * an empty tag.
+ */
+const definitions = new Map<string, BmElementConstructor>();
+
+/** Registers everything not already registered. Safe to call repeatedly. */
+function defineAll(): void {
+	if (typeof customElements === "undefined") return;
+	for (const [tag, ctor] of definitions) {
+		if (!customElements.get(tag)) {
+			customElements.define(tag, ctor as unknown as CustomElementConstructor);
+		}
+	}
+}
+
+// Runs now, and again whenever a DOM appears. Between the two, the order of
+// "install the microdom" and "import the components" stops mattering.
+onDomChanged(defineAll);
 
 export function registerComponent(tag: string, url: string): void {
 	registry.set(tag, url);
@@ -37,13 +63,12 @@ export function define(
 
 		// Register the element wherever there is a registry to register it with.
 		// A server has one now — the microdom's — and that is precisely what lets
-		// one component render on both sides, so this can no longer be gated on
-		// `typeof document`.
+		// one component render on both sides, so this is no longer gated on
+		// `typeof document`. If no registry exists yet, `defineAll` picks it up
+		// when one does.
 		context.addInitializer(function () {
-			if (typeof customElements === "undefined") return;
-			if (!customElements.get(tag)) {
-				customElements.define(tag, target as unknown as CustomElementConstructor);
-			}
+			definitions.set(tag, target);
+			defineAll();
 		});
 
 		// The registries the SSR bundler reads: where to find a tag's client

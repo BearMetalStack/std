@@ -18,6 +18,7 @@ export {
 	DOM_REBASE_HOOKS,
 	type ElementBase,
 	notifyDomChanged,
+	onDomChanged,
 	rebaseOnDom,
 } from "./lib/dom.ts";
 export {

@@ -94,6 +94,20 @@ export function rebaseOnDom(target: ElementBase): void {
 }
 
 /**
+ * Runs `hook` whenever the DOM globals change, and once immediately.
+ *
+ * For work that needs a DOM but may be reached before there is one — most
+ * importantly registering custom elements, since a class decorator runs when
+ * its module is evaluated and a server does not install the microdom until it
+ * renders. Registering a hook means the order stops mattering: whichever
+ * happens second catches up.
+ */
+export function onDomChanged(hook: () => void): void {
+	hook();
+	hooks().add(hook);
+}
+
+/**
  * Announces that the DOM globals changed.
  *
  * Exported for completeness; the implementations that matter (a browser, which
