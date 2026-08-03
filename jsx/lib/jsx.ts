@@ -69,7 +69,13 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 		val = val + "px";
 	}
 	if (key === "class") {
-		el.classList.add(...(val as string).split(" "));
+		const cs = (val as string).split(" ").filter(Boolean);
+		if (cs.length) el.classList.add(...cs);
+		else el.classList.remove(...el.classList);
+	} else if (key.startsWith("class-")) {
+		const cs = key.split("-")[1];
+		if (val) el.classList.add(cs);
+		else el.classList.remove(cs);
 	} else if (key.startsWith("on") && typeof val === "function") {
 		el.addEventListener(key.slice(2).toLowerCase(), val as EventListener);
 	} else if (typeof val === "boolean") {
@@ -151,6 +157,9 @@ function applyBind(
 
 function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 	const { $bind, $type, ...attrs } = props;
+	if (el.tagName === "BUTTON" && !("type" in props)) {
+		el.setAttribute("type", "button");
+	}
 	for (const [key, val] of Object.entries(attrs)) {
 		if (key === "children") continue;
 		if (key === "ref" && typeof val === "string" && _currentOwner?.registerRef) {

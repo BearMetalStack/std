@@ -304,14 +304,14 @@ export abstract class BMElement<
 	each = each;
 
 	protected adoptStyleSheet(css: CSSStyleSheet) {
-		if (!this.shadowRoot) {
+		if (!this.#shadowRootRef) {
 			console.warn(
 				`${this.tagName}: adoptStyleSheet called but no shadow root exists. Call useShadow() first.`,
 			);
 			return;
 		}
-		this.shadowRoot.adoptedStyleSheets = [
-			...this.shadowRoot.adoptedStyleSheets,
+		this.#shadowRootRef.adoptedStyleSheets = [
+			...this.#shadowRootRef.adoptedStyleSheets,
 			css,
 		];
 	}

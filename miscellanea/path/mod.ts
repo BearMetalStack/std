@@ -23,6 +23,11 @@ export function directoryOf(path: string): string {
 	return path.split("/").slice(0, -1).join("/") || "/";
 }
 
+/** Naively returns the filename of the given path */
+export function filenameOf(path: string): string {
+	return path.split("/").pop() ?? "";
+}
+
 /** Returns `true` only for paths starting with `./` or `../` (not bare names or absolute paths). */
 export function isRelativePath(path: string): boolean {
 	return !path.startsWith("/") &&

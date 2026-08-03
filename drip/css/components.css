@@ -8,7 +8,7 @@ textarea {
 	font-family: var(--input-font-family);
 	font-size: var(--input-font-size);
 	background-color: var(--input-bg);
-	color: var(--input-text);
+	color: var(--input-color);
 	border: var(--input-border) solid var(--input-border-width);
 	border-radius: var(--input-radius);
 	padding: var(--input-padding-y) var(--input-padding-x);
@@ -104,16 +104,14 @@ button {
 	border-color: var(--btn-primary-border);
 	box-shadow: var(--btn-primary-shadow);
 
-	&.ghost,
-	&[type="reset"] {
+	&.ghost {
 		background-color: var(--btn-ghost-bg);
 		--btn-hover-color: var(--btn-ghost-bg-hover);
 		color: var(--btn-ghost-color);
 		border-color: var(--btn-ghost-border);
-		box-shadow: var(--btn-ghost-shadow);
+		box-shadow: none;
 	}
-	&.secondary,
-	&[type="button"] {
+	&.secondary {
 		background-color: var(--btn-secondary-bg);
 		--btn-hover-color: var(--btn-secondary-bg-hover);
 		color: var(--btn-secondary-color);
@@ -125,35 +123,30 @@ button {
 		--btn-hover-color: var(--btn-danger-bg-hover);
 		color: var(--btn-danger-color);
 		border-color: var(--btn-danger-border);
-		box-shadow: var(--btn-danger-shadow);
 	}
 	&.warn {
 		background-color: var(--btn-warning-bg);
 		--btn-hover-color: var(--btn-warning-bg-hover);
 		color: var(--btn-warning-color);
 		border-color: var(--btn-warning-border);
-		box-shadow: var(--btn-warning-shadow);
 	}
 	&.info {
 		background-color: var(--btn-info-bg);
 		--btn-hover-color: var(--btn-info-bg-hover);
 		color: var(--btn-info-color);
 		border-color: var(--btn-info-border);
-		box-shadow: var(--btn-info-shadow);
 	}
 	&.success {
 		background-color: var(--btn-success-bg);
 		--btn-hover-color: var(--btn-success-bg-hover);
 		color: var(--btn-success-color);
 		border-color: var(--btn-success-border);
-		box-shadow: var(--btn-success-shadow);
 	}
 	&.orange {
 		background-color: var(--btn-orange-bg);
 		--btn-hover-color: var(--btn-orange-bg-hover);
 		color: var(--btn-orange-color);
 		border-color: var(--btn-orange-border);
-		box-shadow: var(--btn-orange-shadow);
 	}
 
 	&:active {
@@ -162,6 +155,21 @@ button {
 	&:hover {
 		background-color: var(--btn-hover-color);
 	}
+}
+
+input[type="reset"] {
+	background-color: var(--btn-ghost-bg);
+	--btn-hover-color: var(--btn-ghost-bg-hover);
+	color: var(--btn-ghost-color);
+	border-color: var(--btn-ghost-border);
+	box-shadow: none;
+}
+input[type="button"] {
+	background-color: var(--btn-secondary-bg);
+	--btn-hover-color: var(--btn-secondary-bg-hover);
+	color: var(--btn-secondary-color);
+	border-color: var(--btn-secondary-border);
+	box-shadow: var(--btn-secondary-shadow);
 }
 
 body.rave-mode *:not(:has(*)) {
