@@ -56,20 +56,18 @@ export function each<T>(
 	const fragment = document.createDocumentFragment();
 	fragment.append(anchor);
 
-	// const owner = getCurrentOwner();
-	using scope = ownerScope();
+	const owner = getCurrentOwner();
 
 	const stop = reconcile(anchor, signal, render as (i: T, ii: number) => Element, key);
-	// if (!owner) {
-	// 	console.warn(
-	// 		"each() called without an owner — list cleanup won't be automatic.\n" +
-	// 			"Call the returned fragment's cleanup manually, or call each() inside:\n" +
-	// 			"  • a BmElement.init() method\n" +
-	// 			"  • an each() render callback",
-	// 	);
-	// }
-	scope.cleanups.push(stop);
-	// owner?.registerCleanup(stop);
+	if (!owner) {
+		console.warn(
+			"each() called without an owner — list cleanup won't be automatic.\n" +
+				"Call the returned fragment's cleanup manually, or call each() inside:\n" +
+				"  • a BmElement.init() method\n" +
+				"  • an each() render callback",
+		);
+	}
+	owner?.registerCleanup(stop);
 
 	return fragment;
 }
