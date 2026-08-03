@@ -327,6 +327,16 @@ Server-side there is no `location` to read, so pass the request URL:
 router.route("/app/*").get(Page((ctx) => <Router url={ctx.request.url}>{/* … */}</Router>));
 ```
 
+**Without `url`, a server render produces nothing** (and warns). That is deliberate: guessing `/`
+would emit the wrong route's markup on every other path, which the client then has to tear out and
+replace on hydration — a visible flash of the wrong page, plus a full mount/unmount cycle for
+components that should never have rendered. Rendering nothing leaves the client to fill the slot in
+with the right route on mount.
+
+This matters when the `Router` lives inside a component: `BMElement.serverRender` has no access to
+the request, so a `<Router>` in a component's `template` will not server-render routed content
+unless you thread the URL down to it yourself.
+
 ### `<Outlet>`
 
 Renders the matched child route inside its parent's layout. In an `async` route renderer, call it

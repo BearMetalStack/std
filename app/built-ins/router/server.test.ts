@@ -65,15 +65,27 @@ Deno.test("the fallback renders when nothing matches", async () => {
 	assertEquals(markup, "<p>404</p>");
 });
 
-Deno.test("rendering without a url warns, because the match would be a guess", async () => {
+Deno.test("rendering without a url produces nothing rather than guessing", async () => {
+	// Falling back to `/` used to look harmless and was the worst possible
+	// behaviour: every non-root URL server-rendered the *wrong* route, which the
+	// client then tore out and replaced on hydration — a visible flash of the
+	// wrong page, plus a full mount/unmount cycle for components that should
+	// never have rendered at all.
 	const warn = console.warn;
 	const warnings: string[] = [];
 	console.warn = (...args: unknown[]) => warnings.push(String(args[0]));
+	let markup: string;
 	try {
-		await render({ children: [route({ path: "/", children: () => html("<p>home</p>") })] });
+		markup = await render({
+			children: [
+				route({ path: "/", children: () => html("<p>home</p>") }),
+				route({ path: "/about", children: () => html("<p>about</p>") }),
+			],
+		});
 	} finally {
 		console.warn = warn;
 	}
+	assertEquals(markup, "", "no url means no match, not a match against `/`");
 	assertEquals(warnings.length, 1);
 	assertStringIncludes(warnings[0], "<Router url={ctx.request.url}>");
 });

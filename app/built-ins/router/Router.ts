@@ -214,14 +214,21 @@ async function renderOnServer(props: RouterProps): Promise<JSX.Element | null> {
 	const base = props.base ?? "/";
 	const chains = collect(await Promise.all(flatten(props.children)), base);
 
-	if (props.url == null && !globalThis.location) {
+	// Without a URL there is nothing to match, and guessing is worse than
+	// rendering nothing: falling back to `/` emits the *wrong* route's markup on
+	// every other path, which the client then has to tear out and replace on
+	// hydration — a visible flash, and a full mount/unmount cycle for every
+	// component in the route that never should have rendered.
+	if (props.url == null) {
 		console.warn(
-			"<Router> is rendering without a `url` prop and without a `location` to fall back on; " +
-				"it will match against `/`. Pass the request URL: <Router url={ctx.request.url}>.",
+			"<Router> rendered without a `url` prop outside the browser, so it rendered nothing. " +
+				"Server-side there is no `location` to match against — pass the request URL " +
+				"(<Router url={ctx.request.url}>) to server-render routed content.",
 		);
+		return null;
 	}
 
-	const url = toURL(props.url ?? currentHref());
+	const url = toURL(props.url);
 	const current = matchRoutes(chains, url);
 	const handle: RouterHandle = { chains, base, match: { get: () => current } };
 
