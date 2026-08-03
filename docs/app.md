@@ -271,7 +271,7 @@ class App extends BMElement {
 				</nav>
 				<Router fallback={() => <p>Not found</p>}>
 					<Route path="/">{() => <home-page />}</Route>
-					<Route path="/users/:id">{() => <user-page />}</Route>
+					<Route path="/users/:id">{({ param }) => <user-page userid={param("id")} />}</Route>
 					<Route path="/settings" label="Settings">
 						{() => (
 							<settings-shell>
@@ -375,9 +375,36 @@ navigate("?tab=settings", { replace: true });
 `pushState`/`replaceState` are patched once, so imperative navigation from anywhere in the app —
 including code that never heard of this router — still updates what is rendered.
 
+### Params
+
+A route's render function receives a `RouteContext`. **This is the reliable way to reach params**,
+and the only one that works when the route renders a custom element:
+
+| Field         | Description                                            |
+| ------------- | ------------------------------------------------------ |
+| `param(name)` | One reactive param, ready to hand to a child as a prop |
+| `params`      | All params, merged across the matched chain            |
+| `match`       | The router's live match                                |
+| `url`         | The URL as it stood when this route rendered           |
+
+```tsx
+<Route path="/users/:id">{({ param }) => <user-page userid={param("id")} />}</Route>;
+```
+
+Params are reactive, which is what lets a params-only navigation (`/users/1` → `/users/2`) update
+the page in place instead of rebuilding it. Passing `param("id")` straight into a `@prop` binds both
+sides to the same signal, so the child re-renders on its own with no attribute round-trip.
+
+::: warning A custom element cannot use the hooks `useParams()` and friends read the frame of the
+route that is _currently rendering_. A component's `init()` runs when its element enters the
+document — long after the renderer returned — so inside a custom element they are always empty (and
+say so). Take what you need from the render function's `RouteContext` and pass it down as a prop.
+:::
+
 ### Hooks
 
-Call these during a `<Route>`'s render, before any `await`.
+For plain function components, called synchronously during a route's render (and before any
+`await`):
 
 | Hook              | Returns                                                                  |
 | ----------------- | ------------------------------------------------------------------------ |
@@ -385,8 +412,6 @@ Call these during a `<Route>`'s render, before any `await`.
 | `useParam(name)`  | `Signal.Computed<string \| undefined>`                                   |
 | `useRouteMatch()` | `Signal.Computed<RouteMatch \| null>`                                    |
 | `useRoutes()`     | Every chain the router can match, in match order                         |
-
-Params are reactive, which is what lets a params-only navigation update in place:
 
 ```tsx
 function UserPage() {

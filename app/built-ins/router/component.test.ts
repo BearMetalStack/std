@@ -96,3 +96,35 @@ Deno.test("clicking a link navigates without a reload", async () => {
 	assertEquals(el.querySelector(".home"), null);
 	assert(el.querySelector(".shell"), "the clicked route should be showing");
 });
+
+Deno.test("a route's custom element receives its params as props", async () => {
+	// `useParams()` cannot serve a custom element: its init() runs when the
+	// element enters the document, long after the route renderer returned. The
+	// renderer's RouteContext is the path that works — and this is what breaks
+	// every parameterised route if it doesn't.
+	const el = await load("/settings/card/42");
+	assertEquals(el.querySelector(".card")?.textContent, "Card 42");
+});
+
+Deno.test("a param prop stays live across a params-only navigation", async () => {
+	const el = await load("/settings/card/42");
+	const card = el.querySelector(".card");
+
+	navigate("/settings/card/43");
+	await flush();
+
+	assertEquals(el.querySelector(".card"), card, "the route did not change");
+	assertEquals(card?.textContent, "Card 43");
+});
+
+Deno.test("rendering a route never warns about hooks being out of scope", async () => {
+	const warn = console.warn;
+	const warnings: string[] = [];
+	console.warn = (...args: unknown[]) => warnings.push(String(args[0]));
+	try {
+		await load("/settings/card/42");
+	} finally {
+		console.warn = warn;
+	}
+	assertEquals(warnings, []);
+});

@@ -78,3 +78,33 @@ Deno.test("effect restores the ambient owner after a late run — no global leak
 	);
 	stop();
 });
+
+Deno.test("a signal written from inside an effect does not notify its readers", async () => {
+	// Not a wish — a constraint, recorded so it is discovered here rather than as
+	// a component that silently renders stale content. `effect()` is a
+	// `Signal.Computed` driven by a Watcher, so its body runs as a computation,
+	// and the graph will not propagate a write made during one.
+	//
+	// Anything deriving state from a signal must therefore push from a plain
+	// callback (a DOM event, a history hook) rather than from an effect. The
+	// router's `subscribeToUrl` exists for exactly this reason.
+	const source = createSignal("a");
+	const relayed = createSignal("");
+	let reads = 0;
+
+	const stopWriter = effect(() => relayed.set(source.get()));
+	const stopReader = effect(() => {
+		relayed.get();
+		reads++;
+	});
+
+	assertEquals(reads, 1);
+	source.set("b");
+	await new Promise((r) => setTimeout(r, 0));
+
+	assertEquals(relayed.get(), "b", "the value does change");
+	assertEquals(reads, 1, "but nothing reading it re-runs");
+
+	stopWriter();
+	stopReader();
+});

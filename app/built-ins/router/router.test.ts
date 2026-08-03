@@ -7,6 +7,7 @@ import { getCurrentOwner, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import { Outlet, Route, Router, useParam, useParams, useRoutes } from "./Router.ts";
 import { navigate, resetLocationState, setUrl } from "./location.ts";
+import type { RouteChild } from "./Router.ts";
 import type { RouteDescriptor } from "./match.ts";
 
 function at(pathname: string) {
@@ -15,8 +16,13 @@ function at(pathname: string) {
 }
 
 /** `<Route>`, called the way the client JSX runtime calls it. */
-function route(props: Parameters<typeof Route>[0]): RouteDescriptor {
-	return Route(props) as unknown as RouteDescriptor;
+function route(props: Parameters<typeof Route>[0]): JSX.Element {
+	return Route(props);
+}
+
+/** The descriptor behind a `<Route>`, for tests that inspect it directly. */
+function descriptorOf(el: JSX.Element): RouteDescriptor {
+	return el as unknown as RouteDescriptor;
 }
 
 function leaf(text: string): () => JSX.Element {
@@ -230,13 +236,13 @@ Deno.test("useRoutes exposes the declared route tree", () => {
 });
 
 Deno.test("route metadata rides along on the descriptor", () => {
-	const descriptor = route({
+	const descriptor = descriptorOf(route({
 		path: "/about",
 		label: "About",
 		icon: "info",
 		hidden: true,
 		children: leaf("about"),
-	});
+	}));
 	assertEquals(descriptor.meta, { label: "About", icon: "info", hidden: true });
 });
 
@@ -278,10 +284,10 @@ Deno.test("a child that is neither a renderer nor a <Route> warns and is dropped
 	const warnings: string[] = [];
 	console.warn = (...args: unknown[]) => warnings.push(String(args[0]));
 	try {
-		const descriptor = route({
+		const descriptor = descriptorOf(route({
 			path: "/x",
-			children: ["stray text", leaf("x")] as unknown as JSX.Children,
-		});
+			children: ["stray text", leaf("x")] as unknown as RouteChild[],
+		}));
 		assert(descriptor.render, "the render function should still be picked up");
 		assertEquals(descriptor.children.length, 0);
 	} finally {

@@ -10,17 +10,18 @@
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import { getCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal } from "../../signals/wrapper.ts";
-import { createComputed } from "../../signals.ts";
+import { createComputed, createSignal } from "../../signals.ts";
 import { drain } from "../../util/drain.ts";
 import { borrowOwnership } from "../../util/ownership.ts";
 import { getRouteFrame, type RouterHandle, withRouteFrame } from "./frame.ts";
-import { currentHref, interceptLinkClicks, urlSignal } from "./location.ts";
+import { currentHref, interceptLinkClicks, subscribeToUrl } from "./location.ts";
 import {
 	flattenRoutes,
 	isRouteDescriptor,
 	matchRoutes,
 	ROUTE,
 	type RouteChain,
+	type RouteContext,
 	type RouteDescriptor,
 	type RouteMatch,
 	type RouteMeta,
@@ -59,10 +60,14 @@ export interface RouteProps extends RouteMeta {
 	 * A render function, and/or nested `<Route>` elements.
 	 *
 	 * The render function is deliberately a function rather than an element: it
-	 * runs only when the route matches, and re-runs when the match changes.
+	 * runs only when the route matches, and re-runs when the match changes. It
+	 * receives a {@linkcode RouteContext} carrying the route's reactive params.
 	 */
-	children?: unknown;
+	children?: RouteChild | RouteChild[];
 }
+
+/** What may appear inside a `<Route>`: its renderer, and/or nested routes. */
+export type RouteChild = RouteRenderer | JSX.Element;
 
 /**
  * Declares one route.
@@ -77,7 +82,7 @@ export interface RouteProps extends RouteMeta {
  * <Route path="/settings" label="Settings">
  *   {() => <Shell><Outlet /></Shell>}
  *   <Route path="/">{() => <SettingsIndex />}</Route>
- *   <Route path="/users/:id">{() => <User />}</Route>
+ *   <Route path="/users/:id">{({ param }) => <user-page id={param("id")} />}</Route>
  * </Route>
  * ```
  */
@@ -120,7 +125,7 @@ function build(props: RouteProps, children: unknown[]): RouteDescriptor {
 /** Props for {@linkcode Router}. */
 export interface RouterProps {
 	/** `<Route>` elements. Anything else is ignored with a warning. */
-	children?: unknown;
+	children?: JSX.Element | JSX.Element[];
 	/** Path every route is mounted under. Defaults to `/`. */
 	base?: string;
 	/**
@@ -181,11 +186,31 @@ function renderOnClient(props: RouterProps): Signal.Computed<JSX.Element | null>
 		getCurrentOwner()?.registerCleanup(release);
 	}
 
-	const url = urlSignal();
-	const match = createComputed(() =>
-		matchRoutes(chains, toURL(props.url != null ? String(props.url) : url.get()))
-	);
-	const handle: RouterHandle = { chains, base, match };
+	// The match is *pushed* from the URL commit path rather than derived by a
+	// computed, and the per-name param signals are writable. Both are forced by
+	// the same constraint: a signal written from inside an effect updates its
+	// value but never notifies its readers. Deriving params reactively and
+	// mirroring them onto a child through an attribute puts the write inside the
+	// JSX runtime's prop effect, which is exactly that dead path — the child's
+	// prop changes and nothing re-renders. Pushing from `subscribeToUrl`, which
+	// only ever runs from a DOM event or an explicit navigate(), keeps every
+	// write outside a reactive computation. Writable param signals then bind
+	// straight into a child's `@prop` accessor with no attribute round-trip.
+	const pinned = props.url != null;
+	const urlOf = (href: string) => toURL(pinned ? String(props.url) : href);
+	const match = createSignal(matchRoutes(chains, urlOf(currentHref())));
+	const params = new Map<string, Signal.State<string | undefined>>();
+
+	if (!pinned) {
+		const unsubscribe = subscribeToUrl((href) => {
+			const next = matchRoutes(chains, urlOf(href));
+			match.set(next);
+			for (const [name, signal] of params) signal.set(next?.params[name]);
+		});
+		getCurrentOwner()?.registerCleanup(unsubscribe);
+	}
+
+	const handle: RouterHandle = { chains, base, match, params };
 
 	const cleanups: Array<() => void> = [];
 	// The matched pattern is the identity of the rendered tree. Holding the
@@ -243,7 +268,30 @@ function renderChain(
 ): JSX.Element | null {
 	const route = match.routes[depth];
 	if (!route?.render) return null;
-	return withRouteFrame({ router, match, depth }, route.render);
+	const render = route.render;
+	return withRouteFrame(
+		{ router, match, depth },
+		() => render(routeContext(router, match)),
+	);
+}
+
+function routeContext(router: RouterHandle, match: RouteMatch): RouteContext {
+	return {
+		url: match.url,
+		params: createComputed(() => router.match.get()?.params ?? {}),
+		match: createComputed(() => router.match.get()),
+		param: (name) => {
+			// One writable signal per name, cached on the router and updated from
+			// the URL commit path. Writable so the JSX runtime binds it directly
+			// into a child's `@prop` accessor instead of mirroring it through an
+			// attribute — see the note in `renderOnClient`.
+			const existing = router.params?.get(name);
+			if (existing) return existing;
+			const signal = createSignal(router.match.get()?.params[name]);
+			router.params?.set(name, signal);
+			return signal;
+		},
+	};
 }
 
 // -- <Outlet> --
@@ -272,10 +320,20 @@ export function Outlet(): JSX.Element | null {
  * Reactive: the returned signal updates on a params-only navigation without the
  * route re-rendering.
  *
+ * @remarks Only valid while a route is rendering — that is, synchronously
+ * inside a `<Route>`'s render function or a plain function component it calls.
+ * A **custom element cannot use this**: its `init()` runs when the element is
+ * inserted into the document, long after the renderer returned. Take params
+ * from the renderer's {@linkcode RouteContext} and pass them in as props.
+ *
  * @example
  * ```tsx
+ * // In a function component, called during the render:
  * const params = useParams();
  * return <h1>User {params.get().id}</h1>;
+ *
+ * // For a custom element, hand it down instead:
+ * <Route path="/users/:id">{({ param }) => <user-page id={param("id")} />}</Route>
  * ```
  */
 export function useParams(): Signal.Computed<Record<string, string>> {
@@ -294,8 +352,11 @@ export function useRouteMatch(): Signal.Computed<RouteMatch | null> {
 	const frame = getRouteFrame();
 	if (!frame) {
 		console.warn(
-			"useRouteMatch()/useParams() was called outside of a route renderer and will always be empty. " +
-				"Call it during a <Route>'s render, before any `await`.",
+			"useRouteMatch()/useParams() was called outside of a route render and will always be empty.\n" +
+				"It is only valid synchronously inside a <Route>'s render function (and before any `await`).\n" +
+				"If this is a custom element: its init() runs when the element enters the document, which is\n" +
+				"after the renderer returned. Pass params in as props instead:\n" +
+				'  <Route path="/users/:id">{({ param }) => <user-page id={param("id")} />}</Route>',
 		);
 		return createComputed(() => null);
 	}

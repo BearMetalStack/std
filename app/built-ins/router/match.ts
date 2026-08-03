@@ -10,12 +10,33 @@
 
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import { joinPath } from "@bearmetal/miscellanea";
+import type { SignalOf } from "../../types.ts";
 
 /** Brands an object as a route descriptor across bundle boundaries. */
 export const ROUTE: unique symbol = Symbol.for("bearmetal.router.route");
 
+/**
+ * What a matched route's renderer is handed.
+ *
+ * This is the reliable way to reach params, and the only one that works when
+ * the route renders a custom element: a component's `init()` runs when the
+ * element is *inserted into the document*, which is long after the renderer
+ * returned, so `useParams()` inside it has no route to read. Take what you
+ * need here and pass it down as props.
+ */
+export interface RouteContext {
+	/** Reactive path params, merged across the whole matched chain. */
+	params: SignalOf<Record<string, string>>;
+	/** A single reactive path param, by name. */
+	param: (name: string) => SignalOf<string | undefined>;
+	/** The enclosing router's live match. */
+	match: SignalOf<RouteMatch | null>;
+	/** The URL as it stood when this route rendered. */
+	url: URL;
+}
+
 /** Produces the content for a matched route. */
-export type RouteRenderer = () => JSX.Element | null;
+export type RouteRenderer = (context: RouteContext) => JSX.Element | null;
 
 /**
  * Descriptive fields carried on a route but never used for matching.

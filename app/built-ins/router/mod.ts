@@ -38,6 +38,7 @@ export {
 	matchRoutes,
 	ROUTE,
 	type RouteChain,
+	type RouteContext,
 	type RouteDescriptor,
 	type RouteMatch,
 	type RouteMeta,

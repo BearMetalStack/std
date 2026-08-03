@@ -13,6 +13,7 @@ export type {
 	LinkProps,
 	NavigateOptions,
 	RouteChain,
+	RouteContext,
 	RouteDescriptor,
 	RouteFrame,
 	RouteMatch,

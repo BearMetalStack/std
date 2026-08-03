@@ -20,8 +20,13 @@ import type { RouteChain, RouteMatch } from "./match.ts";
 export interface RouterHandle {
 	/** Every chain the router can match, in match order. */
 	chains: readonly RouteChain[];
-	/** The live match. A signal on the client; a constant on the server. */
-	match: Signal.Computed<RouteMatch | null> | { get(): RouteMatch | null };
+	/** The live match. A writable signal on the client; a constant on the server. */
+	match: { get(): RouteMatch | null };
+	/**
+	 * Writable per-name param signals, cached so a child bound to one keeps the
+	 * same signal across navigations. Absent when server-rendering.
+	 */
+	params?: Map<string, Signal.State<string | undefined>>;
 	/** Path every route in this router is mounted under. */
 	base: string;
 }

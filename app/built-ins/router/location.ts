@@ -54,9 +54,29 @@ export function currentHref(): string {
 	return state ? href : globalThis.location?.href ?? FALLBACK_HREF;
 }
 
+const subscribers = new Set<(href: string) => void>();
+
+/**
+ * Calls `fn` whenever the URL changes, outside any reactive computation.
+ *
+ * This exists because the signal graph will not let an effect be the thing that
+ * writes: a `Signal.State.set()` performed inside an effect updates the value
+ * but never notifies anything else reading it, so state derived from the URL by
+ * an effect silently goes stale. Every call into `commit` originates in a DOM
+ * event, a history hook or an explicit `navigate()` — never a reactive
+ * computation — so a subscriber may safely write signals.
+ */
+export function subscribeToUrl(fn: (href: string) => void): () => void {
+	urlSignal();
+	subscribers.add(fn);
+	return () => subscribers.delete(fn);
+}
+
 function commit(next: string): void {
+	if (next === href) return;
 	href = next;
 	state?.set(next);
+	for (const fn of [...subscribers]) fn(next);
 }
 
 /** Pulls the live `location` back into the signal. Idempotent, and a no-op without one. */

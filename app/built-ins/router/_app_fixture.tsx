@@ -15,6 +15,7 @@
 
 import { BMElement } from "../../BMElement.ts";
 import { define } from "../../define.ts";
+import { prop } from "../../prop.ts";
 import type { BMTemplate } from "../../types.ts";
 import { Outlet, Route, Router, useParam } from "./Router.ts";
 import { Link } from "./Link.tsx";
@@ -34,6 +35,21 @@ function Shell() {
 
 function Profile() {
 	return <p class="profile">Profile {useParam("id")}</p>;
+}
+
+/**
+ * A route page as a *custom element* — the case `useParams()` cannot serve,
+ * since `init()` runs when the element enters the document, after the route
+ * renderer has already returned. It takes its param as a prop instead.
+ */
+@define("bm-router-test-card")
+class _Card extends BMElement {
+	@prop()
+	accessor cardid = this.signal("");
+
+	protected override get template(): BMTemplate {
+		return <p class="card">Card {this.cardid}</p> as unknown as BMTemplate;
+	}
 }
 
 let counter = 0;
@@ -57,6 +73,9 @@ export function defineApp(): string {
 						<Route path="/settings" label="Settings">
 							{() => <Shell />}
 							<Route path="/profile/:id">{() => <Profile />}</Route>
+							<Route path="/card/:id">
+								{({ param }) => <bm-router-test-card cardid={param("id")} />}
+							</Route>
 						</Route>
 					</Router>
 				</div>
