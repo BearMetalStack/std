@@ -16,19 +16,31 @@ styles.replaceSync(css`
 		--base-transform: translate(0,0);
 		transform:
 			translate(
-			calc(var(--offset-x,0) * var(--depth) * 1.5px),
-			calc(var(--offset-y,0) * var(--depth) * 1.5px)
+			calc(var(--offset-x,0) * var(--depth) * 2px),
+			calc(var(--offset-y,0) * var(--depth) * 2px)
 		)
 			var(--base-transform);
 	}
 	#eyes {
 		--blink: 1;
+		transform:
+			translate(
+			calc(var(--glance-offset-x,0) * 1px),
+			calc(var(--glance-offset-y,0) * 1px)
+		)
+			var(--base-transform);
+	}
+	#nose {
+		scale: var(--sniff,1);
+		transition: scale 100ms;
+		transform-origin: bottom;
+		transform-box: fill-box;
 	}
 	.eye {
-		transition: transform .2s;
+		transition: transform .1s;
 		transform-origin: center;
 		transform-box: fill-box;
-		transform: rotate(calc(var(--tilt,0) * 1deg)) scaleY(var(--blink,1));
+		transform: rotate(calc(var(--tilt,0) * 1.5deg)) scaleY(var(--blink,1));
 	}
 `);
 
@@ -46,6 +58,8 @@ class GazeOffset {
 	#onUpdate: (x: number, y: number) => void;
 	#raf?: number;
 
+	#held?: [number, number];
+
 	constructor(onUpdate: (x: number, y: number) => void, damping = 0.1) {
 		this.#onUpdate = onUpdate;
 		this.#damping = damping;
@@ -53,14 +67,21 @@ class GazeOffset {
 
 	/** Anything driving the gaze — mouse, idle wander, whatever — calls this. */
 	setTarget(x: number, y: number) {
+		x = Math.max(-1, Math.min(1, x));
+		y = Math.max(-1, Math.min(1, y));
 		this.#targetX = x;
 		this.#targetY = y;
 	}
 
 	start() {
-		const tick = () => {
-			this.#currentX += (this.#targetX - this.#currentX) * this.#damping;
-			this.#currentY += (this.#targetY - this.#currentY) * this.#damping;
+		let last = performance.now();
+		const tick = (t: number) => {
+			const d = (t - last) / 1000;
+			last = t;
+			const decayRate = 1000;
+			const factor = (1 - Math.exp(-decayRate * d)) * this.#damping;
+			this.#currentX += (this.#targetX - this.#currentX) * factor;
+			this.#currentY += (this.#targetY - this.#currentY) * factor;
 			this.#onUpdate(this.#currentX, this.#currentY);
 			this.#raf = requestAnimationFrame(tick);
 		};
@@ -70,35 +91,64 @@ class GazeOffset {
 	stop() {
 		if (this.#raf) cancelAnimationFrame(this.#raf);
 	}
+
+	hold() {
+		this.#held = [this.#currentX, this.#currentY];
+	}
+	release() {
+		if (!this.#held) return;
+		[this.#currentX, this.#currentY] = this.#held;
+		this.#held = undefined;
+	}
+}
+
+interface Borrower {
+	stopMouseTracking: () => void;
+	startMouseTracking: () => void;
+	blink: () => void;
+	blinkX: (numTimes: number) => void;
+	closeEyes: () => void;
+	openEyes: () => void;
+	setGazeTarget: (x: number, y: number) => void;
+	setGazeEyesOnly: (eyesOnly: boolean) => void;
 }
 
 @define("bm-sledge")
 export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 	#eyes?: SVGGElement;
+	#zMix: Map<SVGElement, [number, number, number, number]> = new Map();
 	#gaze = new GazeOffset((x, y) => {
-		this.refs.root.style.setProperty("--offset-x", x.toFixed(4));
-		this.refs.root.style.setProperty("--offset-y", y.toFixed(4));
+		if (!this.#gazeEyesOnly) {
+			this.refs.root.style.setProperty("--offset-x", x.toFixed(4));
+			this.refs.root.style.setProperty("--offset-y", y.toFixed(4));
+			this.#updateZMix(Number(x.toFixed(4)), Number(y.toFixed(4)));
+		}
+		this.refs.root.style.setProperty("--glance-offset-x", x.toFixed(4));
+		this.refs.root.style.setProperty("--glance-offset-y", y.toFixed(4));
 
 		this.#updateEyeTilt(x, y);
 	});
+	#gazeEyesOnly = false;
 
-	init() {
+	init(): () => void {
 		this.useShadow("open");
 		this.root.adoptedStyleSheets = [styles];
 
 		queueMicrotask(() => this.#bootstrap());
 		this.#connectMouse();
 		this.#gaze.start();
-		this.addEffect(() => () => this.#gaze.stop());
+		return () => {
+			this.#gaze.stop();
+			clearTimeout(this.#blinkTimeout);
+		};
 	}
 
 	#bootstrap() {
 		this.#eyes = this.root.querySelector("#eyes");
-		this.blink();
+		this.#blinkSequence();
 		for (const layer of this.root.querySelectorAll(".layer")) {
 			let transform: string = layer.getAttribute("transform");
 			if (transform) {
-				console.log(layer.id, transform);
 				transform = transform.replace(
 					/translate\(([^)]+)\)/g,
 					(_, args: string) => {
@@ -111,8 +161,18 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 			}
 			layer.style.setProperty("--depth", layer.getAttribute("data-layer") ?? "0");
 		}
+
+		for (const zMixable of this.root.querySelectorAll("[data-z-mix]")) {
+			const zMix = zMixable.getAttribute("data-z-mix");
+			if (zMix) {
+				const mix = JSON.parse(zMix);
+				if (!mix || mix.length !== 2) continue;
+				this.#zMix.set(zMixable, mix);
+			}
+		}
 	}
 
+	// TODO: make this mix vertical weight based on relative side so it can look up or down in both directions instead of only one direction at a time
 	#updateEyeTilt(x: number, y: number) {
 		const horizontalWeight = 6;
 		const verticalWeight = 0;
@@ -120,25 +180,161 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 		this.#eyes?.style.setProperty("--tilt", tilt.toFixed(2));
 	}
 
+	#zMixSide = new Map<Element, "behind" | "front">();
+
+	#updateZMix(x: number, y: number) {
+		const face = this.root.getElementById("face") as SVGElement;
+		const parent = face.parentNode;
+		if (!parent) return;
+
+		let needsReorder = false;
+		const results: { layer: Element; depth: number; side: "behind" | "front" }[] = [];
+
+		for (const [layer, [dx, dy]] of this.#zMix.entries()) {
+			const depth = x * dx + y * dy;
+			const side = depth > 0 ? "behind" : "front";
+			results.push({ layer, depth, side });
+			if (this.#zMixSide.get(layer) !== side) {
+				needsReorder = true;
+				this.#zMixSide.set(layer, side);
+			}
+		}
+
+		if (!needsReorder) return;
+
+		const behind = results.filter((r) => r.side === "behind").sort((a, b) => b.depth - a.depth);
+		const front = results.filter((r) => r.side === "front").sort((a, b) => a.depth - b.depth);
+
+		for (const { layer } of behind) parent.insertBefore(layer, face);
+		for (const { layer } of front) parent.insertBefore(layer, face.nextSibling);
+	}
+
+	#mouseTracking = (e: MouseEvent) => {
+		const rect = this.refs.root.getBoundingClientRect();
+		const centerX = rect.left + rect.width / 2;
+		const centerY = rect.top + rect.height / 2;
+
+		const x = (e.clientX - centerX) / (rect.width / 2);
+		const y = (e.clientY - centerY) / (rect.height / 2);
+
+		this.#gaze.setTarget(x, y);
+	};
+
 	#connectMouse() {
-		document.addEventListener("mousemove", (e) => {
-			const rect = this.refs.root.getBoundingClientRect();
-			const centerX = rect.left + rect.width / 2;
-			const centerY = rect.top + rect.height / 2;
+		document.addEventListener("mousemove", this.#mouseTracking);
+	}
 
-			const x = Math.max(-1, Math.min(1, (e.clientX - centerX) / (rect.width / 2)));
-			const y = Math.max(-1, Math.min(1, (e.clientY - centerY) / (rect.height / 2)));
+	#disconnectMouse() {
+		document.removeEventListener("mousemove", this.#mouseTracking);
+	}
 
-			this.#gaze.setTarget(x, y);
-		});
+	/**
+	 * Allows an external animation controller to borrow control from Sledge.
+	 * Returns hooks to disable mouse tracking, set gazeTarget and control eye opening.
+	 */
+	borrow(): Borrower {
+		return {
+			stopMouseTracking: () => {
+				this.#disconnectMouse();
+			},
+			startMouseTracking: () => {
+				this.#connectMouse();
+			},
+			blink: () => {
+				this.blink();
+			},
+			blinkX: (numTimes: number) => {
+				this.blinkX(numTimes);
+			},
+			closeEyes: () => {
+				this.closeEyes(true);
+			},
+			openEyes: () => {
+				this.openEyes(true);
+			},
+			setGazeTarget: (x: number, y: number) => {
+				this.#gaze.setTarget(x, y);
+			},
+			setGazeEyesOnly: (eyesOnly: boolean) => {
+				this.#gazeEyesOnly = eyesOnly;
+				if (!this.#gazeEyesOnly) {
+					this.#gaze.release();
+				} else this.#gaze.hold();
+			},
+		};
+	}
+
+	#eyesOpen = false;
+	#holdEyesClosed = false;
+	closeEyes(hold = false) {
+		if (this.#holdEyesClosed) return;
+		this.#holdEyesClosed = hold;
+		this.#eyes?.style.setProperty("--blink", "0.1");
+		this.#eyesOpen = false;
+	}
+
+	openEyes(force = false) {
+		if (this.#holdEyesClosed && !force) return;
+		this.#holdEyesClosed = false;
+		this.#eyes?.style.setProperty("--blink", "1");
+		this.#eyesOpen = true;
+	}
+
+	toggleEyes() {
+		if (this.#eyesOpen) this.closeEyes(true);
+		else this.openEyes(true);
 	}
 
 	blink() {
-		this.#eyes?.style.setProperty("--blink", "0");
+		this.closeEyes();
 		setTimeout(() => {
-			this.#eyes?.style.setProperty("--blink", "1");
-		}, 300);
-		setTimeout(() => this.blink(), Math.random() * 10000);
+			this.openEyes();
+		}, 250);
+	}
+
+	blinkX(numTimes: number) {
+		this.blink();
+		numTimes--;
+		const i = setInterval(() => {
+			if (numTimes-- > 0) this.blink();
+			else clearInterval(i);
+		}, 400);
+	}
+
+	#blinkTimeout?: ReturnType<typeof setTimeout>;
+	#blinkSequence() {
+		this.blink();
+		this.#blinkTimeout = setTimeout(() => this.#blinkSequence(), Math.random() * 10000 + 400);
+	}
+
+	sniff() {
+		this.refs.root.style.setProperty("--sniff", "1.1");
+		setTimeout(() => {
+			this.refs.root.style.setProperty("--sniff", "1");
+		}, 100);
+	}
+
+	#sniffing?: number;
+	#sniffLevel = 1;
+	beginSlowSniff() {
+		let last = performance.now();
+		const sniff = (t: number) => {
+			const d = (t - last) / 1000;
+			last = t;
+			if (this.#sniffLevel >= 1.2) return;
+			this.#sniffLevel += .5 * d;
+			this.refs.root.style.setProperty("--sniff", `${this.#sniffLevel}`);
+			this.#sniffing = requestAnimationFrame(sniff);
+		};
+		this.#sniffing = requestAnimationFrame(sniff);
+	}
+	endSlowSniff() {
+		if (this.#sniffing) {
+			cancelAnimationFrame(this.#sniffing);
+			this.#sniffing = undefined;
+			this.#sniffLevel = 1;
+			this.refs.root.style.setProperty("--sniff", "1");
+		}
 	}
 
 	protected get template(): BMTemplate {
@@ -189,6 +385,7 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 							id="right-ear-fore"
 							class="layer"
 							data-layer="-1"
+							data-z-mix="[-0.5,-0.75]"
 							d="m 111.8205,32.841647 c -0.66869,0.38607 -7.0527,0.386069 -7.72139,0 -0.66869,-0.38607 -3.86069,-5.914784 -3.86069,-6.686923 0,-0.77214 3.192,-6.300853 3.86069,-6.686923 0.66869,-0.386069 7.0527,-0.386069 7.7214,10e-7 0.66869,0.386069 3.86069,5.914783 3.86069,6.686922 0,0.77214 -3.192,6.300853 -3.8607,6.686923 z"
 							transform="matrix(0,0.6450249,-0.6450249,0,63.393975,-46.666182)"
 						/>
@@ -197,6 +394,7 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 							id="left-ear-fore"
 							class="layer"
 							data-layer="-1"
+							data-z-mix="[0.5,-0.75]"
 							d="m 111.8205,32.841647 c -0.66869,0.38607 -7.0527,0.386069 -7.72139,0 -0.66869,-0.38607 -3.86069,-5.914784 -3.86069,-6.686923 0,-0.77214 3.192,-6.300853 3.86069,-6.686923 0.66869,-0.386069 7.0527,-0.386069 7.7214,10e-7 0.66869,0.386069 3.86069,5.914783 3.86069,6.686922 0,0.77214 -3.192,6.300853 -3.8607,6.686923 z"
 							transform="matrix(0,0.64502491,-0.64502491,0,93.084589,-46.66618)"
 						/>
@@ -208,14 +406,13 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 							d="m 51.906649,51.308006 c 0,-0.946176 3.911466,-7.721033 4.730878,-8.194121 0.819412,-0.473088 8.642344,-0.473087 9.461756,10e-7 0.819412,0.473087 4.730877,7.247945 4.730877,8.194121 0,0.946175 -3.911466,7.721033 -4.730878,8.19412 -0.819412,0.473088 -8.642344,0.473088 -9.461756,0 -0.819412,-0.473088 -4.730877,-7.247946 -4.730877,-8.194121 z"
 							transform="matrix(1.1618101,0,0,1.1618101,-9.9300245,-9.3105891)"
 						/>
-						<path
-							style="fill:#3a2050;fill-opacity:1;stroke:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
-							id="nose"
-							class="layer"
-							data-layer="2"
-							d="m 110.91584,38.379149 c -0.91896,0 -5.05427,-7.162567 -4.59479,-7.958408 0.45948,-0.795841 8.7301,-0.795841 9.18958,-1e-6 0.45948,0.795841 -3.67583,7.958409 -4.59479,7.958409 z"
-							transform="translate(-49.547985,11.927344)"
-						/>
+						<g class="layer" data-layer="2" transform="translate(-49.547985,11.927344)">
+							<path
+								style="fill:#3a2050;fill-opacity:1;stroke:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:0;stroke-opacity:1"
+								id="nose"
+								d="m 110.91584,38.379149 c -0.91896,0 -5.05427,-7.162567 -4.59479,-7.958408 0.45948,-0.795841 8.7301,-0.795841 9.18958,-1e-6 0.45948,0.795841 -3.67583,7.958409 -4.59479,7.958409 z"
+							/>
+						</g>
 						<g id="eyes" class="eyes layer" data-layer="1">
 							<path
 								id="eye-right"
@@ -235,4 +432,129 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 			</slot>
 		);
 	}
+}
+
+bootstrapControls();
+
+export function bootstrapControls() {
+	document.addEventListener("DOMContentLoaded", () => {
+		let selectedSledge: Sledge | undefined = undefined;
+		let roundActive: boolean = false;
+
+		function getSledges() {
+			if (selectedSledge) return [selectedSledge];
+			return Array.from(document.querySelectorAll("bm-sledge")) as unknown as Sledge[];
+		}
+
+		document.addEventListener("mouseup", (e) => {
+			selectedSledge = e.target instanceof Sledge ? e.target : undefined;
+		});
+
+		document.addEventListener("keydown", (e) => {
+			switch (e.key) {
+				case "l":
+					getSledges().forEach((sledge) => {
+						sledge.closeEyes(true);
+					});
+					break;
+				case "n":
+					getSledges().forEach((sledge) => {
+						sledge.beginSlowSniff();
+					});
+					break;
+			}
+		});
+
+		document.addEventListener("keyup", (e) => {
+			switch (e.key) {
+				case "l":
+					getSledges().forEach((sledge) => {
+						sledge.openEyes(true);
+					});
+					break;
+				case "b":
+					getSledges().forEach((sledge) => {
+						sledge.blink();
+					});
+					break;
+				case "c":
+					getSledges().forEach((sledge) => {
+						sledge.blinkX(Math.ceil(Math.random() * 3));
+					});
+					break;
+				case "g":
+					getSledges().forEach((sledge) => {
+						sledge.borrow().setGazeEyesOnly(true);
+					});
+					break;
+				case "f":
+					getSledges().forEach((sledge) => {
+						sledge.borrow().setGazeEyesOnly(false);
+					});
+					break;
+				case "r":
+					roundActive = !roundActive;
+					runRound();
+					getSledges().forEach((sledge) => {
+						roundActive
+							? sledge.borrow().stopMouseTracking()
+							: sledge.borrow().startMouseTracking();
+					});
+					break;
+				case "s":
+					getSledges().forEach((sledge) => {
+						sledge.sniff();
+					});
+					break;
+				case "n":
+					getSledges().forEach((sledge) => {
+						sledge.endSlowSniff();
+					});
+					break;
+			}
+			selectedSledge = undefined;
+		});
+
+		const poses = new Map<Sledge, [number, number]>();
+		const dirs = new Map<Sledge, [number, number]>();
+		const step = 0.05;
+		function runRound() {
+			if (!roundActive) return;
+			getSledges().forEach((sledge) => {
+				const c = sledge.borrow();
+				let pos = poses.get(sledge);
+				if (!pos) {
+					pos = poses.set(sledge, [0, 0]).get(sledge)!;
+				}
+				let dir = dirs.get(sledge);
+				if (!dir) {
+					dir = dirs.set(sledge, [1, 0]).get(sledge)!;
+				}
+				pos[0] += dir[0] * step;
+				pos[1] += dir[1] * step;
+				if (dir[0] === 1 && pos[0] >= 1) {
+					pos[0] = 1;
+					dir[0] = 0;
+					dir[1] = 1;
+				}
+				if (dir[1] === 1 && pos[1] >= 1) {
+					pos[1] = 1;
+					dir[0] = -1;
+					dir[1] = 0;
+				}
+				if (dir[0] === -1 && pos[0] <= -1) {
+					pos[0] = -1;
+					dir[0] = 0;
+					dir[1] = -1;
+				}
+				if (dir[1] === -1 && pos[1] <= -1) {
+					pos[1] = -1;
+					dir[0] = 1;
+					dir[1] = 0;
+				}
+				c.setGazeTarget(...pos);
+			});
+			requestAnimationFrame(runRound);
+		}
+	});
 }

@@ -1,3 +1,4 @@
+import "@bearmetal/slag/global";
 import "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 
@@ -24,24 +25,24 @@ Deno.serve({ port: 3000 }, async (r) => {
 							html {
 								background: #1a1a1a;
 							}
-							/*bm-sledge {
+							bm-sledge {
 								position: fixed;
 								top: 50%;
 								left: 50%;
 								transform: translate(-50%, -50%);
-							}*/
-							body {
+							}
+							/*body {
 								display: flex;
 								justify-content: center;
 								align-items: center;
 								flex-wrap: wrap;
-							}
+							}*/
 						`}
 					</style>
 					{_bundle.outputFiles?.map((f) => <script type="module" src={f.path}></script>)}
 				</head>
 				<body>
-					{Array.from({ length: 100 }, () => (
+					{Array.from({ length: 1 }, () => (
 						<bm-sledge>
 						</bm-sledge>
 					))}
