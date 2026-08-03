@@ -109,18 +109,34 @@ export function resetCustomElements(): void {
 	customElementRegistry.reset();
 }
 
-/** Fires `connectedCallback` on `node` and its subtree, in tree order. */
+/**
+ * Fires `connectedCallback` on `node` and its subtree, in tree order.
+ *
+ * The subtree is snapshotted *before* the callback runs, and each child is
+ * re-checked for parentage before recursing. Both matter, because a
+ * `connectedCallback` routinely mutates the very node it was called on:
+ *
+ * - Children appended by the callback are inserted into an already-connected
+ *   node, so `insertBefore` has already dispatched to them. Walking the
+ *   post-callback child list would dispatch to them a *second* time — which
+ *   looks exactly like a component mounting twice.
+ * - Children removed by the callback must not be dispatched to at all.
+ */
 export function dispatchConnected(node: SlagNode): void {
 	const el = node as unknown as CustomElementInstance;
+	const children = [...node.childNodes];
 	if (typeof el.connectedCallback === "function") el.connectedCallback();
-	for (const child of [...node.childNodes]) dispatchConnected(child);
+	for (const child of children) {
+		if (child.parentNode === node) dispatchConnected(child);
+	}
 }
 
 /** Fires `disconnectedCallback` on `node` and its subtree, in tree order. */
 export function dispatchDisconnected(node: SlagNode): void {
 	const el = node as unknown as CustomElementInstance;
+	const children = [...node.childNodes];
 	if (typeof el.disconnectedCallback === "function") el.disconnectedCallback();
-	for (const child of [...node.childNodes]) dispatchDisconnected(child);
+	for (const child of children) dispatchDisconnected(child);
 }
 
 /**
