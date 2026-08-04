@@ -1,10 +1,10 @@
 ---
 next:
-  text: "List Rendering"
-  link: "./lists"
+    text: "List Rendering"
+    link: "./lists"
 prev:
-  text: "Reactivity"
-  link: "./reactivity"
+    text: "Reactivity"
+    link: "./reactivity"
 ---
 
 # Referencing DOM Elements
@@ -15,7 +15,7 @@ name you would like the ref to take.
 ```tsx
 <div>
 	<p ref="paragraph"></p>
-</div>;
+</div>
 ```
 
 Accessing the refs is easily done through `this.refs`.
@@ -41,7 +41,7 @@ function Field() {
 }
 ```
 
-`getRefs()` takes the same type argument that `BMElement` does, for the same reason — see
+`getRefs()` takes the same type argument that `BMElement` does, for the same reason. See
 [Typing `this.refs`](#typing-this-refs) below.
 
 `getRefs()` returns a live view rather than a snapshot, so read from it _after_ the JSX declaring

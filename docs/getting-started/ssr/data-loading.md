@@ -1,16 +1,16 @@
 ---
 prev:
-  text: "Server-Side Rendering"
-  link: "./index"
+    text: "Server-Side Rendering"
+    link: "./index"
 next:
-  text: "The render API"
-  link: "./rendering"
+    text: "The render API"
+    link: "./rendering"
 ---
 
 # Loading Data on the Server
 
 A component loads what it needs in `serverInit()` and marks what should survive the trip to the
-browser with `@state`. Both are ordinary members of the class — there is no props bag and no second
+browser with `@state`. Both are ordinary members of the class, there is no props bag and no second
 instance.
 
 ```tsx
@@ -36,7 +36,7 @@ export class UserCard extends BMElement {
 
 ## `serverInit()`
 
-Runs once, when the component connects **during a server render**, and never in a browser — the
+Runs once, when the component connects **during a server render**, and never in a browser. The
 bundler empties its body on the way out, so the queries and file reads inside it, and everything
 they drag in, never reach the client.
 
@@ -51,7 +51,7 @@ parallel rather than in tree order:
 <div>
 	<user-card userId="a" /> {/* both start */}
 	<user-card userId="b" /> {/* before either finishes */}
-</div>;
+</div>
 ```
 
 Everything up to the first `await` is synchronous, so it is already in place for the first render
@@ -70,23 +70,25 @@ failing to load is a hole in the page, not a lost response.
 the renderer snapshots every one of them into the element's own markup:
 
 ```html
-<user-card data-bm-state="{&quot;user&quot;:{&quot;name&quot;:&quot;Ada&quot;}}">
+<user-card data-bm-state='{"user":{"name":"Ada"}}'>
 	<h2>Ada</h2>
 </user-card>
 ```
 
-When that element upgrades in the browser, it reads the attribute back into the same signals —
-before its first client render — and removes it. `this.user` is already populated; nothing is
+When that element upgrades in the browser, it reads the attribute back into the same signals
+before its first client render and removes it. `this.user` is already populated; nothing is
 fetched twice, and there is no flash of the empty state.
 
 Because hydration lands in the signal itself, a component's state is reachable the way it always
 was: `this.user`, not a bag keyed by string.
 
-Anything that survives `JSON.stringify` can be state. Anything that cannot — a `Map`, a `Date`, a
-class instance, a function — should be derived in `init()` from something that can.
+Anything that survives `JSON.stringify` can be state. Anything that cannot, such as a `Map`, a `Date`, a
+class instance, or a function should be derived in `init()` from something that can.
 
-::: warning `@state` is markup, and markup is public. It is the component's starting values written
-into the page in plain text. Don't put in it anything the person reading the page shouldn't see. :::
+::: warning
+`@state` is markup, and markup is public. It is the component's starting values written
+into the page in plain text. Don't put in it anything the person reading the page shouldn't see.
+:::
 
 ### `@state` is not `@prop`
 
@@ -98,23 +100,27 @@ They are independent, and a signal can carry both decorators when it needs to.
 | Written by | the parent, as an attribute or a signal | the component, usually in `serverInit()` |
 | Serialized | no — see below                          | yes, into `data-bm-state`                |
 
-::: warning A prop does not cross to the browser on its own. Setting a declared `@prop` writes the
-child's signal directly rather than an attribute — that is what makes a signal prop a live binding
-rather than a string round-trip — so it leaves no trace in the markup.
+::: warning
+A prop does not cross to the browser on its own. Setting a declared `@prop` writes the
+child's signal directly rather than an attribute. That is what makes a signal prop a live binding
+rather than a string round-trip. Thus, it leaves no trace in the markup.
 
 Inside a page that is entirely components this is invisible: the parent's `template` runs again in
 the browser and hands the child the same props it did on the server. It matters at the boundary,
 where a `Page()` view passes server data into a component:
 
 ```tsx
-router.route("/dashboard").get(Page((ctx) => <dashboard-page user={ctx.state.user} />));
+router
+	.route("/dashboard")
+	.get(Page((ctx) => <dashboard-page user={ctx.state.user} />));
 ```
 
-That `user` configures the server render and then it is gone — the view is not a component and does
+That `user` configures the server render and then it is gone. The view is not a component and does
 not run again in the browser. Load it in the component's `serverInit()` and mark it `@state`
 instead, and it will be there on both sides. An undeclared attribute (`data-…`, or any name the
 component has no accessor for) does serialize, which is enough for small scalars a component can
-read back itself. :::
+read back itself.
+:::
 
 ## The other half: `init()`
 
@@ -137,7 +143,7 @@ Neither is required. A component with neither renders its `template` on both sid
 
 ## Components that shouldn't render server-side
 
-Some components have nothing worth serializing — a canvas, a media player, a map. Mark the class
+Some components have nothing worth serializing such as a canvas, a media player, or a map. Mark the class
 `client` and the server emits its tag and attributes and stops:
 
 ```tsx
@@ -156,5 +162,5 @@ export class BigChart extends BMElement {
 ```
 
 The browser builds it from scratch when the element upgrades. Reach for this only when server markup
-would genuinely be thrown away — everything else should render, so the page has content before the
+would genuinely be thrown away. Everything else should render, so the page has content before the
 bundle lands.

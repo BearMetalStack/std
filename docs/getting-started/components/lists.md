@@ -1,10 +1,10 @@
 ---
 next:
-  text: "Props"
-  link: "./props"
+    text: "Props"
+    link: "./props"
 prev:
-  text: "DOM refs"
-  link: "./dom-refs"
+    text: "DOM refs"
+    link: "./dom-refs"
 ---
 
 # List Rendering
@@ -24,7 +24,9 @@ return (
 	<>
 		<h1>Things I cannot eat</h1>
 		<ul>
-			{list.map((item) => <li>{item}</li>)}
+			{list.map((item) => (
+				<li>{item}</li>
+			))}
 		</ul>
 	</>
 );
@@ -50,7 +52,13 @@ function foods(item: string) {
 		<>
 			<h1>Foods that I will absolutely eat anyway</h1>
 			<ul>
-				{each(list, (item) => <li>{item}</li>, (item) => item)}
+				{each(
+					list,
+					(item) => (
+						<li>{item}</li>
+					),
+					(item) => item,
+				)}
 			</ul>
 		</>
 	);
@@ -86,15 +94,15 @@ function ListExploder({ list }) {
 		return ListExploder({ list: String(list) });
 	}
 	if (Array.isArray(list)) {
-		return (
-			<ul>
-				{list.map((item) => ListExploder({ list: item }))}
-			</ul>
-		);
+		return <ul>{list.map((item) => ListExploder({ list: item }))}</ul>;
 	}
 	return (
 		<ul>
-			{each(list, (item) => ListExploder({ list: item }), (item) => item)}
+			{each(
+				list,
+				(item) => ListExploder({ list: item }),
+				(item) => item,
+			)}
 		</ul>
 	);
 }
@@ -106,7 +114,10 @@ export class ListExplosion extends Component {
 	get template() {
 		return (
 			<>
-				<h1>That's a nice chunk of memory you have there. Would be a shame if I were to...</h1>
+				<h1>
+					That's a nice chunk of memory you have there. Would be a
+					shame if I were to...
+				</h1>
 				<ListExploder list={this.#list} />
 			</>
 		);
@@ -118,7 +129,8 @@ export class ListExplosion extends Component {
 				this.#list.set([
 					...this.#list().map((e) => ({
 						...e,
-						[Object.keys(e).reduce((k, h) => k > h ? k : h, "")]: "word",
+						[Object.keys(e).reduce((k, h) => (k > h ? k : h), "")]:
+							"word",
 					})),
 					{ k1: "word" },
 				]);
@@ -144,12 +156,14 @@ normal reactivity without the list ever needing to tear the node down and rebuil
 structure, signals handle depth.
 
 ```tsx
-const items = createSignal([
-	{ id: 1, label: createSignal("Chicken") },
-]);
+const items = createSignal([{ id: 1, label: createSignal("Chicken") }]);
 
-each(items, (item) => <li>{item.label}</li>, (item) => item.id);
+each(
+	items,
+	(item) => <li>{item.label}</li>,
+	(item) => item.id,
+);
 ```
 
-Here, setting `item.label` re-renders only that `<li>`'s text node. Replacing the array — adding,
-removing, or reordering items — is what `each` reconciles.
+Here, setting `item.label` re-renders only that `<li>`'s text node. Replacing the array, adding,
+removing, or reordering items is what `each` reconciles.

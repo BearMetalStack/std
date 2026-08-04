@@ -1,13 +1,13 @@
 ---
 next:
-  text: "Templates"
-  link: "./templates"
+    text: "Templates"
+    link: "./templates"
 prev:
-  text: "Components"
-  link: "./index"
+    text: "Components"
+    link: "./index"
 ---
 
-# `/components`
+# `@components`
 
 The `/components` directory (also referred to as `@components`) contains all components that you
 wish to be permanently available on the client. By default, all components within this directory
@@ -64,6 +64,6 @@ import "./component-b.ts";
 ```
 
 Every bundle is built in a single pass with code splitting on, so anything a subset shares with the
-default bundle — including the `@bearmetal/app` runtime and its signals — is hoisted into a shared
+default bundle is hoisted into a shared
 chunk that each bundle imports. Adding a subset does not duplicate the components or the runtime it
 has in common with the others.

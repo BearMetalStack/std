@@ -41,10 +41,11 @@ export default defineConfig({
 						link: "/index",
 						collapsed: false,
 						items: [
-							{ text: "/components", link: "/component-directory" },
+							{ text: "@components", link: "/component-directory" },
 							{ text: "Templates", link: "/templates" },
 							{ text: "Lifecycle", link: "/lifecycle" },
 							{ text: "Reactivity", link: "/reactivity" },
+							{ text: "Props", link: "/props" },
 							{ text: "DOM refs", link: "/dom-refs" },
 							{ text: "List Rendering", link: "/lists" },
 						],

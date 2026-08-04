@@ -1,10 +1,10 @@
 ---
 prev:
-  text: "Props"
-  link: "/getting-started/components/props"
+    text: "Props"
+    link: "/getting-started/components/props"
 next:
-  text: "Loading data"
-  link: "./data-loading"
+    text: "Loading data"
+    link: "./data-loading"
 ---
 
 # Server-Side Rendering
@@ -14,7 +14,7 @@ runtime. There is no server-only counterpart to write and none to keep in agreem
 one.
 
 That works because the runtime never builds strings. It builds DOM nodes, always, with
-`document.createElement` — and on a server that `document` is
+`document.createElement`. On a server that `document` is
 [`@bearmetal/slag`](https://jsr.io/@bearmetal/slag), a microdom whose trees serialize themselves. A
 page is rendered by making one, letting it settle, and asking it for its markup.
 
@@ -46,7 +46,10 @@ export const page = Layout((props) => (
 	<html lang="en">
 		<head>
 			<meta charset="UTF-8" />
-			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+			<meta
+				name="viewport"
+				content="width=device-width, initial-scale=1.0"
+			/>
 			<title>{props.title}</title>
 		</head>
 		<body>{props.children}</body>
@@ -69,16 +72,16 @@ router.route("/").get(Page(() => <hello-there />, "Home"));
 Deno.serve(router.handle);
 ```
 
-A layout receives `{ children, title, theme?, description? }`. `Page()` supplies the first two — its
-second argument is the title, defaulting to `"BearMetal SSR"`. The other two are part of the type
+A layout receives `{ children, title, theme?, description? }`. `Page()` supplies the first two with its
+second argument as the title, defaulting to `"BearMetal SSR"`. The other two are part of the type
 for layouts that render them, so give them fallbacks:
 
 ```tsx
-<meta name="description" content={props.description ?? "…"} />;
+<meta name="description" content={props.description ?? "…"} />
 ```
 
 Any `Page` on a route chain that has passed through a `Layout` is wrapped in it. A `Page` without
-one renders the view on its own and serializes it as a fragment — no `<!DOCTYPE>`, no bundle, since
+one renders the view on its own and serializes it as a fragment with no `<!DOCTYPE>` nor bundle since
 there is no `<head>` to put one in.
 
 ## What a render does, in order
@@ -89,7 +92,7 @@ there is no `<head>` to put one in.
    hands the promise to the render rather than blocking on it, so the whole page's I/O overlaps.
    Promise children are collected the same way.
 3. **Settle.** The renderer awaits that batch, flushes the effects the resolved values dirtied, and
-   goes round again while that produces more work — a component revealed by another component's load
+   goes round again while that produces more work, such as a component revealed by another component's load
    gets its own turn.
 4. **Snapshot and serialize.** Every [`@state`](./data-loading#state) signal is written into its
    element's markup, and the tree becomes a string.
@@ -99,15 +102,17 @@ requests in flight cannot see each other's tree or each other's URL, even though
 process-wide `document`. It is also why the per-render URL can live in call-stack context, which is
 what lets a [`<Router>`](/app#client-routing) match on the server with nothing threaded down to it.
 
-::: info Effects are flushed by the renderer, not by the microtask queue. In a browser, writing a
+:::info Effect scheduling
+Effects are flushed by the renderer, not by the microtask queue. In a browser, writing a
 signal schedules an effect pass for the next microtask; during a server render the renderer runs
 that pass itself, inside the render's scope, and keeps going until the graph stops moving. Markup is
-only handed back once it has. :::
+only handed back once it has.
+:::
 
 ## What ships to the browser
 
-Once the tree has settled, `Page()` looks through it for custom elements — anything with a hyphen in
-its tag name, the same test the browser applies — and for each one:
+Once the tree has settled, `Page()` looks through it for custom elements, defined as anything with a hyphen in
+its tag name, and for each one:
 
 - inlines its `static stylesheet` into a `<style>` in `<head>`, with `:scope` rewritten to the tag;
 - looks up its module URL, recorded by `@define("tag", import.meta)`;
@@ -115,17 +120,17 @@ its tag name, the same test the browser applies — and for each one:
   `<script type="module">` in `<head>`.
 
 Only the components the page actually used are bundled. A component decorated without `import.meta`
-has no module URL to find and is silently skipped — it will render server-side and then do nothing
+has no module URL to find and is silently skipped. It will render server-side and then do nothing
 in the browser, which is nearly always a mistake.
 
 `serverInit` and `stylesheet` bodies are stripped from the bundle before it is inlined. That is what
-keeps a component's database queries and file reads — and their entire dependency tree — out of the
+keeps a component's database queries and file reads and their entire dependency tree out of the
 client. Nothing else about a component is server-only, so nothing else is removed.
 
 ## Then the browser picks it up
 
 When the bundle lands, each element upgrades. `connectedCallback` reads back any `@state` the server
-left in the markup, into the same signals, before the first client render — so the component starts
+left in the markup into the same signals before the first client render. The component starts
 from where the server finished rather than fetching it again.
 
 That handoff, and the loading that feeds it, is the next page.
