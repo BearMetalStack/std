@@ -305,6 +305,12 @@ export interface SerializeContext {
 // ---- style resolution -----------------------------------------------------
 
 /**
+ * A forced break. `"page"` and `"column"` are the two every target format can
+ * express; anything more exotic belongs in `ResolvedStyle.ext`.
+ */
+export type BreakKind = "page" | "column";
+
+/**
  * Normalized style, so a rule never has to know that a docx heading is
  * `<w:pPr><w:pStyle w:val="Heading1"/>` while an odt one is
  * `<text:h text:outline-level="1">`.
@@ -327,6 +333,17 @@ export interface ResolvedStyle {
 		id?: string;
 	};
 	align?: "l" | "c" | "r";
+	/**
+	 * Forced break before/after the block this style applies to.
+	 *
+	 * Normalized because the formats disagree completely on what a break even
+	 * *is*: ODF spells it as an `fo:break-before` property on an automatic
+	 * paragraph style, docx as either `<w:pageBreakBefore/>` in `<w:pPr>` or a
+	 * `<w:br w:type="page"/>` run, HTML as a CSS `break-before`. A rule that had
+	 * to know which would be a rule that only works in one format.
+	 */
+	breakBefore?: BreakKind;
+	breakAfter?: BreakKind;
 	/**
 	 * Format-specific escape hatch, never read by core. Deliberately a named
 	 * bag rather than an index signature: an open index signature would

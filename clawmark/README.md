@@ -170,12 +170,63 @@ raw-HTML rule, so `<script>` is plain text and round-trips exactly), and list co
 2-space indent (clawmark compares indentation magnitude only). Set `listIndent: 4` if you are
 targeting a strict CommonMark parser.
 
+## Page breaks
+
+Markdown has no page break, so the syntax is opt-in and the tag is not. `pageBreakRules()` is off by
+default; register it and `md:pagebreak` becomes available in every direction:
+
+```ts
+import { defaultRules, markdownWith } from "@bearmetal/clawmark";
+import { pageBreakRules } from "@bearmetal/clawmark/rules/extra";
+
+const rules = [...pageBreakRules({ markers: "+++" }), ...defaultRules()];
+markdownWith("one\n\n+++\n\ntwo", odtWriter(), rules);
+```
+
+Markers default to `\pagebreak` and `\newpage`, must occupy a whole line, and `kind: "column"`
+switches to a column break. A rule pack with its own syntax can skip this entirely and just emit
+`md:pagebreak` nodes — the tag, not the syntax, is what the writers key on.
+
+Each format spells it differently, which is why `ResolvedStyle` carries a normalized
+`breakBefore`/`breakAfter` rather than leaving it to rules:
+
+| Format | Output                                                                     |
+| ------ | -------------------------------------------------------------------------- |
+| odt    | `<text:p>` referencing an automatic paragraph style with `fo:break-before` |
+| docx   | `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`                              |
+| html   | `<div class="pagebreak" style="break-after:page">`                         |
+
+ODF has no page-break _element_ — a break is a property of a paragraph — so the odt writer interns
+an automatic paragraph style through the `StyleSink` and every break in the document shares one
+`P1`. Reading odt accepts both the empty-paragraph form clawmark writes and the loaded form
+LibreOffice writes, where `fo:break-before` sits on the paragraph _following_ the break.
+
 ## Extending
 
 `rules/extra/mod.ts` (exported as `@bearmetal/clawmark/rules/extra`) is the reserved slot for
 optional _syntax_ rules. Reverse-only rules belong in a profile and should take ids in the `rev:`
 namespace, which keeps them out of the forward dispatch maps entirely; emitters take `out:` ids for
 the same reason.
+
+**A rule that introduces a block-level construct must call `addBlockTags`.** The lexer opens a
+`core:paragraph` around every block, and `wrapsSoleBlock` — which is how the renderer and both
+office writers know to drop that wrapper — tests against a registry, not against the rule array:
+
+```ts
+import { addBlockTags } from "@bearmetal/clawmark";
+
+addBlockTags("x:callout");
+```
+
+Skip it and the construct is emitted _inside_ a paragraph: a `<p>` in HTML, and a `<text:p>` nested
+in a `<text:p>` in odt, which is invalid ODF and silently discarded by readers. The symptom is a
+node that parses correctly and then appears to vanish from the output.
+
+Custom styles reach the file the same way: `ctx.styles.ensure(style, family)` interns a definition
+and hands back the name to reference. The odt writer serializes the `paragraph`, `character`, and
+`list` families into `<office:automatic-styles>`; a `ResolvedStyle` with a `named` sets the
+automatic style's `style:parent-style-name`, so `{ named: "Quote", breakBefore: "page" }` derives
+from `Quote`.
 
 A new output format is a `WriteProfile`: an array of emitters, optionally a `StyleSink` and a
 `ResourceSink`, and an `assemble` that turns the emitted body into named parts. Nothing about it is

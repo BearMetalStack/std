@@ -33,6 +33,7 @@ const BLOCK_TAGS = new Set<TokenIdentifier>([
 	"md:tableformat",
 	"md:codeblock",
 	"md:hr",
+	"md:pagebreak",
 	"md:footnotedef",
 	"md:raw",
 ]);

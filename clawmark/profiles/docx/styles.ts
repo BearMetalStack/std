@@ -174,6 +174,11 @@ export function docxStyleResolver(
 				const jc = lookupAttr(firstChild(pPr, "jc"), "val");
 				if (jc && ALIGN[jc]) out.align = ALIGN[jc];
 
+				// `<w:pageBreakBefore/>` is a toggle, so an explicit `w:val="0"`
+				// turns an inherited break *off* rather than saying nothing.
+				const pageBreak = onOff(firstChild(pPr, "pageBreakBefore"));
+				if (pageBreak === true) out.breakBefore = "page";
+
 				const numPr = firstChild(pPr, "numPr");
 				if (numPr) {
 					const numId = lookupAttr(firstChild(numPr, "numId"), "val") ?? "";

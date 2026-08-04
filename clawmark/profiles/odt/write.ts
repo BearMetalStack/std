@@ -42,6 +42,7 @@ import { append } from "../../xml/build.ts";
 import { createStyleSink } from "../../style.ts";
 import { serializeXml } from "../../xml/serialize.ts";
 import { wrapsSoleBlock } from "../../rules/paragraph.ts";
+import { breakKind } from "../../rules/extra/mod.ts";
 import {
 	listStyle,
 	manifest,
@@ -50,6 +51,7 @@ import {
 	nsAttrs,
 	ODF_VERSION,
 	ODT_WRITE_NS,
+	paragraphStyle,
 	stylesPart,
 	textStyle,
 } from "./parts.ts";
@@ -82,8 +84,14 @@ function notes(ctx: EmitContext): Map<string, XmlElement> {
 	return map;
 }
 
-/** The common style name a block frame calls for. */
-function paragraphStyle(style: ResolvedStyle): string {
+/**
+ * The *common* style a block frame calls for - the one defined in styles.xml.
+ *
+ * `named` wins when set, which is how a caller points a block at a style of
+ * their own without teaching `blockRole` about it.
+ */
+function commonStyle(style: ResolvedStyle): string {
+	if (style.named) return style.named;
 	switch (style.blockRole) {
 		case "quote":
 			return "Quote";
@@ -92,6 +100,31 @@ function paragraphStyle(style: ResolvedStyle): string {
 		default:
 			return "Standard";
 	}
+}
+
+/** Paragraph-level properties only - what an automatic paragraph style carries. */
+function blockStyle(style: ResolvedStyle): ResolvedStyle {
+	const out: ResolvedStyle = {};
+	if (style.breakBefore) out.breakBefore = style.breakBefore;
+	if (style.breakAfter) out.breakAfter = style.breakAfter;
+	if (style.align) out.align = style.align;
+	return out;
+}
+
+/**
+ * The `text:style-name` a paragraph should reference.
+ *
+ * Plain blocks reference a common style by name and intern nothing. A block
+ * carrying paragraph-level properties - a break, an alignment - gets an
+ * *automatic* style deriving from that common one, because ODF has no way to
+ * put those properties on the element itself. The sink dedupes, so a hundred
+ * page breaks share one `P1`.
+ */
+function paragraphStyleName(ctx: EmitContext, style: ResolvedStyle = ctx.style): string {
+	const base = commonStyle(style);
+	const block = blockStyle(style);
+	if (isEmptyStyle(block)) return base;
+	return ctx.styles.ensure({ ...block, named: base }, "paragraph");
 }
 
 /** Character-level properties only - what an automatic text style may carry. */
@@ -146,7 +179,7 @@ function span(node: Node, ctx: EmitContext, style: ResolvedStyle): EmitResult {
 export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 	const monoFont = options.monoFont ?? "Liberation Mono";
 	const generator = options.generator ?? "clawmark";
-	const styles = createStyleSink({ prefix: { text: "T", list: "L" } });
+	const styles = createStyleSink({ prefix: { paragraph: "P", text: "T", list: "L" } });
 
 	/** A `<text:list>`'s style name, one per kind, deduped through the sink. */
 	const listStyleName = (ctx: EmitContext, kind: "ordered" | "unordered") =>
@@ -166,7 +199,10 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 			return {
 				kind: "element",
 				el: ctx.el("text:h", {
-					"text:style-name": `Heading_20_${level}`,
+					"text:style-name": paragraphStyleName(ctx, {
+						...ctx.style,
+						named: `Heading_20_${level}`,
+					}),
 					"text:outline-level": level,
 				}),
 			};
@@ -178,13 +214,30 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 		out("core:paragraph").whereParent("md:checkitem").unwrap(),
 		out("core:paragraph").to((_node, ctx) => ({
 			kind: "element",
-			el: ctx.el("text:p", { "text:style-name": paragraphStyle(ctx.style) }),
+			el: ctx.el("text:p", { "text:style-name": paragraphStyleName(ctx) }),
 		})),
 
 		out("md:blockquote").style({ blockRole: "quote" }),
 		out("md:lineitem").to((_node, ctx) => ({
 			kind: "element",
-			el: ctx.el("text:p", { "text:style-name": "Quote" }),
+			el: ctx.el("text:p", {
+				"text:style-name": paragraphStyleName(ctx, { ...ctx.style, blockRole: "quote" }),
+			}),
+		})),
+
+		// ODF spells a page break as a property of a paragraph, not as an element
+		// of its own - so this is an empty paragraph whose automatic style carries
+		// `fo:break-before`, which is exactly what LibreOffice writes for Ctrl+Enter.
+		out("md:pagebreak").to((node, ctx) => ({
+			kind: "nodes",
+			nodes: [
+				ctx.el("text:p", {
+					"text:style-name": paragraphStyleName(ctx, {
+						named: commonStyle(ctx.style),
+						breakBefore: breakKind(node),
+					}),
+				}),
+			],
 		})),
 
 		// ODF has no multi-line paragraph either: a code block is one
@@ -331,7 +384,12 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 		styles,
 		emitters,
 		assemble(body, ctx) {
+			// Every family the sink can hand out has to be represented here, or a
+			// style is minted, referenced by the body, and then silently dropped
+			// from the file - which reads as "my element vanished".
 			const automatic = [
+				...styles.defs.filter((def) => def.type === "paragraph")
+					.map((def: StyleDef) => paragraphStyle(def)),
 				...styles.defs.filter((def) => def.type === "character")
 					.map((def: StyleDef) => textStyle(def, monoFont)),
 				...styles.defs.filter((def) => def.type === "list")
@@ -394,8 +452,6 @@ function emitListItem(node: Node, parent: XmlElement, ctx: EmitContext): void {
 	}
 }
 
-const ALIGN: Record<"l" | "c" | "r", string> = { l: "start", c: "center", r: "end" };
-
 function buildTable(node: Node, ctx: EmitContext): XmlElement {
 	const rows = node.children.filter((child) => child.tag === "md:tablerow");
 	const format = node.children.find((child) => child.tag === "md:tableformat");
@@ -414,14 +470,20 @@ function buildTable(node: Node, ctx: EmitContext): XmlElement {
 		const cells = (row.data as { columns?: string[] }).columns ?? [];
 		const tr = ctx.el("table:table-row");
 		for (let column = 0; column < columns; column++) {
-			const p = ctx.el("text:p", { "text:style-name": "Standard" });
+			// Alignment is a paragraph *property* in ODF, so it goes through an
+			// automatic style. `fo:text-align` written as an attribute on
+			// `<text:p>` - which is what this did before paragraph styles were
+			// interned - is not valid ODF and is ignored by every reader.
+			const columnAlign = align[column];
+			const p = ctx.el("text:p", {
+				"text:style-name": paragraphStyleName(
+					ctx,
+					columnAlign && columnAlign !== "l" ? { align: columnAlign } : {},
+				),
+			});
 			const value = cells[column] ?? "";
 			if (value !== "") append(p, ctx.txt(value));
-			const cell = ctx.el("table:table-cell", { "office:value-type": "string" }, [p]);
-			if (align[column] && align[column] !== "l") {
-				p.attrs.set("fo:text-align", ALIGN[align[column]]);
-			}
-			append(tr, cell);
+			append(tr, ctx.el("table:table-cell", { "office:value-type": "string" }, [p]));
 		}
 		// A header row is a real element in ODF, unlike in docx.
 		append(index === 0 ? headerRows(table, ctx) : table, tr);

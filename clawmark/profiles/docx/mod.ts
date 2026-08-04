@@ -235,6 +235,14 @@ export function docxProfile(parts: DocxParts = {}): Profile {
 				: { kind: "unwrap" }
 		),
 		w("w:tab").to(() => ({ kind: "nodes", nodes: [textNode(" ")] })),
+		// A typed break is a page/column break, not a soft line break. Without
+		// this both come back as `md:linebreak` and a page break silently
+		// degrades into a `\` at the end of a line.
+		w("w:br").whereAttr("type", /^(page|column)$/).to((el, ctx) => ({
+			kind: "leaf",
+			tag: "md:pagebreak",
+			data: { kind: ctx.attr("type", el) },
+		})),
 		w("w:br").emit("md:linebreak"),
 
 		w("w:hyperlink").to((el, ctx) => {

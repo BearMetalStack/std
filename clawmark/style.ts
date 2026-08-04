@@ -203,9 +203,18 @@ export const EMPTY_STYLE_TABLE: StyleTable = createStyleTable([]);
  *
  * Fixed order matters: the canonical key is built by walking this list, so two
  * styles that differ only in the order their properties were assigned hash the
- * same. `named` is excluded - a sink *assigns* names, it does not key on them.
+ * same.
+ *
+ * `named` is in the list because on the write side it is an *input*: an
+ * automatic paragraph style records the common style it derives from, so
+ * `{ breakBefore: "page", named: "Standard" }` and
+ * `{ breakBefore: "page", named: "Quote" }` are two different styles that must
+ * not collapse onto one definition. This is not the sink keying on the name it
+ * hands back - that is still `options.name()`'s business and never enters the
+ * key.
  */
 const SINK_KEYS: readonly (keyof ResolvedStyle)[] = [
+	"named",
 	"blockRole",
 	"headingLevel",
 	"bold",
@@ -215,6 +224,8 @@ const SINK_KEYS: readonly (keyof ResolvedStyle)[] = [
 	"mono",
 	"highlight",
 	"align",
+	"breakBefore",
+	"breakAfter",
 ];
 
 function sinkKey(style: ResolvedStyle, family: StyleFamily): string {
@@ -278,7 +289,16 @@ export function createStyleSink(options: StyleSinkOptions = {}): StyleSink {
 
 			taken.add(name);
 			byKey.set(key, name);
-			defs.push({ id: name, type: family === "text" ? "character" : family, style });
+			const def: StyleDef = {
+				id: name,
+				type: family === "text" ? "character" : family,
+				style,
+			};
+			// An automatic style derives from a common one, and `named` is how the
+			// caller says which. Recording it as `basedOn` keeps the emitted defs
+			// readable by `createStyleTable` without a second convention.
+			if (style.named !== undefined && style.named !== name) def.basedOn = style.named;
+			defs.push(def);
 			return name;
 		},
 		get defs() {

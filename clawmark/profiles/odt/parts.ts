@@ -132,6 +132,30 @@ export function listStyle(name: string, kind: "ordered" | "unordered"): string {
 	return `\t<text:list-style style:name="${name}">\n${levels.join("\n")}\n\t</text:list-style>`;
 }
 
+const ODF_ALIGN: Record<"l" | "c" | "r", string> = { l: "start", c: "center", r: "end" };
+
+/**
+ * `<style:style style:family="paragraph">` for one interned automatic style.
+ *
+ * ODF has no element for a page break: a break is a *property* of the paragraph
+ * that follows (or precedes) it, carried by an automatic paragraph style that
+ * derives from a common one. That indirection is why interning paragraph styles
+ * has to work at all - see `paragraphStyleName()` in write.ts, which is this
+ * function's other half.
+ */
+export function paragraphStyle(def: StyleDef): string {
+	const style = def.style;
+	const props: string[] = [];
+	if (style.breakBefore) props.push(`fo:break-before="${style.breakBefore}"`);
+	if (style.breakAfter) props.push(`fo:break-after="${style.breakAfter}"`);
+	if (style.align) props.push(`fo:text-align="${ODF_ALIGN[style.align]}"`);
+
+	const parent = def.basedOn ? ` style:parent-style-name="${def.basedOn}"` : "";
+	return `\t<style:style style:name="${def.id}" style:family="paragraph"${parent}>\n\t\t<style:paragraph-properties ${
+		props.join(" ")
+	}/>\n\t</style:style>`;
+}
+
 /**
  * `<style:style style:family="text">` for one interned automatic style.
  *

@@ -25,6 +25,7 @@
 
 import type {
 	AnyEmitter,
+	BreakKind,
 	EmitContext,
 	Node,
 	ResolvedStyle,
@@ -37,6 +38,7 @@ import { append, XML_DECL } from "../../xml/build.ts";
 import { serializeXml } from "../../xml/serialize.ts";
 import { createResourceSink } from "../../write.ts";
 import { wrapsSoleBlock } from "../../rules/paragraph.ts";
+import { breakKind } from "../../rules/extra/mod.ts";
 import { DOCX_NS, REL_NS, WML_NS } from "./styles.ts";
 import {
 	contentTypes,
@@ -178,6 +180,8 @@ interface ParagraphOptions {
 	numPr?: { numId: string; level: number };
 	align?: "l" | "c" | "r";
 	border?: boolean;
+	/** `<w:pageBreakBefore/>`. Only "page" has a `<w:pPr>` spelling in docx. */
+	breakBefore?: BreakKind;
 }
 
 const JC: Record<"l" | "c" | "r", string> = { l: "left", c: "center", r: "right" };
@@ -190,8 +194,12 @@ const JC: Record<"l" | "c" | "r", string> = { l: "left", c: "center", r: "right"
  * requires.
  */
 function paragraph(ctx: EmitContext, options: ParagraphOptions = {}): XmlElement {
+	// `<w:pPr>` is a schema *sequence*, not a bag: pStyle, pageBreakBefore,
+	// numPr, pBdr, jc is the order CT_PPrBase declares, and Word rejects a
+	// document that scrambles it.
 	const props: XmlElement[] = [];
 	if (options.styleId) props.push(ctx.el("w:pStyle", { "w:val": options.styleId }));
+	if (options.breakBefore === "page") props.push(ctx.el("w:pageBreakBefore"));
 	if (options.numPr) {
 		props.push(ctx.el("w:numPr", {}, [
 			ctx.el("w:ilvl", { "w:val": options.numPr.level }),
@@ -254,8 +262,21 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 
 		out("core:paragraph").to((_node, ctx) => ({
 			kind: "element",
-			el: paragraph(ctx, { styleId: blockStyleId(ctx.style), align: ctx.style.align }),
+			el: paragraph(ctx, {
+				styleId: blockStyleId(ctx.style),
+				align: ctx.style.align,
+				breakBefore: ctx.style.breakBefore,
+			}),
 		})),
+
+		// Unlike ODF, docx has a real element for this - a break run in a
+		// paragraph of its own. `w:type="column"` covers the other kind, which
+		// `<w:pageBreakBefore/>` cannot express at all.
+		out("md:pagebreak").to((node, ctx) => {
+			const p = paragraph(ctx);
+			append(p, ctx.el("w:r", {}, [ctx.el("w:br", { "w:type": breakKind(node) })]));
+			return { kind: "nodes", nodes: [p] };
+		}),
 
 		out("md:blockquote").style({ blockRole: "quote" }),
 		// Each line of a blockquote is a paragraph of its own; the Quote style

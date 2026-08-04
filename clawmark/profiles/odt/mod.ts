@@ -56,6 +56,13 @@ export const ODT_NS: Record<string, string> = {
 
 const MONO_RX = /mono|courier|consolas|menlo/i;
 
+/** Links a freshly built node into `parent` and returns it. */
+function appendChild(parent: Node, node: Node): Node {
+	node.parent = parent;
+	parent.children.push(node);
+	return node;
+}
+
 function parseIfString(source: string | XmlElement | undefined): XmlElement | undefined {
 	if (source === undefined) return undefined;
 	return typeof source === "string" ? new XmlParser(source, { mode: "xml" }).parse() : source;
@@ -104,6 +111,19 @@ function textProperties(props: XmlElement | undefined): ResolvedStyle {
 	return out;
 }
 
+const BREAK_KINDS = new Set(["page", "column"]);
+
+/** Reads `<style:paragraph-properties>` into a normalized style. */
+function paragraphProperties(props: XmlElement | undefined): ResolvedStyle {
+	if (!props) return {};
+	const out: ResolvedStyle = {};
+	const before = lookupAttr(props, "break-before");
+	if (before && BREAK_KINDS.has(before)) out.breakBefore = before as "page" | "column";
+	const after = lookupAttr(props, "break-after");
+	if (after && BREAK_KINDS.has(after)) out.breakAfter = after as "page" | "column";
+	return out;
+}
+
 /** Reads every `<style:style>` under `root` into style definitions. */
 function styleDefsFrom(root: XmlElement): StyleDef[] {
 	const defs: StyleDef[] = [];
@@ -119,6 +139,7 @@ function styleDefsFrom(root: XmlElement): StyleDef[] {
 		const style: ResolvedStyle = {
 			named: id,
 			...(family === undefined || family === "paragraph" ? styleFromName(display) : {}),
+			...paragraphProperties(firstChild(el, "paragraph-properties")),
 			...textProperties(firstChild(el, "text-properties")),
 		};
 		// An explicit outline level beats the name heuristic. Google Docs
@@ -336,6 +357,40 @@ export function odtProfile(parts: OdtParts = {}): Profile {
 			if (!run) return { kind: "drop" };
 			return { kind: "leaf", tag: "md:codeblock", data: { value: codeBlockValue(run, ctx) } };
 		}),
+		// ODF has no page-break element, so a break is `fo:break-before` on a
+		// paragraph style, and producers disagree about which paragraph carries
+		// it: clawmark's own writer emits an empty one, while LibreOffice puts
+		// the property on the paragraph *following* the break. Both are read
+		// here - the empty form becomes a bare `md:pagebreak`, the loaded form
+		// becomes a break plus the paragraph it was attached to.
+		//
+		// Deliberately below the heading/quote/code rules: a break on a
+		// heading-styled paragraph keeps the heading and loses the break, which
+		// is the less destructive of the two ways to get that wrong.
+		t("text:p").whereStyle((s) => s.breakBefore !== undefined).to((el, ctx) => {
+			const kind = ctx.style.breakBefore;
+			if (ctx.text(el) === "") {
+				return { kind: "leaf", tag: "md:pagebreak", data: { kind } };
+			}
+			const emphasis = emphasisTags(ownStyle(el, ctx));
+			return {
+				kind: "custom",
+				run(parent, inner) {
+					appendChild(parent, { tag: "md:pagebreak", data: { kind }, children: [] });
+					const p = appendChild(parent, {
+						tag: "core:paragraph",
+						data: { phase: "open" },
+						children: [],
+					});
+					let target = p;
+					for (const tag of emphasis) {
+						target = appendChild(target, { tag, data: {}, children: [] });
+					}
+					inner.crawlChildren(target, el);
+				},
+			};
+		}),
+
 		t("text:p").to((el, ctx) => ({
 			kind: "wrap",
 			tag: ["core:paragraph", ...emphasisTags(ownStyle(el, ctx))],

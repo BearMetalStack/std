@@ -25,6 +25,10 @@ import type { HtmlProfileOptions } from "./profiles/html/mod.ts";
 
 export * from "./types.ts";
 export { defaultRules } from "./rules/mod.ts";
+// A rule pack that introduces its own block construct has to declare it, or the
+// lexer's automatic paragraph wrapper stays put and every writer emits the
+// construct inside a paragraph element. See rules/paragraph.ts.
+export { addBlockTags, blockTags, isBlockTag, wrapsSoleBlock } from "./rules/paragraph.ts";
 export { Lexer } from "./lexer.ts";
 export { TreeBuilder } from "./tree.ts";
 export { Renderer } from "./render.ts";
