@@ -164,9 +164,16 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
   signals/effects/refs/context into the Custom Elements lifecycle), `@define(tag, import.meta)`
   decorator, `app/signals` (pinned TC39 Signals polyfill), `app/context` (both call-stack-scoped
   "stack context" for SSR and DOM-tree-walking "DOM context" for components — extend via
-  declaration-merging `ContextMap`), `app/ssr` (`Layout`/`Page` router middleware that renders JSX,
-  scans for used custom elements, and bundles only those components' client modules into the
-  response).
+  declaration-merging `ContextMap`), `app/ssr` (`Layout`/`Page` router middleware plus the
+  `renderToTree`/`renderToString` renderer — renders synchronously against Slag, settles every
+  `serverInit()` and promise the tree raised, snapshots `@state` into the markup, then finds the
+  used custom elements in the tree and bundles only those components' client modules into `<head>`).
+  - Component lifecycle across the seam: one `template`, rendered by one runtime on both sides.
+    `init()` is the browser half and never runs during a server render; `serverInit()` is the server
+    half and never ships to the browser (`stripServerCode` empties it). `@state` marks the signals
+    the renderer snapshots into `data-bm-state` and the browser hydrates back before its first
+    render. `static client = true` opts a component out of server rendering entirely. Documented in
+    `docs/getting-started/ssr/`.
 - **`db/`** — Postgres/KV connector exposed as a router `Module` + `Service`. See the
   **TableRegistry pattern** below — this is the one non-obvious cross-cutting mechanism in the
   codebase.

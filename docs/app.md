@@ -68,8 +68,12 @@ For client-only components that are never used in SSR pages, `import.meta` is op
 
 ### Template
 
-Override the `template` getter to define the component's DOM. It can return static JSX or a signal.
-If a signal, the DOM re-renders reactively when its value changes.
+Override the `template` getter to define the component's DOM. One template, built by one runtime, in
+a browser and on a server alike — there is no server-side counterpart to write.
+
+It can return static JSX or a signal. If a signal, the DOM re-renders reactively when its value
+changes. An `Html` value or a bare string is accepted too, and goes through the same child handling
+the JSX runtime applies everywhere else — raw markup for `Html`, escaped text for a string.
 
 ```tsx
 // static
@@ -93,8 +97,9 @@ Signals passed directly into JSX bind the text node reactively without wrapping 
 
 ### init()
 
-Called once after the template renders and the component connects to the DOM. Use it for effects,
-event listeners, and one-time setup. Cleanup registered here runs automatically on disconnect.
+Called once after the template renders and the component connects to the DOM **in a browser**. Use
+it for effects, event listeners, and one-time setup. Cleanup registered here runs automatically on
+disconnect.
 
 ```tsx
 protected override init() {
@@ -103,6 +108,52 @@ protected override init() {
   });
 }
 ```
+
+`init()` does not run during a server render — listeners, timers and subscriptions have nothing to
+attach to on a page that is about to become a string. The server half of the lifecycle is
+`serverInit()`.
+
+### serverInit()
+
+Called once when the component renders on the server, and never in a browser. Override it to load
+whatever the markup needs; it sets state directly, with no props bag to thread a return value
+through.
+
+```tsx
+@state() accessor rows = this.signal<Row[]>([]);
+
+protected override async serverInit() {
+  this.rows.set(await db.query("select * from rows"));
+}
+```
+
+The renderer does not wait for it before rendering. It renders immediately, collects every
+`serverInit()` in the tree, awaits them together, and lets the signals they wrote patch the markup
+that already exists — so siblings load in parallel and a page of ten components costs one round trip
+rather than ten.
+
+The body is stripped from the client bundle, so a component's queries and file reads never ship.
+
+### @state
+
+Marks a signal as serializable. After every `serverInit()` has settled, the renderer snapshots each
+`@state` signal into the element's `data-bm-state` attribute; when that element upgrades in the
+browser it reads them back into the same signals, before its first render.
+
+```tsx
+import { prop, state } from "@bearmetal/app";
+
+@prop() accessor userId = this.signal("");
+@state() accessor user = this.signal<User | null>(null);
+```
+
+Hydration lands in the signal itself — `this.user`, not a bag keyed by string. Anything that
+survives `JSON.stringify` can be state.
+
+Setting `static client = true` on a component opts it out of server rendering entirely: the server
+emits its tag and attributes and leaves the rest to the browser.
+
+See [Loading data on the server](/getting-started/ssr/data-loading) for the whole handoff.
 
 ### Signals and computed
 
@@ -248,6 +299,19 @@ count.set(1);
 The same function available as `this.each` on `BMElement`. When called outside a component, item
 cleanup won't be tracked automatically and a warning is logged. Use inside a component's `init()` or
 a nested render callback whenever possible.
+
+### `flushEffects()`
+
+Runs every dirty effect now instead of on the next microtask, and keeps going until none are left.
+The server renderer calls it after awaiting a batch of `serverInit()`s — that is what turns the
+state they wrote into DOM before it is serialized. In a browser you want the microtask batching, so
+you rarely want this.
+
+### `isBrowser()`
+
+`typeof document !== "undefined"` no longer distinguishes a browser from a server render, which has
+a `document` of its own. `isBrowser()` does. Use it only for genuinely browser-only work — attaching
+listeners, patching `history`, starting timers — never to fork what a component renders.
 
 ---
 
@@ -557,11 +621,16 @@ injectOrThrow(el, "theme"); // ContextMap["theme"] or throws
 
 ## SSR :: `@bearmetal/app/ssr`
 
-Middleware factories for rendering pages on the server. Designed to work with `@bearmetal/router`.
+Middleware factories for rendering pages on the server, and the renderer underneath them. Designed
+to work with `@bearmetal/router`.
 
 ```ts
-import { Layout, Page } from "@bearmetal/app/ssr";
+import { Layout, Page, renderToString, renderToTree } from "@bearmetal/app/ssr";
 ```
+
+A component renders on the server as itself: the same class, the same `template`, the same runtime.
+The `document` underneath is [`@bearmetal/slag`](https://jsr.io/@bearmetal/slag), a microdom whose
+trees serialize themselves. See the [SSR guide](/getting-started/ssr/) for the full picture.
 
 ### `Layout(jsx)`
 
@@ -569,40 +638,68 @@ Sets a layout component on `ctx.state.layout` and calls `next()`. Any `Page` han
 route chain will wrap its output in this layout.
 
 ```tsx
-router.use(Layout(({ children }) => (
+router.use(Layout(({ children, title }) => (
 	<html>
 		<head>
-			<title>My App</title>
+			<title>{title}</title>
 		</head>
 		<body>{children}</body>
 	</html>
 )));
 ```
 
-### `Page(render)`
+### `Page(render, title?)`
 
 A terminal route handler that:
 
-1. Calls `render(ctx)` to get the page JSX
-2. Wraps it in the layout from `ctx.state.layout` (if any)
-3. Scans the resulting HTML for custom element tag names
-4. Finds each component's module URL via the registry populated by `@define(..., import.meta)`
-5. Bundles all used component modules into a single `<script type="module">` tag
-6. Inserts the bundle immediately after `<body>`
+1. Calls `render(ctx)` to get the page JSX, inside the layout from `ctx.state.layout` if there is
+   one, with the request URL scoped to the render
+2. Renders it, then settles every `serverInit()` and promise the tree raised
+3. Snapshots each component's `@state` into its markup
+4. Finds `<head>` in the tree, and the custom elements the page actually used
+5. Inlines those components' stylesheets and their bundled client modules into `<head>`
+6. Serializes, with a `<!DOCTYPE>`
 
 ```tsx
 router.route("/dashboard").get(
-	Page((ctx) => <dashboard-page user={ctx.state.user} />),
+	Page((ctx) => <dashboard-page />, "Dashboard"),
 );
 ```
 
 Components must be decorated with `@define("tag", import.meta)` to appear in the bundle. Components
-without `import.meta` are silently skipped.
+without `import.meta` are silently skipped. A page with no `<head>` anywhere in it is serialized as
+a fragment, with no doctype and no bundle.
+
+`serverInit` and `stylesheet` bodies are removed from the bundle on the way out, so a component's
+server-side dependencies never reach the browser.
+
+::: warning Props handed to a component from a `Page()` view configure the server render and then
+they are gone — a declared `@prop` is written as a signal, not an attribute, and the view itself is
+not a component, so it does not run again in the browser. Load in `serverInit()` and mark it
+`@state` for anything the client needs. :::
+
+### `renderToString(view, options?)` / `renderToTree(view, options?)`
+
+The renderer itself, for fragments, emails, static builds — anything outside a page handler. `view`
+is a function returning JSX.
+
+```ts
+const html = await renderToString(() => <user-card />, { url: "/users/42" });
+```
+
+`renderToTree` stops one step short and hands back `{ root, dispose }` — the live tree, for callers
+that want to inspect or change it before `serializeTree(root)`. `RenderOptions` takes `url`,
+`shadow`, `maxPasses` and `document`; see [the render API](/getting-started/ssr/rendering).
 
 ### Types
 
 ```ts
-type LayoutEl = (props: { children: JSX.Element }) => JSX.Element;
+type LayoutEl = (props: {
+	children: JSX.Element;
+	title: string;
+	theme?: string;
+	description?: string;
+}) => JSX.Element;
 type LayoutState = { layout?: LayoutEl };
 ```
 

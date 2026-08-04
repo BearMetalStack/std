@@ -20,6 +20,9 @@ features:
   - title: "@bearmetal/app"
     details: Custom element framework with signals, effects, keyed lists, and SSR. Build reactive components that server-render and hydrate without a virtual DOM.
     link: /app
+  - title: "@bearmetal/jsx"
+    details: One JSX runtime for the client and the server. It builds real DOM nodes everywhere — on a server against a microdom whose trees serialize themselves — so a component is written once and behaves the same on both sides.
+    link: /jsx
   - title: "@bearmetal/router"
     details: Type-safe HTTP router with middleware, schema validation, a composable module system, and built-in response helpers. The backbone of every BearMetal server.
     link: /router

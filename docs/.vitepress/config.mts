@@ -18,6 +18,7 @@ export default defineConfig({
 				text: "Packages",
 				items: [
 					{ text: "@bearmetal/app", link: "/app" },
+					{ text: "@bearmetal/jsx", link: "/jsx" },
 					{ text: "@bearmetal/router", link: "/router/" },
 					{ text: "@bearmetal/forge", link: "/forge" },
 					{ text: "@bearmetal/events", link: "/events" },
@@ -60,10 +61,11 @@ export default defineConfig({
 					{
 						text: "SSR",
 						base: "getting-started/ssr",
-						link: "/ssr",
+						link: "/index",
 						collapsed: false,
 						items: [
-							{ text: "banana", link: "/bananas" },
+							{ text: "Loading data", link: "/data-loading" },
+							{ text: "The render API", link: "/rendering" },
 						],
 					},
 				],
@@ -71,6 +73,7 @@ export default defineConfig({
 			"/": {
 				items: [
 					{ text: "@bearmetal/app", link: "/app" },
+					{ text: "@bearmetal/jsx", link: "/jsx" },
 					{
 						text: "@bearmetal/router",
 						link: "/router/",
