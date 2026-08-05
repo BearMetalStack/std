@@ -104,6 +104,19 @@ export function createListRules(): AnyRule[] {
 	): Token[] {
 		const tokens: Token[] = [];
 
+		// A blank line makes the lexer drain *every* open block and emit their
+		// close tokens itself (`#handleNewline`), without telling the rules that
+		// pushed them. Nothing else closes a list, so this stack outlives the
+		// list it describes: the next list at the same indent and kind then looks
+		// like a continuation, and its items are emitted with no list token to
+		// open a container for them - producing `<li>`s loose in a paragraph.
+		//
+		// `currentBlock` being empty is exactly that drained state, and it can't
+		// be reached while any list here is genuinely open: `openList` pushes to
+		// the lexer and to this stack together, so a live entry always has a
+		// matching open block (plus any block an item nested inside it).
+		if (ctx.currentBlock === undefined) stack.length = 0;
+
 		while (stack.length > 0 && stack[stack.length - 1].indent > indent) {
 			const top = stack.pop()!;
 			ctx.popBlock();

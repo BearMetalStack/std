@@ -16,8 +16,17 @@
 import type { ResourceEntry } from "../../types.ts";
 import { XML_DECL } from "../../xml/build.ts";
 
+/**
+ * Relationship *type* URIs live under `officeDocument`, but the XML namespaces
+ * of the package-level parts (`[Content_Types].xml` and every `.rels`) live
+ * under `package` - ECMA-376 Part 2. Conflating the two produces a package
+ * that is well-formed XML and passes a casual read, but whose content types
+ * no consumer can resolve: Word and LibreOffice both fail to detect the file
+ * as OOXML at all and refuse to open it, while more forgiving readers
+ * (OpenOffice) fall back to the file extension and appear to work.
+ */
+const PKG_BASE = "http://schemas.openxmlformats.org/package/2006";
 const REL_BASE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-const CT_BASE = "http://schemas.openxmlformats.org/officeDocument/2006";
 
 /** Relationship type URIs, keyed by the part they point at. */
 export const REL_TYPE = {
@@ -41,7 +50,7 @@ export function contentTypes(options: { footnotes: boolean }): string {
 	const footnotes = options.footnotes
 		? `\n\t<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>`
 		: "";
-	return `${XML_DECL}<Types xmlns="${CT_BASE}/content-types">
+	return `${XML_DECL}<Types xmlns="${PKG_BASE}/content-types">
 \t<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 \t<Default Extension="xml" ContentType="application/xml"/>
 \t<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
@@ -52,7 +61,7 @@ export function contentTypes(options: { footnotes: boolean }): string {
 }
 
 export function packageRels(): string {
-	return `${XML_DECL}<Relationships xmlns="${REL_BASE}">
+	return `${XML_DECL}<Relationships xmlns="${PKG_BASE}/relationships">
 \t<Relationship Id="rIdDoc" Type="${REL_TYPE.document}" Target="word/document.xml"/>
 </Relationships>
 `;
@@ -86,7 +95,7 @@ export function documentRels(entries: readonly ResourceEntry[], footnotes: boole
 			`\t<Relationship Id="rId${next++}" Type="${REL_TYPE.footnotes}" Target="footnotes.xml"/>`,
 		);
 	}
-	return `${XML_DECL}<Relationships xmlns="${REL_BASE}">
+	return `${XML_DECL}<Relationships xmlns="${PKG_BASE}/relationships">
 ${lines.join("\n")}
 </Relationships>
 `;
