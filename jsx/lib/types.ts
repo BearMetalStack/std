@@ -102,6 +102,8 @@ export interface MakeSelectProps<Extra = never> extends MakeBaseProps<Extra> {
 	multiple?: boolean | Extra;
 	name?: string | Extra;
 	value?: string | Extra;
+	$bind?: Extra extends never ? never : WritableSignalLike;
+	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
 
 export interface MakeOptionProps<Extra = never> extends MakeBaseProps<Extra> {
