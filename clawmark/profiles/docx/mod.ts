@@ -19,17 +19,27 @@
 import type { AnyReverseRule, MatchContext, Node, Profile } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
 import { defaultRules } from "../../rules/mod.ts";
-import { emphasisTags } from "../../style.ts";
+import { emphasisTags, lookupAttr } from "../../style.ts";
 import { on } from "../../dsl.ts";
 import {
+	buildQuote,
+	codeBlockValue,
+	markSet,
+	siblingParagraphs,
+	takeParagraphRun,
+} from "../office.ts";
+import {
+	descendants,
 	DOCX_NS,
 	docxNumbering,
 	docxRelationships,
 	docxStyleResolver,
 	docxStyleTable,
+	parseIfString,
 } from "./styles.ts";
 
 export * from "./styles.ts";
+export * from "./write.ts";
 
 export interface DocxParts {
 	/** `word/styles.xml`. */
@@ -38,20 +48,19 @@ export interface DocxParts {
 	numbering?: string | XmlElement;
 	/** `word/_rels/document.xml.rels` - hyperlink and image targets. */
 	rels?: string | XmlElement;
+	/** `word/footnotes.xml`. Without it, footnote references are dropped. */
+	footnotes?: string | XmlElement;
 	/** Extra rules, consulted before the built-ins. */
 	rules?: AnyReverseRule[];
 }
 
 const CONSUMED = "docx:consumed";
+const CODE_CONSUMED = "docx:code-consumed";
+const QUOTE_CONSUMED = "docx:quote-consumed";
 
 /** Marks paragraphs a list matcher has already swallowed. */
 function consumed(ctx: MatchContext): Set<XmlElement> {
-	let set = ctx.state.get(CONSUMED) as Set<XmlElement> | undefined;
-	if (!set) {
-		set = new Set();
-		ctx.state.set(CONSUMED, set);
-	}
-	return set;
+	return markSet(ctx, CONSUMED);
 }
 
 /**
@@ -65,9 +74,7 @@ function consumed(ctx: MatchContext): Set<XmlElement> {
 function buildList(el: XmlElement): (parent: Node, ctx: MatchContext) => void {
 	return (parent, matchCtx) => {
 		const seen = consumed(matchCtx);
-		const siblings = (el.parent?.children ?? []).filter(
-			(c): c is XmlElement => c.kind === "element" && c.name === "p",
-		);
+		const siblings = siblingParagraphs(el);
 		const start = siblings.indexOf(el);
 
 		// Collect the maximal run of list paragraphs starting here.
@@ -120,6 +127,7 @@ export function docxProfile(parts: DocxParts = {}): Profile {
 	const numbering = docxNumbering(parts.numbering);
 	const rels = docxRelationships(parts.rels);
 	const table = docxStyleTable(parts.styles);
+	const footnoteRoot = parseIfString(parts.footnotes);
 	const w = (tag: string | string[]) => on(tag, DOCX_NS);
 
 	const rules: AnyReverseRule[] = [
@@ -140,6 +148,31 @@ export function docxProfile(parts: DocxParts = {}): Profile {
 			"w:tcPr",
 		]).drop(),
 
+		// The body is claimed so footnote definitions can be appended after the
+		// document proper: they live in a different part, and the crawler only
+		// ever walks one.
+		w("w:body").to((el) => ({
+			kind: "custom",
+			run(parent, ctx) {
+				ctx.crawlChildren(parent, el);
+				if (!footnoteRoot) return;
+				for (const note of descendants(footnoteRoot, "footnote")) {
+					const id = lookupAttr(note, "id");
+					// Ids below 1 are the separator and continuation-separator
+					// notes every producer writes; they are not content.
+					if (!id || !/^\d+$/.test(id) || Number(id) < 1) continue;
+					const def: Node = {
+						tag: "md:footnotedef",
+						data: { id, phase: "open" },
+						children: [],
+						parent,
+					};
+					parent.children.push(def);
+					ctx.crawlChildren(def, note);
+				}
+			},
+		})),
+
 		// A paragraph already swallowed by a preceding list run.
 		w("w:p").where((el, ctx) => consumed(ctx).has(el)).drop(),
 
@@ -153,14 +186,31 @@ export function docxProfile(parts: DocxParts = {}): Profile {
 			"md:heading",
 			(_el, ctx) => ({ level: ctx.style.headingLevel ?? 1, phase: "open" }),
 		),
-		w("w:p").whereStyle((s) => s.blockRole === "quote").wrap("md:blockquote", {
-			phase: "open",
+		// Like lists and code, a blockquote is a *run* of styled paragraphs -
+		// docx has no element for one. The first claims the run and turns each
+		// paragraph into an `md:lineitem`, which is the shape the forward lexer
+		// builds and what the serializer expects to prefix with `> `.
+		w("w:p").whereStyle((s) => s.blockRole === "quote").to((el, ctx) => {
+			const run = takeParagraphRun(el, ctx, QUOTE_CONSUMED, (s) => s.blockRole === "quote");
+			return run ? { kind: "custom", run: buildQuote(run) } : { kind: "drop" };
 		}),
-		w("w:p").whereStyle((s) => s.blockRole === "code").to((el, ctx) => ({
-			kind: "leaf",
-			tag: "md:codeblock",
-			data: { value: ctx.text(el) },
-		})),
+		// docx has no multi-line paragraph - `<w:t>` cannot hold a newline - so a
+		// code block arrives as a run of consecutive code-styled paragraphs, the
+		// same shape a list arrives in. The first one claims the whole run and
+		// rejoins the lines; the rest are marked consumed.
+		w("w:p").whereStyle((s) => s.blockRole === "code").to((el, ctx) => {
+			const run = takeParagraphRun(el, ctx, CODE_CONSUMED, (s) => s.blockRole === "code");
+			if (!run) return { kind: "drop" };
+			return { kind: "leaf", tag: "md:codeblock", data: { value: codeBlockValue(run, ctx) } };
+		}),
+
+		// An empty paragraph whose only property is a border is how every
+		// producer writes a horizontal rule.
+		w("w:p").where((el, ctx) => {
+			const pPr = ctx.child("pPr", el);
+			return pPr !== undefined && ctx.child("pBdr", pPr) !== undefined && ctx.text(el) === "";
+		}).emit("md:hr"),
+
 		w("w:p").wrap("core:paragraph", { phase: "open" }),
 
 		// Runs carry the character formatting. Mono wins outright (a code span
@@ -185,6 +235,14 @@ export function docxProfile(parts: DocxParts = {}): Profile {
 				: { kind: "unwrap" }
 		),
 		w("w:tab").to(() => ({ kind: "nodes", nodes: [textNode(" ")] })),
+		// A typed break is a page/column break, not a soft line break. Without
+		// this both come back as `md:linebreak` and a page break silently
+		// degrades into a `\` at the end of a line.
+		w("w:br").whereAttr("type", /^(page|column)$/).to((el, ctx) => ({
+			kind: "leaf",
+			tag: "md:pagebreak",
+			data: { kind: ctx.attr("type", el) },
+		})),
 		w("w:br").emit("md:linebreak"),
 
 		w("w:hyperlink").to((el, ctx) => {
@@ -194,6 +252,26 @@ export function docxProfile(parts: DocxParts = {}): Profile {
 		}),
 
 		w("w:tbl").to((el, ctx) => ({ kind: "nodes", nodes: [buildTable(el, ctx)] })),
+
+		// An inline picture. `r:embed` points at an embedded media part,
+		// `r:link` at an external file; either way the rels map has the target.
+		w("w:drawing").to((el, ctx) => {
+			const blip = ctx.find("blip", el);
+			const id = blip && (ctx.attr("embed", blip) ?? ctx.attr("link", blip));
+			const docPr = ctx.find("docPr", el);
+			const alt = docPr && ctx.attr("descr", docPr);
+			const data: Record<string, unknown> = { src: (id && rels.get(id)) ?? "" };
+			if (alt) data.alt = alt;
+			return { kind: "leaf", tag: "md:image", data };
+		}),
+
+		w("w:footnoteReference").to((el, ctx) => {
+			const id = ctx.attr("id", el);
+			return id ? { kind: "leaf", tag: "md:footnote", data: { id } } : { kind: "drop" };
+		}),
+		// Structural bits of a footnote definition: the mark the note opens with,
+		// and the rules a separator note is made of.
+		w(["w:footnoteRef", "w:separator", "w:continuationSeparator"]).drop(),
 
 		...defaultRules(),
 	];

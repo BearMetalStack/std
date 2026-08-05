@@ -6,7 +6,7 @@
  * out of graver into its own library.
  */
 
-import type { XmlElement, XmlParseOptions } from "./xml/types.ts";
+import type { AttrMap, XmlElement, XmlNode, XmlParseOptions, XmlText } from "./xml/types.ts";
 
 export type Namespace = string;
 export type Identifier = string;
@@ -305,6 +305,12 @@ export interface SerializeContext {
 // ---- style resolution -----------------------------------------------------
 
 /**
+ * A forced break. `"page"` and `"column"` are the two every target format can
+ * express; anything more exotic belongs in `ResolvedStyle.ext`.
+ */
+export type BreakKind = "page" | "column";
+
+/**
  * Normalized style, so a rule never has to know that a docx heading is
  * `<w:pPr><w:pStyle w:val="Heading1"/>` while an odt one is
  * `<text:h text:outline-level="1">`.
@@ -327,6 +333,17 @@ export interface ResolvedStyle {
 		id?: string;
 	};
 	align?: "l" | "c" | "r";
+	/**
+	 * Forced break before/after the block this style applies to.
+	 *
+	 * Normalized because the formats disagree completely on what a break even
+	 * *is*: ODF spells it as an `fo:break-before` property on an automatic
+	 * paragraph style, docx as either `<w:pageBreakBefore/>` in `<w:pPr>` or a
+	 * `<w:br w:type="page"/>` run, HTML as a CSS `break-before`. A rule that had
+	 * to know which would be a rule that only works in one format.
+	 */
+	breakBefore?: BreakKind;
+	breakAfter?: BreakKind;
 	/**
 	 * Format-specific escape hatch, never read by core. Deliberately a named
 	 * bag rather than an index signature: an open index signature would
@@ -365,7 +382,14 @@ export interface StyleTable {
 
 // ---- profiles -------------------------------------------------------------
 
-/** A named bundle of reverse rules plus the style machinery they depend on. */
+/**
+ * A named bundle of reverse rules plus the style machinery they depend on.
+ *
+ * This is the **read** half of a format. Its write counterpart is
+ * `WriteProfile`; the two are deliberately separate objects because their
+ * inputs have nothing in common - a reader is configured with the source parts
+ * it was handed, a writer with how the output should look.
+ */
 export interface Profile {
 	name: string;
 	rules: EngineRule[];
@@ -376,4 +400,233 @@ export interface Profile {
 	parse?: XmlParseOptions;
 	unmatched?: UnmatchedPolicy | UnmatchedHandler;
 	unmatchedByTag?: Record<string, UnmatchedPolicy | UnmatchedHandler>;
+}
+
+// ===========================================================================
+// Write direction: Node tree -> markup.
+//
+// The third direction. Forward rendering (`Rule.renderOpen`) hardcodes HTML
+// strings and takes no format parameter, so there was no slot a docx or odt
+// writer could occupy. Rather than widen the `Rule` contract - which would
+// break every rule ever written and force each one to know about every output
+// format - the write direction is owned by the *profile*, exactly as the
+// read direction's matchers are.
+//
+// An `Emitter` claims a node tag the way a `ReverseRule` claims an element
+// name. Precedence is array position, memoized per tag, same as everywhere
+// else in clawmark.
+// ===========================================================================
+
+/** A node tag an emitter registers under, or the wildcard bucket. */
+export type EmitTag = TokenIdentifier | "*";
+
+/** Node -> markup, for one output format. */
+export interface Emitter<T = Record<string, unknown>> {
+	/**
+	 * Node tags this emitter is registered under. `"*"` puts it in the wildcard
+	 * bucket, consulted for every node - which is how the office writers handle
+	 * `core:text`, since the run it belongs in depends on the accumulated style
+	 * rather than on the node itself.
+	 */
+	tag: EmitTag | EmitTag[];
+	/** Overridable id, for readable debugging. Defaults to `out:<tags>-<n>`. */
+	id?: string;
+	/** Return null to decline; the writer tries the next emitter. */
+	emit(node: Node<T>, ctx: EmitContext): EmitResult | null;
+}
+
+// deno-lint-ignore no-explicit-any
+export type AnyEmitter = Emitter<any>;
+
+export type EmitResult =
+	/**
+	 * Emit `el` into the current parent and emit the node's children into
+	 * `into`, which defaults to `el` itself.
+	 *
+	 * `into` is not a convenience. Office elements are chains whose children
+	 * belong at the bottom, not the top: a docx paragraph is
+	 * `<w:p><w:pPr>...</w:pPr>` with the content *after* the properties, and an
+	 * odt list item is `<text:list-item><text:p>`. Without it every such
+	 * emitter would have to fall through to `custom` and drive its own
+	 * recursion.
+	 */
+	| { kind: "element"; el: XmlElement; into?: XmlElement }
+	/** Emit ready-built markup; the node's children are the emitter's problem. */
+	| { kind: "nodes"; nodes: XmlNode[] }
+	/**
+	 * No element of its own: emit the node's children under an extra style
+	 * frame. This is what flattens the tree's nesting into the office formats'
+	 * flatness - see `EmitContext.style`.
+	 */
+	| { kind: "style"; style: ResolvedStyle }
+	/** Emit only the node's children, into the current parent. */
+	| { kind: "unwrap" }
+	/** Emit nothing, dropping the whole subtree. */
+	| { kind: "drop" }
+	/** Full control: the emitter drives its own recursion via `ctx.children`. */
+	| { kind: "custom"; run(parent: XmlElement, ctx: EmitContext): void };
+
+/** What to do with a node tag no emitter claimed. */
+export type UnclaimedPolicy =
+	/** Emit the node's children into the current parent. The default. */
+	| "unwrap"
+	/** Emit nothing. */
+	| "drop"
+	/** Flatten the subtree to a single text node. */
+	| "text";
+
+export type UnclaimedHandler = (node: Node, ctx: EmitContext) => EmitResult | null;
+
+export interface EmitContext {
+	readonly node: Node;
+	/** Root-first, excluding `node` itself. */
+	readonly ancestors: readonly Node[];
+	readonly parentTag: TokenIdentifier | undefined;
+
+	/**
+	 * Style accumulated from every enclosing `{ kind: "style" }` frame, merged
+	 * with `mergeStyle` so an inner frame's explicit `false` overrides an outer
+	 * `true`.
+	 *
+	 * This is the mechanism that reconciles a nested tree with flat formats. In
+	 * the tree, `md:bold > md:italic > core:text`; in docx, one
+	 * `<w:r><w:rPr><w:b/><w:i/></w:rPr>`. The emphasis emitters contribute
+	 * frames and emit no element; the `core:text` emitter reads the total and
+	 * builds the run. It is the exact inverse of `emphasisTags()` in style.ts,
+	 * which the read profiles already use.
+	 *
+	 * Block roles ride the same stack - a blockquote contributes
+	 * `{ blockRole: "quote" }` and the paragraph emitter reads it - because
+	 * docx flattens block nesting for exactly the same reason.
+	 */
+	readonly style: ResolvedStyle;
+	withStyle<R>(style: ResolvedStyle, fn: () => R): R;
+
+	/** Emits a node's children into `parent`. Defaults to the current node. */
+	children(parent: XmlElement, node?: Node): void;
+	/** Emits one node into `parent`. */
+	child(parent: XmlElement, node: Node): void;
+	/** Flattens a subtree to plain text. Mirrors `SerializeContext.text`. */
+	text(node?: Node): string;
+
+	/** Element builder, bound to the profile's `nsMap`. */
+	el(qname: string, attrs?: AttrMap, children?: XmlNode[]): XmlElement;
+	txt(value: string): XmlText;
+
+	readonly styles: StyleSink;
+	readonly resources: ResourceSink;
+	/** Per-document scratch space for stateful emitters. */
+	readonly state: Map<string, unknown>;
+	warn(message: string, node?: Node): void;
+}
+
+// ---- write-side sinks -----------------------------------------------------
+
+export type StyleFamily = "paragraph" | "text" | "list" | "table";
+
+/**
+ * The inverse of `StyleTable`: interns a normalized style and hands back the
+ * name a document should reference for it.
+ *
+ * odt needs this for everything, because ODF expresses even direct formatting
+ * as a named automatic style. docx needs it only for block roles and list
+ * numbering, since character formatting there is inline `<w:rPr>`.
+ */
+export interface StyleSink {
+	/** Deduped on a canonical key, so identical styles share one definition. */
+	ensure(style: ResolvedStyle, family?: StyleFamily): string;
+	/** Definitions interned so far, in insertion order. */
+	readonly defs: readonly StyleDef[];
+}
+
+export interface StyleSinkOptions {
+	/** Generated-name prefixes per family. odt uses `{ paragraph: "P", text: "T" }`. */
+	prefix?: Partial<Record<StyleFamily, string>>;
+	/**
+	 * Well-known name for a style, so a heading references `Heading_20_1`
+	 * rather than an opaque `P3`. Return undefined to fall back to a generated
+	 * name.
+	 */
+	name?(style: ResolvedStyle, family: StyleFamily): string | undefined;
+}
+
+export type ResourceType = "hyperlink" | "image";
+
+export interface ResourceEntry {
+	id: string;
+	target: string;
+	type: ResourceType;
+	/** False for a part inside the package, true for an outbound URL. */
+	external: boolean;
+}
+
+/**
+ * Mints ids for targets a format references indirectly. docx serializes these
+ * into `word/_rels/document.xml.rels`; odt writes `xlink:href` inline and
+ * ignores the sink entirely.
+ */
+export interface ResourceSink {
+	ensure(target: string, type: ResourceType): string;
+	readonly entries: readonly ResourceEntry[];
+}
+
+// ---- write profiles -------------------------------------------------------
+
+export interface WriteProfile {
+	name: string;
+	/** Consulted in array order; the first non-null result wins. */
+	emitters: AnyEmitter[];
+	/** Prefix-to-URI map, used both to build elements and to declare namespaces. */
+	nsMap?: Record<string, string>;
+	styles?: StyleSink;
+	resources?: ResourceSink;
+	/** Serialization mode for the emitted parts. Default "xml". */
+	mode?: "xml" | "html";
+	/** Default "unwrap". */
+	unclaimed?: UnclaimedPolicy | UnclaimedHandler;
+	/**
+	 * Wraps the emitted body into the finished set of parts.
+	 *
+	 * Everything a format needs *besides* its body - `[Content_Types].xml`,
+	 * `META-INF/manifest.xml`, a styles part built from what the emit pass
+	 * interned into the sinks - is generated here, once, after the whole tree
+	 * has been walked. That ordering is required: an odt's automatic styles are
+	 * not known until the last run has been emitted.
+	 */
+	assemble(body: XmlNode[], ctx: AssembleContext): WriteResult;
+	onWarn?(message: string, node?: Node): void;
+}
+
+export interface AssembleContext {
+	readonly profile: WriteProfile;
+	readonly styles: StyleSink;
+	readonly resources: ResourceSink;
+	readonly state: Map<string, unknown>;
+	readonly warnings: readonly string[];
+	/** The tree that was rendered. */
+	readonly root: Node;
+	/** Serializes markup to text in the profile's mode, prefixed with `XML_DECL`. */
+	serialize(node: XmlNode | XmlNode[]): string;
+	el(qname: string, attrs?: AttrMap, children?: XmlNode[]): XmlElement;
+	txt(value: string): XmlText;
+}
+
+/**
+ * The output of a write pass: a package as a set of named parts.
+ *
+ * **Not zipped.** Shipping a ZIP implementation would be the only binary code
+ * in clawmark and a much larger project, so the write side keeps the same
+ * boundary the read side already has - callers hand parts in, callers zip
+ * parts out.
+ */
+export interface WriteResult {
+	/** Part path relative to the package root, mapped to its contents. */
+	parts: Record<string, string>;
+	/** Key in `parts` of the main document part. */
+	primary: string;
+	/** Suggested file extension, without the dot. */
+	extension?: string;
+	/** Media type of the assembled package. */
+	mediaType?: string;
+	warnings: string[];
 }

@@ -29,6 +29,12 @@ import { createStyleTable, emphasisTags, lookupAttr, styleFromName } from "../..
 import { XmlParser } from "../../xml/parser.ts";
 import { defaultRules } from "../../rules/mod.ts";
 import { on } from "../../dsl.ts";
+import { buildQuote, codeBlockValue, takeParagraphRun } from "../office.ts";
+
+export * from "./write.ts";
+
+const CODE_CONSUMED = "odt:code-consumed";
+const QUOTE_CONSUMED = "odt:quote-consumed";
 
 export const TEXT_NS = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
 export const STYLE_NS = "urn:oasis:names:tc:opendocument:xmlns:style:1.0";
@@ -49,6 +55,13 @@ export const ODT_NS: Record<string, string> = {
 };
 
 const MONO_RX = /mono|courier|consolas|menlo/i;
+
+/** Links a freshly built node into `parent` and returns it. */
+function appendChild(parent: Node, node: Node): Node {
+	node.parent = parent;
+	parent.children.push(node);
+	return node;
+}
 
 function parseIfString(source: string | XmlElement | undefined): XmlElement | undefined {
 	if (source === undefined) return undefined;
@@ -98,6 +111,19 @@ function textProperties(props: XmlElement | undefined): ResolvedStyle {
 	return out;
 }
 
+const BREAK_KINDS = new Set(["page", "column"]);
+
+/** Reads `<style:paragraph-properties>` into a normalized style. */
+function paragraphProperties(props: XmlElement | undefined): ResolvedStyle {
+	if (!props) return {};
+	const out: ResolvedStyle = {};
+	const before = lookupAttr(props, "break-before");
+	if (before && BREAK_KINDS.has(before)) out.breakBefore = before as "page" | "column";
+	const after = lookupAttr(props, "break-after");
+	if (after && BREAK_KINDS.has(after)) out.breakAfter = after as "page" | "column";
+	return out;
+}
+
 /** Reads every `<style:style>` under `root` into style definitions. */
 function styleDefsFrom(root: XmlElement): StyleDef[] {
 	const defs: StyleDef[] = [];
@@ -113,6 +139,7 @@ function styleDefsFrom(root: XmlElement): StyleDef[] {
 		const style: ResolvedStyle = {
 			named: id,
 			...(family === undefined || family === "paragraph" ? styleFromName(display) : {}),
+			...paragraphProperties(firstChild(el, "paragraph-properties")),
 			...textProperties(firstChild(el, "text-properties")),
 		};
 		// An explicit outline level beats the name heuristic. Google Docs
@@ -229,6 +256,8 @@ export function odtProfile(parts: OdtParts = {}): Profile {
 		},
 	};
 	const listStyles: OdtListStyles = new Map();
+	/** Note bodies harvested at their reference, emitted after the body. */
+	const noteBodies: { id: string; body: XmlElement }[] = [];
 	for (const source of [parts.styles, parts.content]) {
 		const root = parseIfString(source);
 		if (!root) continue;
@@ -257,6 +286,36 @@ export function odtProfile(parts: OdtParts = {}): Profile {
 		}),
 		t("office:font-face-decls").drop(),
 		t(["text:tracked-changes", "text:sequence-decls", "text:bookmark"]).drop(),
+		// Accessibility metadata on a frame, not content.
+		t(["svg:title", "svg:desc"]).drop(),
+
+		// The body is claimed so footnote definitions can be appended after the
+		// document proper: ODF holds a note's text inline at the reference, but
+		// the clawmark tree wants a definition at the end.
+		t("office:text").to((el) => ({
+			kind: "custom",
+			run(parent, ctx) {
+				ctx.crawlChildren(parent, el);
+				for (const note of noteBodies) {
+					const def: Node = {
+						tag: "md:footnotedef",
+						data: { id: note.id, phase: "open" },
+						children: [],
+						parent,
+					};
+					parent.children.push(def);
+					ctx.crawlChildren(def, note.body);
+				}
+			},
+		})),
+
+		t("text:note").to((el, ctx) => {
+			const citation = ctx.child("note-citation", el);
+			const body = ctx.child("note-body", el);
+			const id = (citation && ctx.text(citation)) || String(noteBodies.length + 1);
+			if (body) noteBodies.push({ id, body });
+			return { kind: "leaf", tag: "md:footnote", data: { id } };
+		}),
 
 		t("text:h").wrap("md:heading", (el, ctx) => ({
 			level: Number(ctx.attr("outline-level", el) ?? ctx.style.headingLevel ?? 1),
@@ -276,9 +335,62 @@ export function odtProfile(parts: OdtParts = {}): Profile {
 			"md:heading",
 			(_el, ctx) => ({ level: ctx.style.headingLevel ?? 1, phase: "open" }),
 		),
-		t("text:p").whereStyle((s) => s.blockRole === "quote").wrap("md:blockquote", {
-			phase: "open",
+
+		// An empty paragraph carrying only a bottom border is how ODF spells a
+		// horizontal rule; LibreOffice names that style "Horizontal Line".
+		t("text:p").where((el, ctx) => {
+			const named = ctx.attr("style-name", el);
+			return named !== undefined &&
+				/^horizontal\s*line$/i.test(decodeStyleName(named)) &&
+				ctx.text(el) === "";
+		}).emit("md:hr"),
+
+		// Blockquotes and code blocks are runs of styled paragraphs here just as
+		// they are in docx - ODF has an element for a list but not for either of
+		// these. The first paragraph of a run claims all of them.
+		t("text:p").whereStyle((s) => s.blockRole === "quote").to((el, ctx) => {
+			const run = takeParagraphRun(el, ctx, QUOTE_CONSUMED, (s) => s.blockRole === "quote");
+			return run ? { kind: "custom", run: buildQuote(run) } : { kind: "drop" };
 		}),
+		t("text:p").whereStyle((s) => s.blockRole === "code").to((el, ctx) => {
+			const run = takeParagraphRun(el, ctx, CODE_CONSUMED, (s) => s.blockRole === "code");
+			if (!run) return { kind: "drop" };
+			return { kind: "leaf", tag: "md:codeblock", data: { value: codeBlockValue(run, ctx) } };
+		}),
+		// ODF has no page-break element, so a break is `fo:break-before` on a
+		// paragraph style, and producers disagree about which paragraph carries
+		// it: clawmark's own writer emits an empty one, while LibreOffice puts
+		// the property on the paragraph *following* the break. Both are read
+		// here - the empty form becomes a bare `md:pagebreak`, the loaded form
+		// becomes a break plus the paragraph it was attached to.
+		//
+		// Deliberately below the heading/quote/code rules: a break on a
+		// heading-styled paragraph keeps the heading and loses the break, which
+		// is the less destructive of the two ways to get that wrong.
+		t("text:p").whereStyle((s) => s.breakBefore !== undefined).to((el, ctx) => {
+			const kind = ctx.style.breakBefore;
+			if (ctx.text(el) === "") {
+				return { kind: "leaf", tag: "md:pagebreak", data: { kind } };
+			}
+			const emphasis = emphasisTags(ownStyle(el, ctx));
+			return {
+				kind: "custom",
+				run(parent, inner) {
+					appendChild(parent, { tag: "md:pagebreak", data: { kind }, children: [] });
+					const p = appendChild(parent, {
+						tag: "core:paragraph",
+						data: { phase: "open" },
+						children: [],
+					});
+					let target = p;
+					for (const tag of emphasis) {
+						target = appendChild(target, { tag, data: {}, children: [] });
+					}
+					inner.crawlChildren(target, el);
+				},
+			};
+		}),
+
 		t("text:p").to((el, ctx) => ({
 			kind: "wrap",
 			tag: ["core:paragraph", ...emphasisTags(ownStyle(el, ctx))],
@@ -325,11 +437,16 @@ export function odtProfile(parts: OdtParts = {}): Profile {
 			tag: "md:link",
 			data: { href: ctx.attr("href", el) ?? "#", text: ctx.text(el) },
 		})),
-		t("draw:image").to((el, ctx) => ({
-			kind: "leaf",
-			tag: "md:image",
-			data: { src: ctx.attr("href", el) ?? "" },
-		})),
+		// ODF puts an image's alternative text in an `<svg:title>` on the
+		// enclosing frame, not on the image itself.
+		t("draw:image").to((el, ctx) => {
+			const frame = el.parent;
+			const title = frame && (ctx.child("title", frame) ?? ctx.child("desc", frame));
+			const alt = title && ctx.text(title);
+			const data: Record<string, unknown> = { src: ctx.attr("href", el) ?? "" };
+			if (alt) data.alt = alt;
+			return { kind: "leaf", tag: "md:image", data };
+		}),
 		t("draw:frame").unwrap(),
 
 		t("text:line-break").emit("md:linebreak"),

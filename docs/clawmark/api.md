@@ -64,6 +64,25 @@ htmlToMarkdown(
 The whole reverse pipeline for HTML — the inverse of `toHtml`.
 
 ```ts
+renderWith(tree: Node, profile: WriteProfile): WriteResult
+```
+
+Renders a tree into a set of markup parts using `profile`'s emitters. See [Writing](./write).
+
+```ts
+markdownWith(input: string, profile: WriteProfile, rules?: AnyRule[]): WriteResult
+```
+
+Parses markdown and renders it through a write profile in one step.
+
+```ts
+convert(source: string | XmlElement, from: Profile, to: WriteProfile): WriteResult
+```
+
+Markup in, markup out. **Regenerates rather than preserves** — the tree carries no source-format
+context, so a non-conformant document comes back out built to `to`'s idea of correct.
+
+```ts
 defaultRules(): AnyRule[]
 ```
 
@@ -395,7 +414,15 @@ on(tag: string | string[], nsMap?: Record<string, string>): RuleBuilder
 onAny(): RuleBuilder
 onStyle(pred: (s: ResolvedStyle, ctx: MatchContext) => boolean): RuleBuilder
 scopedOn(nsMap: Record<string, string>): (tag: string | string[]) => RuleBuilder
+
+out(tag: TokenIdentifier | TokenIdentifier[]): EmitBuilder
+outAny(): EmitBuilder
+outStyle(pred: (s: ResolvedStyle, ctx: EmitContext) => boolean): EmitBuilder
 ```
+
+`out` is the write-direction mirror of `on` — it keys on a node tag rather than an element name and
+produces markup rather than nodes. Its predicates are `hasData`, `under`, and `atStyle`; its builder
+is documented on the [Writing](./write#emitters) page.
 
 **Predicates** (free functions of type `Matcher = (el, ctx) => boolean`):
 
@@ -467,19 +494,20 @@ Node model and error types are in [the XML parser page](./xml#the-node-model).
 
 ## Export map
 
-| Specifier                           | Contents                                                        |
-| ----------------------------------- | --------------------------------------------------------------- |
-| `@bearmetal/clawmark`               | Everything below except the profiles and `rules/extra`.         |
-| `@bearmetal/clawmark/types`         | Types only.                                                     |
-| `@bearmetal/clawmark/xml`           | The parser, node model, `fromDom`, `serializeXml`, HTML tables. |
-| `@bearmetal/clawmark/crawl`         | `Crawler`, `postProcess`.                                       |
-| `@bearmetal/clawmark/serialize`     | `MarkdownSerializer`, `prefixLines`.                            |
-| `@bearmetal/clawmark/style`         | Style helpers and `createStyleTable`.                           |
-| `@bearmetal/clawmark/dsl`           | `on`, predicates, `RuleBuilder`.                                |
-| `@bearmetal/clawmark/profiles/html` | `htmlProfile`, `htmlStyleResolver`, `parseInlineStyle`.         |
-| `@bearmetal/clawmark/profiles/docx` | `docxProfile` and its style/numbering/rels helpers.             |
-| `@bearmetal/clawmark/profiles/odt`  | `odtProfile` and its style/list helpers.                        |
-| `@bearmetal/clawmark/rules/extra`   | Reserved slot for optional syntax rules. Ships empty.           |
+| Specifier                           | Contents                                                             |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `@bearmetal/clawmark`               | Everything below except the profiles and `rules/extra`.              |
+| `@bearmetal/clawmark/types`         | Types only.                                                          |
+| `@bearmetal/clawmark/xml`           | The parser, node model, `fromDom`, `serializeXml`, HTML tables.      |
+| `@bearmetal/clawmark/crawl`         | `Crawler`, `postProcess`.                                            |
+| `@bearmetal/clawmark/serialize`     | `MarkdownSerializer`, `prefixLines`.                                 |
+| `@bearmetal/clawmark/write`         | `MarkupWriter`, `renderWith`, `createResourceSink`, `singlePart`.    |
+| `@bearmetal/clawmark/style`         | Style helpers, `createStyleTable`, `createStyleSink`.                |
+| `@bearmetal/clawmark/dsl`           | `on` and `out`, predicates, `RuleBuilder`, `EmitBuilder`.            |
+| `@bearmetal/clawmark/profiles/html` | `htmlProfile`, `htmlStyleResolver`, `parseInlineStyle`.              |
+| `@bearmetal/clawmark/profiles/docx` | `docxProfile`, `docxWriter`, and their style/numbering/rels helpers. |
+| `@bearmetal/clawmark/profiles/odt`  | `odtProfile`, `odtWriter`, and their style/list helpers.             |
+| `@bearmetal/clawmark/rules/extra`   | Reserved slot for optional syntax rules. Ships empty.                |
 
 Everything reachable from the root specifier is also reachable from its narrower one; the subpaths
 exist so a consumer that only needs the XML parser doesn't pull the rule set in with it.

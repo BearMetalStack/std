@@ -4,15 +4,21 @@
 [![JSR](https://badger.bear-metal.dev/?label=jsr&value=%40bearmetal%2Fclawmark&valueColor=info)](https://jsr.io/@bearmetal/clawmark)
 
 A rule-based markup engine driven entirely by a swappable set of `Rule` definitions rather than a
-fixed grammar. It runs in both directions:
+fixed grammar. Every input meets every output in the middle:
 
 ```
-                  ┌──────────────┐
-markdown ────────▶│              │────────▶ html
-                  │  Node tree   │
-xml/html ────────▶│              │────────▶ markdown
-(docx, odt)       └──────────────┘
+                   ┌──────────────┐
+markdown ─────────▶│              │─────────▶ html
+                   │              │─────────▶ markdown
+html ─────────────▶│  Node tree   │─────────▶ docx
+                   │              │─────────▶ odt
+docx, odt, xml ───▶│              │─────────▶ (your profile)
+                   └──────────────┘
 ```
+
+Which is to say it is not really a markdown library. Markdown is the syntax it happens to ship rules
+for; the engine underneath is a markup-to-markup converter, and the node tree in the middle is the
+only thing any two formats have to agree on.
 
 `defaultRules()` covers Markdown-equivalent syntax (headings, emphasis, lists, tables, blockquotes,
 links, images, footnotes, code, horizontal rules), plus the common extensions `~~strikethrough~~`,
@@ -21,12 +27,21 @@ formats this engine reverses have underline even though CommonMark does not. Zer
 host APIs — the same code runs in Deno, a browser, and a worker.
 
 ```ts
-import { htmlToMarkdown, toHtml, xmlToMarkdown } from "@bearmetal/clawmark";
-import { docxProfile } from "@bearmetal/clawmark/profiles/docx";
+import { convert, htmlToMarkdown, markdownWith, toHtml, xmlToMarkdown } from "@bearmetal/clawmark";
+import { docxProfile, docxWriter } from "@bearmetal/clawmark/profiles/docx";
+import { odtWriter } from "@bearmetal/clawmark/profiles/odt";
 
 toHtml("# Hello"); // <h1>Hello</h1>
 htmlToMarkdown("<h1>Hello</h1>"); // # Hello
+
+// reading
 xmlToMarkdown(documentXml, docxProfile({ styles, numbering }));
+
+// writing
+markdownWith("# Hello", docxWriter()).parts["word/document.xml"];
+
+// and both at once
+convert(documentXml, docxProfile({ styles }), odtWriter());
 ```
 
 ## Both directions from one rule
@@ -56,31 +71,69 @@ The reverse hooks are all optional, so a rule that only handles markdown syntax 
 
 ## Profiles
 
-A profile is a rule set plus the style machinery it needs. `htmlProfile()` is the default;
-`docxProfile()` and `odtProfile()` handle OOXML and OpenDocument, where the same construct is
-expressed completely differently — a heading is `<h2>`, or `<w:pStyle w:val="Heading2"/>`, or
-`<text:h text:outline-level="2">`.
+A format has a **read profile** and a **write profile**, and they are separate objects because their
+inputs have nothing in common — a reader is configured with the source parts it was handed, a writer
+with how the output should look.
 
-Profiles are written declaratively:
+`htmlProfile()` is the default reader; `docxProfile()` and `odtProfile()` handle OOXML and
+OpenDocument, where the same construct is expressed completely differently — a heading is `<h2>`, or
+`<w:pStyle w:val="Heading2"/>`, or `<text:h text:outline-level="2">`. `docxWriter()` and
+`odtWriter()` go the other way.
+
+Both halves are written declaratively, and `out()` reads as the inverse of `on()`:
 
 ```ts
-import { on, onStyle } from "@bearmetal/clawmark/dsl";
+import { on, onStyle, out } from "@bearmetal/clawmark/dsl";
 
+// reading
 on("w:p").whereStyle((s) => s.blockRole === "heading").wrap("md:heading", (el, ctx) => ({
 	level: ctx.style.headingLevel ?? 1,
 }));
 onStyle((s) => s.bold).wrap("md:bold");
 on(["w:sectPr", "w:proofErr"]).drop();
+
+// writing
+out("md:heading").wrap("text:h", (node) => ({ "text:outline-level": node.data.level }));
+out("md:bold").style({ bold: true });
+out("md:tablerow").drop();
 ```
 
 Elements no rule claims follow a configurable policy — `unwrap` (default), `raw`, `drop`, or a
-callback — settable globally and per tag.
+callback. Node tags no emitter claims follow the same idea with `unclaimed`.
 
-**The office profiles do not unzip archives.** A ZIP/inflate implementation would be the only binary
-code in the package and a much larger project, so callers hand over the parts they need as strings:
-`document.xml` and optionally `styles.xml`, `numbering.xml`, and `document.xml.rels`. Every part is
-optional; without `styles.xml` the docx profile falls back to matching style names heuristically,
-which covers most real documents.
+**The office profiles do not zip or unzip archives.** A ZIP/inflate implementation would be the only
+binary code in the package and a much larger project, so the boundary is the same in both
+directions: callers hand parts in, and get parts back out.
+
+```ts
+const out = markdownWith(md, docxWriter());
+out.parts; // "word/document.xml", "word/styles.xml", "[Content_Types].xml", …
+out.primary; // "word/document.xml"
+```
+
+For reading, every part is optional; without `styles.xml` the docx profile falls back to matching
+style names heuristically, which covers most real documents. For writing, note that an odt's
+`mimetype` entry has to be stored **first and uncompressed** — that is a property of the archive
+rather than of the bytes, so it is the caller's to get right:
+
+```sh
+zip -X -0 out.odt mimetype && zip -X -r out.odt . -x mimetype
+```
+
+## Conversion, not reproduction
+
+The node tree carries no source-format context, which makes `convert()` a normalizer rather than a
+copier:
+
+```ts
+convert(badContentXml, odtProfile({ styles }), odtWriter());
+```
+
+A document from an exporter that plays fast and loose with the spec — Google Docs writes headings as
+`<text:p>` with a heading style and an _empty_ `style:default-outline-level`, never as `<text:h>` —
+comes back out built to spec, because the writer builds from the normalized tree and has no idea
+what the input looked like. The corollary is that anything the node vocabulary and `ResolvedStyle`
+cannot express is dropped on the way through. That is the trade, and it is the point.
 
 ## Round-trip fidelity
 
@@ -99,13 +152,93 @@ the _forward_ engine rather than of the reverse pipeline:
 `html → md → html` is the stronger invariant and holds throughout, since the cosmetic differences
 above all render identically.
 
+`md → docx → md` and `md → odt → md` are fixed points for every construct in that list, tested
+against the engine's own `md → md` output so the forward lossiness above is not counted twice. What
+the office formats lose on top of it is genuinely theirs:
+
+| Construct                | docx                    | odt  | Why                                                                                       |
+| ------------------------ | ----------------------- | ---- | ----------------------------------------------------------------------------------------- |
+| code block language      | lost                    | lost | Neither format has a slot for it, and inventing an attribute would defeat the point.      |
+| task list check state    | becomes a `☐`/`☒` glyph | same | Neither format has a checkbox a list item can carry.                                      |
+| emphasis inside emphasis | flattens to siblings    | kept | A `<w:r>` cannot contain a `<w:r>`; a `<text:span>` can contain a `<text:span>`.          |
+| non-numeric `[^label]`   | renumbered, warns       | kept | A docx footnote id is an integer. ODF keeps the citation text.                            |
+| table alignment          | lost                    | lost | The readers flatten every cell to plain text, so only a body row's own markers survive.   |
+| image dimensions         | placeholder             | n/a  | clawmark never opens the file, so `<wp:extent>` gets `imageExtent` (one inch by default). |
+
 Two further divergences from CommonMark are deliberate: `<` is never escaped (clawmark has no
 raw-HTML rule, so `<script>` is plain text and round-trips exactly), and list continuation uses a
 2-space indent (clawmark compares indentation magnitude only). Set `listIndent: 4` if you are
 targeting a strict CommonMark parser.
 
+## Page breaks
+
+Markdown has no page break, so the syntax is opt-in and the tag is not. `pageBreakRules()` is off by
+default; register it and `md:pagebreak` becomes available in every direction:
+
+```ts
+import { defaultRules, markdownWith } from "@bearmetal/clawmark";
+import { pageBreakRules } from "@bearmetal/clawmark/rules/extra";
+
+const rules = [...pageBreakRules({ markers: "+++" }), ...defaultRules()];
+markdownWith("one\n\n+++\n\ntwo", odtWriter(), rules);
+```
+
+Markers default to `\pagebreak` and `\newpage`, must occupy a whole line, and `kind: "column"`
+switches to a column break. A rule pack with its own syntax can skip this entirely and just emit
+`md:pagebreak` nodes — the tag, not the syntax, is what the writers key on.
+
+Each format spells it differently, which is why `ResolvedStyle` carries a normalized
+`breakBefore`/`breakAfter` rather than leaving it to rules:
+
+| Format | Output                                                                     |
+| ------ | -------------------------------------------------------------------------- |
+| odt    | `<text:p>` referencing an automatic paragraph style with `fo:break-before` |
+| docx   | `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`                              |
+| html   | `<div class="pagebreak" style="break-after:page">`                         |
+
+ODF has no page-break _element_ — a break is a property of a paragraph — so the odt writer interns
+an automatic paragraph style through the `StyleSink` and every break in the document shares one
+`P1`. Reading odt accepts both the empty-paragraph form clawmark writes and the loaded form
+LibreOffice writes, where `fo:break-before` sits on the paragraph _following_ the break.
+
 ## Extending
 
 `rules/extra/mod.ts` (exported as `@bearmetal/clawmark/rules/extra`) is the reserved slot for
 optional _syntax_ rules. Reverse-only rules belong in a profile and should take ids in the `rev:`
-namespace, which keeps them out of the forward dispatch maps entirely.
+namespace, which keeps them out of the forward dispatch maps entirely; emitters take `out:` ids for
+the same reason.
+
+**A rule that introduces a block-level construct must call `addBlockTags`.** The lexer opens a
+`core:paragraph` around every block, and `wrapsSoleBlock` — which is how the renderer and both
+office writers know to drop that wrapper — tests against a registry, not against the rule array:
+
+```ts
+import { addBlockTags } from "@bearmetal/clawmark";
+
+addBlockTags("x:callout");
+```
+
+Skip it and the construct is emitted _inside_ a paragraph: a `<p>` in HTML, and a `<text:p>` nested
+in a `<text:p>` in odt, which is invalid ODF and silently discarded by readers. The symptom is a
+node that parses correctly and then appears to vanish from the output.
+
+Custom styles reach the file the same way: `ctx.styles.ensure(style, family)` interns a definition
+and hands back the name to reference. The odt writer serializes the `paragraph`, `character`, and
+`list` families into `<office:automatic-styles>`; a `ResolvedStyle` with a `named` sets the
+automatic style's `style:parent-style-name`, so `{ named: "Quote", breakBefore: "page" }` derives
+from `Quote`.
+
+A new output format is a `WriteProfile`: an array of emitters, optionally a `StyleSink` and a
+`ResourceSink`, and an `assemble` that turns the emitted body into named parts. Nothing about it is
+markdown-specific — emitters key on node tags, and the tags are whatever the rule set in play emits.
+`singlePart()` covers a format that is one document and no boilerplate:
+
+```ts
+import { out, singlePart } from "@bearmetal/clawmark";
+
+const myWriter: WriteProfile = {
+	name: "mine",
+	emitters: [out("md:heading").wrap("title"), out("core:paragraph").wrap("para")],
+	assemble: singlePart("doc.xml", { extension: "xml" }),
+};
+```
