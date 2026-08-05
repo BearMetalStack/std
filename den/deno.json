@@ -1,0 +1,19 @@
+{
+	"name": "@bearmetal/den",
+	"description": "OS-correct application directories for Deno, with buffered file handles",
+	"version": "0.0.1",
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts",
+		"./errors": "./errors.ts",
+		"./layout": "./layout.ts"
+	},
+	"tasks": {
+		"test": "deno test -RWE",
+		"dev": "deno test --watch -RWE"
+	},
+	"license": "GPL-3.0-only",
+	"imports": {
+		"@std/path": "jsr:@std/path@1"
+	}
+}
