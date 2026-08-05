@@ -35,4 +35,7 @@ features:
   - title: "@bearmetal/clawmark"
     details: A rule-based markup engine that runs both ways. Markdown to HTML, and HTML, docx, or odt back to markdown — driven by a swappable rule set rather than a fixed grammar.
     link: /clawmark/
+  - title: "@bearmetal/den"
+    details: Application directories that follow the OS — XDG, the macOS Library layout, Windows roaming and local — plus file handles that stage, flush, and never let a path escape.
+    link: /den
 ---
