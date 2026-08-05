@@ -13,7 +13,8 @@
 		"./profiles/html": "./profiles/html/mod.ts",
 		"./profiles/docx": "./profiles/docx/mod.ts",
 		"./profiles/odt": "./profiles/odt/mod.ts",
-		"./rules/extra": "./rules/extra/mod.ts"
+		"./rules/extra": "./rules/extra/mod.ts",
+		"./rules/helpers": "./rules/helpers.ts"
 	},
 	"tasks": {
 		"dev": "deno test --watch"
