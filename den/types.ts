@@ -56,6 +56,60 @@ export type DenOptions = Partial<DenIdentity> & {
 	 * file. Defaults to true.
 	 */
 	atomic?: boolean;
+	/**
+	 * Where warnings go. Defaults to `console.warn` with a `[den]` prefix; pass
+	 * `() => {}` to silence them, or collect them to surface in your own UI.
+	 */
+	onWarning?: (warning: DenWarning) => void;
+};
+
+/** Contents of the `.bearmetal_den` marker file that claims a directory. */
+export type DenOwner = {
+	/** Application name that claimed the directory. */
+	app: string;
+	/** Organisation, when the claiming app had one. */
+	org?: string;
+	/** Which kind of directory this is, from the claimant's point of view. */
+	kind: DenDirKind;
+	/** Marker schema version. */
+	den: number;
+	/** ISO timestamp of the claim. */
+	created: string;
+};
+
+/**
+ * How a directory relates to the app asking about it.
+ *
+ * - `absent` — nothing there yet; whoever claims it first owns it
+ * - `owned` — claimed by this app, for this kind
+ * - `unmarked` — exists but empty, so claiming it is harmless
+ * - `unclaimed` — exists with content den didn't put there
+ * - `conflict` — claimed by a different app, org, or kind
+ */
+export type DenOwnershipStatus = "absent" | "owned" | "unmarked" | "unclaimed" | "conflict";
+
+/** The result of inspecting one directory. */
+export type DenOwnership = {
+	kind: DenDirKind;
+	path: string;
+	status: DenOwnershipStatus;
+	/** The marker that was found, when there was one. */
+	owner?: DenOwner;
+	/** Human-readable explanation, present for `unclaimed` and `conflict`. */
+	message?: string;
+};
+
+/** Something den wants to tell you about but won't throw over. */
+export type DenWarning = {
+	/**
+	 * `collision` — two kinds resolved to the same path, found without touching
+	 * the disk; `conflict`/`unclaimed` — see {@linkcode DenOwnershipStatus}.
+	 */
+	code: "collision" | "conflict" | "unclaimed";
+	message: string;
+	/** The directory kinds involved. */
+	kinds: DenDirKind[];
+	path: string;
 };
 
 /** A handle on one file. Cheap to construct; touches the disk only when asked. */
@@ -128,10 +182,17 @@ export type DenDir = {
 	list(): Promise<Deno.DirEntry[]>;
 	/** Every descendant file, as paths relative to this directory. */
 	walk(): AsyncIterableIterator<string>;
-	/** Delete the contents but keep the directory. */
-	empty(): Promise<void>;
+	/** Delete the contents but keep the directory, and its ownership marker. */
+	empty(options?: { force?: boolean }): Promise<void>;
 	/** Delete the directory and everything under it. */
-	remove(): Promise<void>;
+	remove(options?: { force?: boolean }): Promise<void>;
+
+	/** Read this directory's ownership marker, if it has one. */
+	owner(): Promise<DenOwner | undefined>;
+	/** Classify this directory against the app that produced the handle. */
+	inspect(): Promise<DenOwnership>;
+	/** Create the directory and write den's ownership marker into it. */
+	claim(): Promise<DenDir>;
 };
 
 /** An application's directories. */
@@ -160,8 +221,13 @@ export type Den = {
 
 	/** Look a directory up by kind. */
 	dir(kind: DenDirKind): DenDir;
-	/** `mkdir -p` every directory. */
+	/**
+	 * Bootstrap: verify ownership, warn about anything surprising, then create
+	 * every directory and claim it. Safe to call on every start.
+	 */
 	ensure(): Promise<Den>;
+	/** Classify all six directories without changing anything. */
+	inspect(): Promise<DenOwnership[]>;
 };
 
 // Error classes are values, not types, so they live in ./errors.ts and reach

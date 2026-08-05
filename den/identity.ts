@@ -7,6 +7,7 @@
  */
 
 import { DenConfigError } from "./errors.ts";
+import { compiledAncestors, isCompiled } from "./compiled.ts";
 import { firstEnv, readEnv } from "./env.ts";
 import { DIR_KINDS } from "./layout.ts";
 import type { DenDirKind, DenIdentity, DenOptions, EnvReader } from "./types.ts";
@@ -64,7 +65,7 @@ export function parseJsonish<T = unknown>(text: string): T | undefined {
 	}
 }
 
-function readFileSync(path: string): string | undefined {
+function readFileSync(path: string | URL): string | undefined {
 	try {
 		return Deno.readTextFileSync(path);
 	} catch {
@@ -104,8 +105,11 @@ function pickIdentity(value: unknown): Partial<DenIdentity> | undefined {
  * Reads one config file. A `den` field wins outright; failing that, a top-level
  * `name` is taken as the app name, which is the deno.json/package.json case.
  */
-function identityFromFile(path: string): Partial<DenIdentity> | undefined {
-	const text = readFileSync(path);
+function identityFromFile(
+	location: string | URL,
+	fileName: string,
+): Partial<DenIdentity> | undefined {
+	const text = readFileSync(location);
 	if (text === undefined) return undefined;
 
 	const parsed = parseJsonish<Record<string, unknown>>(text);
@@ -115,7 +119,7 @@ function identityFromFile(path: string): Partial<DenIdentity> | undefined {
 	if (explicit) return explicit;
 
 	// den.json *is* the den config; elsewhere only the package name is ours to take
-	if (path.endsWith("den.json") || path.endsWith("den.jsonc")) {
+	if (fileName === "den.json" || fileName === "den.jsonc") {
 		const own = pickIdentity(parsed);
 		if (own) return own;
 	}
@@ -125,36 +129,71 @@ function identityFromFile(path: string): Partial<DenIdentity> | undefined {
 	return undefined;
 }
 
+/** The first config file in `dir` that names an app. */
+function identityIn(dir: string | URL): DenIdentity | undefined {
+	for (const file of CONFIG_FILES) {
+		const location = typeof dir === "string"
+			? `${dir.replace(/[\\/]+$/, "")}/${file}`
+			: new URL(file, dir);
+		const identity = identityFromFile(location, file);
+		if (identity?.name) return identity as DenIdentity;
+	}
+	return undefined;
+}
+
 const discoveryCache = new Map<string, DenIdentity | null>();
 
 /**
- * Walks up from `cwd` for the nearest config file that says something about the
- * app. Memoised per starting directory — the walk is cheap but `den()` is meant
- * to be callable anywhere without thinking about it.
+ * Walks up from `cwd` for the nearest config file that names an app.
+ *
+ * **Inside a compiled binary this searches the embedded file system instead**,
+ * never the real one. `Deno.cwd()` in a compiled binary is wherever the user
+ * happened to run the executable, so walking it means a binary started inside
+ * an unrelated project adopts *that* project's name and writes its data
+ * somewhere nobody will find it. The embedded walk is bounded by the virtual
+ * root, so it can't step out into the host filesystem either.
+ *
+ * The catch, and it is worth knowing: `deno compile` embeds the module graph,
+ * and a config file is not a module. Unless it was passed to
+ * `--include`, there is nothing to find, and a compiled binary should name
+ * itself explicitly with `den({ name })` or the `DEN_APP_NAME` environment
+ * variable.
+ *
+ * Memoised per starting directory — the walk is cheap, but `den()` is meant to
+ * be callable anywhere without thinking about it.
  */
 export function discoverIdentity(cwd: string): DenIdentity | undefined {
-	const cached = discoveryCache.get(cwd);
+	const bounds = compiledAncestors();
+	const key = bounds.length ? `compiled:${bounds[0].href}` : cwd;
+
+	const cached = discoveryCache.get(key);
 	if (cached !== undefined) return cached ?? undefined;
 
-	let dir = cwd;
-	let found: DenIdentity | undefined;
+	const found = bounds.length ? discoverEmbedded(bounds) : discoverFromCwd(cwd);
+	discoveryCache.set(key, found ?? null);
+	return found;
+}
 
-	walk: while (true) {
-		for (const file of CONFIG_FILES) {
-			const identity = identityFromFile(`${dir.replace(/[\\/]+$/, "")}/${file}`);
-			if (identity?.name) {
-				found = identity as DenIdentity;
-				break walk;
-			}
-		}
+function discoverEmbedded(ancestors: URL[]): DenIdentity | undefined {
+	for (const dir of ancestors) {
+		const identity = identityIn(dir);
+		if (identity) return identity;
+	}
+	return undefined;
+}
+
+function discoverFromCwd(cwd: string): DenIdentity | undefined {
+	let dir = cwd;
+
+	while (true) {
+		const identity = identityIn(dir);
+		if (identity) return identity;
+
 		const stripped = dir.replace(/[\\/][^\\/]*$/, "");
 		const parent = stripped === "" && dir.startsWith("/") ? "/" : stripped;
-		if (!parent || parent === dir) break;
+		if (!parent || parent === dir) return undefined;
 		dir = parent;
 	}
-
-	discoveryCache.set(cwd, found ?? null);
-	return found;
 }
 
 /** Clears the config-file discovery cache. Mostly here for tests. */
@@ -226,9 +265,17 @@ export function resolveIdentity(options: DenOptions = {}): DenIdentity {
 	}
 
 	if (!merged.name) {
+		// Inside a binary the usual "check your deno.json" advice is a dead end:
+		// the config file is only there if it was compiled in.
 		throw new DenConfigError(
-			`den could not determine the application name. Pass one — den({ name: "myapp" }) — ` +
-				`or set ${prefix}_APP_NAME, or give the nearest deno.json a "name" or a "den": { "name": ... } field.`,
+			isCompiled()
+				? `den could not determine the application name. This is a compiled binary, so the ` +
+					`config-file search only looks inside the binary's embedded file system — a ` +
+					`deno.json on the host is deliberately ignored. Pass a name — den({ name: "myapp" }) ` +
+					`— or set ${prefix}_APP_NAME, or rebuild with \`deno compile --include den.json\`.`
+				: `den could not determine the application name. Pass one — den({ name: "myapp" }) — ` +
+					`or set ${prefix}_APP_NAME, or give the nearest deno.json a "name" or a ` +
+					`"den": { "name": ... } field.`,
 		);
 	}
 

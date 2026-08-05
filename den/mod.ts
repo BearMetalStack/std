@@ -24,13 +24,16 @@ import { readEnv } from "./env.ts";
 import { resolveIdentity } from "./identity.ts";
 import { DIR_KINDS, resolveLayout } from "./layout.ts";
 import { hostPlatform } from "./paths.ts";
-import type { Den, DenDirKind, DenOptions, DenPaths } from "./types.ts";
+import type { Den, DenDirKind, DenOptions, DenOwnership, DenPaths, DenWarning } from "./types.ts";
 
 export * from "./types.ts";
 export * from "./errors.ts";
 export { DenFileHandle, fileAt } from "./file.ts";
 export { DenDirHandle } from "./dir.ts";
+export type { DirOptions, DirOwnership } from "./dir.ts";
 export { DIR_KINDS, resolveLayout } from "./layout.ts";
+export { inspect, MARKER, MARKER_VERSION, readOwner } from "./marker.ts";
+export { compiledAncestors, compiledEntryModule, isCompiled } from "./compiled.ts";
 export {
 	clearDiscoveryCache,
 	DEFAULT_ENV_PREFIX,
@@ -56,6 +59,7 @@ class DenApp implements Den {
 	readonly runtime: DenDirHandle;
 
 	readonly #dirs: Record<DenDirKind, DenDirHandle>;
+	readonly #warn: (warning: DenWarning) => void;
 
 	constructor(options: DenOptions) {
 		const identity = resolveIdentity(options);
@@ -63,11 +67,15 @@ class DenApp implements Den {
 		this.org = identity.org;
 		this.platform = options.platform ?? hostPlatform();
 		this.paths = resolveLayout(identity, this.platform, options.env ?? readEnv);
+		this.#warn = options.onWarning ?? defaultWarn;
 
-		const fileOptions = { atomic: options.atomic ?? true };
+		const shared = { atomic: options.atomic ?? true };
 		this.#dirs = {} as Record<DenDirKind, DenDirHandle>;
 		for (const kind of DIR_KINDS) {
-			this.#dirs[kind] = new DenDirHandle(this.paths[kind], fileOptions);
+			this.#dirs[kind] = new DenDirHandle(this.paths[kind], {
+				...shared,
+				ownership: { app: this.name, org: this.org, kind },
+			});
 		}
 
 		this.config = this.#dirs.config;
@@ -76,6 +84,8 @@ class DenApp implements Den {
 		this.state = this.#dirs.state;
 		this.logs = this.#dirs.logs;
 		this.runtime = this.#dirs.runtime;
+
+		for (const warning of collisions(this.paths)) this.#warn(warning);
 	}
 
 	dir(kind: DenDirKind): DenDirHandle {
@@ -84,10 +94,60 @@ class DenApp implements Den {
 		return dir;
 	}
 
+	inspect(): Promise<DenOwnership[]> {
+		return Promise.all(DIR_KINDS.map((kind) => this.#dirs[kind].inspect()));
+	}
+
+	/**
+	 * Bootstrap. Checks what is already at each path, says something if it looks
+	 * like it belongs to somebody else, then creates and claims the directories
+	 * that are free.
+	 */
 	async ensure(): Promise<this> {
-		await Promise.all(DIR_KINDS.map((kind) => this.#dirs[kind].ensure()));
+		for (const report of await this.inspect()) {
+			if (report.status === "conflict" || report.status === "unclaimed") {
+				this.#warn({
+					code: report.status,
+					message: report.message ?? `${report.path} is not this app's ${report.kind} directory`,
+					kinds: [report.kind],
+					path: report.path,
+				});
+			}
+			// A conflict is left strictly alone -- not created, not claimed, not
+			// written to. Whatever is there belongs to someone else.
+			if (report.status === "conflict") continue;
+			await this.#dirs[report.kind].claim();
+		}
 		return this;
 	}
+}
+
+/**
+ * Two kinds landing on one path, found without touching the disk. A `dirs`
+ * override or a hand-set `DEN_*_DIR` is all it takes, and the symptom — a cache
+ * clear wiping the user's config — arrives much later than the cause.
+ */
+function collisions(paths: DenPaths): DenWarning[] {
+	const seen = new Map<string, DenDirKind[]>();
+	for (const kind of DIR_KINDS) {
+		const key = paths[kind];
+		const kinds = seen.get(key);
+		if (kinds) kinds.push(kind);
+		else seen.set(key, [kind]);
+	}
+
+	return [...seen.entries()]
+		.filter(([, kinds]) => kinds.length > 1)
+		.map(([path, kinds]) => ({
+			code: "collision" as const,
+			message: `${kinds.join(" and ")} both resolve to ${path}`,
+			kinds,
+			path,
+		}));
+}
+
+function defaultWarn(warning: DenWarning): void {
+	console.warn(`[den] ${warning.message}`);
 }
 
 /**
@@ -99,6 +159,10 @@ class DenApp implements Den {
  * directory (a `den` field first, else the package's own `name` with any scope
  * stripped). With none of those, this throws {@linkcode DenConfigError} rather
  * than guessing — a wrong guess writes user data somewhere nobody will find it.
+ *
+ * Inside a `deno compile` binary the config-file search covers the binary's
+ * embedded file system only, so a config file has to have been `--include`d to
+ * be found. See {@link ./identity.ts} for why the host's is off limits.
  *
  * Nothing here is async and nothing here touches the file system beyond reading
  * a config file, so it is fine to call per request, per module, or in a hot

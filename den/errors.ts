@@ -23,3 +23,8 @@ export class DenPathError extends DenError {
 export class DenEnvError extends DenError {
 	override name = "DenEnvError";
 }
+
+/** A destructive operation was aimed at a directory another app has claimed. */
+export class DenOwnershipError extends DenError {
+	override name = "DenOwnershipError";
+}

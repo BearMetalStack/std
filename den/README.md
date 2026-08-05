@@ -134,8 +134,10 @@ await app.cache.list(); // Deno.DirEntry[], [] when missing
 await app.cache.walk(); // async iterator of relative paths, recursive
 await app.cache.empty(); // clear it out, keep the directory
 await app.cache.remove();
-await app.ensure(); // mkdir -p all six
+await app.ensure(); // bootstrap: verify, create and claim all six
 ```
+
+Plus `owner()`, `inspect()` and `claim()` — see [Ownership](#ownership).
 
 Segments may contain `/`, so `file("a/b.json")` and `file("a", "b.json")` are the same thing. What
 they may never do is leave the directory — `..`, an absolute path, or an embedded NUL throws
@@ -166,6 +168,33 @@ scope stripped, so `@bearmetal/bearcave` is app `bearcave`. Comments and trailin
 With no name from anywhere, `den()` throws `DenConfigError` rather than guessing. A wrong guess
 writes user data somewhere nobody will ever find it.
 
+### Compiled binaries
+
+**In a `deno compile` binary the config file must be embedded in the binary to be found.** Config
+discovery searches the binary's embedded file system — never the host's.
+
+That is deliberate. `Deno.cwd()` in a compiled binary is wherever the user happened to run the
+executable, so walking it means a binary started inside somebody else's project adopts _their_
+`deno.json` name and writes its data under it. den bounds the search at the binary's virtual root
+instead, so it can't wander out onto the host filesystem.
+
+`deno compile` embeds the module graph, and a config file is not a module — so unless you pass it to
+`--include`, there is nothing to find:
+
+```sh
+deno compile --include den.json main.ts
+```
+
+Or skip discovery in binaries altogether and name the app outright, which is usually simpler:
+
+```ts
+const app = den({ name: "bearcave" });
+```
+
+None of this matters if you aren't using `deno compile` or Deno Desktop. `isCompiled()` is exported
+if you want to branch on it yourself, and `DenConfigError` says all of the above when it fires from
+inside a binary.
+
 `org`, `home` and per-kind directory overrides resolve the same way, field by field — an app name
 from `deno.json` composes with a `DEN_HOME` from the environment and a `dirs.cache` from the call
 site.
@@ -179,6 +208,55 @@ site.
 
 Pass `envPrefix` to rename all of them at once: `den({ envPrefix: "BEARCAVE" })` reads
 `BEARCAVE_APP_NAME` and friends.
+
+## Ownership
+
+Nothing stops two apps picking the same name, or a stray `DEN_CONFIG_DIR` pointing at a directory
+that is already occupied. The symptom — an app reading somebody else's settings, or clearing them —
+shows up a long way from the cause, so den checks at bootstrap.
+
+`app.ensure()` is that bootstrap. It inspects all six paths, says something if one looks like it
+belongs to someone else, then creates and claims the ones that are free by writing a
+`.bearmetal_den` marker naming the app, the org, and the kind.
+
+```ts
+await app.ensure(); // safe to call on every start
+```
+
+| status      | meaning                                  | what `ensure()` does      |
+| ----------- | ---------------------------------------- | ------------------------- |
+| `absent`    | nothing there yet                        | create and claim          |
+| `owned`     | claimed by this app, for this kind       | nothing                   |
+| `unmarked`  | exists but empty                         | claim                     |
+| `unclaimed` | exists with content den didn't create    | warn once, then claim     |
+| `conflict`  | claimed by a different app, org, or kind | warn, and **leave alone** |
+
+A conflicted directory is not created, not claimed, and not written to — whatever is there belongs
+to someone else, and den will not launder a collision into an ownership change nobody notices.
+`empty()` and `remove()` refuse outright on another app's directory, unless you pass
+`{ force: true }`.
+
+Inspect it yourself when you'd rather handle it than be warned:
+
+```ts
+for (const report of await app.inspect()) {
+	if (report.status === "conflict") throw new Error(report.message);
+}
+```
+
+The marker is den's bookkeeping, not your data: `list()` and `walk()` skip it, and `empty()` keeps
+it, because emptying a directory is not disowning it. Only the six top-level directories carry
+ownership — nested `dir()` handles are the app's own business.
+
+Two kinds resolving to the same path is caught at construction, before any I/O at all:
+
+```ts
+den({ name: "bearcave", dirs: { cache: "/shared", state: "/shared" } });
+// [den] cache and state both resolve to /shared
+```
+
+Warnings go to `console.warn` by default. Pass `onWarning` to collect them, route them into your own
+logging, or silence them with `() => {}`.
 
 ## Portable installs, and tests
 
@@ -214,4 +292,5 @@ needs the usual `--allow-read` / `--allow-write`.
 ## Errors
 
 `DenError` is the base. `DenConfigError` means no usable app name; `DenPathError` means a segment
-tried to escape; `DenEnvError` means the environment never said where home is.
+tried to escape; `DenEnvError` means the environment never said where home is; `DenOwnershipError`
+means a destructive call was aimed at a directory another app has claimed.
