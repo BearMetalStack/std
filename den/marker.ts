@@ -6,7 +6,7 @@
  * the same path".
  *
  * Collisions are not hypothetical. Two apps can pick the same name; a
- * `DEN_CONFIG_DIR` can point somewhere already occupied; a `dirs` override can
+ * `BEARMETAL_DEN_CONFIG_DIR` can point somewhere already occupied; a `dirs` override can
  * quietly land two kinds on one path. None of those announce themselves — you
  * find out when an app reads someone else's settings, or clears them.
  */

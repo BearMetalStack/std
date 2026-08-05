@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { resolveLayout } from "./layout.ts";
-import { den } from "./mod.ts";
+import { DEFAULT_ENV_PREFIX, den } from "./mod.ts";
 import { DenConfigError, DenEnvError, DenPathError } from "./errors.ts";
 import type { EnvReader } from "./types.ts";
 
@@ -141,14 +141,29 @@ Deno.test("env supplies name, org and home", () => {
 		discover: false,
 		env: fakeEnv({
 			HOME: "/home/emma",
-			DEN_APP_NAME: "fromenv",
-			DEN_ORG: "cyborggrizzly",
-			DEN_CACHE_DIR: "/scratch",
+			BEARMETAL_DEN_APP_NAME: "fromenv",
+			BEARMETAL_DEN_ORG: "cyborggrizzly",
+			BEARMETAL_DEN_CACHE_DIR: "/scratch",
 		}),
 	});
 	assertEquals(app.name, "fromenv");
 	assertEquals(app.org, "cyborggrizzly");
 	assertEquals(app.cache.path, "/scratch");
+});
+
+Deno.test("env vars follow the stack-wide BEARMETAL_ convention", () => {
+	assertEquals(DEFAULT_ENV_PREFIX, "BEARMETAL_DEN");
+
+	// an unprefixed DEN_* belongs to somebody else, not to us
+	assertThrows(
+		() =>
+			den({
+				platform: "linux",
+				discover: false,
+				env: fakeEnv({ HOME: "/home/emma", DEN_APP_NAME: "unprefixed" }),
+			}),
+		DenConfigError,
+	);
 });
 
 Deno.test("the env prefix is configurable", () => {
@@ -166,7 +181,7 @@ Deno.test("options beat env", () => {
 		name: "explicit",
 		platform: "linux",
 		discover: false,
-		env: fakeEnv({ HOME: "/home/emma", DEN_APP_NAME: "fromenv" }),
+		env: fakeEnv({ HOME: "/home/emma", BEARMETAL_DEN_APP_NAME: "fromenv" }),
 	});
 	assertEquals(app.name, "explicit");
 });

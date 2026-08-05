@@ -15,8 +15,12 @@ import type { DenDirKind, DenIdentity, DenOptions, EnvReader } from "./types.ts"
 /** Config files den will read, most specific first within a directory. */
 const CONFIG_FILES = ["den.json", "den.jsonc", "deno.json", "deno.jsonc", "package.json"] as const;
 
-/** Default prefix for every environment variable den reads. */
-export const DEFAULT_ENV_PREFIX = "DEN";
+/**
+ * Default prefix for every environment variable den reads, following the
+ * stack-wide `BEARMETAL_<area>_<thing>` convention (`BEARMETAL_ENV`,
+ * `BEARMETAL_PROXY_HOST`, and so on).
+ */
+export const DEFAULT_ENV_PREFIX = "BEARMETAL_DEN";
 
 /**
  * JSON with the two things `deno.jsonc` allows and `JSON.parse` doesn't:
@@ -156,7 +160,7 @@ const discoveryCache = new Map<string, DenIdentity | null>();
  * The catch, and it is worth knowing: `deno compile` embeds the module graph,
  * and a config file is not a module. Unless it was passed to
  * `--include`, there is nothing to find, and a compiled binary should name
- * itself explicitly with `den({ name })` or the `DEN_APP_NAME` environment
+ * itself explicitly with `den({ name })` or the `BEARMETAL_DEN_APP_NAME` environment
  * variable.
  *
  * Memoised per starting directory — the walk is cheap, but `den()` is meant to
@@ -238,7 +242,7 @@ function assertUsableName(name: string): string {
 
 /**
  * Merges the three sources into one identity. Fields are taken independently,
- * so an app name from `deno.json` composes with a `DEN_HOME` from the
+ * so an app name from `deno.json` composes with a `BEARMETAL_DEN_HOME` from the
  * environment and a `dirs.cache` from the call site.
  */
 export function resolveIdentity(options: DenOptions = {}): DenIdentity {

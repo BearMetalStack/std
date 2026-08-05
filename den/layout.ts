@@ -152,7 +152,7 @@ function windowsPaths(env: EnvReader, platform: DenPlatform, vendor: string[]): 
 	};
 }
 
-/** Every kind under one root, for `home`/`DEN_HOME` portable installs. */
+/** Every kind under one root, for `home`/`BEARMETAL_DEN_HOME` portable installs. */
 function portablePaths(platform: DenPlatform, home: string): DenPaths {
 	const paths = {} as DenPaths;
 	for (const kind of DIR_KINDS) paths[kind] = joinFor(platform, home, kind);

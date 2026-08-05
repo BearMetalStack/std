@@ -97,7 +97,7 @@ state and logs are local, because none of them are worth pushing across a roamin
 The app name comes from the first source that has one:
 
 1. `den({ name: "bearcave" })`
-2. the `DEN_APP_NAME` or `DEN_APP` environment variable
+2. the `BEARMETAL_DEN_APP_NAME` or `BEARMETAL_DEN_APP` environment variable
 3. the nearest `den.json`, `deno.json`, `deno.jsonc` or `package.json`, walking up from the working
    directory
 
@@ -161,17 +161,17 @@ if you want to branch on it, and `DenConfigError` explains all of the above when
 inside a binary.
 
 `org`, `home` and per-kind overrides resolve through the same three layers, field by field — an app
-name from `deno.json` composes with a `DEN_HOME` from the environment and a `dirs.cache` from the
-call site.
+name from `deno.json` composes with a `BEARMETAL_DEN_HOME` from the environment and a `dirs.cache`
+from the call site.
 
 ### Environment variables
 
-| variable                                                                                              | effect                 |
-| ----------------------------------------------------------------------------------------------------- | ---------------------- |
-| `DEN_APP_NAME`, `DEN_APP`                                                                             | app name               |
-| `DEN_ORG`                                                                                             | organisation           |
-| `DEN_HOME`                                                                                            | portable root          |
-| `DEN_CONFIG_DIR`, `DEN_DATA_DIR`, `DEN_CACHE_DIR`, `DEN_STATE_DIR`, `DEN_LOGS_DIR`, `DEN_RUNTIME_DIR` | override that one kind |
+| variable                                                                                                                                                          | effect                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `BEARMETAL_DEN_APP_NAME`, `BEARMETAL_DEN_APP`                                                                                                                     | app name               |
+| `BEARMETAL_DEN_ORG`                                                                                                                                               | organisation           |
+| `BEARMETAL_DEN_HOME`                                                                                                                                              | portable root          |
+| `BEARMETAL_DEN_CONFIG_DIR`, `BEARMETAL_DEN_DATA_DIR`, `BEARMETAL_DEN_CACHE_DIR`, `BEARMETAL_DEN_STATE_DIR`, `BEARMETAL_DEN_LOGS_DIR`, `BEARMETAL_DEN_RUNTIME_DIR` | override that one kind |
 
 `envPrefix` renames the whole set at once, so a shipped binary can own its own variables:
 
@@ -298,10 +298,10 @@ for await (const path of app.cache.walk()) {
 
 ## Ownership
 
-Nothing stops two apps picking the same name, or a stray `DEN_CONFIG_DIR` pointing somewhere that is
-already occupied, or a `dirs` override quietly landing two kinds on one path. None of those announce
-themselves — you find out when an app reads someone else's settings, or clears them. So den checks
-at bootstrap.
+Nothing stops two apps picking the same name, or a stray `BEARMETAL_DEN_CONFIG_DIR` pointing
+somewhere that is already occupied, or a `dirs` override quietly landing two kinds on one path. None
+of those announce themselves — you find out when an app reads someone else's settings, or clears
+them. So den checks at bootstrap.
 
 `app.ensure()` is that bootstrap. It inspects all six paths, warns about anything surprising, then
 creates and claims the ones that are free by writing a `.bearmetal_den` marker naming the app, the
@@ -377,8 +377,8 @@ den({ name: "bearcave", onWarning: (w) => warnings.push(w) });
 
 ## Portable installs, and tests
 
-`home` — or `$DEN_HOME` — replaces the platform layout entirely: every kind becomes `<home>/<kind>`.
-Good for a USB-stick install, and good for tests.
+`home` — or `$BEARMETAL_DEN_HOME` — replaces the platform layout entirely: every kind becomes
+`<home>/<kind>`. Good for a USB-stick install, and good for tests.
 
 ```ts
 const home = await Deno.makeTempDir();
@@ -412,7 +412,7 @@ den({
 	org: "cyborggrizzly", // vendor; ignored on Linux
 	home: "/opt/bearcave", // portable root, replaces the platform layout
 	dirs: { cache: "/mnt/fast" }, // per-kind overrides, applied last
-	envPrefix: "DEN", // prefix for every variable den reads
+	envPrefix: "BEARMETAL_DEN", // prefix for every variable den reads
 	env: Deno.env.get, // environment reader
 	platform: "linux", // platform to resolve paths for
 	cwd: Deno.cwd(), // where the config-file walk starts

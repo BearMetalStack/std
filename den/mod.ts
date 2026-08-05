@@ -124,7 +124,7 @@ class DenApp implements Den {
 
 /**
  * Two kinds landing on one path, found without touching the disk. A `dirs`
- * override or a hand-set `DEN_*_DIR` is all it takes, and the symptom — a cache
+ * override or a hand-set `BEARMETAL_DEN_*_DIR` is all it takes, and the symptom — a cache
  * clear wiping the user's config — arrives much later than the cause.
  */
 function collisions(paths: DenPaths): DenWarning[] {
@@ -154,7 +154,7 @@ function defaultWarn(warning: DenWarning): void {
  * Resolves an application's directories.
  *
  * The app name comes from the first source that has one: the `name` option, the
- * `DEN_APP_NAME`/`DEN_APP` environment variables, then the nearest `den.json`,
+ * `BEARMETAL_DEN_APP_NAME`/`BEARMETAL_DEN_APP` environment variables, then the nearest `den.json`,
  * `deno.json`, `deno.jsonc` or `package.json` walking up from the working
  * directory (a `den` field first, else the package's own `name` with any scope
  * stripped). With none of those, this throws {@linkcode DenConfigError} rather

@@ -36,8 +36,10 @@ export type DenConfigFile = Partial<DenIdentity>;
 /** Options for {@linkcode den}. Every field can instead come from env or config. */
 export type DenOptions = Partial<DenIdentity> & {
 	/**
-	 * Prefix for the environment variables den reads. Defaults to `DEN`, giving
-	 * `DEN_APP_NAME`, `DEN_ORG`, `DEN_HOME` and `DEN_<KIND>_DIR`.
+	 * Prefix for the environment variables den reads. Defaults to `BEARMETAL_DEN`,
+	 * giving `BEARMETAL_DEN_APP_NAME`, `BEARMETAL_DEN_ORG`, `BEARMETAL_DEN_HOME`
+	 * and `BEARMETAL_DEN_<KIND>_DIR`. Set it to your own app's name when shipping
+	 * a binary that shouldn't answer to the stack-wide variables.
 	 */
 	envPrefix?: string;
 	/** Environment reader override. Defaults to a permission-safe `Deno.env.get`. */
