@@ -166,6 +166,14 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
 - **`db/`** — Postgres/KV connector exposed as a router `Module` + `Service`. See the
   **TableRegistry pattern** below — this is the one non-obvious cross-cutting mechanism in the
   codebase.
+- **`den/`** — OS application directories (config/data/cache/state/logs/runtime, mapped onto XDG,
+  the macOS `~/Library` layout, and the Windows roaming/local split) plus staging file handles.
+  Standalone, depends only on `@std/path`. Two things to know before touching it: config discovery
+  inside a `deno compile` binary searches the binary's **embedded** file system bounded at the
+  `deno-compile-<name>` virtual root, never `Deno.cwd()` (walking the cwd makes a binary adopt the
+  name of whatever project it was launched in), and directories it bootstraps carry a
+  `.bearmetal_den` ownership marker so a collision between two apps is caught rather than silently
+  shared.
 - **`auth/`**, **`sockpuppet/`** (WebSocket channels), **`devproxy/`**, **`drip/`**
   (theme/stylesheet generation), **`webbies/`** (UI component library) — feature packages, each a
   router `Module` or standalone toolset following the same conventions.
@@ -228,6 +236,25 @@ bugs, not type errors:
 implementing anything under `log/` — the sync-vs-async footgun it describes (a `using withContext()`
 block must never contain an `await`, even transitively) is the central constraint the design is
 built around.
+
+## Environment variables
+
+Every environment variable any package reads is named `BEARMETAL_<AREA>_<THING>` — `BEARMETAL_ENV`
+(`miscellanea/environment.ts`), `BEARMETAL_PROXY_HOST`, `BEARMETAL_TRUST`, `BEARMETAL_DEN_APP_NAME`.
+No package reads a bare, unprefixed name.
+
+These are independently published packages that routinely run in the same process, so an unprefixed
+variable is someone else's variable waiting to collide — and a user scanning their environment
+should be able to tell at a glance what belongs to BearMetal. Before inventing a name, check the
+current set:
+
+```bash
+grep -rhoE 'BEARMETAL_[A-Z_]+' --include='*.ts' . | sort -u
+```
+
+If a package exposes a configurable prefix (den's `envPrefix`), the **default** must still be the
+`BEARMETAL_`-prefixed form; the option exists so a shipped binary can answer to its own name, not to
+skip the convention.
 
 ## Exports
 
