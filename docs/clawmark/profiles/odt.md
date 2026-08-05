@@ -276,6 +276,51 @@ table.resolve("T2"); // { named: "T2", bold: true, italic: true }
 through `style:parent-style-name`. `odtStyleResolver().own(el, table)` reads an element's
 `text:style-name` and resolves it.
 
+## Writing odt
+
+`odtWriter()` is the read profile's inverse, with the same scope boundary — the parts, not the
+archive.
+
+```ts
+import { markdownWith } from "@bearmetal/clawmark";
+import { odtWriter } from "@bearmetal/clawmark/profiles/odt";
+
+const out = markdownWith(md, odtWriter());
+// content.xml, styles.xml, meta.xml, META-INF/manifest.xml, mimetype
+```
+
+`OdtWriteOptions` takes `monoFont` (default `"Liberation Mono"`), `generator`, and `emitters` — the
+last consulted **before** the built-ins.
+
+::: warning The `mimetype` entry A conformant odt stores `mimetype` **first and uncompressed**. That
+is a property of the archive rather than of the bytes, so it is the one thing the writer cannot do
+for you:
+
+```sh
+zip -X -0 out.odt mimetype && zip -X -r out.odt . -x mimetype
+```
+
+:::
+
+ODF nests almost properly, which makes this writer higher fidelity than the docx one:
+
+- A heading is a real `<text:h text:outline-level="N">`; a list is a real
+  `<text:list>`/`<text:list-item>`.
+- A `<text:span>` can contain another `<text:span>`, so `**b *c* d**` survives as nesting instead of
+  flattening to sibling runs.
+- Blockquotes and code blocks are still _runs_ of styled paragraphs — ODF has no element for either
+  — which the read profile merges back.
+
+Inline formatting is a span pointing at a generated **automatic style**, not properties written in
+place, so the writer runs a [`StyleSink`](../write#sinks): two identically bold spans share one
+`<style:style>` rather than minting one per run. Each `<text:list>` likewise interns a
+`<text:list-style>` per kind, which is what lets an ordered list nested inside a bulleted one carry
+its own definition.
+
+As in docx, the generated `styles.xml` deliberately gives headings a size rather than a weight —
+character properties on a paragraph style cascade into the text, and a bold heading style reads back
+as `# **Heading**`.
+
 ## Exports
 
 ```ts
@@ -283,10 +328,12 @@ import {
 	DRAW_NS,
 	FO_NS,
 	ODT_NS, // the full prefix -> URI map
+	ODT_WRITE_NS, // ODT_NS plus svg, for the write side
 	odtListStyles, // -> Map<styleName, Map<level, "ordered" | "unordered">>
 	odtProfile,
 	odtStyleResolver,
 	odtStyleTable,
+	odtWriter, // the write profile
 	OFFICE_NS,
 	STYLE_NS,
 	TABLE_NS,

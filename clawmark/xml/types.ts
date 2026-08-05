@@ -59,6 +59,13 @@ export interface XmlDoctype {
 	parent?: XmlElement;
 }
 
+/**
+ * Attribute spec accepted by the builders in build.ts. `undefined` and `false`
+ * mean "omit this attribute", so an emitter can inline an optional value
+ * without a conditional around it.
+ */
+export type AttrMap = Record<string, string | number | boolean | undefined>;
+
 export type XmlMode = "xml" | "html";
 
 export interface XmlParseOptions {

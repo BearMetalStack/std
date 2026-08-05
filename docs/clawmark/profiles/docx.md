@@ -332,16 +332,61 @@ disappears.
 xmlToMarkdown(doc, docxProfile({ styles })); // "# Titel"
 ```
 
+## Writing docx
+
+`docxWriter()` is the read profile's inverse. Same scope boundary: it produces the parts, not the
+archive.
+
+```ts
+import { markdownWith } from "@bearmetal/clawmark";
+import { docxWriter } from "@bearmetal/clawmark/profiles/docx";
+
+const out = markdownWith(md, docxWriter());
+// word/document.xml, word/styles.xml, word/numbering.xml,
+// word/_rels/document.xml.rels, _rels/.rels, [Content_Types].xml
+// and word/footnotes.xml, when there are footnotes
+```
+
+`DocxWriteOptions` takes `monoFont` (default `"Consolas"`), `highlightColor` (default `"yellow"`),
+`imageExtent`, and `emitters` — the last consulted **before** the built-ins, the mirror of
+`parts.rules`.
+
+Two facts about WordprocessingML shape the whole writer, and both are why the write direction has a
+[style frame stack](../write#the-style-frame-stack):
+
+- **Nothing nests.** A blockquote is a run of `<w:p>` carrying the Quote style; a list is a run of
+  `<w:p>` carrying `<w:numPr>`. Container tags contribute style frames and emit no element.
+- **A run carries all its formatting at once.** `<w:b/>` and `<w:i/>` are siblings in one `<w:rPr>`,
+  so `md:bold > md:italic` flattens to sibling runs. That is the one thing odt keeps and docx
+  cannot.
+
+A few decisions worth knowing about:
+
+- The generated `styles.xml` gives headings a size but **no** `<w:b/>`, and `Quote` an indent but no
+  italic. Character properties on a paragraph style cascade to the runs inside it, and the reader
+  cannot tell "bold because it is a heading" from "bold because the author said so" — a bold heading
+  style reads back as `# **Heading**`.
+- Every `<w:t>` gets `xml:space="preserve"`, so inline spacing survives verbatim instead of going
+  through the crawler's whitespace collapsing.
+- A code block becomes one `<w:p>` per line, because `<w:t>` cannot hold a newline. The read profile
+  merges the run back into one `md:codeblock`.
+- Each list mints its own `w:num`, so Word restarts the count rather than continuing the previous
+  list's.
+- Images go out as **external** relationships with a placeholder `<wp:extent>`; clawmark never opens
+  the file, so there is no media part to embed and no real dimensions to write.
+
 ## Exports
 
 ```ts
 import {
 	DOCX_NS, // { w: WML_NS, r: REL_NS }
+	DOCX_WRITE_NS, // DOCX_NS plus the drawing namespaces
 	docxNumbering, // numbering.xml -> Map<numId, "ordered" | "unordered">
 	docxProfile,
 	docxRelationships, // rels -> Map<Id, Target>
 	docxStyleResolver, // StyleResolver for WordprocessingML
 	docxStyleTable, // styles.xml -> StyleTable
+	docxWriter, // the write profile
 	REL_NS,
 	styleFromName, // name/id -> ResolvedStyle, via the heuristics
 	WML_NS,

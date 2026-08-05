@@ -9,6 +9,7 @@
  */
 
 import type { ResolvedStyle, StyleDef, StyleTable, TokenIdentifier } from "./types.ts";
+import type { StyleFamily, StyleSink, StyleSinkOptions } from "./types.ts";
 import type { XmlElement } from "./xml/types.ts";
 
 /**
@@ -46,6 +47,9 @@ const NAME_HEURISTICS: [RegExp, ResolvedStyle][] = [
 	[/^block\s*text$/i, { blockRole: "quote" }],
 	[/^(source\s*)?code$/i, { blockRole: "code", mono: true }],
 	[/^html\s*preformatted$/i, { blockRole: "code", mono: true }],
+	// LibreOffice's name for the same thing, and what it writes into every odt
+	// containing a code block.
+	[/^preformatted(\s*text)?$/i, { blockRole: "code", mono: true }],
 	[/^list\s*paragraph$/i, { blockRole: "list" }],
 ];
 
@@ -193,3 +197,112 @@ export function createStyleTable(
 
 /** A table with no definitions, for profiles that need no named styles. */
 export const EMPTY_STYLE_TABLE: StyleTable = createStyleTable([]);
+
+/**
+ * Properties that identify a style for dedup purposes, in a fixed order.
+ *
+ * Fixed order matters: the canonical key is built by walking this list, so two
+ * styles that differ only in the order their properties were assigned hash the
+ * same.
+ *
+ * `named` is in the list because on the write side it is an *input*: an
+ * automatic paragraph style records the common style it derives from, so
+ * `{ breakBefore: "page", named: "Standard" }` and
+ * `{ breakBefore: "page", named: "Quote" }` are two different styles that must
+ * not collapse onto one definition. This is not the sink keying on the name it
+ * hands back - that is still `options.name()`'s business and never enters the
+ * key.
+ */
+const SINK_KEYS: readonly (keyof ResolvedStyle)[] = [
+	"named",
+	"blockRole",
+	"headingLevel",
+	"bold",
+	"italic",
+	"strike",
+	"underline",
+	"mono",
+	"highlight",
+	"align",
+	"breakBefore",
+	"breakAfter",
+];
+
+function sinkKey(style: ResolvedStyle, family: StyleFamily): string {
+	const parts: string[] = [family];
+	for (const key of SINK_KEYS) {
+		const value = style[key];
+		if (value !== undefined) parts.push(`${key}=${String(value)}`);
+	}
+	if (style.list) {
+		const { kind, level, checked, id } = style.list;
+		parts.push(`list=${kind}/${level}/${checked ?? ""}/${id ?? ""}`);
+	}
+	if (style.ext) {
+		for (const key of Object.keys(style.ext).sort()) {
+			parts.push(`ext.${key}=${JSON.stringify(style.ext[key])}`);
+		}
+	}
+	return parts.join("|");
+}
+
+const DEFAULT_PREFIX: Record<StyleFamily, string> = {
+	paragraph: "P",
+	text: "T",
+	list: "L",
+	table: "Table",
+};
+
+/**
+ * The write-side inverse of `createStyleTable`: hand it a normalized style,
+ * get back the name a document should reference for it.
+ *
+ * Two identical bold runs must share one definition or an odt grows a fresh
+ * `<style:style>` per run, so lookups are deduped on a canonical key. A
+ * profile supplies `name()` to pin well-known styles - a heading should
+ * reference `Heading_20_1`, not whatever counter value it happened to land on -
+ * and generated names fall back to a per-family prefix plus a counter.
+ *
+ * Names are handed out in first-use order, so output is deterministic for a
+ * given input tree. That is what makes the round-trip tests assertable.
+ */
+export function createStyleSink(options: StyleSinkOptions = {}): StyleSink {
+	const byKey = new Map<string, string>();
+	const defs: StyleDef[] = [];
+	const counters: Partial<Record<StyleFamily, number>> = {};
+	const taken = new Set<string>();
+
+	return {
+		ensure(style, family = "text") {
+			const key = sinkKey(style, family);
+			const hit = byKey.get(key);
+			if (hit !== undefined) return hit;
+
+			let name = options.name?.(style, family);
+			if (name === undefined || taken.has(name)) {
+				const prefix = options.prefix?.[family] ?? DEFAULT_PREFIX[family];
+				do {
+					counters[family] = (counters[family] ?? 0) + 1;
+					name = `${prefix}${counters[family]}`;
+				} while (taken.has(name));
+			}
+
+			taken.add(name);
+			byKey.set(key, name);
+			const def: StyleDef = {
+				id: name,
+				type: family === "text" ? "character" : family,
+				style,
+			};
+			// An automatic style derives from a common one, and `named` is how the
+			// caller says which. Recording it as `basedOn` keeps the emitted defs
+			// readable by `createStyleTable` without a second convention.
+			if (style.named !== undefined && style.named !== name) def.basedOn = style.named;
+			defs.push(def);
+			return name;
+		},
+		get defs() {
+			return defs;
+		},
+	};
+}

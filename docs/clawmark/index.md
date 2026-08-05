@@ -1,10 +1,10 @@
 # @bearmetal/clawmark
 
-A rule-based markup engine. Markdown to HTML, and arbitrary XML back to markdown — driven entirely
-by a swappable set of `Rule` definitions rather than a fixed grammar.
+A rule-based markup engine. Markdown, HTML, docx and odt — in every direction, driven entirely by a
+swappable set of `Rule` definitions rather than a fixed grammar.
 
 ```ts
-import { htmlToMarkdown, toHtml, xmlToMarkdown } from "@bearmetal/clawmark";
+import { convert, htmlToMarkdown, markdownWith, toHtml, xmlToMarkdown } from "@bearmetal/clawmark";
 ```
 
 Zero dependencies and no host APIs: no `DOMParser`, no `Deno.*`, no `globalThis`. The same code runs
@@ -15,16 +15,24 @@ in Deno, a browser, and a worker.
 Everything routes through one intermediate representation, a tree of `Node`s:
 
 ```
-                  ┌──────────────┐
-markdown ────────▶│              │────────▶ html
-                  │  Node tree   │
-xml/html ────────▶│              │────────▶ markdown
-(docx, odt)       └──────────────┘
+                   ┌──────────────┐
+markdown ─────────▶│              │─────────▶ html
+                   │              │─────────▶ markdown
+html ─────────────▶│  Node tree   │─────────▶ docx
+                   │              │─────────▶ odt
+docx, odt, xml ───▶│              │─────────▶ (your profile)
+                   └──────────────┘
 ```
 
-The four sides of that diagram are four hooks on a single `Rule` object, so a construct's HTML
-output and its markdown output can never drift apart — they are written next to each other, in one
-file, by one author.
+Which is to say it is not really a markdown library. Markdown is the syntax it happens to ship rules
+for; the engine underneath is a markup-to-markup converter, and the node tree in the middle is the
+only thing any two formats have to agree on.
+
+Markdown's own two directions are hooks on a single `Rule` object, so a construct's HTML output and
+its markdown output can never drift apart — they are written next to each other, in one file, by one
+author. The formats that are not markdown get a [read profile](./reverse) and a
+[write profile](./write) instead, because no one rule should have to know how a heading is spelled
+in every format there is.
 
 ## Quick start
 
@@ -73,6 +81,26 @@ xmlToMarkdown(documentXml, docxProfile({ styles, numbering, rels }));
 
 The office profiles take the XML parts as strings — they do **not** unzip an archive. See
 [docx](./profiles/docx) and [odt](./profiles/odt).
+
+### Writing: office documents out
+
+```ts
+import { convert, markdownWith } from "@bearmetal/clawmark";
+import { docxProfile, docxWriter } from "@bearmetal/clawmark/profiles/docx";
+import { odtWriter } from "@bearmetal/clawmark/profiles/odt";
+
+const out = markdownWith("# Hello", docxWriter());
+out.parts["word/document.xml"];
+out.parts["word/styles.xml"];
+
+// or straight across, reading one format and writing another
+convert(documentXml, docxProfile({ styles }), odtWriter());
+```
+
+Symmetrically, a writer hands back the parts of a package as strings and leaves the zipping to you.
+`convert` **regenerates rather than reproduces**: a document from an exporter that ignores the spec
+comes back out built to spec, because the writer only ever sees the normalized tree. See
+[Writing](./write).
 
 ## Supported markdown
 

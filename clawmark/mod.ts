@@ -9,12 +9,14 @@
  */
 
 import type { AnyRule, EngineRule, Node, Profile, SerializeOptions } from "./types.ts";
+import type { WriteProfile, WriteResult } from "./types.ts";
 import type { XmlElement } from "./xml/types.ts";
 import { Lexer } from "./lexer.ts";
 import { TreeBuilder } from "./tree.ts";
 import { Renderer } from "./render.ts";
 import { MarkdownSerializer } from "./serialize.ts";
 import { Crawler } from "./crawl.ts";
+import { renderWith } from "./write.ts";
 import { XmlParser } from "./xml/parser.ts";
 import { fromDom } from "./xml/dom.ts";
 import { defaultRules } from "./rules/mod.ts";
@@ -23,11 +25,16 @@ import type { HtmlProfileOptions } from "./profiles/html/mod.ts";
 
 export * from "./types.ts";
 export { defaultRules } from "./rules/mod.ts";
+// A rule pack that introduces its own block construct has to declare it, or the
+// lexer's automatic paragraph wrapper stays put and every writer emits the
+// construct inside a paragraph element. See rules/paragraph.ts.
+export { addBlockTags, blockTags, isBlockTag, wrapsSoleBlock } from "./rules/paragraph.ts";
 export { Lexer } from "./lexer.ts";
 export { TreeBuilder } from "./tree.ts";
 export { Renderer } from "./render.ts";
 export { MarkdownSerializer, prefixLines } from "./serialize.ts";
 export { Crawler, postProcess } from "./crawl.ts";
+export { createResourceSink, MarkupWriter, renderWith, singlePart } from "./write.ts";
 export * from "./xml/mod.ts";
 export * from "./style.ts";
 export * from "./dsl.ts";
@@ -111,4 +118,30 @@ export function htmlToMarkdown(
 	options: HtmlProfileOptions & SerializeOptions = {},
 ): string {
 	return toMarkdown(fromHtml(source, options), htmlProfile(options).rules, options);
+}
+
+/** Parses markdown and renders it through a write profile in one step. */
+export function markdownWith(
+	input: string,
+	profile: WriteProfile,
+	rules: AnyRule[] = defaultRules(),
+): WriteResult {
+	return renderWith(parse(input, rules), profile);
+}
+
+/**
+ * Markup in, markup out - the whole conversion pipeline through the tree.
+ *
+ * The tree carries no source-format context, so this **regenerates** rather
+ * than preserves: a non-conformant document read through `from` comes back out
+ * built to `to`'s idea of correct, not reproduced. That is the point of it.
+ * Anything the node vocabulary and `ResolvedStyle` cannot express is lost, the
+ * same trade `xmlToMarkdown` already makes.
+ */
+export function convert(
+	source: string | XmlElement,
+	from: Profile,
+	to: WriteProfile,
+): WriteResult {
+	return renderWith(fromXml(source, from), to);
 }
