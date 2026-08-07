@@ -22,8 +22,8 @@ export default defineConfig({
 					{ text: "@bearmetal/forge", link: "/forge" },
 					{ text: "@bearmetal/events", link: "/events" },
 					{ text: "@bearmetal/sockpuppet", link: "/sockpuppet" },
-					{ text: "@bearmetal/clawmark", link: "/clawmark/" },
 					{ text: "@bearmetal/den", link: "/den" },
+					{ text: "@bearmetal/clawmark", link: "/clawmark/" },
 				],
 			},
 		],
@@ -67,14 +67,6 @@ export default defineConfig({
 					},
 				],
 			},
-			// The package reference. A package is either a single page
-			// (`{ text, link }`) or, once it outgrows one, a collapsed group whose
-			// `link` is its overview and whose `items` are its sub-pages - see
-			// clawmark below. Either way every package keeps an entry here, so the
-			// full package list stays visible from anywhere in the reference.
-			//
-			// No `base` on purpose: vitepress concatenates `base + link`, so a
-			// base of "/" would turn "/app" into the protocol-relative "//app".
 			"/": {
 				items: [
 					{ text: "@bearmetal/app", link: "/app" },
@@ -82,6 +74,7 @@ export default defineConfig({
 					{ text: "@bearmetal/forge", link: "/forge" },
 					{ text: "@bearmetal/events", link: "/events" },
 					{ text: "@bearmetal/sockpuppet", link: "/sockpuppet" },
+					{ text: "@bearmetal/den", link: "/den" },
 					{
 						text: "@bearmetal/clawmark",
 						link: "/clawmark/",
@@ -105,7 +98,6 @@ export default defineConfig({
 							{ text: "API reference", link: "/clawmark/api" },
 						],
 					},
-					{ text: "@bearmetal/den", link: "/den" },
 				],
 			},
 		},
