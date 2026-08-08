@@ -18,7 +18,7 @@ export default defineConfig({
 				text: "Packages",
 				items: [
 					{ text: "@bearmetal/app", link: "/app" },
-					{ text: "@bearmetal/router", link: "/router" },
+					{ text: "@bearmetal/router", link: "/router/" },
 					{ text: "@bearmetal/forge", link: "/forge" },
 					{ text: "@bearmetal/events", link: "/events" },
 					{ text: "@bearmetal/sockpuppet", link: "/sockpuppet" },
@@ -70,7 +70,35 @@ export default defineConfig({
 			"/": {
 				items: [
 					{ text: "@bearmetal/app", link: "/app" },
-					{ text: "@bearmetal/router", link: "/router" },
+					{
+						text: "@bearmetal/router",
+						link: "/router/",
+						collapsed: true,
+						items: [
+							{ text: "Overview", link: "/router/" },
+							{ text: "Routing", link: "/router/routing" },
+							{ text: "Middleware", link: "/router/middleware" },
+							{ text: "RouterContext", link: "/router/context" },
+							{ text: "Modules", link: "/router/modules" },
+							{ text: "Services", link: "/router/services" },
+							{ text: "Request validation", link: "/router/validation" },
+							{ text: "Responses", link: "/router/responses" },
+							{
+								text: "API contracts",
+								link: "/router/api/",
+								collapsed: false,
+								items: [
+									{ text: "Overview", link: "/router/api/" },
+									{ text: "Defining", link: "/router/api/defining" },
+									{ text: "Server", link: "/router/api/server" },
+									{ text: "Client", link: "/router/api/client" },
+								],
+							},
+							{ text: "Static files", link: "/router/static-files" },
+							{ text: "Trusted modules", link: "/router/trusted-modules" },
+							{ text: "Forager", link: "/router/forager" },
+						],
+					},
 					{ text: "@bearmetal/forge", link: "/forge" },
 					{ text: "@bearmetal/events", link: "/events" },
 					{ text: "@bearmetal/sockpuppet", link: "/sockpuppet" },
