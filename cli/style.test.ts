@@ -9,6 +9,7 @@ import {
 	setColorEnabled,
 	stripAnsi,
 	truncateToWidth,
+	wrapToWidth,
 } from "./style.ts";
 
 // Colour defaults to off when stdout is not a TTY, which it never is under
@@ -103,6 +104,26 @@ Deno.test("truncateToWidth drops a wide cluster that would straddle the limit", 
 Deno.test("truncateToWidth accounts for the ellipsis", () => {
 	assertEquals(truncateToWidth("hello world", 8, "…"), "hello w…");
 	assertEquals(displayWidth(truncateToWidth("hello world", 8, "…")), 8);
+});
+
+Deno.test("wrapToWidth splits on display columns", () => {
+	assertEquals(wrapToWidth("abc", 10), ["abc"]);
+	assertEquals(wrapToWidth("abcdefghij", 10), ["abcdefghij"]);
+	assertEquals(wrapToWidth("abcdefghijk", 10), ["abcdefghij", "k"]);
+	assertEquals(wrapToWidth("a".repeat(25), 10), ["aaaaaaaaaa", "aaaaaaaaaa", "aaaaa"]);
+});
+
+Deno.test("wrapToWidth never splits a wide cluster across rows", () => {
+	// Five double-width glyphs exactly fill 10 columns; the sixth starts a new row.
+	assertEquals(wrapToWidth("日本語日本語", 10).map(displayWidth), [10, 2]);
+});
+
+Deno.test("wrapToWidth carries styling onto continuation rows", () => {
+	const rows = wrapToWidth(colorize("a".repeat(25), "red"), 10);
+	assertEquals(rows.length, 3);
+	assertEquals(rows.map((r) => stripAnsi(r)), ["aaaaaaaaaa", "aaaaaaaaaa", "aaaaa"]);
+	// The colour must still be open on every row, not end at the first wrap.
+	assertEquals(rows.every((r) => r.includes("\x1b[31m")), true);
 });
 
 Deno.test("rowsForLine counts wrapped rows", () => {

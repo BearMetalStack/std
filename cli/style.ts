@@ -362,3 +362,46 @@ export function rowsForLine(line: string, columns: number): number {
 	const width = displayWidth(line);
 	return width === 0 ? 1 : Math.ceil(width / columns);
 }
+
+/**
+ * Hard-wraps a line into chunks of at most `columns` display columns.
+ *
+ * Styling is carried across the break: each chunk closes with a reset and the
+ * next reopens with the escapes that were still active, so a colour started on
+ * one row survives onto the next instead of ending at the wrap point.
+ */
+export function wrapToWidth(line: string, columns: number): string[] {
+	if (columns <= 0) return [line];
+	if (displayWidth(line) <= columns) return [line];
+
+	const chunks: string[] = [];
+	let current = "";
+	let width = 0;
+	/** Escapes still in effect, replayed at the start of each continuation row. */
+	let active = "";
+
+	const flush = () => {
+		chunks.push(active && current ? current + resetSequence() : current);
+		current = active;
+		width = 0;
+	};
+
+	for (const token of tokenize(line)) {
+		if (token.escape) {
+			current += token.value;
+			// A reset clears the carried styling; anything else adds to it.
+			active = token.value === RESET ? "" : active + token.value;
+			continue;
+		}
+		for (const { segment } of segmenter.segment(token.value)) {
+			const w = clusterWidth(segment);
+			if (width + w > columns) flush();
+			current += segment;
+			width += w;
+		}
+	}
+	if (stripAnsi(current).length > 0 || chunks.length === 0) {
+		chunks.push(active && current ? current + resetSequence() : current);
+	}
+	return chunks;
+}
