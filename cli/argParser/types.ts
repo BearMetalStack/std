@@ -53,7 +53,11 @@ export type FlagDef = {
 	$description?: string;
 };
 
-/** Yes/no confirmation. Set via `--confirm` / `--no-confirm`. Prompts with y/n when required. */
+/**
+ * Yes/no confirmation. Set via `--confirm` / `--no-confirm`. Prompts with y/n when required.
+ *
+ * Unlike a `flag`, `required` here means *answered*, not *true* — `--no-confirm` satisfies it.
+ */
 export type ConfirmDef = {
 	type: "confirm";
 	aliases?: string[];

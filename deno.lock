@@ -321,6 +321,12 @@
       "jsr:@std/testing@1"
     ],
     "members": {
+      "cli/examples/showcase": {
+        "dependencies": [
+          "jsr:@bearmetal/cli@^0.0.6",
+          "jsr:@bearmetal/forge@^0.0.7"
+        ]
+      },
       "db": {
         "dependencies": [
           "jsr:@db/postgres@~0.19.5"

@@ -1,0 +1,14 @@
+{
+	"tasks": {
+		"start": "deno run main.ts",
+		"help": "deno run main.ts --help",
+		"wizard": "deno run main.ts wizard",
+		"keys": "deno run main.ts keys",
+		"test": "deno test",
+		"dev": "deno test --watch"
+	},
+	"imports": {
+		"@bearmetal/cli": "jsr:@bearmetal/cli@^0.0.6",
+		"@bearmetal/forge": "jsr:@bearmetal/forge@^0.0.7"
+	}
+}

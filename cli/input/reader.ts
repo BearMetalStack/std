@@ -151,8 +151,15 @@ export class KeyReader implements KeySource {
 				this.#resume = null;
 				if (this.#stopped) break;
 				this.#decoder.reset();
-				this.#setRaw(true);
 			}
+
+			// Outside the park block, not inside it. The very first claim starts the
+			// loop with a claim already held, so it never parks — and raw mode set
+			// only on the way *out* of a park would never be set at all. The terminal
+			// stays cooked, keys arrive a line at a time, and arrow keys do nothing
+			// until Enter is pressed. `#setRaw` is idempotent, so paying for it once
+			// per read costs a comparison.
+			this.#setRaw(true);
 
 			let n: number | null;
 			try {

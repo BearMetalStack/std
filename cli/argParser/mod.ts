@@ -90,10 +90,12 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 				this._parsed[key] = def.default;
 			}
 
+			// The kebab spelling is accepted for every other arg, so it has to be
+			// accepted here too — otherwise `--non-interactive` sets the flag's value
+			// but leaves the parser prompting, which is the opposite of what was asked.
 			if ((["nonInteractive"].includes(key))) {
-				this._interactive = !this.rawArgs.some((e) =>
-					[`--${key}`, ...def.aliases ?? []].includes(e)
-				);
+				const forms = [`--${key}`, `--${toKebabCase(key)}`, ...def.aliases ?? []];
+				this._interactive = !this.rawArgs.some((e) => forms.includes(e));
 			}
 		}
 
@@ -192,7 +194,8 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 	 * — collection order no longer has to match dependency order, in either direction.
 	 *
 	 * Satisfaction is type-aware: a `flag` must resolve `true` (there's no "unset" flag state); a
-	 * `list` must resolve to a non-empty array; everything else just needs to be defined.
+	 * `confirm` only has to be *answered*, since `--no-thing` is an answer and `false` is a legal
+	 * one; a `list` must resolve to a non-empty array; everything else just needs to be defined.
 	 */
 	private _validateRequired(result: Record<string, unknown>): string[] {
 		const errors: string[] = [];
@@ -201,7 +204,11 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 			const active = activeSpecs(normalizeSpecs(def.required), result);
 			if (active.length === 0) continue;
 			const current = result[key];
-			const satisfied = def.type === "flag" ? Boolean(current) : isPresent(current);
+			const satisfied = def.type === "flag"
+				? Boolean(current)
+				: def.type === "confirm"
+				? current !== undefined
+				: isPresent(current);
 			if (satisfied) continue;
 			const hint = collectHint(active);
 			const displayKey = key.replace(/([A-Z])/g, "-$1").toLowerCase();

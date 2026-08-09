@@ -35,6 +35,9 @@ features:
   - title: "@bearmetal/clawmark"
     details: A rule-based markup engine that runs both ways. Markdown to HTML, and HTML, docx, or odt back to markdown — driven by a swappable rule set rather than a fixed grammar.
     link: /clawmark/
+  - title: "@bearmetal/cli"
+    details: Everything a terminal program needs — inline prompts and menus that don't eat your scrollback, repaintable regions, a widget contract, and an arg parser that turns its own definitions into prompts and --help.
+    link: /cli/
   - title: "@bearmetal/den"
     details: Application directories that follow the OS — XDG, the macOS Library layout, Windows roaming and local — plus file handles that stage, flush, and never let a path escape.
     link: /den
