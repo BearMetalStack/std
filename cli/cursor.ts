@@ -1,68 +1,54 @@
-import { InputManager } from "./InputManager.ts";
+/**
+ * Cursor visibility.
+ *
+ * Deliberately small. Three things that used to live here are gone:
+ *
+ * - `getPosition()` asked the terminal where the cursor was (`DSR`) and read the
+ *   reply straight off stdin, which races whatever is already reading keys and
+ *   reset raw mode underneath it. The render layer tracks position relative to
+ *   its own output instead, so nothing needs to ask.
+ * - `savePosition()`/`restorePosition()` used `DECSC`/`DECRC`, which is a single
+ *   global slot. Two widgets nesting silently corrupted each other.
+ * - The alternate screen belongs to the session, which is the only thing that
+ *   knows when an interactive run starts and ends — and the only thing that can
+ *   restore the terminal on the way out.
+ * @module
+ */
 
+import { stdoutWriter, type TerminalWriter } from "./render/writer.ts";
+
+/** Show/hide the cursor, with a stack so nested widgets restore correctly. */
 export class Cursor {
-	private static visible = true;
-	private static visibilityStack: boolean[] = [];
+	static #visible = true;
+	static #stack: boolean[] = [];
+
+	static #out(): TerminalWriter {
+		return stdoutWriter();
+	}
+
+	/** Whether the cursor is currently shown. */
+	static get visible(): boolean {
+		return this.#visible;
+	}
 
 	static show() {
-		this.visible = true;
-		Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?25h"));
+		this.#visible = true;
+		this.#out().write("\x1b[?25h");
 	}
 
 	static hide() {
-		this.visible = false;
-		Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?25l"));
+		this.#visible = false;
+		this.#out().write("\x1b[?25l");
 	}
 
+	/** Records the current visibility so it can be put back. */
 	static saveVisibility() {
-		this.visibilityStack.push(this.visible);
+		this.#stack.push(this.#visible);
 	}
 
+	/** Restores the visibility recorded by the matching {@linkcode Cursor.saveVisibility}. */
 	static restoreVisibility() {
-		if (this.visibilityStack.pop()) {
-			this.show();
-		} else {
-			this.hide();
-		}
-	}
-
-	static savePosition() {
-		Deno.stdout.writeSync(new TextEncoder().encode("\x1b7"));
-	}
-
-	static restorePosition() {
-		Deno.stdout.writeSync(new TextEncoder().encode("\x1b8"));
-	}
-
-	static enterAltBuffer() {
-		Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?1049h"));
-		InputManager.addEventListener("exit", this.exitAltBuffer, { once: true });
-		addEventListener("beforeunload", this.exitAltBuffer, { once: true });
-		Deno.addSignalListener("SIGINT", this.exitAltBuffer);
-		Deno.addSignalListener("SIGTERM", this.exitAltBuffer);
-	}
-
-	static exitAltBuffer() {
-		Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?1049l"));
-		InputManager.removeEventListener("exit", this.exitAltBuffer);
-		removeEventListener("beforeunload", this.exitAltBuffer);
-		Deno.removeSignalListener("SIGINT", this.exitAltBuffer);
-		Deno.removeSignalListener("SIGTERM", this.exitAltBuffer);
-	}
-
-	static async getPosition(): Promise<{ row: number; col: number }> {
-		const decoder = new TextDecoder();
-		Deno.stdin.setRaw(true);
-		Deno.stdout.writeSync(new TextEncoder().encode("\x1b[6n"));
-		const buf = new Uint8Array(32);
-		const n = await Deno.stdin.read(buf);
-		Deno.stdin.setRaw(false);
-		const match = decoder.decode(buf.subarray(0, n ?? 0)).match(
-			// deno-lint-ignore no-control-regex
-			/\x1b\[(\d+);(\d+)R/,
-		);
-		return match
-			? { row: parseInt(match[1]) - 1, col: parseInt(match[2]) - 1 }
-			: { row: 0, col: 0 };
+		if (this.#stack.pop() ?? true) this.show();
+		else this.hide();
 	}
 }

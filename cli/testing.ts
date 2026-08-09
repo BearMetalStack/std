@@ -10,6 +10,7 @@
 
 import type { TerminalWriter } from "./render/writer.ts";
 import { KeyDecoder, type KeyEvent } from "./input/keys.ts";
+import type { KeySource } from "./input/reader.ts";
 
 /**
  * A terminal emulator just complete enough to check a renderer against.
@@ -229,6 +230,69 @@ export class BufferWriter implements TerminalWriter {
 
 	toString(): string {
 		return this.screen.toString();
+	}
+}
+
+/**
+ * A key source driven by test code instead of stdin.
+ *
+ * Only delivers keys while something holds a claim, matching the real reader —
+ * so a test that forgets to focus a widget fails the same way production would.
+ */
+export class FakeKeyReader implements KeySource {
+	#handlers = new Set<(event: KeyEvent) => void>();
+	#claims = new Set<object>();
+	/** Every key sent, for assertions. */
+	readonly sent: KeyEvent[] = [];
+	rawSuspended = false;
+
+	get active(): boolean {
+		return this.#claims.size > 0;
+	}
+
+	subscribe(handler: (event: KeyEvent) => void): () => void {
+		this.#handlers.add(handler);
+		return () => this.#handlers.delete(handler);
+	}
+
+	claim(token: object) {
+		this.#claims.add(token);
+	}
+
+	release(token: object) {
+		this.#claims.delete(token);
+	}
+
+	suspendRaw() {
+		this.rawSuspended = true;
+	}
+
+	interrupt(): boolean {
+		return true;
+	}
+
+	/** Delivers one decoded key. */
+	send(event: KeyEvent) {
+		this.sent.push(event);
+		for (const handler of [...this.#handlers]) handler(event);
+	}
+
+	/** Decodes `text` as a terminal would and delivers every key in it. */
+	type(text: string) {
+		for (const event of keysFrom(text)) this.send(event);
+	}
+
+	/** Delivers a named key, with optional modifiers. */
+	press(name: KeyEvent["name"], mods: Partial<KeyEvent> = {}) {
+		this.send({
+			name,
+			ctrl: false,
+			alt: false,
+			shift: false,
+			meta: false,
+			sequence: "",
+			...mods,
+		});
 	}
 }
 

@@ -214,6 +214,16 @@ export class KeyDecoder {
 		this.#carry = new Uint8Array(0);
 	}
 
+	/**
+	 * Whether an incomplete sequence is being held.
+	 *
+	 * The reader uses this to decide whether it needs a flush timer at all — arming
+	 * one unconditionally would keep the event loop alive between keystrokes.
+	 */
+	get pending(): boolean {
+		return this.#carry.length > 0;
+	}
+
 	#parseOne(buf: Uint8Array, start: number): Parsed | typeof INCOMPLETE {
 		const byte = buf[start];
 		if (byte === ESC) return this.#parseEscape(buf, start);
