@@ -56,8 +56,6 @@ export function Link(props: LinkProps): JSX.Element {
 		return <a {...rest} href={target.href}>{children}</a>;
 	}
 
-	// The server JSX runtime stringifies attribute values without unwrapping
-	// signals, so on that side the active flag is resolved to a plain value.
 	const active = typeof document === "undefined"
 		? isActivePath(target.pathname, base.pathname, exact)
 		: activeSignal(target.pathname, exact);

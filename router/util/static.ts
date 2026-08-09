@@ -23,7 +23,6 @@ export function toDirectoryUrl(dir: string | URL): URL {
 
 /** `file:` URL for the process cwd, with the trailing slash `new URL()` needs as a base. */
 function cwdUrl(): URL {
-	// Backslashes keep Windows drive paths (`C:\src`) from being read as escapes.
 	const cwd = Deno.cwd().replaceAll("\\", "/");
 	return new URL(`file://${cwd.startsWith("/") ? "" : "/"}${cwd}/`);
 }
@@ -68,17 +67,12 @@ export async function resolveStaticFile(
 	const dirUrl = toDirectoryUrl(dir);
 	const relative = pathname.replace(new RegExp("^" + root), "").trim();
 	const target = childUrl(dirUrl, relative);
-	// A path that climbs out of the directory is never a real route, so it 404s
-	// rather than falling through to the SPA shell.
 	if (!target) return NotFound();
 
 	const served = await tryServeFile(target, spa, showIndex);
 	if (served) return served;
 
 	if (spa) {
-		// Hashed assets referenced relative to index.html get requested from
-		// whatever SPA route the browser is on (/some/route/chunk-XYZ.js) -
-		// retry against the dist root before falling back to the app shell.
 		const flattened = childUrl(dirUrl, pathname.split("/").pop()!);
 		if (flattened && flattened.href !== target.href) {
 			const asset = await tryServeFile(flattened, spa, showIndex);

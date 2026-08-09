@@ -12,4 +12,3 @@ export * from "./util/response.ts";
 export * from "./util/contextPredicates.ts";
 export { createService, createServiceToken } from "./service.ts";
 export default Router;
-// export { FileRouter } from "./file_router.ts";

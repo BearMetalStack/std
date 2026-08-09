@@ -233,7 +233,7 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			);
 		}
 		const ready = this.ready();
-		ready.catch(() => {}); // surfaced via await in the handler, not as an unhandled rejection
+		ready.catch(() => {});
 		const handler = this.handler.bind(this);
 		return async (req, info) => {
 			await ready;
@@ -304,9 +304,6 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 				const res = await middlewareStack[index++]?.(ctx, executeMiddleware);
 				if (res instanceof Response) return res;
 			}
-			// The stack always ends in a terminator that returns a Response, so
-			// getting here means a handler returned a non-Response without calling
-			// next() — the route matched, but nothing implements it.
 			return NotImplemented();
 		};
 
@@ -354,10 +351,6 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			favicon?: string;
 		} = {},
 	): void {
-		// `flatten` rewrites the directory itself - a RegExp strips whatever it
-		// matches, `true` keeps only the last segment - and the result is taken
-		// relative to the cwd. For a URL that operates on the pathname, so the
-		// option keeps the meaning it has for strings.
 		let dirSpec: string | URL = dir;
 		if (flatten) {
 			const source = dir instanceof URL ? dir.pathname.replace(/\/+$/, "") : dir;

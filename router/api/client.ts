@@ -106,9 +106,6 @@ function makeAccessor(route: RouteDef, cfg: ApiClientConfig) {
 		return bag;
 	};
 
-	// Controller slots hang off the accessor itself rather than off the call
-	// result: a controller serves every value of the path parameters, so
-	// requiring them just to register one would be noise.
 	for (const [method, def] of route.methods) {
 		(accessor as any)[method] = {
 			setController(controller: AnyController) {

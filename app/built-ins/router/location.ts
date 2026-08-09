@@ -153,8 +153,6 @@ export function navigate(to: string | URL, options: NavigateOptions = {}): void 
 	if (history?.pushState) {
 		if (options.replace) history.replaceState(options.state ?? null, "", target);
 		else history.pushState(options.state ?? null, "", target);
-		// The patch above normally does this, but a copy of this module loaded in
-		// another bundle chunk may own the patch and sync only its own signal.
 		syncUrl();
 		return;
 	}
@@ -200,9 +198,6 @@ export function interceptLinkClicks(): () => void {
 
 function handleClick(event: MouseEvent): void {
 	if (event.defaultPrevented) return;
-	// Only a *positive* button is a reason to stand aside: a synthetic
-	// `new Event("click")` — what `element.click()` produces outside a browser —
-	// carries no `button` at all, and that is a plain click, not a middle click.
 	if (event.button > 0) return;
 	if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 
@@ -228,8 +223,6 @@ function handleClick(event: MouseEvent): void {
 	}
 	if (url.origin !== current.origin) return;
 
-	// A hash-only change is the browser's job (it scrolls to the anchor); the
-	// `hashchange` listener keeps the signal honest afterwards.
 	if (url.pathname === current.pathname && url.search === current.search && url.hash !== "") {
 		return;
 	}

@@ -75,8 +75,6 @@ export function createApiModule(api: any, second?: any, third?: any): Module<any
 		: undefined;
 	const options = (secondIsControllerMap ? third : second) as ApiModuleOptions | undefined;
 
-	// Not `isDev()`: it reports false in a browser and on a server without the
-	// env permission. See `defaultValidateResponses` in ./client.ts.
 	const validate = options?.validateResponses ?? (environment() !== "prod");
 
 	const module = new Module<any>();

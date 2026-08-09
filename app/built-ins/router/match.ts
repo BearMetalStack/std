@@ -110,9 +110,6 @@ export function flattenRoutes(
 		const pattern = joinPath(base, route.path) || "/";
 
 		if (route.children.length) {
-			// A wildcard parent's children are what consume the wildcard, so drop it
-			// before joining. `joinPath` would otherwise swallow the child segment:
-			// it treats a preceding `*` as something to pop, not to keep.
 			const childBase = pattern.endsWith("/*") ? pattern.slice(0, -2) || "/" : pattern;
 			for (const child of flattenRoutes(route.children, childBase)) {
 				chains.push({ routes: [route, ...child.routes], pattern: child.pattern });

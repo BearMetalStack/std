@@ -186,16 +186,6 @@ function renderOnClient(props: RouterProps): Signal.Computed<JSX.Element | null>
 		getCurrentOwner()?.registerCleanup(release);
 	}
 
-	// The match is *pushed* from the URL commit path rather than derived by a
-	// computed, and the per-name param signals are writable. Both are forced by
-	// the same constraint: a signal written from inside an effect updates its
-	// value but never notifies its readers. Deriving params reactively and
-	// mirroring them onto a child through an attribute puts the write inside the
-	// JSX runtime's prop effect, which is exactly that dead path — the child's
-	// prop changes and nothing re-renders. Pushing from `subscribeToUrl`, which
-	// only ever runs from a DOM event or an explicit navigate(), keeps every
-	// write outside a reactive computation. Writable param signals then bind
-	// straight into a child's `@prop` accessor with no attribute round-trip.
 	const pinned = props.url != null;
 	const urlOf = (href: string) => toURL(pinned ? String(props.url) : href);
 	const match = createSignal(matchRoutes(chains, urlOf(currentHref())));
@@ -213,9 +203,7 @@ function renderOnClient(props: RouterProps): Signal.Computed<JSX.Element | null>
 	const handle: RouterHandle = { chains, base, match, params };
 
 	const cleanups: Array<() => void> = [];
-	// The matched pattern is the identity of the rendered tree. Holding the
-	// previous node against it is what keeps a params-only navigation from
-	// tearing down and rebuilding a route that has not actually changed.
+
 	let lastPattern: string | null | undefined;
 	let lastNode: JSX.Element | null = null;
 
@@ -239,11 +227,6 @@ async function renderOnServer(props: RouterProps): Promise<JSX.Element | null> {
 	const base = props.base ?? "/";
 	const chains = collect(await Promise.all(flatten(props.children)), base);
 
-	// Without a URL there is nothing to match, and guessing is worse than
-	// rendering nothing: falling back to `/` emits the *wrong* route's markup on
-	// every other path, which the client then has to tear out and replace on
-	// hydration — a visible flash, and a full mount/unmount cycle for every
-	// component in the route that never should have rendered.
 	if (props.url == null) {
 		console.warn(
 			"<Router> rendered without a `url` prop outside the browser, so it rendered nothing. " +
@@ -281,10 +264,6 @@ function routeContext(router: RouterHandle, match: RouteMatch): RouteContext {
 		params: createComputed(() => router.match.get()?.params ?? {}),
 		match: createComputed(() => router.match.get()),
 		param: (name) => {
-			// One writable signal per name, cached on the router and updated from
-			// the URL commit path. Writable so the JSX runtime binds it directly
-			// into a child's `@prop` accessor instead of mirroring it through an
-			// attribute — see the note in `renderOnClient`.
 			const existing = router.params?.get(name);
 			if (existing) return existing;
 			const signal = createSignal(router.match.get()?.params[name]);

@@ -461,8 +461,6 @@ export class Module<TState extends StateType = {}> {
 		module._setParent?.(this);
 		const moduleTrust = trustOf(module);
 		for (const [routePath, thatConfig] of module.rawRoutes) {
-			// Absolute routes stay root-anchored: skip the mount-path join and
-			// carry the flag forward so they survive every subsequent bubble.
 			const p = thatConfig.absolute ? routePath : (joinPath(path, routePath).replace(
 				/\/$/,
 				this.trailingSlash ? "/" : "",
@@ -478,9 +476,6 @@ export class Module<TState extends StateType = {}> {
 					} else if (this.#admitReserved(p, method, module, moduleTrust, handlers)) {
 						thisConfig.handlers[method] = (thisConfig.handlers[method] ?? [])
 							.concat(handlers.map((h) => {
-								// Tag once, at the deepest merge: the origin module is the one
-								// that declared the handler, and re-tagging on every bubble
-								// would launder it into whatever plain Module carried it up.
 								if (!(h as any)["__module"]) (h as any)["__module"] = module;
 								return h;
 							}));
@@ -500,8 +495,6 @@ export class Module<TState extends StateType = {}> {
 		if (module._startCallbacks) {
 			this._startCallbacks.push(...module._startCallbacks);
 		}
-		// Claims and warnings raised below this module would otherwise die here,
-		// never reaching the Router that refuses to serve on them.
 		for (const [name, ctor] of module._trustedClaims ?? []) {
 			this.#registerClaim({ name, ctor }, "*", "(nested)", false);
 		}
@@ -543,8 +536,6 @@ export class Module<TState extends StateType = {}> {
 			const key = `${claim.name} ${claim.ctor}`;
 			if (seen.has(key)) continue;
 			seen.add(key);
-			// Announce only where the trusted module is directly mounted, so a
-			// route is logged once rather than once per level it bubbles through.
 			if (!this.#registerClaim(claim, method, path, moduleTrust !== null)) admitted = false;
 		}
 		return admitted;
@@ -634,7 +625,6 @@ export abstract class TrustedModule<TState extends StateType = {}> extends Modul
 function trustOf(module: unknown): TrustClaim | null {
 	if (!(module instanceof TrustedModule)) return null;
 	const name = module.trustedName;
-	// Defensive: `trustedName` is readonly to TypeScript, not to JavaScript.
 	if (typeof name !== "string" || name.trim() === "") return null;
 	return { name: name.trim(), ctor: describeModule(module) };
 }
