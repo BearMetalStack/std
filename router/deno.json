@@ -7,6 +7,9 @@
 		"test": {
 			"command": "deno test -RW"
 		},
+		"check:browser": {
+			"command": "deno bundle --platform=browser --outdir=/tmp/bearmetal-router-api-browser-check api/mod.ts"
+		},
 		"dirty": {
 			"command": "deno publish --allow-dirty"
 		},
@@ -16,6 +19,7 @@
 	},
 	"files": [
 		"mod.ts",
+		"api/",
 		"modules/",
 		"README.md",
 		"LICENSE"
@@ -24,6 +28,8 @@
 		".": "./mod.ts",
 		"./types": "./types.ts",
 		"./response": "./util/response.ts",
+		"./api": "./api/mod.ts",
+		"./api/server": "./api/server.ts",
 		"./modules/forager": "./modules/forager.ts"
 	},
 	"exclude": [

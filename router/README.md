@@ -434,7 +434,98 @@ router.route("/users")
 ```
 
 The `.responds()` call is for documentation only - it does not validate outgoing responses at
-runtime.
+runtime. To have response schemas enforced, declare the endpoint through
+[API contracts](#api-contracts) instead.
+
+### API contracts
+
+`@bearmetal/router/api` declares an endpoint once and derives both halves from it: a typed client
+that enforces the contract on the way out, and a server module whose controllers are checked against
+that same contract on the way in. Unlike `.responds()`, response schemas are enforced at runtime on
+both ends.
+
+The contract module is isomorphic - it never touches `Deno`, so it bundles for the browser. The
+server half lives behind the separate `@bearmetal/router/api/server` entry point.
+
+```ts
+// api.ts - imported by both the client and the server
+import { defineApi } from "@bearmetal/router/api";
+import { s } from "@bearmetal/router";
+
+const User = s.object({ id: s.string(), name: s.string() });
+const ApiError = s.object({ code: s.string() });
+
+export const api = defineApi()
+	.route("/users", "users")
+	.get(s.query({ page: s.number().coerce().optional() }), s.array(User))
+	.post(s.object({ name: s.string() }), { 201: User, 409: ApiError })
+	.route("/users/:id", "user")
+	.get(undefined, { 200: User, 404: ApiError })
+	.build();
+```
+
+`.route(path, name)` closes the route being configured and opens the next one; `.build()` closes the
+last. The name is optional - unnamed routes are reachable as `api.endpoint(path)`. A bare response
+schema is shorthand for `{ 200: schema }`.
+
+Input placement follows the rule the router already uses: an `s.query()` schema is read from the
+search params, `s.formData()` from the body as form data, and anything else from the JSON body. Pass
+`undefined` when the endpoint takes no input.
+
+On the server, controllers are checked against the declared responses - returning a status you did
+not declare, or the wrong payload shape for one you did, is a compile error:
+
+```ts
+import { createApiModule } from "@bearmetal/router/api/server";
+import { Conflict, Created, NotFound, Ok } from "@bearmetal/router/response";
+import { api } from "./api.ts";
+
+export default createApiModule(api, {
+	users: {
+		get: (ctx) => Ok(listUsers(ctx.input.page)),
+		post: (ctx) =>
+			nameTaken(ctx.input.name)
+				? Conflict({ code: "duplicate_name" })
+				: Created(addUser(ctx.input)),
+	},
+	user: {
+		get: (ctx) => {
+			const user = findUser(ctx.params.id); // ctx.params is typed from the path
+			return user ? Ok(user) : NotFound({ code: "no_such_user" });
+		},
+	},
+});
+```
+
+The map must cover every declared endpoint - omitting one is a type error. Controllers can also be
+attached one at a time, in which case completeness is checked when the module is built:
+
+```ts
+api.user.get.setController((ctx) => Ok(findUser(ctx.params.id)));
+export default createApiModule(api); // throws if anything is still unimplemented
+```
+
+On the client, the same object is the caller. Path parameters go to the endpoint, input to the
+method, and the result is a union discriminated on `status`:
+
+```ts
+import { api } from "./api.ts";
+
+const result = await api.user({ id }).get();
+if (result.status === 200) console.log(result.data.name); // User
+else console.warn(result.data.code); // ApiError
+```
+
+Calls default to the current origin. `createClient(api, { baseUrl, fetch, headers })` returns a
+second client over the same contract with its own configuration - passing a router's own `handle` as
+`fetch` calls it in-process with no network involved, which is what this package's own tests do.
+
+A response whose status the contract does not declare, or whose body fails its schema, throws an
+`ApiContractError` rather than widening the union.
+
+Response bodies are validated on both ends by default, and skipped when `BEARMETAL_ENV=prod`.
+Override per module with `createApiModule(api, controllers, { validateResponses })`, and per client
+with `createClient(api, { validateResponses })`.
 
 ### Static Files
 
