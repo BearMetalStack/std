@@ -3,11 +3,16 @@
 	"version": "0.0.6",
 	"exports": {
 		".": "./mod.ts",
+		"./types": "./types.ts",
 		"./style": "./style.ts",
-		"./argParser": "./argParser/mod.ts"
+		"./argParser": "./argParser/mod.ts",
+		"./input": "./input/mod.ts",
+		"./render": "./render/mod.ts",
+		"./testing": "./testing.ts"
 	},
 	"tasks": {
-		"dev": "deno test --watch"
+		"dev": "deno test --watch",
+		"test": "deno test"
 	},
 	"license": "GPL-3.0-only"
 }
