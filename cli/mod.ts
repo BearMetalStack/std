@@ -40,6 +40,11 @@ export * from "./style.ts";
 export * from "./argParser/mod.ts";
 export * from "./prompts.ts";
 export * from "./select.ts";
+export * from "./cursor.ts";
+export * from "./InputManager.ts";
+export * from "./input/mod.ts";
+export * from "./render/mod.ts";
+export type * from "./types.ts";
 
 export function renderTitleAscii(
 	ascii: string,
@@ -77,18 +82,13 @@ export function renderTitleAscii(
 			break;
 	}
 
-	// maxWidth = maxWidth === Infinity ? longestLine(ascii) : maxWidth;
 	const old = ascii;
 	if (pride && !notPridable) ascii = combineAscii(ascii, random(love, heart), 8);
 	if (longestLine(ascii) > maxWidth) ascii = old;
 	ascii = centerKeepAligned(ascii.replace(/^\n/, ""), maxWidth);
 	if (pride && !notPridable) {
-		// ascii = ascii.replace(
-		// 	/[\n\s]*?$/,
-		// );
 		const colors = rainbowPalette(168, .5, .3);
 		for (const row of ascii.split("\n")) {
-			// if (!row.trim().length) continue;
 			writeRow(row.split(""), colors, { bold });
 			colors.push(colors.shift()!, colors.shift()!);
 		}

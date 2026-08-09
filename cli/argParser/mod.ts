@@ -2,6 +2,12 @@ import { colorize } from "../style.ts";
 import { cliConfirm, cliPrompt } from "../prompts.ts";
 import { selectMenuInteractive } from "../select.ts";
 import {
+	type CliSession,
+	currentSession,
+	type InteractiveMode,
+	startCliSession,
+} from "../render/mod.ts";
+import {
 	_write,
 	activeSpecs,
 	collectCannotBe,
@@ -42,6 +48,7 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 	private _explicitlySet = new Set<string>();
 	private _rootCommand?: string;
 	_interactive = true;
+	_mode: InteractiveMode = "inline";
 
 	constructor(private rawArgs: string[], private defs: T = {} as T) {
 		this._parse();
@@ -135,6 +142,18 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 		return this;
 	}
 
+	/**
+	 * Chooses how prompts are presented.
+	 *
+	 * `"inline"` (the default) draws below existing output and collapses each answer
+	 * to a summary line. `"alt"` runs the whole sequence on the alternate screen,
+	 * leaving the scrollback untouched. Ignored when there is no terminal.
+	 */
+	setInteractiveMode(mode: InteractiveMode): ArgParser<T> {
+		this._mode = mode;
+		return this;
+	}
+
 	get<K extends ArgKeys<T>>(key: K): InferValue<ArgDefOf<T, K>> {
 		return this._parsed[key as string] as InferValue<ArgDefOf<T, K>>;
 	}
@@ -212,7 +231,11 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 		}
 
 		const result = { ...existing, ...this._parsed } as Record<string, unknown>;
-		const isInteractive = Deno.stdin.isTerminal() && this._interactive;
+		const ambient = currentSession();
+		const canPrompt = ambient
+			? ambient.mode !== "plain"
+			: Deno.stdin.isTerminal() && Deno.stdout.isTerminal();
+		const isInteractive = canPrompt && this._interactive;
 
 		if (!isInteractive) {
 			const errors: string[] = [];
@@ -239,8 +262,6 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 					if (active.length === 0) result[key] = def.default ?? [];
 					continue;
 				}
-				// string/enum/number left unresolved when unset — `_validateRequired`, below,
-				// reports it if required, once every other arg's value is also settled.
 			}
 			errors.push(...this._validateRequired(result));
 			if (errors.length > 0) {
@@ -249,6 +270,20 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 			return result as ResolvedArgs<T>;
 		}
 
+		const owned: CliSession | null = currentSession()
+			? null
+			: startCliSession({ mode: this._mode });
+		try {
+			return await this._resolveInteractive(result);
+		} finally {
+			owned?.cleanup();
+		}
+	}
+
+	/** The prompting half of {@linkcode ArgParser.resolve}, run inside a session. */
+	private async _resolveInteractive(
+		result: Record<string, unknown>,
+	): Promise<ResolvedArgs<T>> {
 		const errors = [];
 		for (const [key, def] of this._entries()) {
 			if (def.type === "flag") continue;
@@ -274,9 +309,6 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 
 			if (def.type === "list") {
 				if (current === undefined && active.length === 0) result[key] = def.default ?? [];
-				// Otherwise left as-is (already collected from the CLI, or still missing) — lists
-				// can't be prompted for, so a missing-but-required list is `_validateRequired`'s
-				// call, below, once every other arg's value is settled too.
 				if ("schema" in def && def.schema) {
 					const check = def.schema.safeParse(result[key] as string[]);
 					if (!check.success) {
@@ -495,14 +527,25 @@ export class CommandArgParser<C extends CommandDefsShape> {
 		this._command = command;
 		this._parser = new ArgParser(rest, this.commands[command] as unknown as ArgDefs);
 		this._parser._interactive = this._rootParser._interactive;
+		this._parser._mode = this._mode;
 	}
 
 	private _requireCommand(): boolean {
 		return Boolean((this.commands as Record<string, unknown>)[REQUIRE_COMMAND_KEY]);
 	}
 
+	_mode: InteractiveMode = "inline";
+
 	setProgram(command: string | undefined): CommandArgParser<C> {
 		this._program = command;
+		return this;
+	}
+
+	/** Sets the interactive mode for this parser and every command parser under it. */
+	setInteractiveMode(mode: InteractiveMode): CommandArgParser<C> {
+		this._mode = mode;
+		this._rootParser._mode = mode;
+		if (this._parser) this._parser._mode = mode;
 		return this;
 	}
 
@@ -568,6 +611,19 @@ export class CommandArgParser<C extends CommandDefsShape> {
 			Deno.exit(0);
 		}
 
+		const owned: CliSession | null = currentSession() || !Deno.stdout.isTerminal()
+			? null
+			: startCliSession({ mode: this._mode });
+		try {
+			return await this._resolve(options);
+		} finally {
+			owned?.cleanup();
+		}
+	}
+
+	private async _resolve(
+		options?: { promptForCommand?: boolean | string },
+	): Promise<CommandResolvedArgs<C>> {
 		if ((this._command === undefined || !this._parser) && options?.promptForCommand) {
 			const q = typeof options.promptForCommand === "string"
 				? options.promptForCommand

@@ -1,15 +1,47 @@
-// deno-lint-ignore-file no-explicit-any
-import { Cursor } from "./cursor.ts";
-import { type CLICharEvent, InputManager } from "./InputManager.ts";
+/**
+ * Selection menus.
+ *
+ * These used to render from the screen's home position, which is only meaningful
+ * if you own the whole screen — so they took over the alternate screen to make it
+ * true, destroying whatever had been printed before them. They now render inline,
+ * below existing output, and collapse to a summary line when answered.
+ *
+ * The alternate screen is still used, but only when a list genuinely cannot fit
+ * on screen, where the alternative is pushing all the surrounding context out of
+ * view anyway.
+ * @module
+ */
+
+import type { KeyEvent } from "./input/mod.ts";
+import { type CliSession, getOrCreateSession, runWidget } from "./render/mod.ts";
+import { NotInteractiveError } from "./prompts.ts";
 import { colorize } from "./style.ts";
 
-interface ISelectMenuConfig {
+/** A choice: a label, or a `[label, value]` pair. */
+export type SelectOption = string | [string, string];
+
+/** A choice whose selection runs a callback. */
+export type SelectCallback = (label: string) => unknown | Promise<unknown>;
+
+/** A multi-select choice: a label, or a `[label, callback]` pair. */
+export type MultiSelectOption = string | [string, SelectCallback];
+
+/** Shared menu configuration. */
+export interface SelectMenuConfig {
 	initialSelection?: number;
 	initialSelections?: number[];
+	session?: CliSession;
+	/** Keeps the menu inline even when it does not fit, instead of taking the screen. */
+	neverEscalate?: boolean;
 }
 
-type callback = (...args: any[]) => any;
+/** Configuration for {@linkcode multiSelectMenuInteractive}. */
+export interface MultiSelectMenuConfig extends SelectMenuConfig {
+	/** Prepends a "Select All" entry. */
+	allOption?: boolean;
+}
 
+/** Prints a numbered list and reads a choice with the platform prompt. */
 export function selectMenu(items: string[]): string {
 	const menu = items.map((i, index) => `${index + 1}. ${i}`).join("\n");
 	console.log(menu);
@@ -17,348 +49,239 @@ export function selectMenu(items: string[]): string {
 	return items[index];
 }
 
+function labelOf(option: SelectOption | MultiSelectOption): string {
+	return Array.isArray(option) ? option[0] : option;
+}
+
+/**
+ * Computes the slice of a list to show, keeping the selection in view.
+ *
+ * `capacity` is rows available for options — the question line is already
+ * accounted for by the caller. The old version reserved `rows - 1` for options
+ * and *then* added the question on top, which overflowed by exactly one row.
+ */
+function window(total: number, selected: number, capacity: number): [number, number] {
+	if (total <= capacity) return [0, total];
+	let start = Math.max(0, selected - Math.floor(capacity / 2));
+	start = Math.min(start, total - capacity);
+	return [start, start + capacity];
+}
+
+/**
+ * Presents a list and returns the chosen value, or `null` if dismissed.
+ *
+ * ```ts
+ * const db = await selectMenuInteractive("Database?", ["postgres", "kv"]);
+ * ```
+ */
 export async function selectMenuInteractive(
-	this: any,
 	q: string,
-	options: (string | [string, string])[],
-	config?: ISelectMenuConfig,
+	options: SelectOption[],
+	config: SelectMenuConfig = {},
 ): Promise<string | null> {
-	Deno.stdin.setRaw(true);
-	let selected = config?.initialSelection ?? 0;
-	const encoder = new TextEncoder();
-	Cursor.saveVisibility();
-	Cursor.hide();
+	if (options.length === 0) return null;
 
-	function renderMenu() {
-		const { rows } = Deno.consoleSize();
-		const maxHeight = Math.min(rows - 1, options.length);
-		let startPoint = Math.max(0, selected - Math.floor(maxHeight / 2));
-		const endPoint = Math.min(options.length, startPoint + maxHeight);
-		if (endPoint - startPoint < maxHeight) {
-			startPoint = Math.max(0, options.length - maxHeight);
-		}
+	const { session, release } = getOrCreateSession(config.session);
+	const plain = session.mode === "plain";
+	release();
+	if (plain) throw new NotInteractiveError("selectMenuInteractive");
 
-		const lines: string[] = [];
-		lines.push(colorize(q, "green"));
-		for (let i = startPoint; i < endPoint; i++) {
-			let option = options[i];
-			if (Array.isArray(option)) option = option[0];
-			if (i === selected) {
-				lines.push(`${numberAndPadding(i, ">")}${colorize(option, "porple")}`);
-			} else {
-				lines.push(`${numberAndPadding(i)}${option}`);
+	let selected = Math.min(
+		Math.max(config.initialSelection ?? 0, 0),
+		options.length - 1,
+	);
+	let typed = "";
+
+	const pad = (i: number, marker?: string) => {
+		const padded = `${i + 1}. `.padStart(options.length.toString().length + 4);
+		return marker ? padded.replace(" ", marker.substring(0, 1)) : padded;
+	};
+
+	const valueOf = (i: number) => {
+		const option = options[i];
+		return Array.isArray(option) ? option[1] : option;
+	};
+
+	return await runWidget<string | null>({
+		session: config.session,
+		neverEscalate: config.neverEscalate,
+		naturalHeight: () => options.length + 1,
+		frame: (ctl) => {
+			const budget = ctl.session.availableRows;
+			const showQuestion = budget >= 2;
+			const capacity = Math.max(1, showQuestion ? budget - 1 : budget);
+			const [start, end] = window(options.length, selected, capacity);
+			const lines = showQuestion ? [colorize(q, "green")] : [];
+			for (let i = start; i < end; i++) {
+				const label = labelOf(options[i]);
+				lines.push(
+					i === selected ? `${pad(i, ">")}${colorize(label, "porple")}` : `${pad(i)}${label}`,
+				);
 			}
-		}
-
-		let out = "\x1b[H";
-		for (const line of lines) {
-			out += `\r\x1b[K${line}\n`;
-		}
-		Deno.stdout.writeSync(encoder.encode(out.replace(/\n$/, "")));
-	}
-
-	function numberAndPadding(i: number, prefix?: string) {
-		const padded = `${i + 1}. `.padStart(
-			options.length.toString().length + 4,
-		);
-		return prefix ? padded.replace(" ", prefix.substring(0, 1)) : padded;
-	}
-
-	let inputBuffer = "";
-
-	const im = InputManager.getInstance();
-
-	const exit = () => {
-		im.removeEventListener("arrow-up", onUp);
-		im.removeEventListener("arrow-down", onDown);
-		im.removeEventListener("char", onKey);
-		im.removeEventListener("backspace", onBackspace);
-		im.removeEventListener("enter", onEnter);
-		im.removeEventListener("escape", onEscape);
-		im.release(this);
-		Cursor.exitAltBuffer();
-		Cursor.restoreVisibility();
-	};
-	const onUp = (e: Event) => {
-		e.stopImmediatePropagation();
-		selected = (selected - 1 + options.length) % options.length;
-		renderMenu();
-	};
-
-	const onDown = (e: Event) => {
-		e.stopImmediatePropagation();
-		selected = (selected + 1) % options.length;
-		renderMenu();
-	};
-
-	const onKey = (e: CLICharEvent) => {
-		e.stopImmediatePropagation();
-		const ke = e.detail;
-		const char = String.fromCharCode(ke.key);
-		inputBuffer += char;
-	};
-
-	const onBackspace = (e: Event) => {
-		e.stopImmediatePropagation();
-		inputBuffer = inputBuffer.slice(0, -1);
-	};
-
-	let resolve: null | ((value: string | null) => void) = null;
-
-	const onEscape = () => {
-		exit();
-		resolve?.(null);
-	};
-
-	const onEnter = (e: Event) => {
-		e.stopImmediatePropagation();
-		exit();
-		if (inputBuffer) {
-			const parsed = parseInt(inputBuffer);
-			if (!isNaN(parsed)) {
-				selected = parsed - 1;
+			return lines;
+		},
+		afterRender: (ctl) => ctl.session.hideCursor(),
+		onKey: (event: KeyEvent, ctl) => {
+			switch (event.name) {
+				case "up":
+					selected = (selected - 1 + options.length) % options.length;
+					break;
+				case "down":
+					selected = (selected + 1) % options.length;
+					break;
+				case "home":
+					selected = 0;
+					break;
+				case "end":
+					selected = options.length - 1;
+					break;
+				case "pageup":
+					selected = Math.max(0, selected - ctl.session.availableRows);
+					break;
+				case "pagedown":
+					selected = Math.min(options.length - 1, selected + ctl.session.availableRows);
+					break;
+				case "backspace":
+					typed = typed.slice(0, -1);
+					return;
+				case "escape":
+					ctl.region.clear();
+					ctl.resolve(null);
+					return;
+				case "enter": {
+					if (typed) {
+						const parsed = parseInt(typed, 10);
+						if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= options.length) {
+							selected = parsed - 1;
+						}
+						typed = "";
+					}
+					const value = valueOf(selected);
+					ctl.region.commit([
+						`${colorize(q, "green")} - ${colorize(value, "porple")}`,
+					]);
+					ctl.resolve(value);
+					return;
+				}
+				case "char":
+					if (event.ctrl) return;
+					if (/\d/.test(event.char ?? "")) typed += event.char;
+					return;
+				default:
+					return;
 			}
-			inputBuffer = "";
-		}
-		const result = Array.isArray(options[selected])
-			? options[selected][1]
-			: options[selected] as string;
-		Deno.stdout.writeSync(
-			encoder.encode(`${colorize(q, "green")} - ${colorize(result, "porple")}\n`),
-		);
-		resolve?.(result);
-	};
-
-	Cursor.enterAltBuffer();
-	im.claim(this);
-	renderMenu();
-	const final = await new Promise<string | null>((res) => {
-		resolve = res;
-		im.addEventListener("char", onKey);
-		im.addEventListener("backspace", onBackspace);
-		im.addEventListener("enter", onEnter);
-		im.addEventListener("arrow-up", onUp);
-		im.addEventListener("arrow-down", onDown);
-		im.addEventListener("escape", onEscape);
+			ctl.rerender();
+		},
 	});
-
-	return final;
 }
 
+/**
+ * Presents a list with checkboxes and returns every chosen label, or `null` if
+ * dismissed.
+ */
 export async function multiSelectMenuInteractive(
-	this: any,
 	q: string,
-	options: (string | [string, callback])[],
-	config?: ISelectMenuConfig & { allOption?: boolean },
+	options: MultiSelectOption[],
+	config: MultiSelectMenuConfig = {},
 ): Promise<string[] | null> {
-	Deno.stdin.setRaw(true);
-	let selected = 0;
-	let selectedOptions: number[] = config?.initialSelections || [];
-	const encoder = new TextEncoder();
+	const entries: MultiSelectOption[] = config.allOption ? ["Select All", ...options] : [...options];
+	if (entries.length === 0) return null;
 
-	Cursor.saveVisibility();
-	Cursor.hide();
+	const { session, release } = getOrCreateSession(config.session);
+	const plain = session.mode === "plain";
+	release();
+	if (plain) throw new NotInteractiveError("multiSelectMenuInteractive");
 
-	if (config?.allOption) {
-		options.unshift("Select All");
-	}
-	const rawValues = options.map((i) => typeof i === "string" ? i : i[0]);
+	const labels = entries.map(labelOf);
+	let selected = Math.min(Math.max(config.initialSelection ?? 0, 0), entries.length - 1);
+	let chosen = new Set(config.initialSelections ?? []);
 
-	if (rawValues.length !== options.length) {
-		throw new Error("Duplicate options in multi-select menu");
-	}
-
-	const checkSelectAll = () => {
-		if (selectedOptions.includes(0)) {
-			selectedOptions = [];
-		} else {
-			selectedOptions = Array.from(options).map((_, i) => i);
-		}
+	const toggleAll = () => {
+		if (chosen.has(0)) chosen = new Set();
+		else chosen = new Set(entries.map((_, i) => i));
 	};
 
-	const validateSelectAll = () => {
-		const allPresent = selectedOptions.length == options.length;
-		if (!allPresent && config?.allOption) {
-			selectedOptions = selectedOptions.filter((e) => e != 0);
-		}
+	/** Keeps "Select All" checked only while everything else is. */
+	const reconcileAll = () => {
+		if (!config.allOption) return;
+		if (chosen.size !== entries.length) chosen.delete(0);
 	};
 
-	function renderMenu() {
-		const { rows } = Deno.consoleSize();
-		const maxHeight = Math.min(rows - 1, options.length);
-		let startPoint = Math.max(0, selected - Math.floor(maxHeight / 2));
-		const endPoint = Math.min(options.length, startPoint + maxHeight);
-		if (endPoint - startPoint < maxHeight) {
-			startPoint = Math.max(0, options.length - maxHeight);
-		}
-
-		const lines: string[] = [];
-		lines.push(colorize(q, "green"));
-		for (let i = startPoint; i < endPoint; i++) {
-			const option = rawValues[i];
-			const checkbox = selectedOptions.includes(i) ? colorize("◼", "green") : "◻";
-			if (i === selected) {
-				lines.push(`> ${checkbox} ${colorize(option, "porple")}`);
-			} else {
-				lines.push(`  ${checkbox} ${option}`);
+	const result = await runWidget<number[] | null>({
+		session: config.session,
+		neverEscalate: config.neverEscalate,
+		naturalHeight: () => entries.length + 1,
+		frame: (ctl) => {
+			const budget = ctl.session.availableRows;
+			const showQuestion = budget >= 2;
+			const capacity = Math.max(1, showQuestion ? budget - 1 : budget);
+			const [start, end] = window(entries.length, selected, capacity);
+			const lines = showQuestion ? [colorize(q, "green")] : [];
+			for (let i = start; i < end; i++) {
+				const box = chosen.has(i) ? colorize("◼", "green") : "◻";
+				lines.push(
+					i === selected ? `> ${box} ${colorize(labels[i], "porple")}` : `  ${box} ${labels[i]}`,
+				);
 			}
-		}
-
-		let out = "\x1b[H";
-		for (const line of lines) {
-			out += `\r\x1b[K${line}\n`;
-		}
-		Deno.stdout.writeSync(encoder.encode(out.replace(/\n$/, "")));
-	}
-
-	const im = InputManager.getInstance();
-	// im.claim(this);
-
-	let resolve = null as null | ((value: number[] | null) => void);
-
-	const exit = () => {
-		im.removeEventListener("arrow-up", onUp);
-		im.removeEventListener("arrow-down", onDown);
-		im.removeEventListener("char", onSpace);
-		im.removeEventListener("enter", onEnter);
-		im.removeEventListener("escape", onEscape);
-		Cursor.restoreVisibility();
-		im.release(this);
-		Cursor.exitAltBuffer();
-	};
-
-	const onUp = (e: Event) => {
-		e.stopImmediatePropagation();
-		selected = (selected - 1 + options.length) % options.length;
-		renderMenu();
-	};
-
-	const onDown = (e: Event) => {
-		e.stopImmediatePropagation();
-		selected = (selected + 1) % options.length;
-		renderMenu();
-	};
-
-	const onSpace = (e: CLICharEvent) => {
-		if (e.detail.char !== " ") return;
-		e.stopImmediatePropagation();
-		if (config?.allOption && selected === 0) {
-			checkSelectAll();
-		} else if (selectedOptions.includes(selected)) {
-			selectedOptions = selectedOptions.filter((i) => i !== selected);
-		} else {
-			selectedOptions.push(selected);
-		}
-		validateSelectAll();
-		renderMenu();
-	};
-
-	const onEscape = () => {
-		exit();
-		resolve?.(null);
-	};
-
-	const onEnter = (e: Event) => {
-		e.stopImmediatePropagation();
-		exit();
-		const results = selectedOptions
-			.filter((i) => !(config?.allOption && i === 0))
-			.map((i) => rawValues[i]);
-		if (results.length > 0) {
-			const shownRes = results.slice(0, 3);
-			const remaining = results.length - 3;
-			Deno.stdout.writeSync(
-				encoder.encode(
-					`${colorize(q, "green")} - ${colorize(shownRes.join(", "), "porple")}${
-						remaining > 0 ? `, and ${remaining} more` : ""
-					}\n`,
-				),
-			);
-		}
-		resolve?.(selectedOptions);
-	};
-
-	Cursor.enterAltBuffer();
-	im.claim(this);
-	renderMenu();
-
-	const selections = await new Promise<number[] | null>((res) => {
-		resolve = res;
-		im.addEventListener("arrow-up", onUp);
-		im.addEventListener("arrow-down", onDown);
-		im.addEventListener("char", onSpace);
-		im.addEventListener("enter", onEnter);
-		im.addEventListener("escape", onEscape);
+			return lines;
+		},
+		afterRender: (ctl) => ctl.session.hideCursor(),
+		onKey: (event: KeyEvent, ctl) => {
+			switch (event.name) {
+				case "up":
+					selected = (selected - 1 + entries.length) % entries.length;
+					break;
+				case "down":
+					selected = (selected + 1) % entries.length;
+					break;
+				case "home":
+					selected = 0;
+					break;
+				case "end":
+					selected = entries.length - 1;
+					break;
+				case "escape":
+					ctl.region.clear();
+					ctl.resolve(null);
+					return;
+				case "enter": {
+					const picked = [...chosen]
+						.filter((i) => !(config.allOption && i === 0))
+						.sort((a, b) => a - b);
+					if (picked.length > 0) {
+						const shown = picked.slice(0, 3).map((i) => labels[i]);
+						const remaining = picked.length - shown.length;
+						ctl.region.commit([
+							`${colorize(q, "green")} - ${colorize(shown.join(", "), "porple")}${
+								remaining > 0 ? `, and ${remaining} more` : ""
+							}`,
+						]);
+					} else {
+						ctl.region.commit([`${colorize(q, "green")} - ${colorize("none", "gray")}`]);
+					}
+					ctl.resolve(picked);
+					return;
+				}
+				case "char": {
+					if (event.ctrl || event.char !== " ") return;
+					if (config.allOption && selected === 0) toggleAll();
+					else if (chosen.has(selected)) chosen.delete(selected);
+					else chosen.add(selected);
+					reconcileAll();
+					break;
+				}
+				default:
+					return;
+			}
+			ctl.rerender();
+		},
 	});
-	if (!selections) return null;
-	for (const optionI of selections) {
-		const option = options[optionI];
-		if (Array.isArray(option)) {
-			await option[1](option[0]);
-		}
+
+	if (!result) return null;
+
+	for (const index of result) {
+		const entry = entries[index];
+		if (Array.isArray(entry)) await entry[1](entry[0]);
 	}
-	const final = selectedOptions.map((i) => rawValues[i]);
-
-	return final;
-}
-
-if (import.meta.main) {
-	// InputManager.addEventListener("exit", () => InputManager.getInstance().deactivate());
-
-	const _val = await selectMenuInteractive("choose a fruit", [
-		"apple",
-		"banana",
-		"cherry",
-		"date",
-		"elderberry",
-		"fig",
-		"grape",
-		"honeydew",
-		"ilama",
-		"jackfruit",
-		"kiwi",
-		"lemon",
-		"mango",
-		"nectarine",
-		"orange",
-		"papaya",
-		"peach",
-		"pineapple",
-		"pomegranate",
-		"quince",
-		"raspberry",
-		"strawberry",
-		"tangerine",
-		"watermelon",
-	], {});
-	// console.log(val);
-
-	const _val2 = await multiSelectMenuInteractive("choose some fruit", [
-		"apple",
-		"banana",
-		"cherry",
-		"date",
-		"elderberry",
-		"fig",
-		"grape",
-		"honeydew",
-		"ilama",
-		"jackfruit",
-		"kiwi",
-		"lemon",
-		"mango",
-		"nectarine",
-		"orange",
-		"papaya",
-		"quince",
-		"raspberry",
-		"strawberry",
-		"tangerine",
-		"udara",
-		"vogelbeere",
-		"watermelon",
-		"ximenia",
-		"yuzu",
-		"zucchini",
-	], { allOption: true });
+	return result.map((i) => labels[i]);
 }
