@@ -231,11 +231,6 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 		}
 
 		const result = { ...existing, ...this._parsed } as Record<string, unknown>;
-		// An already-running session is the authority on whether prompting is possible
-		// — it knows where it is drawing and where its keys come from, which need not
-		// be the process's own streams. Failing that, both ends matter: prompting into
-		// a redirected stdout paints escape sequences into a file, and the user cannot
-		// see what they are answering.
 		const ambient = currentSession();
 		const canPrompt = ambient
 			? ambient.mode !== "plain"
@@ -267,8 +262,6 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 					if (active.length === 0) result[key] = def.default ?? [];
 					continue;
 				}
-				// string/enum/number left unresolved when unset — `_validateRequired`, below,
-				// reports it if required, once every other arg's value is also settled.
 			}
 			errors.push(...this._validateRequired(result));
 			if (errors.length > 0) {
@@ -277,9 +270,6 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 			return result as ResolvedArgs<T>;
 		}
 
-		// One session for the whole prompt sequence, so widgets share a focus stack and
-		// the terminal is restored once. A nested parser finds this one ambient rather
-		// than starting its own.
 		const owned: CliSession | null = currentSession()
 			? null
 			: startCliSession({ mode: this._mode });
@@ -319,9 +309,6 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 
 			if (def.type === "list") {
 				if (current === undefined && active.length === 0) result[key] = def.default ?? [];
-				// Otherwise left as-is (already collected from the CLI, or still missing) — lists
-				// can't be prompted for, so a missing-but-required list is `_validateRequired`'s
-				// call, below, once every other arg's value is settled too.
 				if ("schema" in def && def.schema) {
 					const check = def.schema.safeParse(result[key] as string[]);
 					if (!check.success) {
@@ -624,8 +611,6 @@ export class CommandArgParser<C extends CommandDefsShape> {
 			Deno.exit(0);
 		}
 
-		// A single session spans the command menu and every argument prompt beneath it,
-		// so the whole wizard shares one focus stack and one terminal restore.
 		const owned: CliSession | null = currentSession() || !Deno.stdout.isTerminal()
 			? null
 			: startCliSession({ mode: this._mode });

@@ -238,7 +238,7 @@ const WIDE_RANGES: readonly (readonly [number, number])[] = [
 	[0xfe30, 0xfe6f],
 	[0xff00, 0xff60],
 	[0xffe0, 0xffe6],
-	[0x1f1e6, 0x1f1ff], // regional indicators — a flag pair renders as one wide glyph
+	[0x1f1e6, 0x1f1ff],
 	[0x1f300, 0x1f64f],
 	[0x1f680, 0x1f6ff],
 	[0x1f900, 0x1f9ff],
@@ -263,11 +263,7 @@ const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 function clusterWidth(cluster: string): number {
 	const cp = cluster.codePointAt(0);
 	if (cp === undefined || cp === 0) return 0;
-	// C0/C1 controls render as nothing (or as something unpredictable — either way
-	// they are not our columns to count).
 	if (cp < 0x20 || (cp >= 0x7f && cp < 0xa0)) return 0;
-	// U+FE0F forces emoji presentation, which is always double-width even when the
-	// base code point is a narrow legacy symbol (e.g. "✔️").
 	if (cluster.includes("\uFE0F")) return 2;
 	if (ZERO_WIDTH_RE.test(String.fromCodePoint(cp))) return 0;
 	return isWide(cp) ? 2 : 1;
@@ -389,7 +385,6 @@ export function wrapToWidth(line: string, columns: number): string[] {
 	for (const token of tokenize(line)) {
 		if (token.escape) {
 			current += token.value;
-			// A reset clears the carried styling; anything else adds to it.
 			active = token.value === RESET ? "" : active + token.value;
 			continue;
 		}

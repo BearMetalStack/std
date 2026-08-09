@@ -68,8 +68,6 @@ async function readLine(): Promise<string> {
 			exhausted = true;
 			continue;
 		}
-		// Safe to stream here: this path is plain bytes, with none of the escape
-		// sequences that make a persistent decoder desync in raw mode.
 		pending += decoder.decode(buf.subarray(0, n), { stream: true });
 	}
 }
@@ -95,8 +93,6 @@ export async function cliPrompt(
 	const opts = normalize(arg);
 	const { session, release } = getOrCreateSession(opts.session);
 
-	// No terminal to draw on: print the question and read a line, so piped input
-	// still answers the prompt and the output stays free of escape codes.
 	if (session.mode === "plain") {
 		try {
 			session.out.write(`${message} `);
@@ -129,9 +125,6 @@ export async function cliPrompt(
 			return prefix + colorize(opts.default ?? "", "gray");
 		}
 
-		// Scroll horizontally rather than wrapping: a prompt that grows a second row
-		// would move its own anchor, and readline-style scrolling is what a terminal
-		// user expects anyway.
 		let start = 0;
 		while (displayWidth(chars.slice(start, cursor).join("")) > available) start++;
 		let end = cursor;
@@ -148,7 +141,6 @@ export async function cliPrompt(
 		session: opts.session,
 		frame: (ctl) => {
 			const line = buildLine(ctl.session.out.columns);
-			// The error only earns a second row if there is one to spare.
 			if (!error || ctl.session.availableRows < 2) return [line];
 			return [line, `  ${colorize("✗", "red")} ${colorize(error, "red")}`];
 		},
@@ -194,7 +186,6 @@ export async function cliPrompt(
 					cursor = chars.length;
 					break;
 				case "paste": {
-					// A pasted newline must not submit; it becomes a space.
 					const text = (event.text ?? "").replace(/\r?\n/g, " ");
 					const accepted = [...text].filter((c) => opts.filter?.(c, chars.join("")) ?? true);
 					chars.splice(cursor, 0, ...accepted);

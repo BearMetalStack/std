@@ -88,24 +88,19 @@ export class Region {
 	 * @throws {RegionOverflowError} if the frame is taller than the terminal.
 	 */
 	render(lines: string[]) {
-		if (!this.#out.isTTY) return; // append-only sinks get output at commit time
+		if (!this.#out.isTTY) return;
 		if (lines.length === 0) {
 			this.clear();
 			return;
 		}
 
 		const rows = this.#toRows(lines);
-		// One row is reserved so the region never has to rely on the terminal's
-		// behaviour at the very bottom of the screen, where writing scrolls.
 		const available = Math.max(1, this.#out.rows - 1);
 		if (rows.length > available) throw new RegionOverflowError(rows.length, available);
 
 		let out = this.#rewind();
 		for (let i = 0; i < rows.length; i++) {
 			out += "\x1b[2K" + rows[i];
-			// No trailing newline after the final row: it would park the cursor below
-			// the region, and at the bottom of the screen it would scroll, moving the
-			// anchor out from under the next repaint.
 			if (i < rows.length - 1) out += this.#eol;
 		}
 

@@ -172,8 +172,6 @@ export class KeyDecoder {
 			if (result === INCOMPLETE) {
 				const rest = buf.subarray(i);
 				if (rest.length > MAX_CARRY) {
-					// A stream of escape bytes that never terminates is garbage, not a key.
-					// Drop it rather than growing the buffer without bound.
 					events.push({ name: "unknown", ...noMods(), sequence: decoder.decode(rest) });
 				} else {
 					this.#carry = rest.slice();
@@ -202,7 +200,6 @@ export class KeyDecoder {
 			const events: KeyEvent[] = [
 				{ name: "escape", ...noMods(), sequence: "\x1b" },
 			];
-			// Anything after the ESC was ordinary input that happened to follow it.
 			if (carry.length > 1) events.push(...this.push(carry.subarray(1)));
 			return events;
 		}
@@ -230,8 +227,6 @@ export class KeyDecoder {
 
 		const seq = (len: number) => decoder.decode(buf.subarray(start, start + len));
 
-		// Control characters. CR and LF both mean "enter"; the raw byte is kept in
-		// `sequence` for anyone who needs to tell them apart.
 		if (byte === 0x0d || byte === 0x0a) {
 			return { event: { name: "enter", ...noMods(), sequence: seq(1) }, length: 1 };
 		}
@@ -272,7 +267,6 @@ export class KeyDecoder {
 			};
 		}
 
-		// Printable ASCII.
 		if (byte >= 0x20 && byte < 0x7f) {
 			return {
 				event: {
@@ -285,8 +279,6 @@ export class KeyDecoder {
 			};
 		}
 
-		// UTF-8. Length comes from the lead byte; a persistent streaming TextDecoder
-		// would desync here because escape sequences are interleaved with text.
 		const len = utf8Length(byte);
 		if (len > 0) {
 			if (start + len > buf.length) return INCOMPLETE;
@@ -332,9 +324,6 @@ export class KeyDecoder {
 	}
 
 	#parseCsi(buf: Uint8Array, start: number): Parsed | typeof INCOMPLETE {
-		// CSI is ESC '[', parameter bytes 0x30-0x3F, intermediate bytes 0x20-0x2F,
-		// then a single final byte 0x40-0x7E. The old fixed three-byte stride
-		// mis-parsed everything with a parameter, e.g. ctrl+up (ESC [ 1 ; 5 A).
 		let i = start + 2;
 		while (i < buf.length && buf[i] >= 0x30 && buf[i] <= 0x3f) i++;
 		while (i < buf.length && buf[i] >= 0x20 && buf[i] <= 0x2f) i++;

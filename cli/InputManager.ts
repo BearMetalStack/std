@@ -200,8 +200,6 @@ export class InputManager extends ManagerEventTarget {
 		this.dispatchEvent(new CLIKeyEvent(event));
 
 		if (event.name === "char") {
-			// Ctrl+C is announced rather than acted on. Exiting from here would skip
-			// every terminal-restore path the session owns.
 			if (event.ctrl && event.char === "c") {
 				this.dispatchEvent(new Event("exit"));
 				return;

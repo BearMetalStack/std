@@ -105,12 +105,8 @@ export async function selectMenuInteractive(
 	return await runWidget<string | null>({
 		session: config.session,
 		neverEscalate: config.neverEscalate,
-		// Question plus every option. When this exceeds the screen the session
-		// switches to the alternate screen for this menu only.
 		naturalHeight: () => options.length + 1,
 		frame: (ctl) => {
-			// The question line only earns its row if at least one option can share the
-			// screen with it. On a terminal too short for both, the options win.
 			const budget = ctl.session.availableRows;
 			const showQuestion = budget >= 2;
 			const capacity = Math.max(1, showQuestion ? budget - 1 : budget);
@@ -169,7 +165,6 @@ export async function selectMenuInteractive(
 				}
 				case "char":
 					if (event.ctrl) return;
-					// Typing a number jumps to that entry on Enter.
 					if (/\d/.test(event.char ?? "")) typed += event.char;
 					return;
 				default:
@@ -189,8 +184,6 @@ export async function multiSelectMenuInteractive(
 	options: MultiSelectOption[],
 	config: MultiSelectMenuConfig = {},
 ): Promise<string[] | null> {
-	// Never mutate the caller's array — the old implementation unshifted the
-	// "Select All" entry straight into it.
 	const entries: MultiSelectOption[] = config.allOption ? ["Select All", ...options] : [...options];
 	if (entries.length === 0) return null;
 
@@ -219,8 +212,6 @@ export async function multiSelectMenuInteractive(
 		neverEscalate: config.neverEscalate,
 		naturalHeight: () => entries.length + 1,
 		frame: (ctl) => {
-			// The question line only earns its row if at least one option can share the
-			// screen with it. On a terminal too short for both, the options win.
 			const budget = ctl.session.availableRows;
 			const showQuestion = budget >= 2;
 			const capacity = Math.max(1, showQuestion ? budget - 1 : budget);

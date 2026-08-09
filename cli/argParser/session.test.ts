@@ -32,7 +32,6 @@ Deno.test("a parser prompts inside an ambient session and leaves a clean transcr
 	assertEquals(args.projectName, "my-app");
 	assertEquals(args.db, "kv");
 
-	// Each answer collapsed to one line; no half-erased frames left behind.
 	const lines = out.lines();
 	assertEquals(lines.length, 2);
 	assertEquals(lines[0].includes("my-app"), true);

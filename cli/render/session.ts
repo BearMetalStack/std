@@ -119,7 +119,6 @@ class Session implements CliSession {
 		this.#interrupt = opts.interrupt ?? "exit";
 		this.implicit = opts.implicit ?? false;
 
-		// Never emit screen-control sequences into a pipe.
 		const requested = opts.mode ?? "inline";
 		this.mode = this.out.isTTY ? requested : "plain";
 
@@ -168,8 +167,6 @@ class Session implements CliSession {
 			console.log(...args);
 			return;
 		}
-		// Erase the live frames, print underneath them, then put them back — so the
-		// message ends up in scrollback rather than smeared across the widget.
 		const snapshots = live.map((region) => [...region.rows]);
 		for (const region of [...live].reverse()) region.clear();
 		console.log(...args);
@@ -217,9 +214,6 @@ class Session implements CliSession {
 			this.#onInterrupt();
 			return;
 		}
-		// Only the top of the stack hears anything. Routing by focus rather than by
-		// listener registration order is what removes the need for widgets to fight
-		// each other with stopImmediatePropagation.
 		this.#widgets.at(-1)?.handleKey(event);
 	}
 
@@ -239,9 +233,6 @@ class Session implements CliSession {
 		const snapshots = live.map((region) => [...region.rows]);
 
 		if (this.#inAlt) this.out.write("\x1b[2J\x1b[H");
-		// The terminal has already reflowed what is on screen, so the recorded
-		// heights no longer describe reality; rewinding over them would corrupt
-		// whatever is there now.
 		for (const region of live) region.forget();
 
 		const focused = this.#widgets.at(-1);
@@ -259,19 +250,13 @@ class Session implements CliSession {
 	};
 
 	#installRestoreHooks() {
-		// Closures, not unbound method references: the previous implementation
-		// registered a static method directly, so `this` was undefined when the
-		// signal fired and the handler threw instead of restoring the terminal.
 		const restore = () => this.cleanup();
 
-		// The process is already on its way out here, so restore only — never exit.
 		addEventListener("unload", restore);
 		this.#teardown.push(() => removeEventListener("unload", restore));
 
 		const signals: Deno.Signal[] = Deno.build.os === "windows" ? ["SIGINT"] : ["SIGINT", "SIGTERM"];
 		for (const signal of signals) {
-			// A signal is a request to stop, so restoring is only half the job. Without
-			// the exit the process carries on with its widgets already cancelled.
 			const onSignal = () => {
 				if (this.#interrupt === "event") {
 					this.#widgets.at(-1)?.cancel?.();
@@ -297,8 +282,6 @@ class Session implements CliSession {
 		if (this.mode !== "plain" && Deno.build.os !== "windows") {
 			try {
 				Deno.addSignalListener("SIGWINCH", this.#onResize);
-				// Must be removed on teardown: a live signal listener keeps the event
-				// loop alive and the process would never exit.
 				this.#teardown.push(() => {
 					try {
 						Deno.removeSignalListener("SIGWINCH", this.#onResize);
@@ -369,8 +352,6 @@ class Session implements CliSession {
 		this.#teardown = [];
 
 		if (this.mode !== "plain") {
-			// Always leave the cursor visible: a hidden cursor is the most obvious way
-			// to leave someone's terminal broken.
 			this.out.write("\x1b[?25h");
 			if (this.#inAlt) {
 				this.#inAlt = false;

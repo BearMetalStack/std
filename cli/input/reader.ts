@@ -145,7 +145,6 @@ export class KeyReader implements KeySource {
 			if (this.#claims.size === 0) {
 				this.#clearEscTimer();
 				this.#setRaw(false);
-				// Nothing pending: the process is free to exit from here.
 				await new Promise<void>((resolve) => {
 					this.#resume = resolve;
 				});
@@ -178,7 +177,6 @@ export class KeyReader implements KeySource {
 	}
 
 	#dispatch(event: KeyEvent) {
-		// A throwing handler must not take the input loop down with it.
 		for (const handler of [...this.#handlers]) {
 			try {
 				handler(event);
