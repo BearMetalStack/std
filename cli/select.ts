@@ -109,9 +109,13 @@ export async function selectMenuInteractive(
 		// switches to the alternate screen for this menu only.
 		naturalHeight: () => options.length + 1,
 		frame: (ctl) => {
-			const capacity = Math.max(1, ctl.session.availableRows - 1);
+			// The question line only earns its row if at least one option can share the
+			// screen with it. On a terminal too short for both, the options win.
+			const budget = ctl.session.availableRows;
+			const showQuestion = budget >= 2;
+			const capacity = Math.max(1, showQuestion ? budget - 1 : budget);
 			const [start, end] = window(options.length, selected, capacity);
-			const lines = [colorize(q, "green")];
+			const lines = showQuestion ? [colorize(q, "green")] : [];
 			for (let i = start; i < end; i++) {
 				const label = labelOf(options[i]);
 				lines.push(
@@ -215,9 +219,13 @@ export async function multiSelectMenuInteractive(
 		neverEscalate: config.neverEscalate,
 		naturalHeight: () => entries.length + 1,
 		frame: (ctl) => {
-			const capacity = Math.max(1, ctl.session.availableRows - 1);
+			// The question line only earns its row if at least one option can share the
+			// screen with it. On a terminal too short for both, the options win.
+			const budget = ctl.session.availableRows;
+			const showQuestion = budget >= 2;
+			const capacity = Math.max(1, showQuestion ? budget - 1 : budget);
 			const [start, end] = window(entries.length, selected, capacity);
-			const lines = [colorize(q, "green")];
+			const lines = showQuestion ? [colorize(q, "green")] : [];
 			for (let i = start; i < end; i++) {
 				const box = chosen.has(i) ? colorize("◼", "green") : "◻";
 				lines.push(

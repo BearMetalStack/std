@@ -264,16 +264,27 @@ class Session implements CliSession {
 		// signal fired and the handler threw instead of restoring the terminal.
 		const restore = () => this.cleanup();
 
+		// The process is already on its way out here, so restore only — never exit.
 		addEventListener("unload", restore);
 		this.#teardown.push(() => removeEventListener("unload", restore));
 
 		const signals: Deno.Signal[] = Deno.build.os === "windows" ? ["SIGINT"] : ["SIGINT", "SIGTERM"];
 		for (const signal of signals) {
+			// A signal is a request to stop, so restoring is only half the job. Without
+			// the exit the process carries on with its widgets already cancelled.
+			const onSignal = () => {
+				if (this.#interrupt === "event") {
+					this.#widgets.at(-1)?.cancel?.();
+					return;
+				}
+				this.cleanup();
+				Deno.exit(signal === "SIGTERM" ? 143 : 130);
+			};
 			try {
-				Deno.addSignalListener(signal, restore);
+				Deno.addSignalListener(signal, onSignal);
 				this.#teardown.push(() => {
 					try {
-						Deno.removeSignalListener(signal, restore);
+						Deno.removeSignalListener(signal, onSignal);
 					} catch {
 						// Already gone.
 					}

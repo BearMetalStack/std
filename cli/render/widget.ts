@@ -65,7 +65,11 @@ export function runWidget<T>(spec: WidgetSpec<T>): Promise<T> {
 		region,
 		rerender: () => {
 			if (done) return;
-			region.render(spec.frame(control));
+			// Last-resort clamp. Widgets size their own frames, but a terminal can be
+			// shorter than any of them assumed, and an overflow throwing out of a
+			// keypress would abort the prompt rather than just render badly.
+			const lines = spec.frame(control).slice(0, session.availableRows);
+			region.render(lines);
 			spec.afterRender?.(control);
 		},
 		resolve: (value: T) => {
@@ -96,7 +100,7 @@ export function runWidget<T>(spec: WidgetSpec<T>): Promise<T> {
 		release();
 	};
 
-	return new Promise<T>((resolve, reject) => {
+	const result = new Promise<T>((resolve, reject) => {
 		settle = resolve;
 		fail = reject;
 
@@ -112,6 +116,13 @@ export function runWidget<T>(spec: WidgetSpec<T>): Promise<T> {
 		session.push(widget);
 		control.rerender();
 	}).finally(finish);
+
+	// A session torn down by a signal cancels its widgets, and at that point the
+	// awaiting caller's stack is already going away — leaving the rejection
+	// unobserved, which crashes the process instead of letting it exit cleanly.
+	// Attaching a handler here marks it observed; callers that do await still see it.
+	result.catch(() => {});
+	return result;
 }
 
 /** Thrown into a widget whose session was torn down before it finished. */

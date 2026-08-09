@@ -1,3 +1,4 @@
+import { currentSession } from "../render/mod.ts";
 import { colorize } from "../style.ts";
 import type {
 	ArgDef,
@@ -160,6 +161,16 @@ export function formatArgLines(entries: [string, ArgDef][]): string[] {
 }
 
 const _enc = new TextEncoder();
+
+/**
+ * Writes to wherever the active session is drawing, or straight to stdout.
+ *
+ * Going through the session matters when one is running: it keeps this output on
+ * the same sink the widgets use, so a test can capture it and a redirected run
+ * does not mix streams.
+ */
 export function _write(s: string) {
-	Deno.stdout.writeSync(_enc.encode(s));
+	const session = currentSession();
+	if (session) session.out.write(s);
+	else Deno.stdout.writeSync(_enc.encode(s));
 }

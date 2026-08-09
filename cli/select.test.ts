@@ -254,3 +254,20 @@ Deno.test("an empty option list resolves to null without rendering", async () =>
 	assertEquals(await selectMenuInteractive("Nothing", [], { session: h.session }), null);
 	assertEquals(h.out.lines(), []);
 });
+
+Deno.test("a terminal too short for the question still renders the menu", async () => {
+	// Two rows leaves one usable, which cannot hold both the question and an option.
+	// Rendering has to degrade rather than throw out of the keypress.
+	using h = harness(80, 2);
+	const answer = selectMenuInteractive("Fruit?", FRUIT, { session: h.session });
+	await settled();
+
+	assertEquals(h.out.lines().length, 1);
+	assertEquals(h.out.line(0).includes("apple"), true);
+
+	h.keys.press("down");
+	assertEquals(h.out.line(0).includes("banana"), true);
+
+	h.keys.press("enter");
+	assertEquals(await answer, "banana");
+});

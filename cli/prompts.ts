@@ -38,12 +38,40 @@ export class NotInteractiveError extends Error {
 
 const decoder = new TextDecoder();
 
+/**
+ * Buffered leftovers from the last read.
+ *
+ * A read returns whatever the pipe had available, which is usually every
+ * remaining answer at once. Without holding the remainder, the first prompt
+ * consumes the lot and every prompt after it silently falls back to its default.
+ */
+let pending = "";
+let exhausted = false;
+
 /** Reads one line from stdin, for when there is no terminal to draw on. */
 async function readLine(): Promise<string> {
 	const buf = new Uint8Array(4096);
-	const n = await Deno.stdin.read(buf);
-	if (n === null) return "";
-	return decoder.decode(buf.subarray(0, n)).replace(/\r?\n$/, "");
+	while (true) {
+		const at = pending.indexOf("\n");
+		if (at >= 0) {
+			const line = pending.slice(0, at).replace(/\r$/, "");
+			pending = pending.slice(at + 1);
+			return line;
+		}
+		if (exhausted) {
+			const rest = pending.replace(/\r$/, "");
+			pending = "";
+			return rest;
+		}
+		const n = await Deno.stdin.read(buf);
+		if (n === null) {
+			exhausted = true;
+			continue;
+		}
+		// Safe to stream here: this path is plain bytes, with none of the escape
+		// sequences that make a persistent decoder desync in raw mode.
+		pending += decoder.decode(buf.subarray(0, n), { stream: true });
+	}
 }
 
 function normalize(arg?: string | PromptOptions): PromptOptions {
@@ -120,7 +148,9 @@ export async function cliPrompt(
 		session: opts.session,
 		frame: (ctl) => {
 			const line = buildLine(ctl.session.out.columns);
-			return error ? [line, `  ${colorize("✗", "red")} ${colorize(error, "red")}`] : [line];
+			// The error only earns a second row if there is one to spare.
+			if (!error || ctl.session.availableRows < 2) return [line];
+			return [line, `  ${colorize("✗", "red")} ${colorize(error, "red")}`];
 		},
 		afterRender: (ctl) => {
 			ctl.session.showCursor();
