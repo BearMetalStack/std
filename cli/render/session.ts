@@ -98,6 +98,29 @@ export function currentSession(): CliSession | null {
 	return stack.at(-1) ?? null;
 }
 
+/**
+ * Whether a question can be asked right now.
+ *
+ * Inside a session that is the session's mode; outside one it is whether both ends of the
+ * terminal are actually a terminal. This is the check every caller needs and the one everybody
+ * was writing out by hand — and threading their own `interactive` boolean through the whole
+ * program when they got tired of writing it.
+ *
+ * ```ts
+ * const title = canPrompt() ? await cliPrompt("Title?") : args.title;
+ * ```
+ */
+export function canPrompt(session?: CliSession): boolean {
+	const target = session ?? currentSession();
+	if (target) return target.mode !== "plain";
+	try {
+		return Deno.stdin.isTerminal() && Deno.stdout.isTerminal();
+	} catch {
+		// No stdio at all — a worker, or a detached process. Certainly not interactive.
+		return false;
+	}
+}
+
 class Session implements CliSession {
 	readonly out: TerminalWriter;
 	readonly mode: InteractiveMode;
