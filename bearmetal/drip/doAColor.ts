@@ -79,11 +79,15 @@ export async function doAColor(theme: Theme) {
 	current[""] = steps[identityStop!].hex;
 }
 
-export function generateSteps(theme: Theme, color: { name: string; hex: string; stop: number }) {
+export function generateSteps(
+	theme: Theme,
+	color: { name: string; hex: string; stop: number },
+	uniformStep = false,
+) {
 	const oklch = srgbToOklch(hexToSrgb(color.hex));
-	const lightnessMap = generateRelativeLightnessMap(oklch.l, color.stop);
+	const lightnessMap = generateRelativeLightnessMap(oklch.l, color.stop, { uniformStep });
 	const steps = seededScale(color.hex, color.stop, lightnessMap);
-	let current = theme.color as Theme;
+	let current = (theme.color ??= {}) as Theme;
 	current = color.name.split("-").reduce(
 		(acc, part) => ((acc as Theme)[part] ??= {}) as Theme,
 		current,
