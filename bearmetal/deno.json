@@ -4,7 +4,8 @@
 	"license": "GPL-3.0-only",
 	"tasks": {
 		"dev": "deno run -A --watch main.ts",
-		"run": "deno run -A main.ts"
+		"run": "deno run -A main.ts",
+		"install": "deno install -gf -A -c deno.json -n bearmetal main.ts"
 	},
 	"exports": "./main.ts",
 	"compilerOptions": {

@@ -1,15 +1,15 @@
-import { ArgParser, colorize, startCliTheme } from "@bearmetal/cli";
+import { ArgParser, colorize } from "@bearmetal/cli";
 import { f } from "@bearmetal/forge";
 import { generateDripTheme } from "./drip/generateDripTheme.ts";
 import { listDripThemes } from "./drip/listDripThemes.ts";
 import { dripConfig } from "@bearmetal/drip";
 import { tmplr } from "@bearmetal/miscellanea";
-
-using _cliTheme = startCliTheme("#25000e", "#f0a8c2");
-console.log(tmplr.replace(/^\n\n/, "").trimEnd());
-console.log("-=".repeat(Deno.consoleSize().columns / 2));
+import { startMCP } from "@bearmetal/mcp";
 
 const args = ArgParser.commandFrom(Deno.args, {
+	mcp: {
+		$description: "Starts the BearMetal MCP server on stdio",
+	},
 	palette: {
 		$description: "Start the Drip Palette app in the current project.",
 		host: {
@@ -99,8 +99,19 @@ const resolved = await args.resolve({ promptForCommand: "Command:" }).catch(
 export type Resolved = typeof resolved;
 
 const tool = resolved.command;
+// using _cliTheme = startCliTheme("#25000e", "#f0a8c2");
+if (tool !== "mcp") {
+	console.log(tmplr.replace(/^\n\n/, "").trimEnd());
+	console.log("-=".repeat(Deno.consoleSize().columns / 2));
+}
 
 switch (tool) {
+	case "mcp":
+		{
+			await import("./mcp/main.ts");
+			startMCP();
+		}
+		break;
 	case "palette":
 		{
 			const port = resolved.port;

@@ -3,6 +3,7 @@ import { dirname, parse, resolve } from "@std/path";
 import type { DotBearmetalDir, DotBearmetalFile, DotBearmetalNamespace } from "@types";
 import { ensureDirOf } from "@fs";
 import { ensureDir } from "@std/fs/ensure-dir";
+import { readJsonIfPresent, readTextIfPresent } from "./softRead.ts";
 
 // Find an existing .bearmetal dir by walking up from cwd
 async function findDotBearmetal(startDir: string): Promise<string | null> {
@@ -76,18 +77,10 @@ export async function dotBearmetalFile<T = {}>(
 	return {
 		path,
 		read() {
-			try {
-				return Deno.readTextFile(path);
-			} catch {
-				return undefined;
-			}
+			return readTextIfPresent(path);
 		},
-		async readJson<J = T>(): Promise<J> {
-			try {
-				return JSON.parse(await Deno.readTextFile(path));
-			} catch {
-				return {} as J;
-			}
+		readJson<J = T>(): Promise<J> {
+			return readJsonIfPresent(path, {} as J);
 		},
 		write(content: string) {
 			return Deno.writeTextFile(path, content, { create: true });

@@ -1,12 +1,15 @@
 import { isDev } from "@bearmetal/miscellanea/environment";
-import { buildVariantsCss } from "./variants.ts";
+import { buildVariantsCss, getThemeVariants, variantDefinedProperties } from "./variants.ts";
 import { emitCalcCSS, isCalcNode } from "./calc.ts";
+import { reportDiagnostics, validateVariants } from "./validate.ts";
 import type { PropertyType, SectionedTokens, Theme } from "../types.ts";
 import { boxIn, justify } from "@bearmetal/miscellanea/string";
-import { css } from "@bearmetal/miscellanea";
 
 const OPEN_COMMENT = "/* ";
 const CLOSE_COMMENT = " */";
+
+/** Top-level theme keys that hold metadata rather than tokens. */
+const META_KEYS = ["variants"];
 
 function generatedFileDisclaimer() {
 	if (isDev()) return "";
@@ -23,22 +26,51 @@ function generatedFileDisclaimer() {
 	} */\n`;
 }
 
+/** Options for {@linkcode cssFromJson}. */
+export interface CssFromJsonOptions {
+	/** Selector the token block hangs off. Defaults to `:root`. */
+	scope?: string;
+	/** Emit `@property` registrations and the file disclaimer. Defaults to `true`. */
+	fullFat?: boolean;
+	/** Name used in diagnostics. Defaults to `"theme"`. */
+	name?: string;
+	/**
+	 * Run generate-time validation (media queries, dangling `var()` references).
+	 * Defaults to `true`.
+	 */
+	validate?: boolean;
+}
+
+/**
+ * Renders a theme to a stylesheet: `@property` registrations, the token block,
+ * and one block per variant.
+ *
+ * Output is one declaration per line. The file is generated, so there is
+ * nothing to gain from packing it onto one line and plenty to lose — a
+ * 15,000-character line is unreviewable in a diff and makes every
+ * line-oriented tool give the wrong answer about it.
+ */
 export function cssFromJson(
 	theme: Theme,
-	scope: string = ":root",
-	fullFat: boolean = true,
+	scopeOrOptions: string | CssFromJsonOptions = ":root",
+	fullFatArg: boolean = true,
 ): string {
-	const joiner = isDev() ? "\n" : " ";
+	const options: CssFromJsonOptions = typeof scopeOrOptions === "string"
+		? { scope: scopeOrOptions, fullFat: fullFatArg }
+		: scopeOrOptions;
+	const scope = options.scope ?? ":root";
+	const fullFat = options.fullFat ?? true;
+	const joiner = "\n";
 
-	const kvs: SectionedTokens = [];
-	for (const [key, value] of Object.entries(theme)) {
-		if (key.startsWith("#")) continue;
-		kvs.push(
-			"#region " + key.toUpperCase() + " tokens",
-			...constructTokens(value as Theme, getSyntaxByName(key), `--${key}-`),
-			"#endregion",
+	const kvs = collectThemeTokens(theme);
+
+	if (options.validate !== false) {
+		reportDiagnostics(
+			validateVariants(getThemeVariants(theme), definedProperties(theme, kvs)),
+			options.name ?? "theme",
 		);
 	}
+
 	const properties = fullFat
 		? kvs.filter((pair): pair is [string, string, PropertyType] =>
 			typeof pair === "object" && !pair[1].startsWith("$") && !pair[1].startsWith("calc(")
@@ -64,45 +96,71 @@ export function cssFromJson(
 					pair.startsWith("#") ? pair : "\n" + boxIn(pair)
 				}${CLOSE_COMMENT}`;
 			}
-			return `\t${pair[0]}: ${
-				pair[1].startsWith("$")
-					? `var(${pair[1].replace("$", "").replace(/__/g, ".").trim()})`
-					: pair[1].replace(/__/g, ".").trim()
-			};`;
+			return `\t${pair[0]}: ${emitValue(pair[1])};`;
 		}).join(joiner),
 		`${joiner}}${joiner}`,
-		fullFat ? buildVariantsCss(theme) : "",
+		fullFat ? buildVariantsCss(theme, { selector: scope, joiner }) : "",
 	].join(joiner);
 }
 
-/** Lightweight CSS for runtime injection - no disclaimer, no @property, variants scoped to selector. */
+/**
+ * Lightweight CSS for runtime injection — no disclaimer, no `@property`,
+ * variants scoped to the given selector.
+ */
 export function themeCSS(theme: Theme, selector: string): string {
+	const joiner = "\n";
+	const props = collectThemeTokens(theme)
+		.filter((pair): pair is [string, string, PropertyType] => typeof pair === "object")
+		.map(([key, value]) => `\t${key}: ${emitValue(value)};`)
+		.join(joiner);
+
+	const varBlock = `${selector} {${joiner}${props}${joiner}}`;
+	const variantBlock = buildVariantsCss(theme, { selector, joiner });
+	return [varBlock, variantBlock].filter(Boolean).join("\n\n");
+}
+
+function emitValue(value: string): string {
+	return value.startsWith("$")
+		? `var(${value.replace("$", "").replace(/__/g, ".").trim()})`
+		: value.replace(/__/g, ".").trim();
+}
+
+/** Walks every namespace in a theme and flattens it into emit-ready tokens. */
+function collectThemeTokens(theme: Theme): SectionedTokens {
 	const kvs: SectionedTokens = [];
 	for (const [key, value] of Object.entries(theme)) {
-		if (key.startsWith("#")) continue;
-		kvs.push(...constructTokens(value as Theme, getSyntaxByName(key), `--${key}-`));
+		if (key.startsWith("#") || META_KEYS.includes(key)) continue;
+		kvs.push(
+			"#region " + key.toUpperCase() + " tokens",
+			...constructTokens(value as Theme, getSyntaxByName(key), `--${key}-`),
+			"#endregion",
+		);
 	}
-	const joiner = isDev() ? "\n" : " ";
-	const props = kvs
-		.filter((pair): pair is [string, string, PropertyType] => typeof pair === "object")
-		.map(([key, value]) =>
-			`\t${key}: ${
-				value.startsWith("$")
-					? `var(${value.replace("$", "").replace(/__/g, ".").trim()})`
-					: value.replace(/__/g, ".").trim()
-			};`
-		)
-		.join(joiner);
-	const varBlock = css`
-		${selector} {
-			${props};
-		}
-	`;
-	const variantBlock = buildVariantsCss(theme, selector);
-	return [varBlock, variantBlock].filter(Boolean).join(isDev() ? "\n\n" : " ");
+	return kvs;
+}
+
+/**
+ * Every custom property the generated stylesheet defines — the flattened token
+ * tree plus whatever the variant blocks introduce.
+ */
+function definedProperties(theme: Theme, kvs: SectionedTokens): Set<string> {
+	const defined = variantDefinedProperties(theme);
+	for (const pair of kvs) {
+		if (typeof pair === "object" && pair) defined.add(pair[0]);
+	}
+	return defined;
 }
 
 const skipKeys = ["$calc"];
+
+/**
+ * A colour ramp stores its seed under an empty key (legacy) or `base`. `base`
+ * only means "the seed" among numeric stops, so a token genuinely named `base`
+ * elsewhere in the tree keeps its own name.
+ */
+function isRamp(node: Theme): boolean {
+	return Object.keys(node).some((k) => k !== "" && !isNaN(Number(k)));
+}
 
 function constructTokens<T extends Theme>(
 	theme: T,
@@ -125,22 +183,24 @@ function constructTokens<T extends Theme>(
 			);
 		}
 	}
-	if (Object.keys(theme).some((k) => !isNaN(Number(k))) && path.at(-1)) {
+	const ramp = isRamp(theme);
+	if (ramp && path.at(-1)) {
 		kvs.push("");
 	}
 
 	for (const [key, value] of Object.entries(theme)) {
 		if (skipKeys.includes(key)) continue;
+		const segment = ramp && key === "base" ? "" : key.replace("$ref", "");
 		if (isCalcNode(value)) {
 			kvs.push([
-				prefix + path.concat([key]).filter(Boolean).join("-"),
+				prefix + path.concat([segment]).filter(Boolean).join("-"),
 				emitCalcCSS(value),
 				syntax,
 			]);
 		}
 		if (typeof value === "string") {
 			kvs.push([
-				prefix + path.concat([key.replace("$ref", "")]).filter(Boolean).join("-"),
+				prefix + path.concat([segment]).filter(Boolean).join("-"),
 				value.replace("$", "$--").replaceAll(".", "-").replace(/__/g, "."),
 				syntax,
 			]);

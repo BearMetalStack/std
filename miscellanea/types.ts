@@ -5,7 +5,9 @@ export type TagFn = Fn<TemplateArgs, string>;
 
 // deno-lint-ignore ban-types
 export type DotBearmetalFile<T = {}> = {
-	read(): Promise<string> | undefined;
+	/** Resolves to `undefined` when the file does not exist; throws on any other read failure. */
+	read(): Promise<string | undefined>;
+	/** Resolves to `{}` when the file does not exist; throws when it exists but does not parse. */
 	readJson<J = T>(): Promise<J>;
 	write(content: string): Promise<void>;
 	writeJson<J = T>(content: J): Promise<void>;
@@ -21,7 +23,9 @@ export type DotBearmetalDir = {
 // `url` is null when no .bearmetal root is reachable at all.
 // deno-lint-ignore ban-types
 export type DotBearmetalFileUrl<T = {}> = {
+	/** Resolves to `undefined` when the file does not exist; throws on any other read failure. */
 	read(): Promise<string | undefined>;
+	/** Resolves to `{}` when the file does not exist; throws when it exists but does not parse. */
 	readJson<J = T>(): Promise<J>;
 	url: URL | null;
 };

@@ -25,7 +25,7 @@
 		},
 		"bm:drip": {
 			"description": "Generates theme completions and CSS",
-			"command": "deno run -RW drip/mod.ts"
+			"command": "deno run -RW -E=BEARMETAL_ENV,BEARMETAL_DRIP_STRICT drip/mod.ts"
 		},
 		"play": {
 			"description": "Runs the playground for the current dev",

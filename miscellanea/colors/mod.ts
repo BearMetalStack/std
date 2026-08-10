@@ -330,9 +330,11 @@ export function isValidHex(hex: string): boolean {
 export function generateRelativeLightnessMap(
 	lightnessSeed: number,
 	seedStop: number,
-	stops: number[] = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950],
-	bounds: { min: number; max: number } = { min: 0.1, max: 0.98 },
-	uniformStep: boolean = false,
+	{ stops = STOPS, bounds = { min: 0.1, max: 0.98 }, uniformStep = false }: {
+		stops?: number[];
+		bounds?: { min: number; max: number };
+		uniformStep?: boolean;
+	} = {},
 ): Record<number, number> {
 	const seedIndex = stops.indexOf(seedStop);
 	if (seedIndex === -1) {

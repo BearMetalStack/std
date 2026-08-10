@@ -1,0 +1,2343 @@
+
+/* #region Custom Properties */
+@property --font-sans {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: "Urbanist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji";
+}
+@property --font-serif {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: "Georgia", "Times New Roman", Times, serif;
+}
+@property --font-mono {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "Courier New", monospace;
+}
+@property --text-xs {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.64rem;
+}
+@property --text-sm {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.8rem;
+}
+@property --text-base {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1rem;
+}
+@property --text-md {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.25rem;
+}
+@property --text-lg {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.563rem;
+}
+@property --text-xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.953rem;
+}
+@property --text-2xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 2.441rem;
+}
+@property --text-3xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 3.052rem;
+}
+@property --text-4xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 3.815rem;
+}
+@property --leading-none {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1;
+}
+@property --leading-tight {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.25;
+}
+@property --leading-snug {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.375;
+}
+@property --leading-normal {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.5;
+}
+@property --leading-relaxed {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.625;
+}
+@property --leading-loose {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 2;
+}
+@property --weight-thin {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 100;
+}
+@property --weight-light {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 300;
+}
+@property --weight-normal {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 400;
+}
+@property --weight-medium {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 500;
+}
+@property --weight-semibold {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 600;
+}
+@property --weight-bold {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 700;
+}
+@property --weight-extrabold {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 800;
+}
+@property --weight-black {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 900;
+}
+@property --tracking-tighter {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: -0.05em;
+}
+@property --tracking-tight {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: -0.025em;
+}
+@property --tracking-normal {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0;
+}
+@property --tracking-wide {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.025em;
+}
+@property --tracking-wider {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.05em;
+}
+@property --tracking-widest {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.1em;
+}
+@property --space-0 {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0;
+}
+@property --space-unit {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.25rem;
+}
+@property --space-px {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1px;
+}
+@property --radius-none {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0;
+}
+@property --radius-base {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.25rem;
+}
+@property --radius-full {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 9999px;
+}
+@property --border-0 {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0;
+}
+@property --border-1-5 {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.5px;
+}
+@property --border-1 {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1px;
+}
+@property --border-2 {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 2px;
+}
+@property --border-4 {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 4px;
+}
+@property --border-8 {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 8px;
+}
+@property --shadow-none {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: none;
+}
+@property --shadow-xs {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+@property --shadow-sm {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+@property --shadow-base {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+@property --shadow-md {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+@property --shadow-lg {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+@property --shadow-xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+}
+@property --shadow-inner {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+}
+@property --shadow-focus {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0 0 0 3px rgb(from var(--color-border-focus) r g b / 0.35);
+}
+@property --z-hide {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: -1;
+}
+@property --z-base {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0;
+}
+@property --z-raised {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 10;
+}
+@property --z-dropdown {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 100;
+}
+@property --z-sticky {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 200;
+}
+@property --z-overlay {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 300;
+}
+@property --z-modal {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 400;
+}
+@property --z-popover {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 500;
+}
+@property --z-toast {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 600;
+}
+@property --z-tooltip {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 700;
+}
+@property --z-top {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 9999;
+}
+@property --duration-instant {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0ms;
+}
+@property --duration-fast {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 80ms;
+}
+@property --duration-base {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 150ms;
+}
+@property --duration-slow {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 300ms;
+}
+@property --duration-slower {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 500ms;
+}
+@property --duration-lazy {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 700ms;
+}
+@property --ease-linear {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: linear;
+}
+@property --ease-in {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: cubic-bezier(0.4, 0, 1, 1);
+}
+@property --ease-in-out {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: cubic-bezier(0.4, 0, 0.2, 1);
+}
+@property --ease-out {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: cubic-bezier(0, 0, 0.2, 1);
+}
+@property --ease-spring {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@property --ease-bounce {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+@property --transition-colors {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: color var(--duration-base) var(--ease-in-out), background-color var(--duration-base) var(--ease-in-out), border-color var(--duration-base) var(--ease-in-out), text-decoration-color var(--duration-base) var(--ease-in-out), fill var(--duration-base) var(--ease-in-out), stroke var(--duration-base) var(--ease-in-out);
+}
+@property --transition-opacity {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: opacity var(--duration-base) var(--ease-in-out);
+}
+@property --transition-shadow {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: box-shadow var(--duration-base) var(--ease-in-out);
+}
+@property --transition-transform {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: transform var(--duration-base) var(--ease-in-out);
+}
+@property --transition-all {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: all var(--duration-base) var(--ease-in-out);
+}
+@property --bp-xs {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 480px;
+}
+@property --bp-sm {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 640px;
+}
+@property --bp-md {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 768px;
+}
+@property --bp-lg {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1024px;
+}
+@property --bp-xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1280px;
+}
+@property --bp-2xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1536px;
+}
+@property --container-xs {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 480px;
+}
+@property --container-sm {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 640px;
+}
+@property --container-md {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 768px;
+}
+@property --container-lg {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1024px;
+}
+@property --container-xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1280px;
+}
+@property --container-2xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1536px;
+}
+@property --container-prose {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 65ch;
+}
+@property --grid-cols {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 12;
+}
+@property --btn-primary-border {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: transparent;
+}
+@property --btn-ghost-bg {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: transparent;
+}
+@property --btn-ghost-border {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: transparent;
+}
+@property --btn-ghost-shadow {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: none;
+}
+@property --modal-max-width-sm {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 24rem;
+}
+@property --modal-max-width-base {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 32rem;
+}
+@property --modal-max-width-lg {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 48rem;
+}
+@property --modal-max-width-xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 64rem;
+}
+@property --toast-max-width {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 24rem;
+}
+@property --tooltip-max-width {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 16rem;
+}
+@property --table-bg {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: transparent;
+}
+@property --sidebar-width {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 16rem;
+}
+@property --sidebar-width-collapsed {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 4rem;
+}
+@property --avatar-border-width {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 2px;
+}
+@property --spinner-thickness {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 2px;
+}
+@property --skeleton-duration {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.5s;
+}
+@property --tab-indicator-height {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 2px;
+}
+@property --toggle-thumb-size {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.25rem;
+}
+@property --toggle-width {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 2.75rem;
+}
+@property --toggle-height {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.5rem;
+}
+@property --check-size {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1rem;
+}
+@property --pagination-item-bg {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: transparent;
+}
+@property --color-bg_base-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #e8fff2;
+}
+@property --color-bg_base-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #cbe6d7;
+}
+@property --color-bg_base-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #b1ccbd;
+}
+@property --color-bg_base-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #98b2a4;
+}
+@property --color-bg_base-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #809a8c;
+}
+@property --color-bg_base-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #698274;
+}
+@property --color-bg_base-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #526a5d;
+}
+@property --color-bg_base-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #3d5447;
+}
+@property --color-bg_base-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #283e33;
+}
+@property --color-bg_base-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #142a1f;
+}
+@property --color-bg_base-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #000502;
+}
+@property --color-bg_base {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #142a1f;
+}
+@property --color-surface_moss-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #e9fff1;
+}
+@property --color-surface_moss-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #c9e4d4;
+}
+@property --color-surface_moss-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #aec8b9;
+}
+@property --color-surface_moss-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #94ad9e;
+}
+@property --color-surface_moss-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #7a9384;
+}
+@property --color-surface_moss-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #61796b;
+}
+@property --color-surface_moss-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #496153;
+}
+@property --color-surface_moss-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #33493d;
+}
+@property --color-surface_moss-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #1d3327;
+}
+@property --color-surface_moss-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #051b10;
+}
+@property --color-surface_moss-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #000502;
+}
+@property --color-surface_moss {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #1d3327;
+}
+@property --color-primary-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #e9fff0;
+}
+@property --color-primary-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #baffd2;
+}
+@property --color-primary-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #7bffb1;
+}
+@property --color-primary-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #6ef2a5;
+}
+@property --color-primary-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #44cd83;
+}
+@property --color-primary-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #00aa62;
+}
+@property --color-primary-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #00844b;
+}
+@property --color-primary-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #006035;
+}
+@property --color-primary-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #003e20;
+}
+@property --color-primary-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #001f0d;
+}
+@property --color-primary-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #000501;
+}
+@property --color-primary {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #6ef2a5;
+}
+@property --color-accent_spore-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ebfcff;
+}
+@property --color-accent_spore-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #b6f5ff;
+}
+@property --color-accent_spore-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #78ecfd;
+}
+@property --color-accent_spore-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #67dced;
+}
+@property --color-accent_spore-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #40bacb;
+}
+@property --color-accent_spore-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #0099a9;
+}
+@property --color-accent_spore-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #007683;
+}
+@property --color-accent_spore-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #005660;
+}
+@property --color-accent_spore-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #00373e;
+}
+@property --color-accent_spore-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #001b1f;
+}
+@property --color-accent_spore-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #000405;
+}
+@property --color-accent_spore {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #67dced;
+}
+@property --color-accent_amber-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #fff7ed;
+}
+@property --color-accent_amber-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ffe0b7;
+}
+@property --color-accent_amber-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ffc879;
+}
+@property --color-accent_amber-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #f3b24f;
+}
+@property --color-accent_amber-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #e0a03a;
+}
+@property --color-accent_amber-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #bc7f00;
+}
+@property --color-accent_amber-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #926200;
+}
+@property --color-accent_amber-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #6b4600;
+}
+@property --color-accent_amber-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #452c00;
+}
+@property --color-accent_amber-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #231400;
+}
+@property --color-accent_amber-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #060300;
+}
+@property --color-accent_amber {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #e0a03a;
+}
+@property --color-text_bone-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #eaf2e8;
+}
+@property --color-text_bone-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ced6cc;
+}
+@property --color-text_bone-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #b3bbb1;
+}
+@property --color-text_bone-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #98a097;
+}
+@property --color-text_bone-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #7f867d;
+}
+@property --color-text_bone-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #666d64;
+}
+@property --color-text_bone-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #4e554d;
+}
+@property --color-text_bone-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #383e36;
+}
+@property --color-text_bone-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #232921;
+}
+@property --color-text_bone-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #0f140e;
+}
+@property --color-text_bone-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #020401;
+}
+@property --color-text_bone {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #eaf2e8;
+}
+@property --color-text_soil-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #effdf4;
+}
+@property --color-text_soil-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #d5e3da;
+}
+@property --color-text_soil-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #bccac1;
+}
+@property --color-text_soil-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #a4b1a9;
+}
+@property --color-text_soil-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #8c9991;
+}
+@property --color-text_soil-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #75827a;
+}
+@property --color-text_soil-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #5f6b63;
+}
+@property --color-text_soil-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #4a554e;
+}
+@property --color-text_soil-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #354039;
+}
+@property --color-text_soil-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #222d26;
+}
+@property --color-text_soil-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #101a14;
+}
+@property --color-text_soil {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #101a14;
+}
+@property --color-success-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #eaffef;
+}
+@property --color-success-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #aeffc7;
+}
+@property --color-success-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #79f8a7;
+}
+@property --color-success-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #68e898;
+}
+@property --color-success-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #57d889;
+}
+@property --color-success-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #45c97b;
+}
+@property --color-success-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #009f56;
+}
+@property --color-success-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #00733c;
+}
+@property --color-success-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #004a25;
+}
+@property --color-success-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #00240f;
+}
+@property --color-success-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #000501;
+}
+@property --color-success {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #45c97b;
+}
+@property --color-error-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #fff6f5;
+}
+@property --color-error-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ffd5d2;
+}
+@property --color-error-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ffb2ae;
+}
+@property --color-error-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ff8b89;
+}
+@property --color-error-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #fa6164;
+}
+@property --color-error-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #e0484f;
+}
+@property --color-error-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #bb2031;
+}
+@property --color-error-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #8f001c;
+}
+@property --color-error-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #5f000f;
+}
+@property --color-error-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #330005;
+}
+@property --color-error-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #0d0001;
+}
+@property --color-error {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #e0484f;
+}
+@property --color-warning-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #fff8ea;
+}
+@property --color-warning-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ffeac4;
+}
+@property --color-warning-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ffdb9b;
+}
+@property --color-warning-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #ffcc6c;
+}
+@property --color-warning-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #fbbe3a;
+}
+@property --color-warning-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #efb229;
+}
+@property --color-warning-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #bb8800;
+}
+@property --color-warning-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #876100;
+}
+@property --color-warning-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #573d00;
+}
+@property --color-warning-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #2b1c00;
+}
+@property --color-warning-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #060300;
+}
+@property --color-warning {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #efb229;
+}
+@property --color-info-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #f3f9ff;
+}
+@property --color-info-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #d2e9ff;
+}
+@property --color-info-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #afd9ff;
+}
+@property --color-info-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #8bc9ff;
+}
+@property --color-info-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #68b8fb;
+}
+@property --color-info-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #56a6e8;
+}
+@property --color-info-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #2e80c0;
+}
+@property --color-info-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #005c96;
+}
+@property --color-info-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #003b62;
+}
+@property --color-info-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #001c33;
+}
+@property --color-info-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #00040a;
+}
+@property --color-info {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #56a6e8;
+}
+@property --color-border_moss-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #eaffee;
+}
+@property --color-border_moss-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #c1e5c9;
+}
+@property --color-border_moss-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #a4c7ac;
+}
+@property --color-border_moss-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #87aa8f;
+}
+@property --color-border_moss-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #6c8e74;
+}
+@property --color-border_moss-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #52735a;
+}
+@property --color-border_moss-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #3b5b43;
+}
+@property --color-border_moss-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #24442d;
+}
+@property --color-border_moss-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #0e2e18;
+}
+@property --color-border_moss-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #001807;
+}
+@property --color-border_moss-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #000501;
+}
+@property --color-border_moss {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #52735a;
+}
+@property --color-neutral_stone-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #f2fbf4;
+}
+@property --color-neutral_stone-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #dde6df;
+}
+@property --color-neutral_stone-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #c8d2ca;
+}
+@property --color-neutral_stone-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #b4bdb6;
+}
+@property --color-neutral_stone-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #a0a9a2;
+}
+@property --color-neutral_stone-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #8d968f;
+}
+@property --color-neutral_stone-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #6c746e;
+}
+@property --color-neutral_stone-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #4c544e;
+}
+@property --color-neutral_stone-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #2f3631;
+}
+@property --color-neutral_stone-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #141b16;
+}
+@property --color-neutral_stone-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #010402;
+}
+@property --color-neutral_stone {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #8d968f;
+}
+/* #endregion */
+
+:root {
+
+/* #region FONT tokens */
+	--font-sans: "Urbanist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji";
+	--font-serif: "Georgia", "Times New Roman", Times, serif;
+	--font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "Courier New", monospace;
+	--font-display: var(--font-sans);
+	--font-body: var(--font-sans);
+
+/* #endregion */
+
+/* #region TEXT tokens */
+	--text-xs: 0.64rem;
+	--text-sm: 0.8rem;
+	--text-base: 1rem;
+	--text-md: 1.25rem;
+	--text-lg: 1.563rem;
+	--text-xl: 1.953rem;
+	--text-2xl: 2.441rem;
+	--text-3xl: 3.052rem;
+	--text-4xl: 3.815rem;
+
+/* #endregion */
+
+/* #region LEADING tokens */
+	--leading-none: 1;
+	--leading-tight: 1.25;
+	--leading-snug: 1.375;
+	--leading-normal: 1.5;
+	--leading-relaxed: 1.625;
+	--leading-loose: 2;
+
+/* #endregion */
+
+/* #region WEIGHT tokens */
+	--weight-thin: 100;
+	--weight-light: 300;
+	--weight-normal: 400;
+	--weight-medium: 500;
+	--weight-semibold: 600;
+	--weight-bold: 700;
+	--weight-extrabold: 800;
+	--weight-black: 900;
+
+/* #endregion */
+
+/* #region TRACKING tokens */
+	--tracking-tighter: -0.05em;
+	--tracking-tight: -0.025em;
+	--tracking-normal: 0;
+	--tracking-wide: 0.025em;
+	--tracking-wider: 0.05em;
+	--tracking-widest: 0.1em;
+
+/* #endregion */
+
+/* #region SPACE tokens */
+
+	--space-0-5: calc(var(--space-unit) * 0.5);
+	--space-0: 0;
+	--space-1: calc(var(--space-unit) * 1);
+
+	--space-1-5: calc(var(--space-unit) * 1.5);
+	--space-2: calc(var(--space-unit) * 2);
+
+	--space-2-5: calc(var(--space-unit) * 2.5);
+	--space-3: calc(var(--space-unit) * 3);
+	--space-4: calc(var(--space-unit) * 4);
+	--space-5: calc(var(--space-unit) * 5);
+	--space-6: calc(var(--space-unit) * 6);
+	--space-7: calc(var(--space-unit) * 7);
+	--space-8: calc(var(--space-unit) * 8);
+	--space-10: calc(var(--space-unit) * 10);
+	--space-12: calc(var(--space-unit) * 12);
+	--space-14: calc(var(--space-unit) * 14);
+	--space-16: calc(var(--space-unit) * 16);
+	--space-20: calc(var(--space-unit) * 20);
+	--space-24: calc(var(--space-unit) * 24);
+	--space-32: calc(var(--space-unit) * 32);
+	--space-40: calc(var(--space-unit) * 40);
+	--space-48: calc(var(--space-unit) * 48);
+	--space-64: calc(var(--space-unit) * 64);
+	--space-unit: 0.25rem;
+	--space-px: 1px;
+
+/* #endregion */
+
+/* #region RADIUS tokens */
+	--radius-none: 0;
+	--radius-sm: calc(var(--radius-base) * 0.5);
+	--radius-base: 0.25rem;
+	--radius-md: calc(var(--radius-base) * 1.5);
+	--radius-lg: calc(var(--radius-base) * 2);
+	--radius-xl: calc(var(--radius-base) * 3);
+	--radius-2xl: calc(var(--radius-base) * 4);
+	--radius-3xl: calc(var(--radius-base) * 6);
+	--radius-full: 9999px;
+
+/* #endregion */
+
+/* #region BORDER tokens */
+	--border-0: 0;
+
+	--border-1-5: 1.5px;
+	--border-1: 1px;
+	--border-2: 2px;
+	--border-4: 4px;
+	--border-8: 8px;
+
+/* #endregion */
+
+/* #region SHADOW tokens */
+	--shadow-none: none;
+	--shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+	--shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+	--shadow-base: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+	--shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+	--shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+	--shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+	--shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+	--shadow-focus: 0 0 0 3px rgb(from var(--color-border-focus) r g b / 0.35);
+
+/* #endregion */
+
+/* #region Z tokens */
+	--z-hide: -1;
+	--z-base: 0;
+	--z-raised: 10;
+	--z-dropdown: 100;
+	--z-sticky: 200;
+	--z-overlay: 300;
+	--z-modal: 400;
+	--z-popover: 500;
+	--z-toast: 600;
+	--z-tooltip: 700;
+	--z-top: 9999;
+
+/* #endregion */
+
+/* #region DURATION tokens */
+	--duration-instant: 0ms;
+	--duration-fast: 80ms;
+	--duration-base: 150ms;
+	--duration-slow: 300ms;
+	--duration-slower: 500ms;
+	--duration-lazy: 700ms;
+
+/* #endregion */
+
+/* #region EASE tokens */
+	--ease-linear: linear;
+	--ease-in: cubic-bezier(0.4, 0, 1, 1);
+	--ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-out: cubic-bezier(0, 0, 0.2, 1);
+	--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+	--ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+/* #endregion */
+
+/* #region TRANSITION tokens */
+	--transition-colors: color var(--duration-base) var(--ease-in-out), background-color var(--duration-base) var(--ease-in-out), border-color var(--duration-base) var(--ease-in-out), text-decoration-color var(--duration-base) var(--ease-in-out), fill var(--duration-base) var(--ease-in-out), stroke var(--duration-base) var(--ease-in-out);
+	--transition-opacity: opacity var(--duration-base) var(--ease-in-out);
+	--transition-shadow: box-shadow var(--duration-base) var(--ease-in-out);
+	--transition-transform: transform var(--duration-base) var(--ease-in-out);
+	--transition-all: all var(--duration-base) var(--ease-in-out);
+
+/* #endregion */
+
+/* #region BP tokens */
+	--bp-xs: 480px;
+	--bp-sm: 640px;
+	--bp-md: 768px;
+	--bp-lg: 1024px;
+	--bp-xl: 1280px;
+	--bp-2xl: 1536px;
+
+/* #endregion */
+
+/* #region CONTAINER tokens */
+	--container-xs: 480px;
+	--container-sm: 640px;
+	--container-md: 768px;
+	--container-lg: 1024px;
+	--container-xl: 1280px;
+	--container-2xl: 1536px;
+	--container-prose: 65ch;
+
+/* #endregion */
+
+/* #region GRID tokens */
+	--grid-cols: 12;
+	--grid-gap: var(--space-6);
+
+/* #endregion */
+
+/* #region BTN tokens */
+	--btn-font-family: var(--font-body);
+	--btn-font-weight: var(--weight-semibold);
+	--btn-font-size-xs: var(--text-xs);
+	--btn-font-size-sm: var(--text-sm);
+	--btn-font-size-base: var(--text-base);
+	--btn-font-size-lg: var(--text-md);
+	--btn-letter-spacing: var(--tracking-wide);
+	--btn-border-width: var(--border-2);
+	--btn-transition: var(--transition-colors);
+	--btn-padding-y-xs: var(--space-1);
+	--btn-padding-y-sm: var(--space-1-5);
+	--btn-padding-y-base: var(--space-2);
+	--btn-padding-y-lg: var(--space-3);
+	--btn-padding-x-xs: var(--space-2);
+	--btn-padding-x-sm: var(--space-3);
+	--btn-padding-x-base: var(--space-4);
+	--btn-padding-x-lg: var(--space-6);
+	--btn-radius-xs: var(--radius-base);
+	--btn-radius-sm: var(--radius-md);
+	--btn-radius-base: var(--radius-md);
+	--btn-radius-lg: var(--radius-lg);
+	--btn-active-border: var(--color-border-strong);
+	--btn-primary-bg: var(--color-interactive);
+	--btn-primary-bg-hover: var(--color-interactive-hover);
+	--btn-primary-bg-active: var(--color-interactive-active);
+	--btn-primary-color: var(--color-text-on-brand);
+	--btn-primary-border: transparent;
+	--btn-primary-shadow: var(--shadow-xs);
+	--btn-secondary-bg: var(--color-surface);
+	--btn-secondary-bg-hover: var(--color-bg-muted);
+	--btn-secondary-color: var(--color-text);
+	--btn-secondary-border: var(--color-border-strong);
+	--btn-secondary-shadow: var(--shadow-xs);
+	--btn-ghost-bg: transparent;
+	--btn-ghost-bg-hover: var(--color-bg-muted);
+	--btn-ghost-color: var(--color-text-subtle);
+	--btn-ghost-border: transparent;
+	--btn-ghost-shadow: none;
+
+/* #endregion */
+
+/* #region INPUT tokens */
+	--input-font-family: var(--font-body);
+	--input-font-size: var(--text-base);
+	--input-font-size-sm: var(--text-sm);
+	--input-font-size-lg: var(--text-md);
+	--input-bg: var(--color-surface);
+	--input-bg-disabled: var(--color-bg-muted);
+	--input-color: var(--color-text);
+	--input-color-placeholder: var(--color-text-muted);
+	--input-border: var(--color-border-strong);
+	--input-border-hover: var(--color-interactive);
+	--input-border-focus: var(--color-border-focus);
+	--input-border-error: var(--color-danger-text);
+	--input-border-width: var(--border-1);
+	--input-radius: var(--radius-md);
+	--input-padding-y: var(--space-2);
+	--input-padding-x: var(--space-3);
+	--input-shadow: var(--shadow-xs);
+	--input-shadow-focus: var(--shadow-focus);
+	--input-transition: var(--transition-colors);
+
+/* #endregion */
+
+/* #region CARD tokens */
+	--card-bg: var(--color-surface);
+	--card-border: var(--color-border);
+	--card-border-width: var(--border-1);
+	--card-radius: var(--radius-base);
+	--card-shadow: var(--shadow-sm);
+	--card-padding: var(--space-6);
+	--card-padding-sm: var(--space-4);
+	--card-padding-lg: var(--space-8);
+
+/* #endregion */
+
+/* #region BADGE tokens */
+	--badge-font-size: var(--text-xs);
+	--badge-font-weight: var(--weight-semibold);
+	--badge-bg: var(--color-bg-muted);
+	--badge-color: var(--color-text-subtle);
+	--badge-border: var(--color-border);
+	--badge-padding-y: var(--space-0-5);
+	--badge-padding-x: var(--space-2);
+	--badge-radius: var(--radius-full);
+	--badge-letter-spacing: var(--tracking-wide);
+
+/* #endregion */
+
+/* #region MODAL tokens */
+	--modal-bg: var(--color-surface-overlay);
+	--modal-border: var(--color-border);
+	--modal-radius: var(--radius-2xl);
+	--modal-shadow: var(--shadow-xl);
+	--modal-padding: var(--space-8);
+	--modal-max-width-sm: 24rem;
+	--modal-max-width-base: 32rem;
+	--modal-max-width-lg: 48rem;
+	--modal-max-width-xl: 64rem;
+
+/* #endregion */
+
+/* #region TOAST tokens */
+	--toast-border-radius: var(--radius-lg);
+	--toast-shadow: var(--shadow-lg);
+	--toast-padding-y: var(--space-3);
+	--toast-padding-x: var(--space-4);
+	--toast-font-size: var(--text-sm);
+	--toast-max-width: 24rem;
+
+/* #endregion */
+
+/* #region TOOLTIP tokens */
+	--tooltip-font-size: var(--text-xs);
+	--tooltip-padding-y: var(--space-1);
+	--tooltip-padding-x: var(--space-2);
+	--tooltip-radius: var(--radius-base);
+	--tooltip-shadow: var(--shadow-md);
+	--tooltip-max-width: 16rem;
+
+/* #endregion */
+
+/* #region TABLE tokens */
+	--table-bg: transparent;
+	--table-header-bg: var(--color-bg-subtle);
+	--table-header-font-weight: var(--weight-semibold);
+	--table-header-color: var(--color-text-subtle);
+	--table-row-bg-alt: var(--color-bg-subtle);
+	--table-row-bg-hover: var(--color-bg-muted);
+	--table-border: var(--color-border);
+	--table-cell-padding-y: var(--space-3);
+	--table-cell-padding-x: var(--space-4);
+	--table-font-size: var(--text-sm);
+
+/* #endregion */
+
+/* #region NAV tokens */
+	--nav-bg: var(--color-surface);
+	--nav-border: var(--color-border);
+	--nav-height: var(--space-16);
+	--nav-shadow: var(--shadow-xs);
+	--nav-item-color: var(--color-text-subtle);
+	--nav-item-color-hover: var(--color-text);
+	--nav-item-color-active: var(--color-interactive);
+	--nav-item-bg-hover: var(--color-bg-muted);
+	--nav-item-font-weight: var(--weight-medium);
+	--nav-item-font-size: var(--text-sm);
+	--nav-item-radius: var(--radius-md);
+	--nav-item-padding-y: var(--space-2);
+	--nav-item-padding-x: var(--space-3);
+
+/* #endregion */
+
+/* #region SIDEBAR tokens */
+	--sidebar-bg: var(--color-bg-subtle);
+	--sidebar-border: var(--color-border);
+	--sidebar-width: 16rem;
+	--sidebar-width-collapsed: 4rem;
+	--sidebar-padding: var(--space-4);
+
+/* #endregion */
+
+/* #region AVATAR tokens */
+	--avatar-size-xs: var(--space-6);
+	--avatar-size-sm: var(--space-8);
+	--avatar-size-base: var(--space-10);
+	--avatar-size-lg: var(--space-14);
+	--avatar-size-xl: var(--space-16);
+	--avatar-radius: var(--radius-full);
+	--avatar-border: var(--color-surface);
+	--avatar-border-width: 2px;
+	--avatar-bg: var(--color-interactive-subtle);
+	--avatar-color: var(--color-text);
+	--avatar-font-weight: var(--weight-semibold);
+
+/* #endregion */
+
+/* #region PROGRESS tokens */
+	--progress-bg: var(--color-bg-emphasis);
+	--progress-fill: var(--color-interactive);
+	--progress-height: var(--space-2);
+	--progress-radius: var(--radius-full);
+
+/* #endregion */
+
+/* #region SPINNER tokens */
+	--spinner-color: var(--color-interactive);
+	--spinner-track-color: var(--color-bg-emphasis);
+	--spinner-size-sm: var(--space-4);
+	--spinner-size-base: var(--space-6);
+	--spinner-size-lg: var(--space-8);
+	--spinner-size-xl: var(--space-10);
+	--spinner-thickness: 2px;
+
+/* #endregion */
+
+/* #region SKELETON tokens */
+	--skeleton-bg: var(--color-bg-emphasis);
+	--skeleton-shine: var(--color-bg-muted);
+	--skeleton-radius: var(--radius-base);
+	--skeleton-duration: 1.5s;
+
+/* #endregion */
+
+/* #region ALERT tokens */
+	--alert-padding-y: var(--space-3);
+	--alert-padding-x: var(--space-4);
+	--alert-radius: var(--radius-lg);
+	--alert-border-width: var(--border-1);
+	--alert-font-size: var(--text-sm);
+	--alert-info-bg: var(--color-info-bg);
+	--alert-info-border: var(--color-info-border);
+	--alert-info-color: var(--color-info-text);
+	--alert-success-bg: var(--color-success-bg);
+	--alert-success-border: var(--color-success-border);
+	--alert-success-color: var(--color-success-text);
+	--alert-warning-bg: var(--color-warning-bg);
+	--alert-warning-border: var(--color-warning-border);
+	--alert-warning-color: var(--color-warning-text);
+	--alert-danger-bg: var(--color-danger-bg);
+	--alert-danger-border: var(--color-danger-border);
+	--alert-danger-color: var(--color-danger-text);
+
+/* #endregion */
+
+/* #region DIVIDER tokens */
+	--divider-color: var(--color-border);
+	--divider-width: var(--border-1);
+
+/* #endregion */
+
+/* #region TAB tokens */
+	--tab-bar-border: var(--color-border);
+	--tab-item-color: var(--color-text-subtle);
+	--tab-item-color-hover: var(--color-text);
+	--tab-item-color-active: var(--color-interactive);
+	--tab-item-font-weight: var(--weight-medium);
+	--tab-item-font-size: var(--text-sm);
+	--tab-indicator-color: var(--color-interactive);
+	--tab-indicator-height: 2px;
+	--tab-padding-y: var(--space-3);
+	--tab-padding-x: var(--space-4);
+
+/* #endregion */
+
+/* #region TOGGLE tokens */
+	--toggle-bg-off: var(--color-bg-emphasis);
+	--toggle-bg-on: var(--color-interactive);
+	--toggle-thumb-bg: var(--color-surface);
+	--toggle-thumb-shadow: var(--shadow-sm);
+	--toggle-thumb-size: 1.25rem;
+	--toggle-width: 2.75rem;
+	--toggle-height: 1.5rem;
+	--toggle-radius: var(--radius-full);
+	--toggle-transition: var(--transition-colors);
+
+/* #endregion */
+
+/* #region CHECK tokens */
+	--check-size: 1rem;
+	--check-border: var(--color-border-strong);
+	--check-border-hover: var(--color-interactive);
+	--check-border-checked: var(--color-interactive);
+	--check-bg: var(--color-surface);
+	--check-bg-checked: var(--color-interactive);
+	--check-color: var(--color-text-on-brand);
+	--check-radius: var(--radius-base);
+	--check-transition: var(--transition-colors);
+
+/* #endregion */
+
+/* #region RADIO tokens */
+	--radio-radius: var(--radius-full);
+
+/* #endregion */
+
+/* #region DROPDOWN tokens */
+	--dropdown-bg: var(--color-surface-overlay);
+	--dropdown-border: var(--color-border);
+	--dropdown-radius: var(--radius-lg);
+	--dropdown-shadow: var(--shadow-md);
+	--dropdown-padding-y: var(--space-1);
+	--dropdown-item-padding-y: var(--space-2);
+	--dropdown-item-padding-x: var(--space-3);
+	--dropdown-item-font-size: var(--text-sm);
+	--dropdown-item-color: var(--color-text);
+	--dropdown-item-color-hover: var(--color-text);
+	--dropdown-item-color-active: var(--color-interactive);
+	--dropdown-item-bg-hover: var(--color-bg-muted);
+	--dropdown-item-bg-active: var(--color-interactive-subtle);
+
+/* #endregion */
+
+/* #region BREADCRUMB tokens */
+	--breadcrumb-font-size: var(--text-sm);
+	--breadcrumb-color: var(--color-text-subtle);
+	--breadcrumb-color-active: var(--color-text);
+	--breadcrumb-separator-color: var(--color-text-muted);
+
+/* #endregion */
+
+/* #region PAGINATION tokens */
+	--pagination-item-size: var(--space-8);
+	--pagination-item-radius: var(--radius-md);
+	--pagination-item-bg: transparent;
+	--pagination-item-bg-hover: var(--color-bg-muted);
+	--pagination-item-bg-active: var(--color-interactive);
+	--pagination-item-color: var(--color-text-subtle);
+	--pagination-item-color-hover: var(--color-text);
+	--pagination-item-color-active: var(--color-text-on-brand);
+	--pagination-item-font-size: var(--text-sm);
+	--pagination-item-font-weight: var(--weight-medium);
+
+/* #endregion */
+
+/* #region FIELD tokens */
+	--field-label-font-size: var(--text-sm);
+	--field-label-font-weight: var(--weight-medium);
+	--field-label-color: var(--color-text);
+	--field-label-gap: var(--space-1-5);
+	--field-hint-font-size: var(--text-xs);
+	--field-hint-color: var(--color-text-subtle);
+	--field-error-font-size: var(--text-xs);
+	--field-error-color: var(--color-danger-text);
+	--field-gap: var(--space-4);
+
+/* #endregion */
+
+/* #region EMPTY tokens */
+	--empty-icon-color: var(--color-text-muted);
+	--empty-title-color: var(--color-text);
+	--empty-body-color: var(--color-text-subtle);
+	--empty-padding: var(--space-12);
+
+/* #endregion */
+
+/* #region COLOR tokens */
+
+/* 
+╔════════════════╗
+║ COLOR: bg_base ║
+╚════════════════╝ */
+
+	--color-bg_base-50: #e8fff2;
+	--color-bg_base-100: #cbe6d7;
+	--color-bg_base-200: #b1ccbd;
+	--color-bg_base-300: #98b2a4;
+	--color-bg_base-400: #809a8c;
+	--color-bg_base-500: #698274;
+	--color-bg_base-600: #526a5d;
+	--color-bg_base-700: #3d5447;
+	--color-bg_base-800: #283e33;
+	--color-bg_base-900: #142a1f;
+	--color-bg_base-950: #000502;
+	--color-bg_base: #142a1f;
+
+/* 
+╔═════════════════════╗
+║ COLOR: surface_moss ║
+╚═════════════════════╝ */
+
+	--color-surface_moss-50: #e9fff1;
+	--color-surface_moss-100: #c9e4d4;
+	--color-surface_moss-200: #aec8b9;
+	--color-surface_moss-300: #94ad9e;
+	--color-surface_moss-400: #7a9384;
+	--color-surface_moss-500: #61796b;
+	--color-surface_moss-600: #496153;
+	--color-surface_moss-700: #33493d;
+	--color-surface_moss-800: #1d3327;
+	--color-surface_moss-900: #051b10;
+	--color-surface_moss-950: #000502;
+	--color-surface_moss: #1d3327;
+
+/* 
+╔════════════════╗
+║ COLOR: primary ║
+╚════════════════╝ */
+
+	--color-primary-50: #e9fff0;
+	--color-primary-100: #baffd2;
+	--color-primary-200: #7bffb1;
+	--color-primary-300: #6ef2a5;
+	--color-primary-400: #44cd83;
+	--color-primary-500: #00aa62;
+	--color-primary-600: #00844b;
+	--color-primary-700: #006035;
+	--color-primary-800: #003e20;
+	--color-primary-900: #001f0d;
+	--color-primary-950: #000501;
+	--color-primary: #6ef2a5;
+
+/* 
+╔═════════════════════╗
+║ COLOR: accent_spore ║
+╚═════════════════════╝ */
+
+	--color-accent_spore-50: #ebfcff;
+	--color-accent_spore-100: #b6f5ff;
+	--color-accent_spore-200: #78ecfd;
+	--color-accent_spore-300: #67dced;
+	--color-accent_spore-400: #40bacb;
+	--color-accent_spore-500: #0099a9;
+	--color-accent_spore-600: #007683;
+	--color-accent_spore-700: #005660;
+	--color-accent_spore-800: #00373e;
+	--color-accent_spore-900: #001b1f;
+	--color-accent_spore-950: #000405;
+	--color-accent_spore: #67dced;
+
+/* 
+╔═════════════════════╗
+║ COLOR: accent_amber ║
+╚═════════════════════╝ */
+
+	--color-accent_amber-50: #fff7ed;
+	--color-accent_amber-100: #ffe0b7;
+	--color-accent_amber-200: #ffc879;
+	--color-accent_amber-300: #f3b24f;
+	--color-accent_amber-400: #e0a03a;
+	--color-accent_amber-500: #bc7f00;
+	--color-accent_amber-600: #926200;
+	--color-accent_amber-700: #6b4600;
+	--color-accent_amber-800: #452c00;
+	--color-accent_amber-900: #231400;
+	--color-accent_amber-950: #060300;
+	--color-accent_amber: #e0a03a;
+
+/* 
+╔══════════════════╗
+║ COLOR: text_bone ║
+╚══════════════════╝ */
+
+	--color-text_bone-50: #eaf2e8;
+	--color-text_bone-100: #ced6cc;
+	--color-text_bone-200: #b3bbb1;
+	--color-text_bone-300: #98a097;
+	--color-text_bone-400: #7f867d;
+	--color-text_bone-500: #666d64;
+	--color-text_bone-600: #4e554d;
+	--color-text_bone-700: #383e36;
+	--color-text_bone-800: #232921;
+	--color-text_bone-900: #0f140e;
+	--color-text_bone-950: #020401;
+	--color-text_bone: #eaf2e8;
+
+/* 
+╔══════════════════╗
+║ COLOR: text_soil ║
+╚══════════════════╝ */
+
+	--color-text_soil-50: #effdf4;
+	--color-text_soil-100: #d5e3da;
+	--color-text_soil-200: #bccac1;
+	--color-text_soil-300: #a4b1a9;
+	--color-text_soil-400: #8c9991;
+	--color-text_soil-500: #75827a;
+	--color-text_soil-600: #5f6b63;
+	--color-text_soil-700: #4a554e;
+	--color-text_soil-800: #354039;
+	--color-text_soil-900: #222d26;
+	--color-text_soil-950: #101a14;
+	--color-text_soil: #101a14;
+
+/* 
+╔════════════════╗
+║ COLOR: success ║
+╚════════════════╝ */
+
+	--color-success-50: #eaffef;
+	--color-success-100: #aeffc7;
+	--color-success-200: #79f8a7;
+	--color-success-300: #68e898;
+	--color-success-400: #57d889;
+	--color-success-500: #45c97b;
+	--color-success-600: #009f56;
+	--color-success-700: #00733c;
+	--color-success-800: #004a25;
+	--color-success-900: #00240f;
+	--color-success-950: #000501;
+	--color-success: #45c97b;
+
+/* 
+╔══════════════╗
+║ COLOR: error ║
+╚══════════════╝ */
+
+	--color-error-50: #fff6f5;
+	--color-error-100: #ffd5d2;
+	--color-error-200: #ffb2ae;
+	--color-error-300: #ff8b89;
+	--color-error-400: #fa6164;
+	--color-error-500: #e0484f;
+	--color-error-600: #bb2031;
+	--color-error-700: #8f001c;
+	--color-error-800: #5f000f;
+	--color-error-900: #330005;
+	--color-error-950: #0d0001;
+	--color-error: #e0484f;
+
+/* 
+╔════════════════╗
+║ COLOR: warning ║
+╚════════════════╝ */
+
+	--color-warning-50: #fff8ea;
+	--color-warning-100: #ffeac4;
+	--color-warning-200: #ffdb9b;
+	--color-warning-300: #ffcc6c;
+	--color-warning-400: #fbbe3a;
+	--color-warning-500: #efb229;
+	--color-warning-600: #bb8800;
+	--color-warning-700: #876100;
+	--color-warning-800: #573d00;
+	--color-warning-900: #2b1c00;
+	--color-warning-950: #060300;
+	--color-warning: #efb229;
+
+/* 
+╔═════════════╗
+║ COLOR: info ║
+╚═════════════╝ */
+
+	--color-info-50: #f3f9ff;
+	--color-info-100: #d2e9ff;
+	--color-info-200: #afd9ff;
+	--color-info-300: #8bc9ff;
+	--color-info-400: #68b8fb;
+	--color-info-500: #56a6e8;
+	--color-info-600: #2e80c0;
+	--color-info-700: #005c96;
+	--color-info-800: #003b62;
+	--color-info-900: #001c33;
+	--color-info-950: #00040a;
+	--color-info: #56a6e8;
+
+/* 
+╔════════════════════╗
+║ COLOR: border_moss ║
+╚════════════════════╝ */
+
+	--color-border_moss-50: #eaffee;
+	--color-border_moss-100: #c1e5c9;
+	--color-border_moss-200: #a4c7ac;
+	--color-border_moss-300: #87aa8f;
+	--color-border_moss-400: #6c8e74;
+	--color-border_moss-500: #52735a;
+	--color-border_moss-600: #3b5b43;
+	--color-border_moss-700: #24442d;
+	--color-border_moss-800: #0e2e18;
+	--color-border_moss-900: #001807;
+	--color-border_moss-950: #000501;
+	--color-border_moss: #52735a;
+
+/* 
+╔══════════════════════╗
+║ COLOR: neutral_stone ║
+╚══════════════════════╝ */
+
+	--color-neutral_stone-50: #f2fbf4;
+	--color-neutral_stone-100: #dde6df;
+	--color-neutral_stone-200: #c8d2ca;
+	--color-neutral_stone-300: #b4bdb6;
+	--color-neutral_stone-400: #a0a9a2;
+	--color-neutral_stone-500: #8d968f;
+	--color-neutral_stone-600: #6c746e;
+	--color-neutral_stone-700: #4c544e;
+	--color-neutral_stone-800: #2f3631;
+	--color-neutral_stone-900: #141b16;
+	--color-neutral_stone-950: #010402;
+	--color-neutral_stone: #8d968f;
+
+/* #endregion */
+
+}
+
+:root, :root[data-theme="light"] {
+	--color-bg: var(--color-bg_base-50);
+	--color-bg-subtle: var(--color-bg_base-100);
+	--color-bg-muted: var(--color-bg_base-200);
+	--color-bg-emphasis: var(--color-surface_moss-200);
+	--color-surface: var(--color-text_bone-50);
+	--color-surface-raised: var(--color-text_bone-100);
+	--color-surface-overlay: var(--color-text_bone-200);
+	--color-text: var(--color-text_soil-900);
+	--color-text-subtle: var(--color-text_soil-700);
+	--color-text-muted: var(--color-neutral_stone-600);
+	--color-text-disabled: var(--color-neutral_stone-400);
+	--color-text-inverse: var(--color-bg);
+	--color-text-on-brand: var(--color-text-inverse);
+	--color-border: var(--color-border_moss-300);
+	--color-border-strong: var(--color-border_moss-500);
+	--color-border-subtle: var(--color-border_moss-200);
+	--color-border-focus: var(--color-interactive);
+	--color-interactive: var(--color-primary-600);
+	--color-interactive-hover: var(--color-primary-700);
+	--color-interactive-active: var(--color-interactive-hover);
+	--color-interactive-subtle: var(--color-bg-muted);
+	--color-interactive-disabled: var(--color-text-disabled);
+	--color-accent: var(--color-interactive);
+	--color-accent-hover: var(--color-accent);
+	--color-success-text: var(--color-success-700);
+	--color-success-bg: var(--color-success-100);
+	--color-success-border: var(--color-success-text);
+	--color-danger-text: var(--color-error-700);
+	--color-danger-bg: var(--color-error-100);
+	--color-danger-border: var(--color-danger-text);
+	--color-warning-text: var(--color-warning-800);
+	--color-warning-bg: var(--color-warning-100);
+	--color-warning-border: var(--color-warning-text);
+	--color-info-text: var(--color-info-700);
+	--color-info-bg: var(--color-info-100);
+	--color-info-border: var(--color-info-text);
+	--btn-success-bg: var(--color-success-600);
+	--btn-success-color: var(--color-success-bg);
+	--btn-success-bg-hover: var(--btn-success-bg);
+	--btn-success-border: transparent;
+	--btn-danger-bg: var(--color-error-600);
+	--btn-danger-color: var(--color-danger-bg);
+	--btn-danger-bg-hover: var(--btn-danger-bg);
+	--btn-danger-border: transparent;
+	--btn-warning-bg: var(--color-warning-500);
+	--btn-warning-color: var(--color-warning-bg);
+	--btn-warning-bg-hover: var(--btn-warning-bg);
+	--btn-warning-border: transparent;
+	--btn-info-bg: var(--color-info-600);
+	--btn-info-color: var(--color-info-bg);
+	--btn-info-bg-hover: var(--btn-info-bg);
+	--btn-info-border: transparent;
+	--btn-accent-bg: var(--color-accent);
+	--btn-accent-color: var(--color-text-on-brand);
+	--btn-accent-bg-hover: var(--btn-accent-bg);
+	--btn-accent-border: transparent;
+	--toast-bg: var(--color-surface_moss-100);
+	--toast-color: var(--color-text_soil-900);
+	--toast-border: var(--color-border_moss-400);
+	--tooltip-bg: var(--color-text);
+	--tooltip-color: var(--color-text-inverse);
+	--modal-backdrop: rgb(0 0 0 / 0.7);
+	--color-highlight-bg: var(--color-accent);
+	--color-highlight-text: var(--color-text-on-brand);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--color-bg: var(--color-bg_base-950);
+		--color-bg-subtle: var(--color-bg_base-900);
+		--color-bg-muted: var(--color-bg_base-800);
+		--color-bg-emphasis: var(--color-surface_moss-800);
+		--color-surface: var(--color-surface_moss-900);
+		--color-surface-raised: var(--color-surface_moss-800);
+		--color-surface-overlay: var(--color-surface_moss-700);
+		--color-text: var(--color-text_bone-50);
+		--color-text-subtle: var(--color-text_bone-200);
+		--color-text-muted: var(--color-neutral_stone-400);
+		--color-text-disabled: var(--color-neutral_stone-600);
+		--color-text-inverse: var(--color-bg);
+		--color-text-on-brand: var(--color-text-inverse);
+		--color-border: var(--color-border_moss-700);
+		--color-border-strong: var(--color-border_moss-500);
+		--color-border-subtle: var(--color-border_moss-800);
+		--color-border-focus: var(--color-interactive);
+		--color-interactive: var(--color-primary-300);
+		--color-interactive-hover: var(--color-primary-200);
+		--color-interactive-active: var(--color-interactive-hover);
+		--color-interactive-subtle: var(--color-bg-muted);
+		--color-interactive-disabled: var(--color-text-disabled);
+		--color-accent: var(--color-interactive);
+		--color-accent-hover: var(--color-accent);
+		--color-success-text: var(--color-success-300);
+		--color-success-bg: var(--color-success-900);
+		--color-success-border: var(--color-success-text);
+		--color-danger-text: var(--color-error-300);
+		--color-danger-bg: var(--color-error-900);
+		--color-danger-border: var(--color-danger-text);
+		--color-warning-text: var(--color-warning-300);
+		--color-warning-bg: var(--color-warning-900);
+		--color-warning-border: var(--color-warning-text);
+		--color-info-text: var(--color-info-300);
+		--color-info-bg: var(--color-info-900);
+		--color-info-border: var(--color-info-text);
+		--btn-success-bg: var(--color-success-500);
+		--btn-success-color: var(--color-success-bg);
+		--btn-success-bg-hover: var(--btn-success-bg);
+		--btn-success-border: transparent;
+		--btn-danger-bg: var(--color-error-500);
+		--btn-danger-color: var(--color-danger-bg);
+		--btn-danger-bg-hover: var(--btn-danger-bg);
+		--btn-danger-border: transparent;
+		--btn-warning-bg: var(--color-warning-500);
+		--btn-warning-color: var(--color-warning-bg);
+		--btn-warning-bg-hover: var(--btn-warning-bg);
+		--btn-warning-border: transparent;
+		--btn-info-bg: var(--color-info-500);
+		--btn-info-color: var(--color-info-bg);
+		--btn-info-bg-hover: var(--btn-info-bg);
+		--btn-info-border: transparent;
+		--btn-accent-bg: var(--color-accent);
+		--btn-accent-color: var(--color-text-on-brand);
+		--btn-accent-bg-hover: var(--btn-accent-bg);
+		--btn-accent-border: transparent;
+		--toast-bg: var(--color-surface_moss-800);
+		--toast-color: var(--color-text_bone-50);
+		--toast-border: var(--color-border_moss-600);
+		--tooltip-bg: var(--color-text);
+		--tooltip-color: var(--color-text-inverse);
+		--modal-backdrop: rgb(0 0 0 / 0.7);
+		--color-highlight-bg: var(--color-accent);
+		--color-highlight-text: var(--color-text-on-brand);
+	}
+}
+
+:root[data-theme="dark"] {
+	--color-bg: var(--color-bg_base-950);
+	--color-bg-subtle: var(--color-bg_base-900);
+	--color-bg-muted: var(--color-bg_base-800);
+	--color-bg-emphasis: var(--color-surface_moss-800);
+	--color-surface: var(--color-surface_moss-900);
+	--color-surface-raised: var(--color-surface_moss-800);
+	--color-surface-overlay: var(--color-surface_moss-700);
+	--color-text: var(--color-text_bone-50);
+	--color-text-subtle: var(--color-text_bone-200);
+	--color-text-muted: var(--color-neutral_stone-400);
+	--color-text-disabled: var(--color-neutral_stone-600);
+	--color-text-inverse: var(--color-bg);
+	--color-text-on-brand: var(--color-text-inverse);
+	--color-border: var(--color-border_moss-700);
+	--color-border-strong: var(--color-border_moss-500);
+	--color-border-subtle: var(--color-border_moss-800);
+	--color-border-focus: var(--color-interactive);
+	--color-interactive: var(--color-primary-300);
+	--color-interactive-hover: var(--color-primary-200);
+	--color-interactive-active: var(--color-interactive-hover);
+	--color-interactive-subtle: var(--color-bg-muted);
+	--color-interactive-disabled: var(--color-text-disabled);
+	--color-accent: var(--color-interactive);
+	--color-accent-hover: var(--color-accent);
+	--color-success-text: var(--color-success-300);
+	--color-success-bg: var(--color-success-900);
+	--color-success-border: var(--color-success-text);
+	--color-danger-text: var(--color-error-300);
+	--color-danger-bg: var(--color-error-900);
+	--color-danger-border: var(--color-danger-text);
+	--color-warning-text: var(--color-warning-300);
+	--color-warning-bg: var(--color-warning-900);
+	--color-warning-border: var(--color-warning-text);
+	--color-info-text: var(--color-info-300);
+	--color-info-bg: var(--color-info-900);
+	--color-info-border: var(--color-info-text);
+	--btn-success-bg: var(--color-success-500);
+	--btn-success-color: var(--color-success-bg);
+	--btn-success-bg-hover: var(--btn-success-bg);
+	--btn-success-border: transparent;
+	--btn-danger-bg: var(--color-error-500);
+	--btn-danger-color: var(--color-danger-bg);
+	--btn-danger-bg-hover: var(--btn-danger-bg);
+	--btn-danger-border: transparent;
+	--btn-warning-bg: var(--color-warning-500);
+	--btn-warning-color: var(--color-warning-bg);
+	--btn-warning-bg-hover: var(--btn-warning-bg);
+	--btn-warning-border: transparent;
+	--btn-info-bg: var(--color-info-500);
+	--btn-info-color: var(--color-info-bg);
+	--btn-info-bg-hover: var(--btn-info-bg);
+	--btn-info-border: transparent;
+	--btn-accent-bg: var(--color-accent);
+	--btn-accent-color: var(--color-text-on-brand);
+	--btn-accent-bg-hover: var(--btn-accent-bg);
+	--btn-accent-border: transparent;
+	--toast-bg: var(--color-surface_moss-800);
+	--toast-color: var(--color-text_bone-50);
+	--toast-border: var(--color-border_moss-600);
+	--tooltip-bg: var(--color-text);
+	--tooltip-color: var(--color-text-inverse);
+	--modal-backdrop: rgb(0 0 0 / 0.7);
+	--color-highlight-bg: var(--color-accent);
+	--color-highlight-text: var(--color-text-on-brand);
+}
