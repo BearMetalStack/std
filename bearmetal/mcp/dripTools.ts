@@ -134,8 +134,6 @@ server.addTool({
 			generateSteps(theme, { hex: identity, name, stop: colorStop }, useProportionalScale);
 		}
 		await themeFile.writeJson(theme);
-		// Hand back the exact accessors, since names are normalised on write and
-		// a variant that references the name as typed would dangle.
 		return `Created theme ${name_} with ${colors.length} colors. Reference them as: ${
 			written.map((name) => `$color.${name}.<stop>`).join(", ")
 		}`;
@@ -206,7 +204,6 @@ function accessorResolves(theme: Theme, accessor: string): boolean {
 		node = record[segment];
 	}
 	if (typeof node === "string") return true;
-	// `$color.primary` names the ramp's seed, stored under "" (or "base").
 	if (node && typeof node === "object") {
 		const record = node as Record<string, unknown>;
 		return typeof record[""] === "string" || typeof record.base === "string" ||
@@ -231,8 +228,6 @@ server.addTool({
 		const themeName = assertThemeName(theme);
 		const themeFile = await dotBearmetalFile(namespaces.themes, themeName + ".theme.json");
 		const themeData = await themeFile.readJson<Theme>();
-		// `#variants` is the legacy key; keep writing wherever the theme already
-		// stores them so an existing file does not end up with both.
 		const variantsKey = themeData["#variants"] && !themeData.variants ? "#variants" : "variants";
 		const variants = (themeData[variantsKey] ??= []) as Variant[];
 
@@ -255,9 +250,6 @@ server.addTool({
 		const dangling: string[] = [];
 		for (const [key, value] of Object.entries(rules)) {
 			if (typeof value !== "string" || !value) continue;
-			// The custom property comes from the manifest, never from a prefix
-			// match on the key — `toastColor` is `--toast-color` because the
-			// table says so, not because it starts with "toast".
 			const token = lookupVariantToken(key);
 			if (!token) throw new Error(`Unknown variant token '${key}'`);
 			if (value.startsWith("$") && !accessorResolves(themeData, value)) {

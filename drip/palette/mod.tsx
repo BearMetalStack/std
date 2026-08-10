@@ -1,9 +1,10 @@
-import { BaseStyle, ThemeStyle } from "../ssr.tsx";
+import { BaseStyle, ComponentStyle, ThemeStyle } from "../ssr.tsx";
 import { ThemeUtils } from "./ThemeUtils.ts";
 import { getDefaultTheme } from "@bearmetal/drip";
 import { Html, Router } from "@bearmetal/router";
 import { Chain, css, js } from "@bearmetal/miscellanea";
 import { loadTheme } from "../theme.ts";
+import { ThemePreviewCard, ThemePreviewCardStyles } from "./ThemePreviewCard.tsx";
 
 export const router: Router = new Router();
 
@@ -98,9 +99,11 @@ router.get("/", async (ctx) => {
 		<html>
 			<head>
 				<title>BearMetal Drip - Palette</title>
+				<link rel="icon" href="https://cdn.bear-metal.dev/resources/images/dripicon.svg" />
 				<ThemeStyle />
 				<ThemeStyle theme={themeName} />
 				<BaseStyle />
+				<ComponentStyle root=".theme-previews" />
 				<style $raw>
 					{css`
 						@view-transition {
@@ -280,9 +283,16 @@ router.get("/", async (ctx) => {
 						}
 					`}
 				</style>
+				<style $raw>{ThemePreviewCardStyles}</style>
 			</head>
 			<body>
 				<div class="main">
+					<div class="group">
+						<h3>Variants</h3>
+						<div class="theme-previews">
+							{u.variants()?.map((v) => <ThemePreviewCard variant={v.name} />)}
+						</div>
+					</div>
 					{colors.map((g) => (
 						<div class="group">
 							<h3>{titleCase(g.__group ?? "")}</h3>
@@ -417,7 +427,7 @@ router.get("/", async (ctx) => {
 		</html>
 	);
 
-	return Html((await page).toString());
+	return Html("<!DOCTYPE html>" + (await page).toString());
 });
 
 if (import.meta.main) Deno.serve(router.handle);

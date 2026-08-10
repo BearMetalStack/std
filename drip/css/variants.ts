@@ -54,18 +54,22 @@ export function buildVariantsCss(
 
 	return variants.flatMap((variant) => {
 		const compiled = variant.__compiled = compileVariant(variant, joiner);
-		const own = `${selector}[data-theme="${variant.name}"]`;
+		const own = `${selector}[data-theme="${variant.name}"]${
+			selector === ":root" ? `, [data-theme=${variant.name}]` : ""
+		}`;
 		const sections: string[] = [];
 
 		if (variant.default) {
-			// `:root` and the explicit opt-in share one block (§9).
 			sections.push(block(`${selector}, ${own}`, compiled, joiner));
 		}
 
 		if (variant.media) {
 			const guarded = names
 				.filter((name) => name !== variant.name)
-				.reduce((sel, name) => `${sel}:not([data-theme="${name}"])`, selector);
+				.reduce(
+					(sel, name) => `${sel}:not([data-theme="${name}"])`,
+					selector,
+				);
 			sections.push(
 				`@media ${normalizeMediaQuery(variant.media)} {${joiner}${
 					indent(block(guarded, compiled, joiner))

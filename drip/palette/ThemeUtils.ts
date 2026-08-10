@@ -24,6 +24,10 @@ export class ThemeUtils {
 			else if (sub && !Array.isArray(sub)) yield* this._each(sub as Theme, [...path, key]);
 		}
 	}
+
+	variants(): import("@bearmetal/drip").Variant[] | undefined {
+		return this.data["#variants"];
+	}
 }
 
 function buildPath(...s: string[]) {

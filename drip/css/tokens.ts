@@ -59,7 +59,9 @@ export const SEMANTIC_ROLES = ["success", "danger", "warning", "info"] as const;
 /** Semantic states plus `accent`, which all get a filled-control treatment. */
 export const FILL_ROLES = [...SEMANTIC_ROLES, "accent"] as const;
 
+/** Semantic role */
 export type SemanticRole = typeof SEMANTIC_ROLES[number];
+/** Fill role */
 export type FillRole = typeof FILL_ROLES[number];
 
 function capitalize(s: string): string {
@@ -453,8 +455,6 @@ export function completeVariantRules<T>(
 		if (derived !== undefined) complete[token.property] = derived;
 	}
 
-	// Anything the theme declared that isn't a manifest token — a component
-	// token reached directly, say — survives at the end of the block.
 	for (const [property, value] of Object.entries(rules)) {
 		if (!VARIANT_TOKENS_BY_PROPERTY.has(property)) complete[property] = value;
 	}
@@ -480,8 +480,6 @@ function deriveValue(
 		const source = VARIANT_TOKENS_BY_KEY.get(token.from);
 		if (!source) return token.fallback;
 		const sourceDefined = rules[source.property] !== undefined && rules[source.property] !== "";
-		// A defined source, or one that will itself be derived, is reachable by
-		// reference — either way the emitted var() resolves inside the block.
 		if (sourceDefined || source.required || deriveValue(source, rules, seen) !== undefined) {
 			return `var(${source.property})`;
 		}
