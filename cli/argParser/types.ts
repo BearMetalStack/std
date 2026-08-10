@@ -46,7 +46,7 @@ export type RequiredInput = RequiredSpec | RequiredSpec[];
  */
 export type FlagDef = {
 	type: "flag";
-	aliases?: string[];
+	aliases?: readonly string[];
 	default?: boolean;
 	required?: RequiredInput;
 	/** Shown next to this arg in `--help` output */
@@ -60,7 +60,7 @@ export type FlagDef = {
  */
 export type ConfirmDef = {
 	type: "confirm";
-	aliases?: string[];
+	aliases?: readonly string[];
 	default?: boolean;
 	required?: RequiredInput;
 	/** Label shown in the y/n prompt */
@@ -73,7 +73,7 @@ export type ConfirmDef = {
 
 export type StringArgDef = {
 	type?: "string";
-	aliases?: string[];
+	aliases?: readonly string[];
 	default?: string;
 	required?: RequiredInput;
 	/** Label shown when prompting for a missing value */
@@ -88,7 +88,7 @@ export type StringArgDef = {
 
 export type NumArgDef = {
 	type?: "number";
-	aliases?: string[];
+	aliases?: readonly string[];
 	default?: number;
 	required?: RequiredInput;
 	/** Label shown when prompting for a missing value */
@@ -104,7 +104,7 @@ export type NumArgDef = {
 export type EnumArgDef = {
 	type: "enum";
 	values: readonly string[];
-	aliases?: string[];
+	aliases?: readonly string[];
 	default?: string;
 	required?: RequiredInput;
 	/** Label shown in the interactive select */
@@ -121,7 +121,7 @@ export type EnumArgDef = {
  */
 export type ListArgDef = {
 	type: "list";
-	aliases?: string[];
+	aliases?: readonly string[];
 	default?: unknown[];
 	required?: RequiredInput;
 	/**
@@ -132,11 +132,68 @@ export type ListArgDef = {
 	map?: (value: string) => unknown;
 	/** Shown next to this arg in `--help` output */
 	$description?: string;
-	schema: Schema<string[]>;
+	/** Forge schema validates the collected array. Optional, like every other type's. */
+	schema?: Schema<string[]>;
 };
 
-export type ArgDef = FlagDef | ConfirmDef | StringArgDef | NumArgDef | EnumArgDef | ListArgDef;
+export type ArgDef =
+	| FlagDef
+	| ConfirmDef
+	| StringArgDef
+	| NumArgDef
+	| EnumArgDef
+	| ListArgDef
+	| PositionalDef;
 export type ArgDefs = Record<string, ArgDef>;
+
+/** Arg types that carry a value, and therefore need `--name=value` rather than a bare `--name`. */
+export type ValueArgDef = StringArgDef | NumArgDef | EnumArgDef | ListArgDef;
+
+/** Every arg reachable by a `--name` — i.e. everything but a positional. */
+export type OptionArgDef =
+	| FlagDef
+	| ConfirmDef
+	| StringArgDef
+	| NumArgDef
+	| EnumArgDef
+	| ListArgDef;
+
+/**
+ * A positional parameter — identified by where it appears rather than by a `--name`.
+ *
+ * Declared as an ordinary entry in the defs object, keyed by its name, so it is documented in
+ * `--help`, arity-checked, and typed alongside everything else. Their relative order on the
+ * command line is the order they are declared in.
+ *
+ * ```ts
+ * {
+ * 	draft: { type: "positional", required: true, $description: "Draft file" },
+ * 	refs: { type: "positional", variadic: true },
+ * 	title: { type: "string" },
+ * }
+ * ```
+ *
+ * Declaring even one makes surplus positionals an error. Declaring none leaves them unchecked and
+ * reachable through `commandArgs`, which is what every existing parser expects.
+ */
+export type PositionalDef = {
+	type: "positional";
+	/**
+	 * Missing when required is an error.
+	 *
+	 * The literal `true` rather than `boolean` so a plain declaration infers precisely — that is
+	 * what makes the value `string` instead of `string | undefined`. Omit it for an optional one.
+	 */
+	required?: true;
+	/**
+	 * Swallows every remaining positional into an array.
+	 *
+	 * Only the last declared positional may be variadic; anything after it could never match.
+	 */
+	variadic?: true;
+	/** Shown in the usage line and the arguments list in `--help` */
+	$description?: string;
+};
 
 /**
  * Reserved key. Set `$description` at the root of an `ArgDefs` object (alongside the arg
@@ -147,10 +204,22 @@ export const DESCRIPTION_KEY = "$description";
 export type DescriptionKey = typeof DESCRIPTION_KEY;
 
 /**
- * Shape accepted by `.from()` and each command's defs within `.commandFrom()`: every key holds
- * an `ArgDef`, except the reserved `$description` key, which holds a plain string.
+ * Reserved key. Set `$commands` inside a command's defs to nest subcommands under it, to any
+ * depth — `prog chapter new`. The parent's own args stay valid at its own level.
  *
- * Deliberately an ordinary (non self-referential) type rather than a self-bound generic like
+ * A command that declares `$commands` requires one of them; there is no bare form.
+ */
+export const COMMANDS_KEY = "$commands";
+export type CommandsKey = typeof COMMANDS_KEY;
+
+/** Every `$`-prefixed key that is structure rather than an arg. */
+export type ReservedArgKey = DescriptionKey | CommandsKey;
+
+/**
+ * Shape accepted by `.from()` and each command's defs within `.commandFrom()`: every key holds
+ * an `ArgDef`, except the reserved `$`-prefixed keys, which hold structure.
+ *
+ * Deliberately an ordinary (non self-bound) type rather than a self-referential generic like
  * `T extends ArgDefsShape<T>` — that pattern can express the same per-key restriction, but a
  * self-referential constraint stops TypeScript's language service from contextually typing the
  * object literal passed in, so editors can't offer `ArgDef` key completions (`type`, `default`,
@@ -158,16 +227,26 @@ export type DescriptionKey = typeof DESCRIPTION_KEY;
  * keeps completions working. The (rare) cost: TS no longer flags `$description` set to an
  * `ArgDef`, or a real arg set to a bare string — those slip through as `ArgDef | string`.
  */
-export type ArgDefsShape = Record<string, ArgDef | string>;
+export type ArgDefsShape = Record<string, ArgDef | string | NestedCommandsShape>;
 
-/** Keys of `T` that hold real arg defs (i.e. everything but `$description`). */
-export type ArgKeys<T> = Exclude<keyof T, DescriptionKey>;
+/** The value of a `$commands` key: a map of subcommand name to that subcommand's defs. */
+export type NestedCommandsShape = { [name: string]: ArgDefsShape };
+
+/** Keys of `T` that hold real arg defs (i.e. everything but the reserved `$` keys). */
+export type ArgKeys<T> = Exclude<keyof T, ReservedArgKey>;
+
+/** `T`'s nested subcommands, or `never` when it declares none. */
+export type SubcommandsOf<T> = T extends Record<CommandsKey, infer S> ? S : never;
 
 export type ArgDefOf<T, K extends keyof T> = T[K] extends ArgDef ? T[K] : never;
 
 // ─── Type inference ────────────────────────────────────────────────────────────
 
-export type InferValue<D extends ArgDef> = D extends { type: "flag" } ? boolean
+export type InferValue<D extends ArgDef> = D extends { type: "positional"; variadic: true }
+	? string[]
+	: D extends { type: "positional"; required: true } ? string
+	: D extends { type: "positional" } ? string | undefined
+	: D extends { type: "flag" } ? boolean
 	: D extends { type: "confirm" } ? boolean | undefined
 	: D extends { type: "enum"; values: readonly (infer V extends string)[] } ? V | undefined
 	: D extends { type: "number" } ? number | undefined
@@ -183,7 +262,7 @@ export type InferValue<D extends ArgDef> = D extends { type: "flag" } ? boolean
  * constructed.
  */
 export type ParsedArgs<T extends Record<string, unknown>> = {
-	[K in keyof T as K extends DescriptionKey ? never : K]: InferValue<ArgDefOf<T, K>>;
+	[K in keyof T as K extends ReservedArgKey ? never : K]: InferValue<ArgDefOf<T, K>>;
 };
 
 export type ResolveValue<V> = [V] extends [boolean | undefined] ? boolean
@@ -192,5 +271,5 @@ export type ResolveValue<V> = [V] extends [boolean | undefined] ? boolean
 
 /** After `resolve()`, all confirms are filled in and `boolean | undefined` collapses to `boolean`. */
 export type ResolvedArgs<T extends Record<string, unknown>> = {
-	[K in keyof T as K extends DescriptionKey ? never : K]: ResolveValue<InferValue<ArgDefOf<T, K>>>;
+	[K in keyof T as K extends ReservedArgKey ? never : K]: ResolveValue<InferValue<ArgDefOf<T, K>>>;
 };

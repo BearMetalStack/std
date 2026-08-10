@@ -7,6 +7,7 @@ import type {
 	FlagDef,
 	ListArgDef,
 	NumArgDef,
+	PositionalDef,
 	RequiredInput,
 	RequiredSpec,
 	RequiredSpecIf,
@@ -167,6 +168,7 @@ export function descriptionOf(defs: Record<string, unknown>): string | undefined
 }
 
 export function formatArgName(key: string, def: ArgDef): string {
+	if (def.type === "positional") return formatPositionalName([key, def]);
 	const kebab = toKebabCase(key);
 	const aliases = (def.aliases ?? []).map((a) => a.replace(/^-+/, ""));
 	const names = [`--${kebab}`, ...aliases.map((a) => a.length === 1 ? `-${a}` : `--${a}`)];
@@ -180,6 +182,7 @@ export function formatArgName(key: string, def: ArgDef): string {
 
 export function formatArgMeta(def: ArgDef): string[] {
 	const meta: string[] = [];
+	if (def.type === "positional") return def.required ? ["required"] : [];
 	if (def.required) meta.push(formatRequired(def));
 	if (def.type === "list") meta.push("repeatable");
 	if ("default" in def && def.default !== undefined) {
@@ -237,6 +240,70 @@ export function formatRequired(def: RequirableArgDef): string {
 		res += ifs.join("; ").replace(/^(\w)/, " $1");
 	}
 	return res;
+}
+
+// ─── Positionals ──────────────────────────────────────────────────────────────
+
+/** A declared positional, paired with the key it is filed under. */
+export type NamedPositional = readonly [name: string, def: PositionalDef];
+
+/** `<draft>` / `[refs...]` — how one positional is spelled in help output. */
+export function formatPositionalName([name, def]: NamedPositional): string {
+	const spelled = def.variadic ? `${name}...` : name;
+	return def.required ? `<${spelled}>` : `[${spelled}]`;
+}
+
+/** `<draft> [refs...]` — the usage-line fragment for a set of positionals. */
+export function formatPositionalUsage(positionals: readonly NamedPositional[]): string {
+	return positionals.map(formatPositionalName).join(" ");
+}
+
+/** Matches declared positionals against the tokens actually given. */
+export function bindPositionals(
+	positionals: readonly NamedPositional[],
+	tokens: string[],
+): { values: Record<string, string | string[]>; errors: string[] } {
+	const values: Record<string, string | string[]> = {};
+	const errors: string[] = [];
+	let at = 0;
+
+	for (const [index, [name, def]] of positionals.entries()) {
+		if (def.variadic) {
+			// Only the last one may be variadic; anything after it could never match.
+			if (index !== positionals.length - 1) {
+				errors.push(`Only the last positional may be variadic (<${name}...> is not)`);
+			}
+			const rest = tokens.slice(at);
+			at = tokens.length;
+			if (def.required && rest.length === 0) errors.push(`Missing required argument <${name}>`);
+			values[name] = rest;
+			continue;
+		}
+
+		if (at < tokens.length) {
+			values[name] = tokens[at++];
+			continue;
+		}
+		if (def.required) errors.push(`Missing required argument <${name}>`);
+		else values[name] = undefined as unknown as string;
+	}
+
+	for (const extra of tokens.slice(at)) {
+		errors.push(`Unexpected argument "${extra}"`);
+	}
+
+	return { values, errors };
+}
+
+export function formatPositionalLines(positionals: readonly NamedPositional[]): string[] {
+	return formatListLines(positionals.map((entry) => {
+		const [, def] = entry;
+		const meta = def.required ? " (required)" : "";
+		return [
+			formatPositionalName(entry),
+			`${def.$description ?? ""}${meta}`.trim() || undefined,
+		] as const;
+	}));
 }
 
 export function formatListLines(rows: (readonly [string, string | undefined])[]): string[] {

@@ -35,3 +35,12 @@ export type { ColorName, hexString, StyleName } from "./style.ts";
 
 // Argument parsing
 export type * from "./argParser/types.ts";
+export type {
+	CommandDefs,
+	CommandDefsShape,
+	CommandName,
+	CommandPath,
+	CommandResolvedArgs,
+	HelpMode,
+	PromptForOptions,
+} from "./argParser/mod.ts";
