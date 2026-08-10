@@ -6,9 +6,18 @@ import {
 	toKebabCase,
 } from "@bearmetal/miscellanea";
 import { server as defaultServer } from "@bearmetal/mcp";
-import { s } from "@bearmetal/forge";
+import { s, type Schema } from "@bearmetal/forge";
 import { dotBearmetalFile } from "@bearmetal/miscellanea/fs";
-import { listCustomThemeNames, type Theme } from "@bearmetal/drip";
+import {
+	listCustomThemeNames,
+	lookupVariantToken,
+	normalizeMediaQuery,
+	type Theme,
+	type Variant,
+	VARIANT_TOKENS,
+	type VariantTokenDef,
+	variantTokensByGroup,
+} from "@bearmetal/drip";
 import { namespaces } from "@bearmetal/drip/namespaces";
 import { generateSteps } from "../drip/doAColor.ts";
 
@@ -33,23 +42,22 @@ function normalizeHex(hex: string): string {
 }
 
 /**
- * Drip interpolates `media` straight into `@media <value> {`, so a bare
- * `prefers-color-scheme: dark` yields invalid CSS and the whole variant block
- * is discarded by the parser. Accept the forgiving forms and emit a valid one.
+ * Ramp names become CSS custom property segments, so they are normalised to the
+ * kebab case the rest of the namespace uses: `bg_base`, `bgBase` and `BG Base`
+ * all become `bg-base`, and all reach the same `--color-bg-base-500`.
+ *
+ * `.` is the only structural character — it nests the ramp, mirroring the
+ * accessor syntax — so the accessor for a ramp is always its normalised name
+ * with the stop appended.
  */
-function normalizeMedia(media: string): string {
-	let query = media.trim().replace(/^@media\s+/i, "").trim();
-	if (!query) throw new Error("Media query is empty");
-
-	let depth = 0;
-	for (const char of query) {
-		if (char === "(") depth++;
-		else if (char === ")" && --depth < 0) break;
+function normalizeRampName(name: string): string {
+	const segments = name.split(".").map((segment) => toKebabCase(segment));
+	if (segments.some((segment) => !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(segment))) {
+		throw new Error(
+			`Invalid color name '${name}' — use letters, numbers and word separators, with '.' to nest`,
+		);
 	}
-	if (depth !== 0) throw new Error(`Unbalanced parentheses in media query: ${media}`);
-
-	if (!query.includes("(") && query.includes(":")) query = `(${query})`;
-	return query;
+	return segments.join(".");
 }
 
 /** Reject names that would escape the themes directory or produce an odd file. */
@@ -70,7 +78,9 @@ server.addTool({
 	inputSchema: s.object({
 		themeName: s.string().describe("Name of the theme to create or add colors to"),
 		colors: s.array(s.object({
-			name: s.string().describe("The name of the color in the theme"),
+			name: s.string().describe(
+				"The name of the color in the theme. Normalised to kebab-case on write, so `bg_base`, `bgBase` and `BG Base` all become `bg-base` and are referenced as `$color.bg-base.<stop>`. Use `.` to nest a ramp, e.g. `brand.grey`",
+			),
 			identity: colorString.describe(
 				"The hex value of the color to use as the identity of the color scale",
 			),
@@ -95,11 +105,17 @@ server.addTool({
 		const name_ = assertThemeName(themeName);
 		const themeFile = await dotBearmetalFile(namespaces.themes, name_ + ".theme.json");
 		const theme = await themeFile.readJson<Theme>();
-		for (const { identity: rawIdentity, name, stop, useProportionalScale, manualStops } of colors) {
+		const written: string[] = [];
+		for (
+			const { identity: rawIdentity, name: rawName, stop, useProportionalScale, manualStops }
+				of colors
+		) {
 			const identity = normalizeHex(rawIdentity);
+			const name = normalizeRampName(rawName);
+			written.push(name);
 			if (manualStops) {
 				let current = (theme.color ??= {}) as Theme;
-				current = name.split("-").reduce(
+				current = name.split(".").reduce(
 					(acc, part) => ((acc as Theme)[part] ??= {}) as Theme,
 					current,
 				);
@@ -118,7 +134,11 @@ server.addTool({
 			generateSteps(theme, { hex: identity, name, stop: colorStop }, useProportionalScale);
 		}
 		await themeFile.writeJson(theme);
-		return `Created theme ${name_} with ${colors.length} colors`;
+		// Hand back the exact accessors, since names are normalised on write and
+		// a variant that references the name as typed would dangle.
+		return `Created theme ${name_} with ${colors.length} colors. Reference them as: ${
+			written.map((name) => `$color.${name}.<stop>`).join(", ")
+		}`;
 	},
 });
 
@@ -134,6 +154,31 @@ server.addTool({
 	},
 });
 
+/** How a token behaves when a variant leaves it out, for the tool description. */
+function describeDefault(token: VariantTokenDef): string {
+	if (token.from) return `optional — defaults to \`${token.from}\``;
+	if (token.fallback) return `optional — defaults to \`${token.fallback}\``;
+	return "optional";
+}
+
+/**
+ * The variant schema is generated from Drip's token manifest rather than
+ * written out here, so the tool and the generator can never disagree about
+ * which slots exist or which custom property a key writes to.
+ */
+function variantTokenFields(): Record<string, Schema<string | undefined>> {
+	const fields: Record<string, Schema<string | undefined>> = {};
+	for (const token of VARIANT_TOKENS) {
+		const description = `${token.description} (${token.property})${
+			token.required ? "" : `. ${describeDefault(token)}`
+		}`;
+		fields[token.key] = token.required
+			? s.string().describe(description)
+			: s.string().describe(description).optional();
+	}
+	return fields;
+}
+
 const Variant = s.object({
 	name: s.string().describe('The name of the theme variant, e.g. "light"'),
 	default: s.boolean().describe(
@@ -142,38 +187,33 @@ const Variant = s.object({
 	media: s.string().describe(
 		"Media query that triggers the variant automatically, written without the `@media` keyword and with its parentheses, e.g. `(prefers-color-scheme: dark)`. A bare feature test is wrapped for you",
 	).optional(),
-	bg: s.string().describe("Background color"),
-	bgSubtle: s.string().describe("Subtle background color"),
-	bgMuted: s.string().describe("Muted background color"),
-	bgEmphasis: s.string().describe("Emphasis background color"),
-	surface: s.string().describe("Surface background color"),
-	surfaceRaised: s.string().describe("Raised surface background color"),
-	surfaceOverlay: s.string().describe("Overlay surface background color"),
-	text: s.string().describe("Text color"),
-	textSubtle: s.string().describe("Subtle text color"),
-	textMuted: s.string().describe("Muted text color"),
-	textDisabled: s.string().describe("Disabled text color"),
-	border: s.string().describe("Border color"),
-	borderStrong: s.string().describe("Strong border color"),
-	borderSubtle: s.string().describe("Subtle border color"),
-	interactive: s.string().describe("Interactive color"),
-	interactiveHover: s.string().describe("Interactive hover color"),
-	toastBg: s.string().describe("Toast background color"),
-	toastColor: s.string().describe("Toast text color"),
-	toastBorder: s.string().describe("Toast border color"),
-	successText: s.string().describe("Success text color"),
-	successBg: s.string().describe("Success background color"),
-	btnSuccessBg: s.string().describe("Success button background color"),
-	dangerText: s.string().describe("Danger text color"),
-	dangerBg: s.string().describe("Danger background color"),
-	btnDangerBg: s.string().describe("Danger button background color"),
-	warningText: s.string().describe("Warning text color"),
-	warningBg: s.string().describe("Warning background color"),
-	btnWarningBg: s.string().describe("Warning button background color"),
-	infoText: s.string().describe("Info text color"),
-	infoBg: s.string().describe("Info background color"),
-	btnInfoBg: s.string().describe("Info button background color"),
+	...variantTokenFields(),
 });
+
+/**
+ * Walks a `$namespace.path.to.token` accessor against the theme it will be
+ * resolved in. A miss produces CSS that is invalid at computed-value time —
+ * the declaration is dropped and the token silently inherits — so it is worth
+ * catching here, where the author can still fix it.
+ */
+function accessorResolves(theme: Theme, accessor: string): boolean {
+	const path = accessor.slice(1).split(".");
+	let node: unknown = theme;
+	for (const segment of path) {
+		if (!node || typeof node !== "object") return false;
+		const record = node as Record<string, unknown>;
+		if (!(segment in record)) return false;
+		node = record[segment];
+	}
+	if (typeof node === "string") return true;
+	// `$color.primary` names the ramp's seed, stored under "" (or "base").
+	if (node && typeof node === "object") {
+		const record = node as Record<string, unknown>;
+		return typeof record[""] === "string" || typeof record.base === "string" ||
+			"$ref" in record;
+	}
+	return false;
+}
 server.addTool({
 	name: "add_theme_variant",
 	description: "Adds a variant such as light or dark mode to a theme using Drip compliant names",
@@ -191,7 +231,10 @@ server.addTool({
 		const themeName = assertThemeName(theme);
 		const themeFile = await dotBearmetalFile(namespaces.themes, themeName + ".theme.json");
 		const themeData = await themeFile.readJson<Theme>();
-		const variants = themeData["#variants"] ??= [];
+		// `#variants` is the legacy key; keep writing wherever the theme already
+		// stores them so an existing file does not end up with both.
+		const variantsKey = themeData["#variants"] && !themeData.variants ? "#variants" : "variants";
+		const variants = (themeData[variantsKey] ??= []) as Variant[];
 
 		const existingIndex = variants.findIndex((v) => v.name === name);
 		if (existingIndex !== -1 && !replace) {
@@ -207,27 +250,51 @@ server.addTool({
 				);
 			}
 		}
+
 		const variantRules: Record<string, string> = {};
+		const dangling: string[] = [];
 		for (const [key, value] of Object.entries(rules)) {
-			if (!value) continue;
-			let name = toKebabCase(key);
-			if (!name.startsWith("btn") && !name.startsWith("toast")) name = "color-" + name;
-			name = "--" + name;
-			variantRules[name] = parseDripValue(value);
+			if (typeof value !== "string" || !value) continue;
+			// The custom property comes from the manifest, never from a prefix
+			// match on the key — `toastColor` is `--toast-color` because the
+			// table says so, not because it starts with "toast".
+			const token = lookupVariantToken(key);
+			if (!token) throw new Error(`Unknown variant token '${key}'`);
+			if (value.startsWith("$") && !accessorResolves(themeData, value)) {
+				dangling.push(`${key}: ${value}`);
+			}
+			variantRules[token.property] = parseDripValue(value);
 		}
-		const entry = {
+		if (dangling.length) {
+			throw new Error(
+				`Theme ${themeName} has no such ramp or stop for ${dangling.length} reference${
+					dangling.length === 1 ? "" : "s"
+				} — ${
+					dangling.join(", ")
+				}. A dangling reference produces CSS that silently fails to apply; create the ramp with create_theme first, or use a raw CSS value.`,
+			);
+		}
+
+		const entry: Variant = {
 			name,
 			default: isDefault,
 			rules: variantRules,
-			media: media === undefined ? undefined : normalizeMedia(media),
+			media: media === undefined ? undefined : normalizeMediaQuery(media),
 		};
 		if (existingIndex === -1) variants.push(entry);
 		else variants[existingIndex] = entry;
 
 		await themeFile.writeJson(themeData);
+
+		const omitted = VARIANT_TOKENS.filter((t) => !t.required && !variantRules[t.property]);
+		const note = omitted.length
+			? ` ${omitted.length} optional token${
+				omitted.length === 1 ? "" : "s"
+			} were left to derive from the ones you set.`
+			: "";
 		return existingIndex === -1
-			? `Theme variant '${name}' added to ${themeName}`
-			: `Theme variant '${name}' replaced in ${themeName}`;
+			? `Theme variant '${name}' added to ${themeName}.${note}`
+			: `Theme variant '${name}' replaced in ${themeName}.${note}`;
 	},
 	annotations: {
 		idempotentHint: true,
@@ -240,8 +307,17 @@ function parseDripValue(val: string) {
 	return `var(${val.replaceAll(".", "-").replace("$", "--")})`;
 }
 
-const SEMANTIC_TOKENS = Object.keys(Variant.toJSONSchema().properties ?? {})
-	.filter((key) => !["name", "default", "media"].includes(key));
+const REQUIRED_TOKENS = VARIANT_TOKENS.filter((t) => t.required).map((t) => t.key);
+
+/** The optional half of the manifest, grouped, for the prompt's reference table. */
+const OPTIONAL_TOKEN_TABLE = [...variantTokensByGroup()]
+	.map(([group, tokens]) => {
+		const optional = tokens.filter((t) => !t.required);
+		if (!optional.length) return "";
+		return `- **${group}** — ${optional.map((t) => `\`${t.key}\``).join(", ")}`;
+	})
+	.filter(Boolean)
+	.join("\n");
 
 server.addPrompt({
 	name: "design_theme",
@@ -292,20 +368,25 @@ tints above it.
 - light: \`default: true\`, no media query
 - dark: \`media: "(prefers-color-scheme: dark)"\` — include the parentheses
 
-Every one of these ${SEMANTIC_TOKENS.length} keys is required in each variant: ${
-			SEMANTIC_TOKENS.join(", ")
-		}.
+These ${REQUIRED_TOKENS.length} keys are required in each variant: ${REQUIRED_TOKENS.join(", ")}.
+
+Every other token derives from one of those if you leave it out, so a variant is never
+half-defined. Set the ones you have an opinion about and let the rest follow:
+
+${OPTIONAL_TOKEN_TABLE}
 
 Reference the ramps through the accessor form \`$color.<ramp>.<stop>\` (for example
 \`$color.primary.600\`) rather than repeating raw hex, so the variants stay tied to the scales.
-Only reference ramps and stops you actually created in pass 1 — a typo'd reference produces CSS
-that silently fails to apply rather than an error.
+Only reference ramps and stops you actually created in pass 1 — \`add_theme_variant\` rejects a
+reference it cannot resolve, because a dangling one produces CSS that silently fails to apply.
 
 Design the dark variant deliberately instead of inverting the light one. Fills usually want a
-bright stop on dark grounds (around 500) and a darker stop on light grounds (around 600), and text
-tokens should stay above 4.5:1 against the ground they sit on in both variants. Note that the
-\`btn*Bg\` tokens have no matching foreground token, so check that whatever ink the consumer will
-put on those fills still reads at the stop you chose.
+bright stop on dark grounds (around 400) and a dark stop on light grounds (around 500-600), and
+text tokens should stay above 4.5:1 against the ground they sit on in both variants.
+
+The \`btn*Fg\` tokens are the ink on each filled control, and they are the ones most often gotten
+wrong: pick each one against its own \`btn*Bg\`, not against the page. A bright fill wants dark
+ink and a dark fill wants light ink, and the choice usually flips between the two variants.
 
 Finish by calling \`list_current_themes\` to confirm the theme was written, then summarize the
 palette: each ramp, its seed, and what it does in the design.`,

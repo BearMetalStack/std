@@ -66,7 +66,7 @@ export async function doAColor(theme: Theme) {
 	}
 	if (!steps!) throw new Error("No steps generated... how did you do that?");
 	let current = (theme.color ??= {}) as Theme;
-	current = colorName.split("-").reduce(
+	current = colorName.split(".").reduce(
 		(acc, part) => ((acc as Theme)[part] ??= {}) as Theme,
 		current,
 	);
@@ -74,11 +74,21 @@ export async function doAColor(theme: Theme) {
 		current[stop] = steps[stop].hex;
 	}
 
+	// Legacy themes nested the seed under repeated empty keys; walk down to the
+	// ramp that actually holds the stops before writing.
 	while (current[""] && typeof current[""] !== "string") current = current[""] as Theme;
 
-	current[""] = steps[identityStop!].hex;
+	delete current[""];
+	current.base = steps[identityStop!].hex;
 }
 
+/**
+ * Nests the ramp under `theme.color` at the path its name describes. `.` is the
+ * nesting separator, so `bearmetal.grey` becomes `color.bearmetal.grey` while
+ * `primary-ink` stays one flat ramp — a hyphen is part of the name, never
+ * structure, so the accessor an author writes always matches the name they
+ * passed in.
+ */
 export function generateSteps(
 	theme: Theme,
 	color: { name: string; hex: string; stop: number },
@@ -88,7 +98,7 @@ export function generateSteps(
 	const lightnessMap = generateRelativeLightnessMap(oklch.l, color.stop, { uniformStep });
 	const steps = seededScale(color.hex, color.stop, lightnessMap);
 	let current = (theme.color ??= {}) as Theme;
-	current = color.name.split("-").reduce(
+	current = color.name.split(".").reduce(
 		(acc, part) => ((acc as Theme)[part] ??= {}) as Theme,
 		current,
 	);
@@ -98,5 +108,6 @@ export function generateSteps(
 
 	while (current[""] && typeof current[""] !== "string") current = current[""] as Theme;
 
-	current[""] = steps[color.stop!].hex;
+	delete current[""];
+	current.base = steps[color.stop!].hex;
 }
