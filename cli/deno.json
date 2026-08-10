@@ -5,6 +5,7 @@
 		".": "./mod.ts",
 		"./types": "./types.ts",
 		"./style": "./style.ts",
+		"./table": "./table.ts",
 		"./argParser": "./argParser/mod.ts",
 		"./input": "./input/mod.ts",
 		"./render": "./render/mod.ts",

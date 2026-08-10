@@ -32,6 +32,7 @@ export type {
 
 // Styling
 export type { ColorName, hexString, StyleName } from "./style.ts";
+export type { ColumnAlign, ColumnSpec, TableOptions } from "./table.ts";
 
 // Argument parsing
 export type * from "./argParser/types.ts";

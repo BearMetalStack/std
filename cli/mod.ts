@@ -37,6 +37,7 @@ import {
 
 export * from "./write.ts";
 export * from "./style.ts";
+export * from "./table.ts";
 export * from "./argParser/mod.ts";
 export * from "./prompts.ts";
 export * from "./select.ts";
