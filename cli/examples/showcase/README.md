@@ -6,13 +6,14 @@ package, in the way that layer is meant to be used.
 ```sh
 cd cli/examples/showcase
 
-deno task start                    # no command given → pick one from a menu
+deno task start                       # no command given → pick one from a menu
 deno run main.ts --help
 deno run main.ts wizard
-deno run main.ts --alt keys
+deno run main.ts show keys --alt      # nested command; global flag after it
 deno run main.ts progress --steps=10
-deno run main.ts palette | cat     # plain mode: no escapes at all
-deno run main.ts --non-interactive scaffold --name=demo --db=kv
+deno run main.ts show palette | cat   # plain mode: no escapes at all
+deno run main.ts scaffold --name=demo --db=kv --no-auth --non-interactive ./out
+deno run main.ts scaffold --nmae=x    # typo → error with a suggestion, exit 2
 deno test
 ```
 

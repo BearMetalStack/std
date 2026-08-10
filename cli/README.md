@@ -73,7 +73,40 @@ disposes it when the prompt is done. Start one explicitly to share a single term
 a sequence of prompts, to select `mode`, or to opt into `captureConsole`.
 
 `ArgParser.resolve()` opens one for the whole prompt sequence; `setInteractiveMode("alt")` chooses
-its mode.
+its mode. `canPrompt()` answers "may I ask a question here?" without needing a session reference.
+
+## Arguments
+
+```ts
+const args = await ArgParser.commandFrom(Deno.args, {
+	$root: { json: { type: "flag" } },
+	chapter: {
+		$commands: {
+			list: {},
+			new: {
+				title: { type: "string", required: true },
+				draft: { type: "positional", required: true },
+			},
+		},
+	},
+}).setProgram("tmstn").setHelpMode("throw").resolve();
+
+switch (args.command) {
+	case "chapter new":
+		return create(args.title, args.draft);
+}
+```
+
+Commands nest to any depth through `$commands`, and `command` is the matched path. A token belongs
+to whichever level declares it, so `--json` works before or after the command name. Positionals are
+declared like any other arg and get documented, arity-checked and typed.
+
+Anything the defs don't account for is an error listing every problem at once — an unknown option
+(with a suggestion), a value written `--name value` instead of `--name=value`, a positional too
+many. Nothing is silently dropped.
+
+`promptFor(def)` asks for a single arg with `resolve()`'s exact semantics, for code that builds its
+own contexts instead of parsing argv.
 
 ## Not a terminal
 
@@ -111,8 +144,9 @@ rendered screen rather than a string of control codes. None of it needs a termin
 | ------------- | ------------------------------------------------------------------ |
 | `.`           | Everything below, plus `renderTitleAscii` and `startCliTheme`      |
 | `./style`     | Colour, attributes, `stripAnsi`, `displayWidth`, `truncateToWidth` |
-| `./argParser` | `ArgParser`, `CommandArgParser`                                    |
+| `./table`     | `table`, `definitionList`                                          |
+| `./argParser` | `ArgParser`, `CommandArgParser`, `promptFor`                       |
 | `./input`     | `KeyDecoder`, `KeyReader`                                          |
-| `./render`    | `Region`, `CliSession`, `TerminalWriter`                           |
+| `./render`    | `Region`, `CliSession`, `TerminalWriter`, `canPrompt`              |
 | `./testing`   | `BufferWriter`, `FakeScreen`, `FakeKeyReader`                      |
 | `./types`     | Every public type                                                  |

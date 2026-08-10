@@ -9,8 +9,14 @@
  * @module
  */
 
-import { assertEquals } from "@std/assert";
-import { cliPrompt, selectMenuInteractive, startCliSession } from "@bearmetal/cli";
+import { assertEquals, assertRejects } from "@std/assert";
+import {
+	ArgParseError,
+	ArgParser,
+	cliPrompt,
+	selectMenuInteractive,
+	startCliSession,
+} from "@bearmetal/cli";
 import { BufferWriter, FakeKeyReader } from "@bearmetal/cli/testing";
 
 import { runKeyInspector } from "./keys.ts";
@@ -106,6 +112,14 @@ Deno.test("the key inspector records what it was sent", async () => {
 	assertEquals(await done, 0);
 	assertEquals(out.line(0), "keys - 3 events seen");
 	session.cleanup();
+});
+
+Deno.test("a mistyped flag stops the run instead of vanishing", async () => {
+	const parser = ArgParser.commandFrom(["scaffold", "--nmae=demo"], {
+		scaffold: { name: { type: "string" } },
+	});
+	const error = await assertRejects(() => parser.resolve(), ArgParseError);
+	assertEquals(error.issues, ["Unknown option --nmae. Did you mean --name?"]);
 });
 
 Deno.test("progress leaves only its committed summary behind", async () => {

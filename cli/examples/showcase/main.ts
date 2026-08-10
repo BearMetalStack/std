@@ -17,16 +17,19 @@
  * deno task start            # command picker
  * deno run main.ts --help
  * deno run main.ts wizard
- * deno run main.ts --alt keys
- * deno run main.ts --non-interactive scaffold --name=demo --db=kv
+ * deno run main.ts show keys --alt
+ * deno run main.ts scaffold --name=demo --db=kv --no-auth --non-interactive
  * ```
  * @module
  */
 
 import {
 	type ArgDefsShape,
+	ArgParseError,
 	ArgParser,
+	canPrompt,
 	colorize,
+	HelpRequested,
 	type InteractiveMode,
 	NotInteractiveError,
 	startCliSession,
@@ -48,7 +51,7 @@ const PROGRAM = "showcase";
  * has to know the presentation mode before a session can be opened.
  */
 const globalDefs = {
-	$description: "Global options (these go before the command name)",
+	$description: "Global options (accepted anywhere on the command line)",
 	alt: {
 		type: "flag",
 		aliases: ["-a"],
@@ -72,14 +75,11 @@ const globalDefs = {
 /**
  * Reads the global flags without resolving anything.
  *
- * `$root` args are the ones *before* the command token, so the same slice
- * `CommandArgParser` takes is the slice to read here — otherwise `--alt` would
- * appear to work after the command name in one place and not the other.
+ * `$root` flags are accepted anywhere on the command line, so this reads the whole argv — the
+ * same tokens the command parser will route back to the root itself.
  */
 function bootstrapMode(argv: string[]): InteractiveMode {
-	const at = argv.findIndex((arg) => !arg.startsWith("-"));
-	const rootArgs = at === -1 ? argv : argv.slice(0, at);
-	return ArgParser.from(rootArgs, globalDefs).get("alt") ? "alt" : "inline";
+	return ArgParser.from(argv, globalDefs).get("alt") ? "alt" : "inline";
 }
 
 const parser = ArgParser.commandFrom(Deno.args, {
@@ -106,14 +106,21 @@ const parser = ArgParser.commandFrom(Deno.args, {
 		},
 	},
 
-	keys: {
-		$description: "A custom widget: decoded key events, live",
+	// A group: `showcase show keys`, `showcase show palette`. Nesting is declared, not encoded
+	// into the token stream by the caller.
+	show: {
+		$description: "Things to look at",
+		$commands: {
+			keys: { $description: "A custom widget: decoded key events, live" },
+			palette: {
+				$description: "Colours, attributes and width measurement (works without a terminal)",
+			},
+		},
 	},
-
-	palette: {
-		$description: "Colours, attributes and width measurement (works without a terminal)",
-	},
-}).setProgram(PROGRAM);
+}).setProgram(PROGRAM)
+	// Throwing beats exiting: `main` owns the session, so it has to be the one to decide when
+	// the process ends.
+	.setHelpMode("throw");
 
 async function main(argv: string[]): Promise<number> {
 	// One session for the whole run. `mode` is honoured only when stdout is a
@@ -127,7 +134,8 @@ async function main(argv: string[]): Promise<number> {
 		// The ambient session is picked up automatically — the parser prompts into
 		// ours instead of opening one of its own.
 		const args = await parser.resolve({
-			promptForCommand: session.mode !== "plain" && "What would you like to see?",
+			// `canPrompt()` is the check — no need to thread an `interactive` boolean around.
+			promptForCommand: canPrompt() && "What would you like to see?",
 		});
 
 		switch (args.command) {
@@ -140,15 +148,28 @@ async function main(argv: string[]): Promise<number> {
 					session,
 					Array.from({ length: args.steps ?? 6 }, (_, i) => `Step ${i + 1}`),
 				);
-			case "keys":
+			case "show keys":
 				return await runKeyInspector(session);
-			case "palette":
+			case "show palette":
 				return printPalette(session);
 			default:
 				session.log(parser.helpText(PROGRAM));
 				return 0;
 		}
 	} catch (error) {
+		// `--help`, now that the parser hands it back instead of exiting from inside the session.
+		if (error instanceof HelpRequested) {
+			session.log(error.helpText);
+			return 0;
+		}
+
+		// A malformed command line. Every problem at once, then the way out.
+		if (error instanceof ArgParseError) {
+			for (const issue of error.issues) session.log(colorize(`✗ ${issue}`, "red"));
+			session.log(colorize(`\nRun \`${PROGRAM} --help\` for usage.`, "gray"));
+			return 2;
+		}
+
 		// A widget whose session was torn down mid-question. Not an error worth a
 		// stack trace — the user pressed Ctrl+C, or something else asked us to stop.
 		if (error instanceof WidgetCancelledError) return 130;
@@ -164,8 +185,6 @@ async function main(argv: string[]): Promise<number> {
 }
 
 // `Deno.exit` inside the `using` block would skip disposal. Returning the code and
-// exiting out here is what guarantees the terminal is restored first.
-//
-// (The session also registers an `unload` hook, so the one place that *does* exit
-// from inside — `--help` — still restores. Belt and braces; don't rely on it.)
+// exiting out here is what guarantees the terminal is restored first — which is also why the
+// parser is set to throw for `--help` rather than exit from inside `resolve()`.
 if (import.meta.main) Deno.exit(await main(Deno.args));

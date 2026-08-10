@@ -117,6 +117,7 @@ export default defineConfig({
 							{ text: "Custom widgets", link: "/cli/widgets" },
 							{ text: "Argument parsing", link: "/cli/args" },
 							{ text: "Styling", link: "/cli/styling" },
+							{ text: "Tables", link: "/cli/tables" },
 							{ text: "Testing", link: "/cli/testing" },
 						],
 					},

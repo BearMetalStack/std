@@ -146,10 +146,24 @@ With stdout redirected everything degrades deliberately rather than failing:
 - Colour follows `NO_COLOR`/`FORCE_COLOR`, defaulting to on only for a TTY. `setColorEnabled()`
   overrides.
 
+### canPrompt()
+
+`canPrompt()` is the "may I ask a question?" predicate: the session's mode when there is one, and
+whether both ends are a terminal when there isn't.
+
+```ts
+import { canPrompt } from "@bearmetal/cli";
+
+const title = canPrompt() ? await cliPrompt("Title?") : args.title;
+```
+
+Use it instead of threading your own `interactive` boolean through the program — that boolean is
+this function, computed once somewhere else and then carried by hand.
+
 Commands that cannot degrade should say so up front rather than failing at question three:
 
 ```ts
-if (session.mode === "plain") {
+if (!canPrompt()) {
 	session.log("This command needs a terminal. Pass --non-interactive with explicit flags.");
 	return 1;
 }

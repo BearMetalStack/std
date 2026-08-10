@@ -84,3 +84,6 @@ Everything else in this section is detail on one of these.
 4. **Check the mode.** Piped output is `plain`. Prompts degrade to reading a line; menus throw.
 5. **Widgets don't touch stdin or the cursor.** Keys come to you; the cursor moves relative to your
    region.
+
+And one for the arg parser, which follows from the same instinct: **nothing is dropped.** A token
+nobody declared is an error, not a no-op. See [Argument parsing](./args#nothing-is-dropped).

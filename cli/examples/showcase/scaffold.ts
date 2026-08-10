@@ -9,12 +9,18 @@
  * @module
  */
 
-import { type ArgDefsShape, type CliSession, colorize } from "@bearmetal/cli";
+import { type ArgDefsShape, type CliSession, colorize, definitionList } from "@bearmetal/cli";
 import { f } from "@bearmetal/forge";
 
 /** Arg definitions for the `scaffold` command. */
 export const scaffoldDefs = {
 	$description: "Let the arg parser ask the questions",
+	// A positional is an ordinary entry, keyed by its name. Declaring it is what puts it in the
+	// usage line and makes a surplus argument an error instead of something silently ignored.
+	directory: {
+		type: "positional",
+		$description: "Where to create it (defaults to the project name)",
+	},
 	name: {
 		type: "string",
 		prompt: "Project name",
@@ -57,21 +63,21 @@ export interface ScaffoldArgs {
 	db?: string;
 	auth: boolean;
 	dryRun: boolean;
+	directory?: string;
 }
 
 /** Reports what the resolved answers add up to. */
 export function runScaffold(session: CliSession, args: ScaffoldArgs): number {
-	const rows: [string, string][] = [
+	session.log("");
+	session.log(colorize("Resolved", "porple"));
+	// `definitionList` measures with `displayWidth`, so a coloured or wide-character key still
+	// lines up. `padEnd` on a styled string does not.
+	session.log(definitionList([
 		["name", args.name ?? "(unset)"],
 		["database", args.db ?? "(unset)"],
 		["auth", args.auth ? "yes" : "no"],
-	];
-
-	session.log("");
-	session.log(colorize("Resolved", "porple"));
-	for (const [key, value] of rows) {
-		session.log(`  ${colorize(key.padEnd(10), "gray")}${value}`);
-	}
+		["directory", args.directory ?? args.name ?? "."],
+	], { indent: 2, width: session.out.columns }));
 
 	if (args.dryRun) {
 		session.log(colorize("\n--dry-run: nothing written.", "gray"));
