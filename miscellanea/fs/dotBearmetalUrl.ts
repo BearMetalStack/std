@@ -5,6 +5,7 @@ import type {
 	DotBearmetalNamespace,
 	DotBearmetalUrlOptions,
 } from "@types";
+import { readJsonIfPresent, readTextIfPresent } from "./softRead.ts";
 
 /**
  * Read-only, URL-based counterparts to the `dotBearmetal*` utilities, for code
@@ -222,21 +223,11 @@ export async function dotBearmetalFileUrl<T = {}>(
 
 	return {
 		url,
-		async read() {
-			if (!url) return undefined;
-			try {
-				return await Deno.readTextFile(url);
-			} catch {
-				return undefined;
-			}
+		read() {
+			return url ? readTextIfPresent(url) : Promise.resolve(undefined);
 		},
-		async readJson<J = T>(): Promise<J> {
-			if (!url) return {} as J;
-			try {
-				return JSON.parse(await Deno.readTextFile(url));
-			} catch {
-				return {} as J;
-			}
+		readJson<J = T>(): Promise<J> {
+			return url ? readJsonIfPresent(url, {} as J) : Promise.resolve({} as J);
 		},
 	};
 }

@@ -38,7 +38,11 @@ Deno.test("generateRelativeLightnessMap is monotonically decreasing", () => {
 });
 
 Deno.test("uniformStep shares one step size across both sides", () => {
-	const map = generateRelativeLightnessMap(0.5, 200, STOPS, BOUNDS, true);
+	const map = generateRelativeLightnessMap(0.5, 200, {
+		stops: STOPS,
+		bounds: BOUNDS,
+		uniformStep: true,
+	});
 	const step = map[100] - map[200];
 	for (let i = 0; i < STOPS.length - 1; i++) {
 		assertAlmostEquals(map[STOPS[i]] - map[STOPS[i + 1]], step);
