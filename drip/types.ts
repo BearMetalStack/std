@@ -1,5 +1,10 @@
 // TODO: type this properly
 export type Theme = {
+	/**
+	 * Theme variants. `#variants` is the original spelling and is still read for
+	 * compatibility; new themes are written with `variants`.
+	 */
+	variants?: Variant[];
 	"#variants"?: Variant[];
 	[key: string]: Theme | CalcRoot | Variant[] | string | undefined;
 };
@@ -25,3 +30,6 @@ export type BinaryOp = {
 };
 
 export type { CompliantID } from "./css/compliantCSS.ts";
+export type { DiagnosticLevel, DripDiagnostic } from "./css/validate.ts";
+export type { FillRole, SemanticRole, VariantTokenDef, VariantTokenGroup } from "./css/tokens.ts";
+export type { BuildVariantsOptions } from "./css/variants.ts";

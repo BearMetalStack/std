@@ -3,6 +3,8 @@
 	"version": "0.1.3",
 	"exports": {
 		".": "./mod.ts",
+		"./types": "./types.ts",
+		"./tokens": "./css/tokens.ts",
 		"./ssr": "./ssr.tsx",
 		"./namespaces": "./namespaces.ts",
 		"./palette": "./palette/mod.tsx",
@@ -16,7 +18,7 @@
 		"dev": "deno test --watch",
 		"bm:drip": {
 			"description": "Generates theme completions and CSS",
-			"command": "deno run -RW mod.ts"
+			"command": "deno run -RW -E=BEARMETAL_ENV,BEARMETAL_DRIP_STRICT mod.ts"
 		},
 		"drip:palette": {
 			"command": "deno run -A --watch palette/mod.tsx"
