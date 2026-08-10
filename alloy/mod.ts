@@ -13,26 +13,27 @@ class NumberCodec extends Codec {
 	}
 }
 
-class StringCodec extends Codec {
-	encode(data: string): Uint8Array {
-		return new TextEncoder().encode(data);
-	}
+// class StringCodec extends Codec {
+// 	encode(data: string): Uint8Array {
+// 		return new TextEncoder().encode(data);
+// 	}
 
-	decode(data: Uint8Array): string {
-		return new TextDecoder().decode(data);
-	}
-}
+// 	decode(data: Uint8Array): string {
+// 		return new TextDecoder().decode(data);
+// 	}
+// }
 
-class ArrayCodec extends Codec {
-	encode(data: unknown[]): Uint8Array {
-		return new Uint8Array(data.flatMap((item) => selectCodec(item).encode(item)));
-	}
+// class ArrayCodec extends Codec {
+// 	encode(data: unknown[]): Uint8Array {
+// 		return new Uint8Array(data.flatMap((item) => selectCodec(item).encode(item)));
+// 	}
 
-	decode(data: Uint8Array): unknown[] {
-	}
-}
+// 	decode(data: Uint8Array): unknown[] {
+// 	}
+// }
 
-function selectCodec(data: unknown): Codec {
+/** temp */
+export function selectCodec(data: unknown): Codec {
 	switch (typeof data) {
 		case "number":
 			return new NumberCodec();

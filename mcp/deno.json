@@ -1,0 +1,19 @@
+{
+	"name": "@bearmetal/mcp",
+	"version": "0.1.0",
+	"description": "A zero-dependency Model Context Protocol server for Deno",
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts",
+		"./server": "./server.ts",
+		"./transport": "./transport.ts",
+		"./content": "./content.ts",
+		"./registry": "./registry.ts",
+		"./jsonrpc": "./jsonrpc.ts"
+	},
+	"tasks": {
+		"test": "deno test",
+		"dev": "deno test --watch"
+	},
+	"license": "GPL-3.0-only"
+}
