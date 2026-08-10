@@ -10,14 +10,20 @@ import {
 import {
 	_write,
 	activeSpecs,
+	type ArgToken,
+	classifyToken,
 	collectCannotBe,
 	collectHint,
 	descriptionOf,
 	formatArgLines,
 	formatListLines,
 	isHelpFlag,
+	isHelpToken,
 	isPresent,
 	normalizeSpecs,
+	parseBooleanValue,
+	tokenLabel,
+	unknownOptionMessage,
 } from "./helpers.ts";
 import type {
 	ArgDef,
@@ -41,12 +47,31 @@ import { tmplr, toKebabCase } from "@bearmetal/miscellanea";
 export type * from "./types.ts";
 export { DESCRIPTION_KEY } from "./types.ts";
 
+/**
+ * Raised by `resolve()` when the command line itself is malformed — an unknown option, a value
+ * with nowhere to go, a positional too many.
+ *
+ * One error carries every problem found, so a mistyped invocation reports all of its mistakes in
+ * one pass rather than one per run.
+ */
+export class ArgParseError extends Error {
+	override readonly name = "ArgParseError";
+	constructor(readonly issues: readonly string[]) {
+		super(
+			issues.length === 1
+				? issues[0]
+				: `${issues.length} problems:\n${issues.map((issue) => `  ${issue}`).join("\n")}`,
+		);
+	}
+}
+
 // ─── ArgParser ────────────────────────────────────────────────────────────────
 
 export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 	private _parsed: Record<string, string | boolean | number | unknown[] | undefined> = {};
 	private _explicitlySet = new Set<string>();
 	private _rootCommand?: string;
+	private _issues: string[] = [];
 	_interactive = true;
 	_mode: InteractiveMode = "inline";
 
@@ -61,20 +86,27 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 		);
 	}
 
+	/**
+	 * Every spelling that resolves to a key, indexed by bare name.
+	 *
+	 * Bare rather than dash-prefixed so `-f` and `--f` land in the same lookup — the number of
+	 * dashes is a spelling convention, not a namespace.
+	 */
 	private _aliasMap(): Map<string, string> {
 		const map = new Map<string, string>();
 		for (const [key, def] of this._entries()) {
-			const kebab = toKebabCase(key);
 			map.set(key, key);
-			map.set(`--${key}`, key);
-			if (kebab !== key) map.set(`--${kebab}`, key);
+			map.set(toKebabCase(key), key);
 			for (const alias of (def.aliases ?? [])) {
-				const bare = alias.replace(/^-+/, "");
-				map.set(`-${bare}`, key);
-				map.set(`--${bare}`, key);
+				map.set(alias.replace(/^-+/, ""), key);
 			}
 		}
 		return map;
+	}
+
+	/** Problems found while parsing: unknown options, missing values, bad enum members. */
+	get issues(): readonly string[] {
+		return this._issues;
 	}
 
 	private _parse() {
@@ -99,44 +131,104 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 			}
 		}
 
-		for (const arg of this.rawArgs) {
-			if (arg.startsWith("--") && arg.includes("=")) {
-				const eqIdx = arg.indexOf("=");
-				const rawName = arg.slice(2, eqIdx);
-				const value = arg.slice(eqIdx + 1);
-				const key = aliasMap.get(`--${rawName}`);
-				if (key) {
-					const def = defs[key];
-					if (def?.type === "enum" && !def.values.includes(value)) {
-						throw new Error(
-							`Invalid value "${value}" for --${rawName}. Expected one of: ${
-								def.values.join(", ")
-							}`,
-						);
-					}
-					if (def?.type === "number") {
-						this._parsed[key] = Number(value);
-					} else if (def?.type === "list") {
-						this._parsed[key] = this._explicitlySet.has(key)
-							? [...(this._parsed[key] as unknown[]), value]
-							: [value];
-					} else {
-						this._parsed[key] = value;
-					}
-					this._explicitlySet.add(key);
-				}
-			} else if (arg.startsWith("-")) {
-				const raw = arg.startsWith("--") ? arg.slice(2) : arg.slice(1);
-				const isNegated = raw.startsWith("no-");
-				const name = isNegated ? raw.slice(3) : raw;
-				const key = aliasMap.get(`--${name}`) ?? aliasMap.get(`-${name}`);
-				const def = key ? defs[key] : undefined;
-				if (key && (def?.type === "flag" || def?.type === "confirm")) {
-					this._parsed[key] = !isNegated;
-					this._explicitlySet.add(key);
-				}
+		let terminated = false;
+		for (const raw of this.rawArgs) {
+			if (terminated) {
+				// Positionals are collected by `nonFlags`; nothing to bind them to yet.
+				continue;
 			}
+
+			const token = classifyToken(raw);
+			if (token.kind === "terminator") {
+				terminated = true;
+				continue;
+			}
+			if (token.kind === "positional") {
+				// Positionals are collected by `nonFlags`; nothing to bind them to yet.
+				continue;
+			}
+			// Answered before anything else, by whoever owns the run.
+			if (isHelpToken(token)) continue;
+
+			const key = aliasMap.get(token.name);
+			if (key === undefined) {
+				this._issues.push(unknownOptionMessage(token, aliasMap.keys()));
+				continue;
+			}
+			this._apply(key, defs[key], token);
 		}
+	}
+
+	/**
+	 * Binds one recognised token to its key.
+	 *
+	 * Every path here either sets a value or records an issue. Falling through silently is what
+	 * made a typo'd flag vanish — the value went nowhere and the run continued as if it had never
+	 * been typed.
+	 */
+	private _apply(key: string, def: ArgDef, token: Extract<ArgToken, { kind: "named" }>) {
+		const name = toKebabCase(key);
+		const isBoolean = def.type === "flag" || def.type === "confirm";
+
+		if (token.value === undefined) {
+			if (isBoolean) {
+				this._parsed[key] = !token.negated;
+				this._explicitlySet.add(key);
+				return;
+			}
+			// `--name value` binds nothing: the value would be read as a positional and the arg
+			// would stay undefined. Rejecting it is the whole point — silently dropping an
+			// author's `--content` is worse than any amount of strictness.
+			this._issues.push(
+				`${
+					tokenLabel(token)
+				} needs a value. Use --${name}=<value> (space-separated values are not supported)`,
+			);
+			return;
+		}
+
+		if (token.negated) {
+			this._issues.push(`${tokenLabel(token)} cannot take a value`);
+			return;
+		}
+
+		if (isBoolean) {
+			const parsed = parseBooleanValue(token.value);
+			if (parsed === undefined) {
+				this._issues.push(
+					`--${name} is a ${def.type} and expects true or false, got "${token.value}"`,
+				);
+				return;
+			}
+			this._parsed[key] = parsed;
+			this._explicitlySet.add(key);
+			return;
+		}
+
+		if (def.type === "enum") {
+			if (!def.values.includes(token.value)) {
+				this._issues.push(
+					`Invalid value "${token.value}" for --${name}. Expected one of: ${def.values.join(", ")}`,
+				);
+				return;
+			}
+			this._parsed[key] = token.value;
+		} else if (def.type === "number") {
+			const parsed = Number(token.value);
+			if (!Number.isFinite(parsed)) {
+				this._issues.push(`--${name} expects a number, got "${token.value}"`);
+				return;
+			}
+			this._parsed[key] = parsed;
+		} else if (def.type === "list") {
+			this._parsed[key] = this._explicitlySet.has(key)
+				? [...(this._parsed[key] as unknown[]), token.value]
+				: [token.value];
+		} else {
+			this._parsed[key] = token.value;
+		}
+
+		this._explicitlySet.add(key);
 	}
 
 	setRootCommand(command: string): ArgParser<T> {
@@ -222,6 +314,9 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 	 *
 	 * `--help`/`-h` short-circuits: prints `helpText()` and exits the process.
 	 *
+	 * A malformed command line (unknown option, missing value) throws {@linkcode ArgParseError}
+	 * listing every problem at once, before any prompting.
+	 *
 	 * Non-interactive (piped/CI): validates CLI-provided values and throws immediately
 	 * listing all missing required args. No prompting is attempted.
 	 *
@@ -236,6 +331,8 @@ export class ArgParser<T extends ArgDefsShape = ArgDefs> {
 			_write(this.helpText(this._rootCommand) + "\n");
 			Deno.exit(0);
 		}
+
+		if (this._issues.length > 0) throw new ArgParseError(this._issues);
 
 		const result = { ...existing, ...this._parsed } as Record<string, unknown>;
 		const ambient = currentSession();

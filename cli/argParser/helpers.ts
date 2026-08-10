@@ -14,7 +14,7 @@ import type {
 	StringArgDef,
 } from "./types.ts";
 import { DESCRIPTION_KEY } from "./types.ts";
-import { toKebabCase } from "@bearmetal/miscellanea";
+import { compareStrings, toKebabCase } from "@bearmetal/miscellanea";
 
 export function normalizeSpecs(required: RequiredInput | undefined): RequiredSpec[] {
 	if (required === undefined) return [];
@@ -63,6 +63,102 @@ export function collectHint(specs: RequiredSpec[]): string {
 
 export function isHelpFlag(rawArgs: string[]): boolean {
 	return rawArgs.includes("--help") || rawArgs.includes("-h");
+}
+
+// ─── Token classification ─────────────────────────────────────────────────────
+
+/**
+ * A single argv token, read for shape only — before it is matched against any defs.
+ *
+ * Classifying up front is what makes a mistyped or malformed option *detectable*. The parser
+ * previously pattern-matched inline and fell through silently on anything it didn't recognise,
+ * so `--contnet=x`, `--name value` and `-f=path` all ended up doing nothing at all.
+ */
+export type ArgToken =
+	/** Not an option: a command name, or a positional. */
+	| { kind: "positional"; raw: string }
+	/** `--` — everything after it is positional, whatever it looks like. */
+	| { kind: "terminator"; raw: string }
+	| {
+		kind: "named";
+		raw: string;
+		/** The name with dashes and any `no-` prefix stripped. */
+		name: string;
+		/** Present only for the `=value` form. */
+		value?: string;
+		negated: boolean;
+		short: boolean;
+	};
+
+/** Reads one argv token's shape. */
+export function classifyToken(raw: string): ArgToken {
+	if (raw === "--") return { kind: "terminator", raw };
+	// A negative number is a value, not an option. Without this, `-5` reads as `-5`.
+	if (!raw.startsWith("-") || /^-\d/.test(raw)) return { kind: "positional", raw };
+
+	const short = !raw.startsWith("--");
+	const body = raw.slice(short ? 1 : 2);
+	if (body.length === 0) return { kind: "positional", raw };
+
+	const eq = body.indexOf("=");
+	const rawName = eq === -1 ? body : body.slice(0, eq);
+	const value = eq === -1 ? undefined : body.slice(eq + 1);
+	const negated = value === undefined && rawName.startsWith("no-");
+
+	return {
+		kind: "named",
+		raw,
+		name: negated ? rawName.slice(3) : rawName,
+		value,
+		negated,
+		short,
+	};
+}
+
+/** How a named token was spelled, for error messages. */
+export function tokenLabel(token: Extract<ArgToken, { kind: "named" }>): string {
+	return `${token.short ? "-" : "--"}${token.negated ? "no-" : ""}${token.name}`;
+}
+
+/** Whether a token is `--help`/`-h`, which every parser answers before anything else. */
+export function isHelpToken(token: ArgToken): boolean {
+	return token.kind === "named" && (token.name === "help" || token.name === "h");
+}
+
+/** Booleans accepted for the `--flag=value` form. */
+export function parseBooleanValue(value: string): boolean | undefined {
+	const normalized = value.trim().toLowerCase();
+	if (["true", "yes", "y", "1", "on"].includes(normalized)) return true;
+	if (["false", "no", "n", "0", "off"].includes(normalized)) return false;
+	return undefined;
+}
+
+/** The closest declared name to `name`, when one is close enough to be worth suggesting. */
+export function suggestName(name: string, known: Iterable<string>): string | undefined {
+	let best: string | undefined;
+	let bestScore = Infinity;
+	for (const candidate of known) {
+		const score = compareStrings(name, candidate);
+		if (score < bestScore) {
+			bestScore = score;
+			best = candidate;
+		}
+	}
+	// Two edits on a short name is already a different word. Two on anything longer usually is
+	// not — and a transposition, the most common typo of all, costs two in plain Levenshtein
+	// (`nmae` → `name`), so a limit of one would miss exactly the case worth catching.
+	const limit = name.length >= 4 ? 2 : 1;
+	return best !== undefined && bestScore <= limit ? best : undefined;
+}
+
+/** `Unknown option --foo. Did you mean --food?` */
+export function unknownOptionMessage(
+	token: Extract<ArgToken, { kind: "named" }>,
+	known: Iterable<string>,
+): string {
+	const suggestion = suggestName(token.name, known);
+	const base = `Unknown option ${tokenLabel(token)}`;
+	return suggestion ? `${base}. Did you mean --${suggestion}?` : base;
 }
 
 export function descriptionOf(defs: Record<string, unknown>): string | undefined {
