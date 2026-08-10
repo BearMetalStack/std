@@ -131,8 +131,8 @@ ul {
 }
 
 span.highlight {
-	background-color: var(--color-bearmetal-400);
-	color: var(--color-text-subtle);
+	background-color: var(--color-highlight-bg);
+	color: var(--color-highlight-text);
 	display: inline-block;
 	padding: 0 var(--space-0-5);
 	border-radius: var(--radius-base);
