@@ -22,6 +22,7 @@ import { hasHeadContributors, headContributions } from "./head.ts";
 import { renderToTree, serializeTree } from "./render.ts";
 
 export { bundleEntrypoints, type BundleOutput } from "./bundle.ts";
+export { mirrorStripped, type StripOptions, type StrippedTree } from "./prestrip.ts";
 export { contributeHead, hasHeadContributors, type HeadContributor } from "./head.ts";
 export {
 	type RenderedTree,
