@@ -16,7 +16,7 @@ instance.
 ```tsx
 import { BMElement, define, prop, state } from "@bearmetal/app";
 
-@define("user-card", import.meta)
+@define("user-card")
 export class UserCard extends BMElement {
 	@prop()
 	accessor userId = this.signal("");
@@ -147,7 +147,7 @@ Some components have nothing worth serializing such as a canvas, a media player,
 `client` and the server emits its tag and attributes and stops:
 
 ```tsx
-@define("big-chart", import.meta)
+@define("big-chart")
 export class BigChart extends BMElement {
 	static override client = true;
 

@@ -39,7 +39,7 @@ The server half is `serverInit()`: an async instance method, run once as the com
 the server and never in a browser. It is where loading goes.
 
 ```tsx
-@define("my-component", import.meta)
+@define("my-component")
 export class MyComponent extends BMElement {
 	@state()
 	accessor rows = this.signal<Row[]>([]);

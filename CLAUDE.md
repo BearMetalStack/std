@@ -112,6 +112,31 @@ overrides it. Packages should only set genuinely package-specific `compilerOptio
 `jsxImportSource`, `types`). If you find yourself adding `lib` to a package, you are about to break
 its dependents. Run `deno task workspace:check` after touching any `deno.json`.
 
+## The client bundle (`stack/`, `app/ssr/`)
+
+One bundle for the whole app, built once at startup from the components directory (`components/` or
+`src/components/`), served from `/@bearmetal/components/index` with its CSS next to it, and
+_referenced_ from every page's `<head>` rather than inlined. Three rules follow from that and each
+one has bitten:
+
+- **Never bundle per page.** `Page()` used to collect the custom elements a page rendered and bundle
+  their modules. A client-side `<Router>` then navigates to a page whose components were never
+  shipped and finds nothing to upgrade with.
+- **Views name components, they do not import them.** A view is server-only. Importing a component
+  class renders it and does not ship it — only the components directory feeds the bundle.
+- **`stripServerCode` runs over minified output.** It empties `serverInit`/`stylesheet` bodies, and
+  a miss means database queries reach a browser. It works against a code/not-code mask built in one
+  pass (`scanMask`) precisely because the ad-hoc scanner it replaced did not know a regex literal
+  from division, desynced partway through a real bundle, and silently stopped stripping. It warns
+  loudly if a definition survives; treat that warning as a leak.
+
+`app/ssr` owns rendering and `bundleEntrypoints`; `stack` owns discovery, serving and the
+`contributeHead()` registration. `Page()` injects nothing on its own.
+
+The scaffolding templates are **generated from the example apps** (`deno task bm:templates` in
+`stack/`, output `stack/templates/embedded.ts`), so a template is type-checked by `workspace:check`
+like any other code. Edit `stack/examples/project`, then regenerate.
+
 ## The reserved `/@bearmetal/*` namespace (`router/`)
 
 Routes under `/@bearmetal/*` may only be registered by a `TrustedModule` (`router/module.ts`), an
@@ -161,13 +186,14 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
     failing at that point throws). `onStart()` runs once after all `onAdopted` checks pass, for
     async init like migrations.
 - **`app/`** — the component framework: `BMElement` (custom element base class wiring
-  signals/effects/refs/context into the Custom Elements lifecycle), `@define(tag, import.meta)`
-  decorator, `app/signals` (pinned TC39 Signals polyfill), `app/context` (both call-stack-scoped
-  "stack context" for SSR and DOM-tree-walking "DOM context" for components — extend via
+  signals/effects/refs/context into the Custom Elements lifecycle), the `@define(tag)` decorator
+  (one argument — it took `import.meta` while `Page()` bundled per page, and no longer does),
+  `app/signals` (pinned TC39 Signals polyfill), `app/context` (both call-stack-scoped "stack
+  context" for SSR and DOM-tree-walking "DOM context" for components — extend via
   declaration-merging `ContextMap`), `app/ssr` (`Layout`/`Page` router middleware plus the
   `renderToTree`/`renderToString` renderer — renders synchronously against Slag, settles every
-  `serverInit()` and promise the tree raised, snapshots `@state` into the markup, then finds the
-  used custom elements in the tree and bundles only those components' client modules into `<head>`).
+  `serverInit()` and promise the tree raised, snapshots `@state` into the markup, then appends
+  whatever registered a `contributeHead()` contributor to `<head>`).
   - Component lifecycle across the seam: one `template`, rendered by one runtime on both sides.
     `init()` is the browser half and never runs during a server render; `serverInit()` is the server
     half and never ships to the browser (`stripServerCode` empties it). `@state` marks the signals

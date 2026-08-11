@@ -9,7 +9,7 @@ Framework for building reactive web components with optional server-side renderi
 ```tsx
 import { BMElement, define } from "@bearmetal/app";
 
-@define("my-counter", import.meta)
+@define("my-counter")
 class MyCounter extends BMElement {
 	#count = this.signal(0);
 
@@ -56,15 +56,18 @@ context into a component lifecycle built on the browser's Custom Elements API.
 
 ### Registering a component
 
-The `@define` decorator sets the element's tag name. When `import.meta` is provided, it also records
-the module URL so `Page` can bundle the component for SSR.
+The `@define` decorator sets the element's tag name, normalizing it into a valid custom element name
+and putting it on the class as `static tag`.
 
 ```tsx
-@define("my-button", import.meta)
+@define("my-button")
 class MyButton extends BMElement {}
 ```
 
-For client-only components that are never used in SSR pages, `import.meta` is optional.
+It takes nothing else. `@define("tag", import.meta)` used to record the module URL so that `Page()`
+could find and bundle the component; the client bundle is now built from
+[the components directory](/getting-started/components/component-directory) in one pass, so there is
+nothing to record. Put a component in `@components` and it ships.
 
 ### Template
 
@@ -656,9 +659,8 @@ A terminal route handler that:
    one, with the request URL scoped to the render
 2. Renders it, then settles every `serverInit()` and promise the tree raised
 3. Snapshots each component's `@state` into its markup
-4. Finds `<head>` in the tree, and the custom elements the page actually used
-5. Inlines those components' stylesheets and their bundled client modules into `<head>`
-6. Serializes, with a `<!DOCTYPE>`
+4. Finds `<head>` in the tree and appends everything registered with `contributeHead()`
+5. Serializes, with a `<!DOCTYPE>`
 
 ```tsx
 router.route("/dashboard").get(
@@ -666,12 +668,26 @@ router.route("/dashboard").get(
 );
 ```
 
-Components must be decorated with `@define("tag", import.meta)` to appear in the bundle. Components
-without `import.meta` are silently skipped. A page with no `<head>` anywhere in it is serialized as
-a fragment, with no doctype and no bundle.
+`Page()` does not decide what the browser loads. `createStack()` from `@bearmetal/stack` builds one
+bundle for the whole app and registers the `<link>` and `<script>` that reference it; anything else
+that belongs in every page's head can register the same way. A page rendered with no contributor at
+all warns once, because a page full of custom elements and no bundle is always a mistake.
+
+A page with no `<head>` anywhere in it is serialized as a fragment, with no doctype and nothing
+injected.
 
 `serverInit` and `stylesheet` bodies are removed from the bundle on the way out, so a component's
 server-side dependencies never reach the browser.
+
+### `contributeHead(fn)`
+
+Registers a function that returns tags to append to every rendered page's `<head>`. It runs once per
+render, after the tree has settled, so it must be synchronous and must build fresh nodes each time.
+Returns a function that unregisters it.
+
+```tsx
+contributeHead(() => <script type="module" src="/analytics.js" />);
+```
 
 ::: warning Props handed to a component from a `Page()` view configure the server render and then
 they are gone — a declared `@prop` is written as a signal, not an attribute, and the view itself is
