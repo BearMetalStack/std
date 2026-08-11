@@ -1,17 +1,11 @@
-import { UntarStream } from "@std/tar";
-
 import type { CollectionMap } from "@bearmetal/miscellanea";
 
 import type { DenoConfig } from "./denoConfig.ts";
 import { type ResolveOptions, TemplateProcessor } from "./directive.ts";
 import type { flags } from "./flags.ts";
+import { templates } from "./templates/embedded.ts";
 
 type MainTemplateOpts = flags;
-
-interface MainTemplate {
-	imports: [specifier: string, names: string[]][];
-	middleware: string[];
-}
 
 const optional: Partial<
 	{
@@ -50,11 +44,19 @@ export function processFlagPartials(
 	return ropts;
 }
 
-export function denoJson(_projectName: string, packages: Set<string>) {
+/** Templates that can be scaffolded, for `--template` and its `--help` entry. */
+export const templateNames: readonly string[] = Object.keys(templates);
+
+/**
+ * The `deno.json` a scaffolded app starts with.
+ *
+ * Generated rather than templated because it is the one file whose contents
+ * depend on which optional modules were chosen.
+ */
+export function denoJson(_projectName: string, packages: Set<string>): string {
 	const imports: DenoConfig["imports"] = {
-		"@app/": "./app/",
-		"@views/": "./views/",
 		"@components/": "./components/",
+		"@views/": "./views/",
 	};
 	packages.forEach((pkg) => {
 		imports[`${pkg}`] = `jsr:${pkg}`;
@@ -68,24 +70,43 @@ export function denoJson(_projectName: string, packages: Set<string>) {
 			},
 			"bm:drip": {
 				description: "Generates theme completions and CSS",
-				command: "deno run jsr:@bearmetal/drip",
+				command: "deno run -RW jsr:@bearmetal/drip",
 			},
 			"bm:dev": {
-				description: "Starts the dev server",
-				command: "deno run -P=dev main.ts",
+				description: "Starts the dev server, rebuilding and reloading on a change",
+				command: "deno run -P=dev --watch main.ts",
+			},
+			"bm:start": {
+				description: "Starts the server in production mode",
+				command: "deno run -P=prod main.ts",
 			},
 		},
 		permissions: {
+			// `write` and `import` are what the client bundler needs: it writes a
+			// synthesized entrypoint to a temp file and imports every component
+			// module for its `@define` side effects.
 			dev: {
 				read: true,
+				write: true,
 				net: true,
+				import: true,
+				env: ["BEARMETAL_ENV"],
+			},
+			prod: {
+				read: true,
+				write: true,
+				net: true,
+				import: true,
+				env: ["BEARMETAL_ENV"],
 			},
 		},
+		// `Deno.bundle` is what builds the client bundle, and it is still unstable.
+		unstable: ["bundle"],
 		imports,
 		compilerOptions: {
 			jsx: "react-jsx",
 			jsxImportSource: "@bearmetal/jsx",
-			lib: ["deno.ns", "deno.window", "node", "dom"],
+			lib: ["deno.ns", "deno.window", "dom", "dom.iterable", "esnext"],
 			noImplicitOverride: false,
 		},
 		fmt: {
@@ -93,37 +114,32 @@ export function denoJson(_projectName: string, packages: Set<string>) {
 		},
 	};
 
-	return JSON.stringify(config, null, "\t");
+	return JSON.stringify(config, null, "\t") + "\n";
 }
 
-const version = "0.0.1-alpha.2";
-const templateBaseUrl =
-	`https://github.com/emmalineautumn/BMStackTemplates/archive/refs/tags/${version}.tar.gz`;
-export async function loadTemplateFiles(
+/**
+ * Writes a template into `targetDir`, resolving its directives against `opts`.
+ *
+ * The files are embedded in this package (see `templates/generate.ts`), so this
+ * touches the network not at all and cannot hand out a template written for a
+ * different version of the stack.
+ */
+export function loadTemplateFiles(
 	targetDir: string,
 	partials: CollectionMap<string, string>,
 	opts: ResolveOptions,
 	templateRoot = "default",
+	dryRun = false,
 ): Promise<void> {
-	if (Deno.args.includes("--dry-run")) return;
-	console.log(`   loading template "${templateRoot}"...`);
-	const tar = await fetch(templateBaseUrl);
-	const tarStream = tar.body;
-	if (!tarStream) throw new Error("No tar stream");
-	const processor = new TemplateProcessor(opts, { targetDir, partials });
-	for await (
-		const entry of tarStream
-			.pipeThrough(new DecompressionStream("gzip")).pipeThrough(
-				new UntarStream(),
-			)
-	) {
-		let path = entry.path;
-		if (!path.includes(templateRoot) || path.endsWith("deno.json")) {
-			entry.readable?.cancel();
-			continue;
-		}
-		path = path.split(templateRoot).at(-1) ?? "";
-		if (entry.readable) processor.scan(path, entry.readable);
+	const files = templates[templateRoot];
+	if (!files) {
+		throw new Error(
+			`Unknown template "${templateRoot}". Available: ${templateNames.join(", ")}.`,
+		);
 	}
+
+	console.log(`   loading template "${templateRoot}"...`);
+	const processor = new TemplateProcessor(opts, { targetDir, partials, dryRun });
+	for (const [path, contents] of Object.entries(files)) processor.scan(path, contents);
 	return processor.write(processor.resolve());
 }

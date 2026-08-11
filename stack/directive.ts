@@ -32,6 +32,8 @@ export interface ResolveOptions {
 export interface TemplateProcessorOptions {
 	targetDir: string;
 	partials: CollectionMap<string, string>;
+	/** Report what would be written without writing it. */
+	dryRun?: boolean;
 }
 
 export class TemplateProcessor {
@@ -40,21 +42,12 @@ export class TemplateProcessor {
 	constructor(private opts: ResolveOptions, private options: TemplateProcessorOptions) {}
 
 	/**
-	 * Scan a single file from the tar. Decodes the readable stream, strips
-	 * state directives (flag, include), records their effects, and stores
-	 * the cleaned content keyed by path. Content directives (partial) are
-	 * left in the content string. They fire during write when the full
-	 * partial map is guaranteed to be populated.
+	 * Scan a single template file. Strips state directives (flag, include),
+	 * records their effects, and stores the cleaned content keyed by path.
+	 * Content directives (partial) are left in the content string. They fire
+	 * during write when the full partial map is guaranteed to be populated.
 	 */
-	async scan(path: string, readable: ReadableStream<Uint8Array>): Promise<void> {
-		const reader = readable.pipeThrough(new TextDecoderStream() as any).getReader();
-		let text = "";
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			text += value;
-		}
-
+	scan(path: string, text: string): void {
 		const lines = text.split("\n");
 		const outputLines: string[] = [];
 		let requiredFlag: string | undefined;
@@ -160,6 +153,7 @@ export class TemplateProcessor {
 			const outPath = joinPath(this.options.targetDir, path);
 
 			console.log(`   writing ${outPath}...`);
+			if (this.options.dryRun) continue;
 			await Deno.mkdir(directoryOf(outPath), { recursive: true });
 			await Deno.writeTextFile(outPath, content);
 		}
@@ -197,12 +191,10 @@ export class TemplateProcessor {
 			const partial = this.#files.get(partialName) ??
 				this.options.partials.get(partialName)?.values().toArray()
 					.join("\n" + directive.indent);
-			if (!partial) {
-				console.error(
-					`bearmetal templator: @bearmetal-partial "${partialName}" referenced in "${sourcePath}" was not scanned`,
-				);
-				continue;
-			}
+			// An empty insertion point is the ordinary case, not a mistake: a
+			// `main-ts-imports` with nothing to insert means the user picked none of
+			// the optional modules. Drop the line and say nothing.
+			if (!partial) continue;
 
 			if (seen.has(partialName)) {
 				console.error(
