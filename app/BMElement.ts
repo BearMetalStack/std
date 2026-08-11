@@ -13,11 +13,11 @@ import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import { effect } from "./signals.ts";
 import { coerceProp, declaredProps } from "./prop.ts";
 import { declaredState } from "./state.ts";
+import { STATE_ATTRIBUTE, takeServerState } from "./hydration.ts";
 import { each } from "./built-ins/For.ts";
 import type { BMTemplate } from "./types.ts";
 
-/** Where a server render leaves the `@state` it wants the browser to pick up. */
-export const STATE_ATTRIBUTE = "data-bm-state";
+export { STATE_ATTRIBUTE } from "./hydration.ts";
 
 function isSignal(S: unknown): S is Signals.State<unknown> | Signals.Computed<unknown> {
 	return S instanceof Signal.State || S instanceof Signal.Computed;
@@ -321,9 +321,17 @@ export abstract class BMElement<
 		this.setAttribute(STATE_ATTRIBUTE, JSON.stringify(snapshot));
 	}
 
-	/** Reads server-rendered `@state` back into its signals, before the first render. */
+	/**
+	 * Reads server-rendered `@state` back into its signals, before the first render.
+	 *
+	 * The attribute is the direct case: this element is the one the server sent.
+	 * Failing that it asks {@linkcode takeServerState}, which is the same element
+	 * one rebuild later — the server-rendered original was discarded when an
+	 * ancestor re-rendered, and this is its replacement standing in the same
+	 * place. See `./hydration.ts`.
+	 */
 	#hydrateState(): void {
-		const raw = this.getAttribute(STATE_ATTRIBUTE);
+		const raw = this.getAttribute(STATE_ATTRIBUTE) ?? takeServerState(this);
 		if (raw == null) return;
 		this.removeAttribute(STATE_ATTRIBUTE);
 
