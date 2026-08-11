@@ -23,6 +23,17 @@
 
 const SERVER_FN_PREFIXES = ["server"];
 
+/**
+ * Modifiers that may sit between the start of a member and its name.
+ *
+ * All of them, in any order and any number, because this now runs over source
+ * as well as over bundler output: `override async serverInit()` is how the
+ * method is actually written, and a pattern that only knew `static`, `async`
+ * and `get` skipped every component that spelled it that way. TypeScript drops
+ * `override` on the way out, which is why post-bundle stripping never noticed.
+ */
+const MODIFIER = "(?:static|override|async|get|set|public|private|protected|abstract|declare)";
+
 /** One replacement to make, as an index range into the source. */
 type Edit = { start: number; end: number; text: string };
 
@@ -261,7 +272,7 @@ function findParenEnd(src: string, mask: Uint8Array, openParen: number): number 
  */
 function classMethodEdits(src: string, mask: Uint8Array, name: string): Edit[] {
 	const pattern = new RegExp(
-		`(^|[{};\\n])([ \\t\\n]*(?:static\\s+)?(?:async\\s+)?(?:get\\s+)?${name}\\s*\\()`,
+		`(^|[{};\\n])([ \\t\\n]*(?:${MODIFIER}\\s+)*${name}\\s*\\()`,
 		"g",
 	);
 	const edits: Edit[] = [];
@@ -433,7 +444,7 @@ export function stripServerCode(
 function reportSurvivors(src: string, name: string): void {
 	const mask = scanMask(src);
 	const pattern = new RegExp(
-		`(^|[{};\\n])[ \\t\\n]*(?:static\\s+)?(?:async\\s+)?(?:get\\s+)?${name}\\s*\\([^)]*\\)\\s*\\{[^}]`,
+		`(^|[{};\\n])[ \\t\\n]*(?:${MODIFIER}\\s+)*${name}\\s*\\([^)]*\\)\\s*\\{[^}]`,
 		"g",
 	);
 	let match: RegExpExecArray | null;
