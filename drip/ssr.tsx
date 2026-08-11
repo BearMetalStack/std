@@ -282,8 +282,8 @@ export function ComponentStyle(
 ): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
 	let style = css`
 		/* ============================================================
-		   form elements
-		   ============================================================ */
+		 form elements
+		 ============================================================ */
 
 		input,
 		select,
@@ -291,13 +291,16 @@ export function ComponentStyle(
 			font-family: var(--input-font-family);
 			font-size: var(--input-font-size);
 			background-color: var(--input-bg);
-			color: var(--input-text);
-			border: var(--input-border) solid var(--input-border-width);
+			color: var(--input-color);
+			border: var(--input-border-width) solid var(--input-border);
 			border-radius: var(--input-radius);
 			padding: var(--input-padding-y) var(--input-padding-x);
 			box-shadow: var(--input-shadow);
 			transition: var(--input-transition);
 
+			&::placeholder {
+				color: var(--input-color-placeholder);
+			}
 			&.small {
 				font-size: var(--input-font-size-sm);
 			}
@@ -306,6 +309,7 @@ export function ComponentStyle(
 			}
 			&:focus {
 				border-color: var(--input-border-focus);
+				box-shadow: var(--input-shadow-focus);
 			}
 			&:hover {
 				border-color: var(--input-border-hover);
@@ -313,13 +317,16 @@ export function ComponentStyle(
 			&:invalid {
 				border-color: var(--input-border-error);
 			}
+			&:disabled {
+				background-color: var(--input-bg-disabled);
+			}
 		}
 
 		fieldset {
 			padding: var(--space-2);
 			display: grid;
 			grid-template-columns: 1fr;
-			border: var(--color-text-subtle) solid var(--border-1);
+			border: var(--border-1) solid var(--color-border);
 			border-radius: var(--radius-base);
 			gap: var(--space-2);
 		}
@@ -352,7 +359,6 @@ export function ComponentStyle(
 			padding: var(--btn-padding) var(--btn-padding-x);
 
 			--btn-hover-color: var(--btn-primary-bg-hover);
-			--btn-active-border: var(--color-bearmetal-100);
 
 			&.full {
 				width: 100%;
@@ -387,16 +393,14 @@ export function ComponentStyle(
 			border-color: var(--btn-primary-border);
 			box-shadow: var(--btn-primary-shadow);
 
-			&.ghost,
-			&[type="reset"] {
+			&.ghost {
 				background-color: var(--btn-ghost-bg);
 				--btn-hover-color: var(--btn-ghost-bg-hover);
 				color: var(--btn-ghost-color);
 				border-color: var(--btn-ghost-border);
-				box-shadow: var(--btn-ghost-shadow);
+				box-shadow: none;
 			}
-			&.secondary,
-			&[type="button"] {
+			&.secondary {
 				background-color: var(--btn-secondary-bg);
 				--btn-hover-color: var(--btn-secondary-bg-hover);
 				color: var(--btn-secondary-color);
@@ -408,35 +412,32 @@ export function ComponentStyle(
 				--btn-hover-color: var(--btn-danger-bg-hover);
 				color: var(--btn-danger-color);
 				border-color: var(--btn-danger-border);
-				box-shadow: var(--btn-danger-shadow);
 			}
 			&.warn {
 				background-color: var(--btn-warning-bg);
 				--btn-hover-color: var(--btn-warning-bg-hover);
 				color: var(--btn-warning-color);
 				border-color: var(--btn-warning-border);
-				box-shadow: var(--btn-warning-shadow);
 			}
 			&.info {
 				background-color: var(--btn-info-bg);
 				--btn-hover-color: var(--btn-info-bg-hover);
 				color: var(--btn-info-color);
 				border-color: var(--btn-info-border);
-				box-shadow: var(--btn-info-shadow);
 			}
 			&.success {
 				background-color: var(--btn-success-bg);
 				--btn-hover-color: var(--btn-success-bg-hover);
 				color: var(--btn-success-color);
 				border-color: var(--btn-success-border);
-				box-shadow: var(--btn-success-shadow);
 			}
+
+			&.accent,
 			&.orange {
-				background-color: var(--btn-orange-bg);
-				--btn-hover-color: var(--btn-orange-bg-hover);
-				color: var(--btn-orange-color);
-				border-color: var(--btn-orange-border);
-				box-shadow: var(--btn-orange-shadow);
+				background-color: var(--btn-accent-bg);
+				--btn-hover-color: var(--btn-accent-bg-hover);
+				color: var(--btn-accent-color);
+				border-color: var(--btn-accent-border);
 			}
 
 			&:active {
@@ -445,6 +446,21 @@ export function ComponentStyle(
 			&:hover {
 				background-color: var(--btn-hover-color);
 			}
+		}
+
+		input[type="reset"] {
+			background-color: var(--btn-ghost-bg);
+			--btn-hover-color: var(--btn-ghost-bg-hover);
+			color: var(--btn-ghost-color);
+			border-color: var(--btn-ghost-border);
+			box-shadow: none;
+		}
+		input[type="button"] {
+			background-color: var(--btn-secondary-bg);
+			--btn-hover-color: var(--btn-secondary-bg-hover);
+			color: var(--btn-secondary-color);
+			border-color: var(--btn-secondary-border);
+			box-shadow: var(--btn-secondary-shadow);
 		}
 
 		body.rave-mode *:not(:has(*)) {
@@ -471,44 +487,44 @@ export function ComponentStyle(
 
 			--b-gradient-angle: 315deg;
 			--b-gradient: linear-gradient(
-								in oklch var(--b-gradient-angle),
-								oklch(from var(--b-gradient-from) l c h),
-								oklch(from var(--b-gradient-to) l c h)
-							);
+						in oklch var(--b-gradient-angle),
+						oklch(from var(--b-gradient-from) l c h),
+						oklch(from var(--b-gradient-to) l c h)
+					);
 			--bg: linear-gradient(var(--color-bg), var(--color-bg));
 			background:
 				var(--bg) padding-box,
 				var(--b-gradient) border-box;
 
 			&.border-ember {
-				--b-gradient-from: var(--color-bearmetal-600);
-				--b-gradient-to: var(--color-bearmetal-orange-400);
+				--b-gradient-from: var(--color-interactive);
+				--b-gradient-to: var(--color-accent);
 			}
 			&.border-nightshade {
-				--b-gradient-from: var(--color-bearmetal-600);
-				--b-gradient-to: var(--color-bearmetal-danger-500);
+				--b-gradient-from: var(--color-interactive);
+				--b-gradient-to: var(--btn-danger-bg);
 			}
 			&.border-abyss {
-				--b-gradient-from: var(--color-bearmetal-success-500);
-				--b-gradient-to: var(--color-bearmetal-info-500);
+				--b-gradient-from: var(--btn-success-bg);
+				--b-gradient-to: var(--btn-info-bg);
 			}
 			&.border-harvest {
-				--b-gradient-from: var(--color-bearmetal-warning-300);
-				--b-gradient-to: var(--color-bearmetal-orange-400);
+				--b-gradient-from: var(--btn-warning-bg);
+				--b-gradient-to: var(--color-accent);
 			}
 			&.border-witchwood {
-				--b-gradient-from: var(--color-bearmetal-500);
-				--b-gradient-to: var(--color-bearmetal-success-500);
+				--b-gradient-from: var(--color-interactive-hover);
+				--b-gradient-to: var(--btn-success-bg);
 			}
 		}
 
 		.gradient {
 			--gradient-angle: 135deg;
 			--gradient: linear-gradient(
-								in oklch var(--gradient-angle),
-								oklch(from var(--gradient-from) l c h),
-								oklch(from var(--gradient-to) l c h)
-							);
+						in oklch var(--gradient-angle),
+						oklch(from var(--gradient-from) l c h),
+						oklch(from var(--gradient-to) l c h)
+					);
 
 			--bg: var(--gradient);
 			&:not(.gradient-border) {
@@ -516,24 +532,24 @@ export function ComponentStyle(
 			}
 
 			&.ember {
-				--gradient-from: var(--color-bearmetal-600);
-				--gradient-to: var(--color-bearmetal-orange-400);
+				--gradient-from: var(--color-interactive);
+				--gradient-to: var(--color-accent);
 			}
 			&.nightshade {
-				--gradient-from: var(--color-bearmetal-600);
-				--gradient-to: var(--color-bearmetal-danger-500);
+				--gradient-from: var(--color-interactive);
+				--gradient-to: var(--btn-danger-bg);
 			}
 			&.abyss {
-				--gradient-from: var(--color-bearmetal-success-500);
-				--gradient-to: var(--color-bearmetal-info-500);
+				--gradient-from: var(--btn-success-bg);
+				--gradient-to: var(--btn-info-bg);
 			}
 			&.harvest {
-				--gradient-from: var(--color-bearmetal-warning-300);
-				--gradient-to: var(--color-bearmetal-orange-400);
+				--gradient-from: var(--btn-warning-bg);
+				--gradient-to: var(--color-accent);
 			}
 			&.witchwood {
-				--gradient-from: var(--color-bearmetal-500);
-				--gradient-to: var(--color-bearmetal-success-500);
+				--gradient-from: var(--color-interactive-hover);
+				--gradient-to: var(--btn-success-bg);
 			}
 		}
 

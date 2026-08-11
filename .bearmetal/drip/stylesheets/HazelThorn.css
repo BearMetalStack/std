@@ -585,535 +585,295 @@
 	inherits: true;
 	initial-value: transparent;
 }
-@property --color-bg_base-50 {
+@property --color-bg-base-50 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #e8fff2;
+	initial-value: #f9f7ff;
 }
-@property --color-bg_base-100 {
+@property --color-bg-base-100 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #cbe6d7;
+	initial-value: #e0dbeb;
 }
-@property --color-bg_base-200 {
+@property --color-bg-base-200 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #b1ccbd;
+	initial-value: #c6c1d1;
 }
-@property --color-bg_base-300 {
+@property --color-bg-base-300 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #98b2a4;
+	initial-value: #ada8b7;
 }
-@property --color-bg_base-400 {
+@property --color-bg-base-400 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #809a8c;
+	initial-value: #948f9e;
 }
-@property --color-bg_base-500 {
+@property --color-bg-base-500 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #698274;
+	initial-value: #7c7786;
 }
-@property --color-bg_base-600 {
+@property --color-bg-base-600 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #526a5d;
+	initial-value: #65606e;
 }
-@property --color-bg_base-700 {
+@property --color-bg-base-700 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #3d5447;
+	initial-value: #4f4a58;
 }
-@property --color-bg_base-800 {
+@property --color-bg-base-800 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #283e33;
+	initial-value: #3a3542;
 }
-@property --color-bg_base-900 {
+@property --color-bg-base-900 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #142a1f;
+	initial-value: #26212d;
 }
-@property --color-bg_base-950 {
+@property --color-bg-base-950 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #000502;
+	initial-value: #130f1a;
 }
-@property --color-bg_base {
+@property --color-bg-base {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #142a1f;
+	initial-value: #130f1a;
 }
-@property --color-surface_moss-50 {
+@property --color-surface-50 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #e9fff1;
+	initial-value: #faf7ff;
 }
-@property --color-surface_moss-100 {
+@property --color-surface-100 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #c9e4d4;
+	initial-value: #e1d8ef;
 }
-@property --color-surface_moss-200 {
+@property --color-surface-200 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #aec8b9;
+	initial-value: #c6bdd3;
 }
-@property --color-surface_moss-300 {
+@property --color-surface-300 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #94ad9e;
+	initial-value: #aba3b8;
 }
-@property --color-surface_moss-400 {
+@property --color-surface-400 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #7a9384;
+	initial-value: #92899e;
 }
-@property --color-surface_moss-500 {
+@property --color-surface-500 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #61796b;
+	initial-value: #797084;
 }
-@property --color-surface_moss-600 {
+@property --color-surface-600 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #496153;
+	initial-value: #60596c;
 }
-@property --color-surface_moss-700 {
+@property --color-surface-700 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #33493d;
+	initial-value: #494254;
 }
-@property --color-surface_moss-800 {
+@property --color-surface-800 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #1d3327;
+	initial-value: #342c3d;
 }
-@property --color-surface_moss-900 {
+@property --color-surface-900 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #051b10;
+	initial-value: #1f1828;
 }
-@property --color-surface_moss-950 {
+@property --color-surface-950 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #000502;
+	initial-value: #05020b;
 }
-@property --color-surface_moss {
+@property --color-surface {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #1d3327;
+	initial-value: #1f1828;
 }
 @property --color-primary-50 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #e9fff0;
+	initial-value: #faf7ff;
 }
 @property --color-primary-100 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #baffd2;
+	initial-value: #e4d3ff;
 }
 @property --color-primary-200 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #7bffb1;
+	initial-value: #cfafff;
 }
 @property --color-primary-300 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #6ef2a5;
+	initial-value: #bb88ff;
 }
 @property --color-primary-400 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #44cd83;
+	initial-value: #a466ed;
 }
 @property --color-primary-500 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #00aa62;
+	initial-value: #8a4bd0;
 }
 @property --color-primary-600 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #00844b;
+	initial-value: #702cb2;
 }
 @property --color-primary-700 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #006035;
+	initial-value: #560093;
 }
 @property --color-primary-800 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #003e20;
+	initial-value: #390064;
 }
 @property --color-primary-900 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #001f0d;
+	initial-value: #1e0038;
 }
 @property --color-primary-950 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #000501;
+	initial-value: #060011;
 }
 @property --color-primary {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #6ef2a5;
-}
-@property --color-accent_spore-50 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #ebfcff;
-}
-@property --color-accent_spore-100 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #b6f5ff;
-}
-@property --color-accent_spore-200 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #78ecfd;
-}
-@property --color-accent_spore-300 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #67dced;
-}
-@property --color-accent_spore-400 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #40bacb;
-}
-@property --color-accent_spore-500 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #0099a9;
-}
-@property --color-accent_spore-600 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #007683;
-}
-@property --color-accent_spore-700 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #005660;
-}
-@property --color-accent_spore-800 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #00373e;
-}
-@property --color-accent_spore-900 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #001b1f;
-}
-@property --color-accent_spore-950 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #000405;
-}
-@property --color-accent_spore {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #67dced;
-}
-@property --color-accent_amber-50 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #fff7ed;
-}
-@property --color-accent_amber-100 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #ffe0b7;
-}
-@property --color-accent_amber-200 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #ffc879;
-}
-@property --color-accent_amber-300 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #f3b24f;
-}
-@property --color-accent_amber-400 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #e0a03a;
-}
-@property --color-accent_amber-500 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #bc7f00;
-}
-@property --color-accent_amber-600 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #926200;
-}
-@property --color-accent_amber-700 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #6b4600;
-}
-@property --color-accent_amber-800 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #452c00;
-}
-@property --color-accent_amber-900 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #231400;
-}
-@property --color-accent_amber-950 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #060300;
-}
-@property --color-accent_amber {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #e0a03a;
-}
-@property --color-text_bone-50 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #eaf2e8;
-}
-@property --color-text_bone-100 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #ced6cc;
-}
-@property --color-text_bone-200 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #b3bbb1;
-}
-@property --color-text_bone-300 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #98a097;
-}
-@property --color-text_bone-400 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #7f867d;
-}
-@property --color-text_bone-500 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #666d64;
-}
-@property --color-text_bone-600 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #4e554d;
-}
-@property --color-text_bone-700 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #383e36;
-}
-@property --color-text_bone-800 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #232921;
-}
-@property --color-text_bone-900 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #0f140e;
-}
-@property --color-text_bone-950 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #020401;
-}
-@property --color-text_bone {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #eaf2e8;
-}
-@property --color-text_soil-50 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #effdf4;
-}
-@property --color-text_soil-100 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #d5e3da;
-}
-@property --color-text_soil-200 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #bccac1;
-}
-@property --color-text_soil-300 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #a4b1a9;
-}
-@property --color-text_soil-400 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #8c9991;
-}
-@property --color-text_soil-500 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #75827a;
-}
-@property --color-text_soil-600 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #5f6b63;
-}
-@property --color-text_soil-700 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #4a554e;
-}
-@property --color-text_soil-800 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #354039;
-}
-@property --color-text_soil-900 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #222d26;
-}
-@property --color-text_soil-950 {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #101a14;
-}
-@property --color-text_soil {
-	syntax: "<color>";
-	inherits: true;
-	initial-value: #101a14;
+	initial-value: #8a4bd0;
 }
 @property --color-success-50 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #eaffef;
+	initial-value: #ecffe7;
 }
 @property --color-success-100 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #aeffc7;
+	initial-value: #b3f2a0;
 }
 @property --color-success-200 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #79f8a7;
+	initial-value: #99d786;
 }
 @property --color-success-300 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #68e898;
+	initial-value: #80bd6d;
 }
 @property --color-success-400 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #57d889;
+	initial-value: #67a354;
 }
 @property --color-success-500 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #45c97b;
+	initial-value: #4f8a3c;
 }
 @property --color-success-600 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #009f56;
+	initial-value: #336e1e;
 }
 @property --color-success-700 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #00733c;
+	initial-value: #1a5100;
 }
 @property --color-success-800 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #004a25;
+	initial-value: #0e3500;
 }
 @property --color-success-900 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #00240f;
+	initial-value: #051b00;
 }
 @property --color-success-950 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #000501;
+	initial-value: #010500;
 }
 @property --color-success {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #45c97b;
+	initial-value: #4f8a3c;
 }
 @property --color-error-50 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #fff6f5;
+	initial-value: #fff6f6;
 }
 @property --color-error-100 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #ffd5d2;
+	initial-value: #ffcac8;
 }
 @property --color-error-200 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #ffb2ae;
+	initial-value: #ff9998;
 }
 @property --color-error-300 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #ff8b89;
+	initial-value: #f7666b;
 }
 @property --color-error-400 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #fa6164;
+	initial-value: #d5464f;
 }
 @property --color-error-500 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #e0484f;
+	initial-value: #b32334;
 }
 @property --color-error-600 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #bb2031;
+	initial-value: #940021;
 }
 @property --color-error-700 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #8f001c;
+	initial-value: #6e0016;
 }
 @property --color-error-800 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #5f000f;
+	initial-value: #4b000c;
 }
 @property --color-error-900 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #330005;
+	initial-value: #2a0004;
 }
 @property --color-error-950 {
 	syntax: "<color>";
@@ -1123,247 +883,367 @@
 @property --color-error {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #e0484f;
+	initial-value: #b32334;
 }
 @property --color-warning-50 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #fff8ea;
+	initial-value: #fff7ef;
 }
 @property --color-warning-100 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #ffeac4;
+	initial-value: #ffdebe;
 }
 @property --color-warning-200 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #ffdb9b;
+	initial-value: #ffc488;
 }
 @property --color-warning-300 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #ffcc6c;
+	initial-value: #fda848;
 }
 @property --color-warning-400 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #fbbe3a;
+	initial-value: #e89530;
 }
 @property --color-warning-500 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #efb229;
+	initial-value: #d4820f;
 }
 @property --color-warning-600 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #bb8800;
+	initial-value: #a66300;
 }
 @property --color-warning-700 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #876100;
+	initial-value: #794700;
 }
 @property --color-warning-800 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #573d00;
+	initial-value: #4f2c00;
 }
 @property --color-warning-900 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #2b1c00;
+	initial-value: #281400;
 }
 @property --color-warning-950 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #060300;
+	initial-value: #070200;
 }
 @property --color-warning {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #efb229;
+	initial-value: #d4820f;
 }
 @property --color-info-50 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #f3f9ff;
+	initial-value: #f0fbff;
 }
 @property --color-info-100 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #d2e9ff;
+	initial-value: #b0e9ff;
 }
 @property --color-info-200 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #afd9ff;
+	initial-value: #7dd4f3;
 }
 @property --color-info-300 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #8bc9ff;
+	initial-value: #64bbd9;
 }
 @property --color-info-400 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #68b8fb;
+	initial-value: #4aa3c0;
 }
 @property --color-info-500 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #56a6e8;
+	initial-value: #2f8ba8;
 }
 @property --color-info-600 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #2e80c0;
+	initial-value: #006d88;
 }
 @property --color-info-700 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #005c96;
+	initial-value: #004f64;
 }
 @property --color-info-800 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #003b62;
+	initial-value: #003342;
 }
 @property --color-info-900 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #001c33;
+	initial-value: #001922;
 }
 @property --color-info-950 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #00040a;
+	initial-value: #000407;
 }
 @property --color-info {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #56a6e8;
+	initial-value: #2f8ba8;
 }
-@property --color-border_moss-50 {
+@property --color-text-light-50 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #eaffee;
+	initial-value: #faf6ff;
 }
-@property --color-border_moss-100 {
+@property --color-text-light-100 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #c1e5c9;
+	initial-value: #ece5f4;
 }
-@property --color-border_moss-200 {
+@property --color-text-light-200 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #a4c7ac;
+	initial-value: #cec7d6;
 }
-@property --color-border_moss-300 {
+@property --color-text-light-300 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #87aa8f;
+	initial-value: #b0aab8;
 }
-@property --color-border_moss-400 {
+@property --color-text-light-400 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #6c8e74;
+	initial-value: #948d9b;
 }
-@property --color-border_moss-500 {
+@property --color-text-light-500 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #52735a;
+	initial-value: #78727f;
 }
-@property --color-border_moss-600 {
+@property --color-text-light-600 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #3b5b43;
+	initial-value: #5e5864;
 }
-@property --color-border_moss-700 {
+@property --color-text-light-700 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #24442d;
+	initial-value: #453f4b;
 }
-@property --color-border_moss-800 {
+@property --color-text-light-800 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #0e2e18;
+	initial-value: #2d2733;
 }
-@property --color-border_moss-900 {
+@property --color-text-light-900 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #001807;
+	initial-value: #17121c;
 }
-@property --color-border_moss-950 {
+@property --color-text-light-950 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #000501;
+	initial-value: #050208;
 }
-@property --color-border_moss {
+@property --color-text-light {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #52735a;
+	initial-value: #ece5f4;
 }
-@property --color-neutral_stone-50 {
+@property --color-text-dark-50 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #f2fbf4;
+	initial-value: #faf7ff;
 }
-@property --color-neutral_stone-100 {
+@property --color-text-dark-100 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #dde6df;
+	initial-value: #e2d8ef;
 }
-@property --color-neutral_stone-200 {
+@property --color-text-dark-200 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #c8d2ca;
+	initial-value: #c7bed4;
 }
-@property --color-neutral_stone-300 {
+@property --color-text-dark-300 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #b4bdb6;
+	initial-value: #ada4b9;
 }
-@property --color-neutral_stone-400 {
+@property --color-text-dark-400 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #a0a9a2;
+	initial-value: #938b9f;
 }
-@property --color-neutral_stone-500 {
+@property --color-text-dark-500 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #8d968f;
+	initial-value: #7b7286;
 }
-@property --color-neutral_stone-600 {
+@property --color-text-dark-600 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #6c746e;
+	initial-value: #635b6e;
 }
-@property --color-neutral_stone-700 {
+@property --color-text-dark-700 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #4c544e;
+	initial-value: #4c4457;
 }
-@property --color-neutral_stone-800 {
+@property --color-text-dark-800 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #2f3631;
+	initial-value: #362f40;
 }
-@property --color-neutral_stone-900 {
+@property --color-text-dark-900 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #141b16;
+	initial-value: #221b2b;
 }
-@property --color-neutral_stone-950 {
+@property --color-text-dark-950 {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #010402;
+	initial-value: #05020b;
 }
-@property --color-neutral_stone {
+@property --color-text-dark {
 	syntax: "<color>";
 	inherits: true;
-	initial-value: #8d968f;
+	initial-value: #221b2b;
+}
+@property --color-border-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #faf7ff;
+}
+@property --color-border-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #e1d4f1;
+}
+@property --color-border-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #c4b7d3;
+}
+@property --color-border-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #a79bb6;
+}
+@property --color-border-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #8b809a;
+}
+@property --color-border-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #71657e;
+}
+@property --color-border-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #574c64;
+}
+@property --color-border-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #40364c;
+}
+@property --color-border-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #2b2136;
+}
+@property --color-border-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #170d21;
+}
+@property --color-border-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #06010d;
+}
+@property --color-border {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #574c64;
+}
+@property --color-neutral-50 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #fbf6ff;
+}
+@property --color-neutral-100 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #e0d5ec;
+}
+@property --color-neutral-200 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #c3b8ce;
+}
+@property --color-neutral-300 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #a69bb1;
+}
+@property --color-neutral-400 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #8a8094;
+}
+@property --color-neutral-500 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #6f6579;
+}
+@property --color-neutral-600 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #574d61;
+}
+@property --color-neutral-700 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #403749;
+}
+@property --color-neutral-800 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #2b2233;
+}
+@property --color-neutral-900 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #170e1e;
+}
+@property --color-neutral-950 {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #05010b;
+}
+@property --color-neutral {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #6f6579;
 }
 /* #endregion */
 
@@ -1903,441 +1783,405 @@
 
 /* 
 ╔════════════════╗
-║ COLOR: bg_base ║
+║ COLOR: bg-base ║
 ╚════════════════╝ */
 
-	--color-bg_base-50: #e8fff2;
-	--color-bg_base-100: #cbe6d7;
-	--color-bg_base-200: #b1ccbd;
-	--color-bg_base-300: #98b2a4;
-	--color-bg_base-400: #809a8c;
-	--color-bg_base-500: #698274;
-	--color-bg_base-600: #526a5d;
-	--color-bg_base-700: #3d5447;
-	--color-bg_base-800: #283e33;
-	--color-bg_base-900: #142a1f;
-	--color-bg_base-950: #000502;
-	--color-bg_base: #142a1f;
+	--color-bg-base-50: #f9f7ff;
+	--color-bg-base-100: #e0dbeb;
+	--color-bg-base-200: #c6c1d1;
+	--color-bg-base-300: #ada8b7;
+	--color-bg-base-400: #948f9e;
+	--color-bg-base-500: #7c7786;
+	--color-bg-base-600: #65606e;
+	--color-bg-base-700: #4f4a58;
+	--color-bg-base-800: #3a3542;
+	--color-bg-base-900: #26212d;
+	--color-bg-base-950: #130f1a;
+	--color-bg-base: #130f1a;
 
 /* 
-╔═════════════════════╗
-║ COLOR: surface_moss ║
-╚═════════════════════╝ */
+╔════════════════╗
+║ COLOR: surface ║
+╚════════════════╝ */
 
-	--color-surface_moss-50: #e9fff1;
-	--color-surface_moss-100: #c9e4d4;
-	--color-surface_moss-200: #aec8b9;
-	--color-surface_moss-300: #94ad9e;
-	--color-surface_moss-400: #7a9384;
-	--color-surface_moss-500: #61796b;
-	--color-surface_moss-600: #496153;
-	--color-surface_moss-700: #33493d;
-	--color-surface_moss-800: #1d3327;
-	--color-surface_moss-900: #051b10;
-	--color-surface_moss-950: #000502;
-	--color-surface_moss: #1d3327;
+	--color-surface-50: #faf7ff;
+	--color-surface-100: #e1d8ef;
+	--color-surface-200: #c6bdd3;
+	--color-surface-300: #aba3b8;
+	--color-surface-400: #92899e;
+	--color-surface-500: #797084;
+	--color-surface-600: #60596c;
+	--color-surface-700: #494254;
+	--color-surface-800: #342c3d;
+	--color-surface-900: #1f1828;
+	--color-surface-950: #05020b;
+	--color-surface: #1f1828;
 
 /* 
 ╔════════════════╗
 ║ COLOR: primary ║
 ╚════════════════╝ */
 
-	--color-primary-50: #e9fff0;
-	--color-primary-100: #baffd2;
-	--color-primary-200: #7bffb1;
-	--color-primary-300: #6ef2a5;
-	--color-primary-400: #44cd83;
-	--color-primary-500: #00aa62;
-	--color-primary-600: #00844b;
-	--color-primary-700: #006035;
-	--color-primary-800: #003e20;
-	--color-primary-900: #001f0d;
-	--color-primary-950: #000501;
-	--color-primary: #6ef2a5;
-
-/* 
-╔═════════════════════╗
-║ COLOR: accent_spore ║
-╚═════════════════════╝ */
-
-	--color-accent_spore-50: #ebfcff;
-	--color-accent_spore-100: #b6f5ff;
-	--color-accent_spore-200: #78ecfd;
-	--color-accent_spore-300: #67dced;
-	--color-accent_spore-400: #40bacb;
-	--color-accent_spore-500: #0099a9;
-	--color-accent_spore-600: #007683;
-	--color-accent_spore-700: #005660;
-	--color-accent_spore-800: #00373e;
-	--color-accent_spore-900: #001b1f;
-	--color-accent_spore-950: #000405;
-	--color-accent_spore: #67dced;
-
-/* 
-╔═════════════════════╗
-║ COLOR: accent_amber ║
-╚═════════════════════╝ */
-
-	--color-accent_amber-50: #fff7ed;
-	--color-accent_amber-100: #ffe0b7;
-	--color-accent_amber-200: #ffc879;
-	--color-accent_amber-300: #f3b24f;
-	--color-accent_amber-400: #e0a03a;
-	--color-accent_amber-500: #bc7f00;
-	--color-accent_amber-600: #926200;
-	--color-accent_amber-700: #6b4600;
-	--color-accent_amber-800: #452c00;
-	--color-accent_amber-900: #231400;
-	--color-accent_amber-950: #060300;
-	--color-accent_amber: #e0a03a;
-
-/* 
-╔══════════════════╗
-║ COLOR: text_bone ║
-╚══════════════════╝ */
-
-	--color-text_bone-50: #eaf2e8;
-	--color-text_bone-100: #ced6cc;
-	--color-text_bone-200: #b3bbb1;
-	--color-text_bone-300: #98a097;
-	--color-text_bone-400: #7f867d;
-	--color-text_bone-500: #666d64;
-	--color-text_bone-600: #4e554d;
-	--color-text_bone-700: #383e36;
-	--color-text_bone-800: #232921;
-	--color-text_bone-900: #0f140e;
-	--color-text_bone-950: #020401;
-	--color-text_bone: #eaf2e8;
-
-/* 
-╔══════════════════╗
-║ COLOR: text_soil ║
-╚══════════════════╝ */
-
-	--color-text_soil-50: #effdf4;
-	--color-text_soil-100: #d5e3da;
-	--color-text_soil-200: #bccac1;
-	--color-text_soil-300: #a4b1a9;
-	--color-text_soil-400: #8c9991;
-	--color-text_soil-500: #75827a;
-	--color-text_soil-600: #5f6b63;
-	--color-text_soil-700: #4a554e;
-	--color-text_soil-800: #354039;
-	--color-text_soil-900: #222d26;
-	--color-text_soil-950: #101a14;
-	--color-text_soil: #101a14;
+	--color-primary-50: #faf7ff;
+	--color-primary-100: #e4d3ff;
+	--color-primary-200: #cfafff;
+	--color-primary-300: #bb88ff;
+	--color-primary-400: #a466ed;
+	--color-primary-500: #8a4bd0;
+	--color-primary-600: #702cb2;
+	--color-primary-700: #560093;
+	--color-primary-800: #390064;
+	--color-primary-900: #1e0038;
+	--color-primary-950: #060011;
+	--color-primary: #8a4bd0;
 
 /* 
 ╔════════════════╗
 ║ COLOR: success ║
 ╚════════════════╝ */
 
-	--color-success-50: #eaffef;
-	--color-success-100: #aeffc7;
-	--color-success-200: #79f8a7;
-	--color-success-300: #68e898;
-	--color-success-400: #57d889;
-	--color-success-500: #45c97b;
-	--color-success-600: #009f56;
-	--color-success-700: #00733c;
-	--color-success-800: #004a25;
-	--color-success-900: #00240f;
-	--color-success-950: #000501;
-	--color-success: #45c97b;
+	--color-success-50: #ecffe7;
+	--color-success-100: #b3f2a0;
+	--color-success-200: #99d786;
+	--color-success-300: #80bd6d;
+	--color-success-400: #67a354;
+	--color-success-500: #4f8a3c;
+	--color-success-600: #336e1e;
+	--color-success-700: #1a5100;
+	--color-success-800: #0e3500;
+	--color-success-900: #051b00;
+	--color-success-950: #010500;
+	--color-success: #4f8a3c;
 
 /* 
 ╔══════════════╗
 ║ COLOR: error ║
 ╚══════════════╝ */
 
-	--color-error-50: #fff6f5;
-	--color-error-100: #ffd5d2;
-	--color-error-200: #ffb2ae;
-	--color-error-300: #ff8b89;
-	--color-error-400: #fa6164;
-	--color-error-500: #e0484f;
-	--color-error-600: #bb2031;
-	--color-error-700: #8f001c;
-	--color-error-800: #5f000f;
-	--color-error-900: #330005;
+	--color-error-50: #fff6f6;
+	--color-error-100: #ffcac8;
+	--color-error-200: #ff9998;
+	--color-error-300: #f7666b;
+	--color-error-400: #d5464f;
+	--color-error-500: #b32334;
+	--color-error-600: #940021;
+	--color-error-700: #6e0016;
+	--color-error-800: #4b000c;
+	--color-error-900: #2a0004;
 	--color-error-950: #0d0001;
-	--color-error: #e0484f;
+	--color-error: #b32334;
 
 /* 
 ╔════════════════╗
 ║ COLOR: warning ║
 ╚════════════════╝ */
 
-	--color-warning-50: #fff8ea;
-	--color-warning-100: #ffeac4;
-	--color-warning-200: #ffdb9b;
-	--color-warning-300: #ffcc6c;
-	--color-warning-400: #fbbe3a;
-	--color-warning-500: #efb229;
-	--color-warning-600: #bb8800;
-	--color-warning-700: #876100;
-	--color-warning-800: #573d00;
-	--color-warning-900: #2b1c00;
-	--color-warning-950: #060300;
-	--color-warning: #efb229;
+	--color-warning-50: #fff7ef;
+	--color-warning-100: #ffdebe;
+	--color-warning-200: #ffc488;
+	--color-warning-300: #fda848;
+	--color-warning-400: #e89530;
+	--color-warning-500: #d4820f;
+	--color-warning-600: #a66300;
+	--color-warning-700: #794700;
+	--color-warning-800: #4f2c00;
+	--color-warning-900: #281400;
+	--color-warning-950: #070200;
+	--color-warning: #d4820f;
 
 /* 
 ╔═════════════╗
 ║ COLOR: info ║
 ╚═════════════╝ */
 
-	--color-info-50: #f3f9ff;
-	--color-info-100: #d2e9ff;
-	--color-info-200: #afd9ff;
-	--color-info-300: #8bc9ff;
-	--color-info-400: #68b8fb;
-	--color-info-500: #56a6e8;
-	--color-info-600: #2e80c0;
-	--color-info-700: #005c96;
-	--color-info-800: #003b62;
-	--color-info-900: #001c33;
-	--color-info-950: #00040a;
-	--color-info: #56a6e8;
+	--color-info-50: #f0fbff;
+	--color-info-100: #b0e9ff;
+	--color-info-200: #7dd4f3;
+	--color-info-300: #64bbd9;
+	--color-info-400: #4aa3c0;
+	--color-info-500: #2f8ba8;
+	--color-info-600: #006d88;
+	--color-info-700: #004f64;
+	--color-info-800: #003342;
+	--color-info-900: #001922;
+	--color-info-950: #000407;
+	--color-info: #2f8ba8;
 
 /* 
-╔════════════════════╗
-║ COLOR: border_moss ║
-╚════════════════════╝ */
+╔═══════════════════╗
+║ COLOR: text-light ║
+╚═══════════════════╝ */
 
-	--color-border_moss-50: #eaffee;
-	--color-border_moss-100: #c1e5c9;
-	--color-border_moss-200: #a4c7ac;
-	--color-border_moss-300: #87aa8f;
-	--color-border_moss-400: #6c8e74;
-	--color-border_moss-500: #52735a;
-	--color-border_moss-600: #3b5b43;
-	--color-border_moss-700: #24442d;
-	--color-border_moss-800: #0e2e18;
-	--color-border_moss-900: #001807;
-	--color-border_moss-950: #000501;
-	--color-border_moss: #52735a;
+	--color-text-light-50: #faf6ff;
+	--color-text-light-100: #ece5f4;
+	--color-text-light-200: #cec7d6;
+	--color-text-light-300: #b0aab8;
+	--color-text-light-400: #948d9b;
+	--color-text-light-500: #78727f;
+	--color-text-light-600: #5e5864;
+	--color-text-light-700: #453f4b;
+	--color-text-light-800: #2d2733;
+	--color-text-light-900: #17121c;
+	--color-text-light-950: #050208;
+	--color-text-light: #ece5f4;
 
 /* 
-╔══════════════════════╗
-║ COLOR: neutral_stone ║
-╚══════════════════════╝ */
+╔══════════════════╗
+║ COLOR: text-dark ║
+╚══════════════════╝ */
 
-	--color-neutral_stone-50: #f2fbf4;
-	--color-neutral_stone-100: #dde6df;
-	--color-neutral_stone-200: #c8d2ca;
-	--color-neutral_stone-300: #b4bdb6;
-	--color-neutral_stone-400: #a0a9a2;
-	--color-neutral_stone-500: #8d968f;
-	--color-neutral_stone-600: #6c746e;
-	--color-neutral_stone-700: #4c544e;
-	--color-neutral_stone-800: #2f3631;
-	--color-neutral_stone-900: #141b16;
-	--color-neutral_stone-950: #010402;
-	--color-neutral_stone: #8d968f;
+	--color-text-dark-50: #faf7ff;
+	--color-text-dark-100: #e2d8ef;
+	--color-text-dark-200: #c7bed4;
+	--color-text-dark-300: #ada4b9;
+	--color-text-dark-400: #938b9f;
+	--color-text-dark-500: #7b7286;
+	--color-text-dark-600: #635b6e;
+	--color-text-dark-700: #4c4457;
+	--color-text-dark-800: #362f40;
+	--color-text-dark-900: #221b2b;
+	--color-text-dark-950: #05020b;
+	--color-text-dark: #221b2b;
+
+/* 
+╔═══════════════╗
+║ COLOR: border ║
+╚═══════════════╝ */
+
+	--color-border-50: #faf7ff;
+	--color-border-100: #e1d4f1;
+	--color-border-200: #c4b7d3;
+	--color-border-300: #a79bb6;
+	--color-border-400: #8b809a;
+	--color-border-500: #71657e;
+	--color-border-600: #574c64;
+	--color-border-700: #40364c;
+	--color-border-800: #2b2136;
+	--color-border-900: #170d21;
+	--color-border-950: #06010d;
+	--color-border: #574c64;
+
+/* 
+╔════════════════╗
+║ COLOR: neutral ║
+╚════════════════╝ */
+
+	--color-neutral-50: #fbf6ff;
+	--color-neutral-100: #e0d5ec;
+	--color-neutral-200: #c3b8ce;
+	--color-neutral-300: #a69bb1;
+	--color-neutral-400: #8a8094;
+	--color-neutral-500: #6f6579;
+	--color-neutral-600: #574d61;
+	--color-neutral-700: #403749;
+	--color-neutral-800: #2b2233;
+	--color-neutral-900: #170e1e;
+	--color-neutral-950: #05010b;
+	--color-neutral: #6f6579;
 
 /* #endregion */
 
 }
 
 :root, :root[data-theme="light"], [data-theme=light] {
-	--color-bg: var(--color-bg_base-50);
-	--color-bg-subtle: var(--color-bg_base-100);
-	--color-bg-muted: var(--color-bg_base-200);
-	--color-bg-emphasis: var(--color-surface_moss-200);
-	--color-surface: var(--color-text_bone-50);
-	--color-surface-raised: var(--color-text_bone-100);
-	--color-surface-overlay: var(--color-text_bone-200);
-	--color-text: var(--color-text_soil-900);
-	--color-text-subtle: var(--color-text_soil-700);
-	--color-text-muted: var(--color-neutral_stone-600);
-	--color-text-disabled: var(--color-neutral_stone-400);
-	--color-text-inverse: var(--color-bg);
-	--color-text-on-brand: var(--color-text-inverse);
-	--color-border: var(--color-border_moss-300);
-	--color-border-strong: var(--color-border_moss-500);
-	--color-border-subtle: var(--color-border_moss-200);
-	--color-border-focus: var(--color-interactive);
+	--color-bg: var(--color-bg-base-100);
+	--color-bg-subtle: var(--color-bg-base-200);
+	--color-bg-muted: var(--color-neutral-200);
+	--color-bg-emphasis: var(--color-neutral-300);
+	--color-surface: var(--color-surface-100);
+	--color-surface-raised: var(--color-surface-50);
+	--color-surface-overlay: var(--color-surface-50);
+	--color-text: var(--color-text-dark-900);
+	--color-text-subtle: var(--color-text-dark-700);
+	--color-text-muted: var(--color-neutral-600);
+	--color-text-disabled: var(--color-neutral-400);
+	--color-text-inverse: var(--color-text-light-100);
+	--color-text-on-brand: var(--color-text-light-50);
+	--color-border: var(--color-border-300);
+	--color-border-strong: var(--color-border-500);
+	--color-border-subtle: var(--color-border-200);
+	--color-border-focus: var(--color-primary-600);
 	--color-interactive: var(--color-primary-600);
 	--color-interactive-hover: var(--color-primary-700);
-	--color-interactive-active: var(--color-interactive-hover);
-	--color-interactive-subtle: var(--color-bg-muted);
-	--color-interactive-disabled: var(--color-text-disabled);
-	--color-accent: var(--color-interactive);
-	--color-accent-hover: var(--color-accent);
-	--color-success-text: var(--color-success-700);
+	--color-interactive-active: var(--color-primary-800);
+	--color-interactive-subtle: var(--color-primary-100);
+	--color-interactive-disabled: var(--color-neutral-400);
+	--color-accent: var(--color-warning-600);
+	--color-accent-hover: var(--color-warning-700);
+	--color-success-text: var(--color-success-800);
 	--color-success-bg: var(--color-success-100);
-	--color-success-border: var(--color-success-text);
-	--color-danger-text: var(--color-error-700);
+	--color-success-border: var(--color-success-300);
+	--color-danger-text: var(--color-error-800);
 	--color-danger-bg: var(--color-error-100);
-	--color-danger-border: var(--color-danger-text);
+	--color-danger-border: var(--color-error-300);
 	--color-warning-text: var(--color-warning-800);
 	--color-warning-bg: var(--color-warning-100);
-	--color-warning-border: var(--color-warning-text);
-	--color-info-text: var(--color-info-700);
+	--color-warning-border: var(--color-warning-300);
+	--color-info-text: var(--color-info-800);
 	--color-info-bg: var(--color-info-100);
-	--color-info-border: var(--color-info-text);
+	--color-info-border: var(--color-info-300);
 	--btn-success-bg: var(--color-success-600);
-	--btn-success-color: var(--color-success-bg);
-	--btn-success-bg-hover: var(--btn-success-bg);
-	--btn-success-border: transparent;
+	--btn-success-color: var(--color-text-light-50);
+	--btn-success-bg-hover: var(--color-success-700);
+	--btn-success-border: var(--color-success-700);
 	--btn-danger-bg: var(--color-error-600);
-	--btn-danger-color: var(--color-danger-bg);
-	--btn-danger-bg-hover: var(--btn-danger-bg);
-	--btn-danger-border: transparent;
+	--btn-danger-color: var(--color-text-light-50);
+	--btn-danger-bg-hover: var(--color-error-700);
+	--btn-danger-border: var(--color-error-700);
 	--btn-warning-bg: var(--color-warning-500);
-	--btn-warning-color: var(--color-warning-bg);
-	--btn-warning-bg-hover: var(--btn-warning-bg);
-	--btn-warning-border: transparent;
+	--btn-warning-color: var(--color-text-dark-900);
+	--btn-warning-bg-hover: var(--color-warning-600);
+	--btn-warning-border: var(--color-warning-600);
 	--btn-info-bg: var(--color-info-600);
-	--btn-info-color: var(--color-info-bg);
-	--btn-info-bg-hover: var(--btn-info-bg);
-	--btn-info-border: transparent;
-	--btn-accent-bg: var(--color-accent);
-	--btn-accent-color: var(--color-text-on-brand);
-	--btn-accent-bg-hover: var(--btn-accent-bg);
-	--btn-accent-border: transparent;
-	--toast-bg: var(--color-surface_moss-100);
-	--toast-color: var(--color-text_soil-900);
-	--toast-border: var(--color-border_moss-400);
-	--tooltip-bg: var(--color-text);
-	--tooltip-color: var(--color-text-inverse);
-	--modal-backdrop: rgb(0 0 0 / 0.7);
-	--color-highlight-bg: var(--color-accent);
-	--color-highlight-text: var(--color-text-on-brand);
+	--btn-info-color: var(--color-text-light-50);
+	--btn-info-bg-hover: var(--color-info-700);
+	--btn-info-border: var(--color-info-700);
+	--btn-accent-bg: var(--color-warning-500);
+	--btn-accent-color: var(--color-text-dark-900);
+	--btn-accent-bg-hover: var(--color-warning-600);
+	--btn-accent-border: var(--color-warning-600);
+	--toast-bg: var(--color-surface-50);
+	--toast-color: var(--color-text-dark-900);
+	--toast-border: var(--color-border-300);
+	--tooltip-bg: var(--color-bg-base-900);
+	--tooltip-color: var(--color-text-light-100);
+	--modal-backdrop: rgb(19 15 26 / 0.7);
+	--color-highlight-bg: var(--color-warning-200);
+	--color-highlight-text: var(--color-text-dark-900);
 }
 
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme="light"]) {
-		--color-bg: var(--color-bg_base-950);
-		--color-bg-subtle: var(--color-bg_base-900);
-		--color-bg-muted: var(--color-bg_base-800);
-		--color-bg-emphasis: var(--color-surface_moss-800);
-		--color-surface: var(--color-surface_moss-900);
-		--color-surface-raised: var(--color-surface_moss-800);
-		--color-surface-overlay: var(--color-surface_moss-700);
-		--color-text: var(--color-text_bone-50);
-		--color-text-subtle: var(--color-text_bone-200);
-		--color-text-muted: var(--color-neutral_stone-400);
-		--color-text-disabled: var(--color-neutral_stone-600);
-		--color-text-inverse: var(--color-bg);
-		--color-text-on-brand: var(--color-text-inverse);
-		--color-border: var(--color-border_moss-700);
-		--color-border-strong: var(--color-border_moss-500);
-		--color-border-subtle: var(--color-border_moss-800);
-		--color-border-focus: var(--color-interactive);
-		--color-interactive: var(--color-primary-300);
-		--color-interactive-hover: var(--color-primary-200);
-		--color-interactive-active: var(--color-interactive-hover);
-		--color-interactive-subtle: var(--color-bg-muted);
-		--color-interactive-disabled: var(--color-text-disabled);
-		--color-accent: var(--color-interactive);
-		--color-accent-hover: var(--color-accent);
+		--color-bg: var(--color-bg-base-950);
+		--color-bg-subtle: var(--color-bg-base-900);
+		--color-bg-muted: var(--color-bg-base-800);
+		--color-bg-emphasis: var(--color-neutral-800);
+		--color-surface: var(--color-surface-900);
+		--color-surface-raised: var(--color-surface-800);
+		--color-surface-overlay: var(--color-surface-800);
+		--color-text: var(--color-text-light-100);
+		--color-text-subtle: var(--color-text-light-300);
+		--color-text-muted: var(--color-neutral-400);
+		--color-text-disabled: var(--color-neutral-600);
+		--color-text-inverse: var(--color-text-dark-900);
+		--color-text-on-brand: var(--color-bg-base-950);
+		--color-border: var(--color-border-700);
+		--color-border-strong: var(--color-border-500);
+		--color-border-subtle: var(--color-border-800);
+		--color-border-focus: var(--color-primary-400);
+		--color-interactive: var(--color-primary-400);
+		--color-interactive-hover: var(--color-primary-300);
+		--color-interactive-active: var(--color-primary-200);
+		--color-interactive-subtle: var(--color-primary-900);
+		--color-interactive-disabled: var(--color-neutral-700);
+		--color-accent: var(--color-warning-400);
+		--color-accent-hover: var(--color-warning-300);
 		--color-success-text: var(--color-success-300);
-		--color-success-bg: var(--color-success-900);
-		--color-success-border: var(--color-success-text);
+		--color-success-bg: var(--color-success-950);
+		--color-success-border: var(--color-success-800);
 		--color-danger-text: var(--color-error-300);
-		--color-danger-bg: var(--color-error-900);
-		--color-danger-border: var(--color-danger-text);
+		--color-danger-bg: var(--color-error-950);
+		--color-danger-border: var(--color-error-800);
 		--color-warning-text: var(--color-warning-300);
-		--color-warning-bg: var(--color-warning-900);
-		--color-warning-border: var(--color-warning-text);
+		--color-warning-bg: var(--color-warning-950);
+		--color-warning-border: var(--color-warning-800);
 		--color-info-text: var(--color-info-300);
-		--color-info-bg: var(--color-info-900);
-		--color-info-border: var(--color-info-text);
-		--btn-success-bg: var(--color-success-500);
-		--btn-success-color: var(--color-success-bg);
-		--btn-success-bg-hover: var(--btn-success-bg);
-		--btn-success-border: transparent;
-		--btn-danger-bg: var(--color-error-500);
-		--btn-danger-color: var(--color-danger-bg);
-		--btn-danger-bg-hover: var(--btn-danger-bg);
-		--btn-danger-border: transparent;
-		--btn-warning-bg: var(--color-warning-500);
-		--btn-warning-color: var(--color-warning-bg);
-		--btn-warning-bg-hover: var(--btn-warning-bg);
-		--btn-warning-border: transparent;
-		--btn-info-bg: var(--color-info-500);
-		--btn-info-color: var(--color-info-bg);
-		--btn-info-bg-hover: var(--btn-info-bg);
-		--btn-info-border: transparent;
-		--btn-accent-bg: var(--color-accent);
-		--btn-accent-color: var(--color-text-on-brand);
-		--btn-accent-bg-hover: var(--btn-accent-bg);
-		--btn-accent-border: transparent;
-		--toast-bg: var(--color-surface_moss-800);
-		--toast-color: var(--color-text_bone-50);
-		--toast-border: var(--color-border_moss-600);
-		--tooltip-bg: var(--color-text);
-		--tooltip-color: var(--color-text-inverse);
-		--modal-backdrop: rgb(0 0 0 / 0.7);
-		--color-highlight-bg: var(--color-accent);
-		--color-highlight-text: var(--color-text-on-brand);
+		--color-info-bg: var(--color-info-950);
+		--color-info-border: var(--color-info-800);
+		--btn-success-bg: var(--color-success-400);
+		--btn-success-color: var(--color-text-dark-950);
+		--btn-success-bg-hover: var(--color-success-300);
+		--btn-success-border: var(--color-success-300);
+		--btn-danger-bg: var(--color-error-400);
+		--btn-danger-color: var(--color-text-dark-950);
+		--btn-danger-bg-hover: var(--color-error-300);
+		--btn-danger-border: var(--color-error-300);
+		--btn-warning-bg: var(--color-warning-400);
+		--btn-warning-color: var(--color-text-dark-950);
+		--btn-warning-bg-hover: var(--color-warning-300);
+		--btn-warning-border: var(--color-warning-300);
+		--btn-info-bg: var(--color-info-400);
+		--btn-info-color: var(--color-text-dark-950);
+		--btn-info-bg-hover: var(--color-info-300);
+		--btn-info-border: var(--color-info-300);
+		--btn-accent-bg: var(--color-warning-400);
+		--btn-accent-color: var(--color-text-dark-950);
+		--btn-accent-bg-hover: var(--color-warning-300);
+		--btn-accent-border: var(--color-warning-300);
+		--toast-bg: var(--color-surface-800);
+		--toast-color: var(--color-text-light-100);
+		--toast-border: var(--color-border-700);
+		--tooltip-bg: var(--color-text-light-100);
+		--tooltip-color: var(--color-bg-base-950);
+		--modal-backdrop: rgb(8 6 12 / 0.8);
+		--color-highlight-bg: var(--color-warning-400);
+		--color-highlight-text: var(--color-bg-base-950);
 	}
 }
 
 :root[data-theme="dark"], [data-theme=dark] {
-	--color-bg: var(--color-bg_base-950);
-	--color-bg-subtle: var(--color-bg_base-900);
-	--color-bg-muted: var(--color-bg_base-800);
-	--color-bg-emphasis: var(--color-surface_moss-800);
-	--color-surface: var(--color-surface_moss-900);
-	--color-surface-raised: var(--color-surface_moss-800);
-	--color-surface-overlay: var(--color-surface_moss-700);
-	--color-text: var(--color-text_bone-50);
-	--color-text-subtle: var(--color-text_bone-200);
-	--color-text-muted: var(--color-neutral_stone-400);
-	--color-text-disabled: var(--color-neutral_stone-600);
-	--color-text-inverse: var(--color-bg);
-	--color-text-on-brand: var(--color-text-inverse);
-	--color-border: var(--color-border_moss-700);
-	--color-border-strong: var(--color-border_moss-500);
-	--color-border-subtle: var(--color-border_moss-800);
-	--color-border-focus: var(--color-interactive);
-	--color-interactive: var(--color-primary-300);
-	--color-interactive-hover: var(--color-primary-200);
-	--color-interactive-active: var(--color-interactive-hover);
-	--color-interactive-subtle: var(--color-bg-muted);
-	--color-interactive-disabled: var(--color-text-disabled);
-	--color-accent: var(--color-interactive);
-	--color-accent-hover: var(--color-accent);
+	--color-bg: var(--color-bg-base-950);
+	--color-bg-subtle: var(--color-bg-base-900);
+	--color-bg-muted: var(--color-bg-base-800);
+	--color-bg-emphasis: var(--color-neutral-800);
+	--color-surface: var(--color-surface-900);
+	--color-surface-raised: var(--color-surface-800);
+	--color-surface-overlay: var(--color-surface-800);
+	--color-text: var(--color-text-light-100);
+	--color-text-subtle: var(--color-text-light-300);
+	--color-text-muted: var(--color-neutral-400);
+	--color-text-disabled: var(--color-neutral-600);
+	--color-text-inverse: var(--color-text-dark-900);
+	--color-text-on-brand: var(--color-bg-base-950);
+	--color-border: var(--color-border-700);
+	--color-border-strong: var(--color-border-500);
+	--color-border-subtle: var(--color-border-800);
+	--color-border-focus: var(--color-primary-400);
+	--color-interactive: var(--color-primary-400);
+	--color-interactive-hover: var(--color-primary-300);
+	--color-interactive-active: var(--color-primary-200);
+	--color-interactive-subtle: var(--color-primary-900);
+	--color-interactive-disabled: var(--color-neutral-700);
+	--color-accent: var(--color-warning-400);
+	--color-accent-hover: var(--color-warning-300);
 	--color-success-text: var(--color-success-300);
-	--color-success-bg: var(--color-success-900);
-	--color-success-border: var(--color-success-text);
+	--color-success-bg: var(--color-success-950);
+	--color-success-border: var(--color-success-800);
 	--color-danger-text: var(--color-error-300);
-	--color-danger-bg: var(--color-error-900);
-	--color-danger-border: var(--color-danger-text);
+	--color-danger-bg: var(--color-error-950);
+	--color-danger-border: var(--color-error-800);
 	--color-warning-text: var(--color-warning-300);
-	--color-warning-bg: var(--color-warning-900);
-	--color-warning-border: var(--color-warning-text);
+	--color-warning-bg: var(--color-warning-950);
+	--color-warning-border: var(--color-warning-800);
 	--color-info-text: var(--color-info-300);
-	--color-info-bg: var(--color-info-900);
-	--color-info-border: var(--color-info-text);
-	--btn-success-bg: var(--color-success-500);
-	--btn-success-color: var(--color-success-bg);
-	--btn-success-bg-hover: var(--btn-success-bg);
-	--btn-success-border: transparent;
-	--btn-danger-bg: var(--color-error-500);
-	--btn-danger-color: var(--color-danger-bg);
-	--btn-danger-bg-hover: var(--btn-danger-bg);
-	--btn-danger-border: transparent;
-	--btn-warning-bg: var(--color-warning-500);
-	--btn-warning-color: var(--color-warning-bg);
-	--btn-warning-bg-hover: var(--btn-warning-bg);
-	--btn-warning-border: transparent;
-	--btn-info-bg: var(--color-info-500);
-	--btn-info-color: var(--color-info-bg);
-	--btn-info-bg-hover: var(--btn-info-bg);
-	--btn-info-border: transparent;
-	--btn-accent-bg: var(--color-accent);
-	--btn-accent-color: var(--color-text-on-brand);
-	--btn-accent-bg-hover: var(--btn-accent-bg);
-	--btn-accent-border: transparent;
-	--toast-bg: var(--color-surface_moss-800);
-	--toast-color: var(--color-text_bone-50);
-	--toast-border: var(--color-border_moss-600);
-	--tooltip-bg: var(--color-text);
-	--tooltip-color: var(--color-text-inverse);
-	--modal-backdrop: rgb(0 0 0 / 0.7);
-	--color-highlight-bg: var(--color-accent);
-	--color-highlight-text: var(--color-text-on-brand);
+	--color-info-bg: var(--color-info-950);
+	--color-info-border: var(--color-info-800);
+	--btn-success-bg: var(--color-success-400);
+	--btn-success-color: var(--color-text-dark-950);
+	--btn-success-bg-hover: var(--color-success-300);
+	--btn-success-border: var(--color-success-300);
+	--btn-danger-bg: var(--color-error-400);
+	--btn-danger-color: var(--color-text-dark-950);
+	--btn-danger-bg-hover: var(--color-error-300);
+	--btn-danger-border: var(--color-error-300);
+	--btn-warning-bg: var(--color-warning-400);
+	--btn-warning-color: var(--color-text-dark-950);
+	--btn-warning-bg-hover: var(--color-warning-300);
+	--btn-warning-border: var(--color-warning-300);
+	--btn-info-bg: var(--color-info-400);
+	--btn-info-color: var(--color-text-dark-950);
+	--btn-info-bg-hover: var(--color-info-300);
+	--btn-info-border: var(--color-info-300);
+	--btn-accent-bg: var(--color-warning-400);
+	--btn-accent-color: var(--color-text-dark-950);
+	--btn-accent-bg-hover: var(--color-warning-300);
+	--btn-accent-border: var(--color-warning-300);
+	--toast-bg: var(--color-surface-800);
+	--toast-color: var(--color-text-light-100);
+	--toast-border: var(--color-border-700);
+	--tooltip-bg: var(--color-text-light-100);
+	--tooltip-color: var(--color-bg-base-950);
+	--modal-backdrop: rgb(8 6 12 / 0.8);
+	--color-highlight-bg: var(--color-warning-400);
+	--color-highlight-text: var(--color-bg-base-950);
 }

@@ -287,12 +287,6 @@ router.get("/", async (ctx) => {
 			</head>
 			<body>
 				<div class="main">
-					<div class="group">
-						<h3>Variants</h3>
-						<div class="theme-previews">
-							{u.variants()?.map((v) => <ThemePreviewCard variant={v.name} />)}
-						</div>
-					</div>
 					{colors.map((g) => (
 						<div class="group">
 							<h3>{titleCase(g.__group ?? "")}</h3>
@@ -315,6 +309,12 @@ router.get("/", async (ctx) => {
 							</div>
 						</div>
 					))}
+					<div class="group">
+						<h3>Variants</h3>
+						<div class="theme-previews">
+							{u.variants()?.map((v) => <ThemePreviewCard variant={v.name} />)}
+						</div>
+					</div>
 				</div>
 				{stops.length > 0 && (
 					<div class="gradient-panel">

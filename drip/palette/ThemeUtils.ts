@@ -26,7 +26,7 @@ export class ThemeUtils {
 	}
 
 	variants(): import("@bearmetal/drip").Variant[] | undefined {
-		return this.data["#variants"];
+		return this.data["#variants"] ?? this.data.variants;
 	}
 }
 

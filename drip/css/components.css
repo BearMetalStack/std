@@ -148,8 +148,7 @@ button {
 		color: var(--btn-success-color);
 		border-color: var(--btn-success-border);
 	}
-	/* `.orange` is the original name for this fill; `.accent` is the portable
-	   one, since the colour is whatever the theme nominates as its accent. */
+
 	&.accent,
 	&.orange {
 		background-color: var(--btn-accent-bg);
