@@ -1,6 +1,6 @@
 import { Router } from "@bearmetal/router";
 import { createStack } from "@bearmetal/stack";
-// @bearmetal imports
+// @bearmetal-partial main-ts-imports
 import { page } from "@views/layouts/page.tsx";
 import { home } from "@views/home.tsx";
 
@@ -15,8 +15,8 @@ router
 			return new Response("Internal Server Error", { status: 500 });
 		}
 	})
-	.use(createStack((s) => import(s)))
-	// @bearmetal middleware
+	.use(createStack())
+	// @bearmetal-partial main-ts-middleware
 	.use(page);
 
 router.route("/")
