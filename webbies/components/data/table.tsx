@@ -257,7 +257,7 @@ function updateFoot(
 // Component
 // ---------------------------------------------------------------------------
 
-@define("bm-table", import.meta)
+@define("bm-table")
 export class Table extends BMElement {
 	static observedAttributes = OBSERVED;
 

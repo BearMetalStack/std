@@ -84,5 +84,5 @@ injectStyle(
 	`,
 );
 
-@define("bm-badge", import.meta)
+@define("bm-badge")
 export class Badge extends BMElement {}

@@ -1,6 +1,6 @@
 import { BMElement, define } from "@bearmetal/app";
 
-@define("bm-grid", import.meta)
+@define("bm-grid")
 export class BmGrid extends BMElement {
 	static observedAttributes = ["columns", "gap", "animated"] as const;
 

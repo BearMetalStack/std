@@ -59,7 +59,7 @@ injectStyle(
 const OBSERVED = ["percent"] as const;
 type Attribute = typeof OBSERVED[number];
 
-@define("bm-progress", import.meta)
+@define("bm-progress")
 export class Progress extends BMElement {
 	static observedAttributes = OBSERVED;
 

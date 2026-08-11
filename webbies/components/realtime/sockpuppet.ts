@@ -23,7 +23,7 @@ import { BMElement, define } from "@bearmetal/app";
 import { Sockpuppet } from "@bearmetal/sockpuppet/client";
 import { appendToContainer, swapContainer } from "./utils.ts";
 
-@define("bm-sockpuppet", import.meta)
+@define("bm-sockpuppet")
 export class BmSockpuppet extends BMElement {
 	private _ws: Sockpuppet | null = null;
 

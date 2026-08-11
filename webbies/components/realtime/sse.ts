@@ -18,7 +18,7 @@
 import { BMElement, define } from "@bearmetal/app";
 import { appendToContainer, parseData, swapContainer } from "./utils.ts";
 
-@define("bm-sse", import.meta)
+@define("bm-sse")
 export class BmSse extends BMElement {
 	private _es: EventSource | null = null;
 
