@@ -6,6 +6,7 @@
 
 import { walkDir } from "@bearmetal/miscellanea/fs";
 import { joinPath } from "@bearmetal/miscellanea";
+import { directoryOf } from "@bearmetal/miscellanea/path";
 
 /** File extensions treated as component modules. */
 const scriptFiles = ["js", "ts", "jsx", "tsx"];
@@ -21,8 +22,10 @@ export const defaultBundleName = "index";
 
 /** One thing handed to the bundler, and the name it comes back out under. */
 export type Entrypoint = {
-	/** Path handed to the bundler. */
+	/** Path handed to the bundler — in the stripped mirror, when there is one. */
 	path: string;
+	/** The real file, which is what the server imports for its side effects. */
+	source: string;
 	/** Output filename the bundler emits for it, named after the entrypoint's basename. */
 	output: string;
 	/** Name it is served under, after the endpoint prefix. */
@@ -64,8 +67,12 @@ async function fileUrl(path: string): Promise<string> {
  * every component under it. Each `<subset>.manifest.ts` becomes its own bundle,
  * served under its subset name. With no `manifest.ts`, a temporary entry that
  * imports every component in the directory stands in for it.
+ *
+ * `dir` is where the components really are, and is what the server imports.
+ * `bundleDir` is the layout-identical tree the bundler reads instead — the
+ * stripped mirror. They are the same directory only when nothing was stripped.
  */
-export async function resolveEntrypoints(dir: string): Promise<Resolved> {
+export async function resolveEntrypoints(dir: string, bundleDir: string = dir): Promise<Resolved> {
 	const subsets: Entrypoint[] = [];
 	let defaultEntry: Entrypoint | undefined;
 
@@ -76,7 +83,8 @@ export async function resolveEntrypoints(dir: string): Promise<Resolved> {
 
 		const subset = match.groups?.subset;
 		const resolved: Entrypoint = {
-			path: joinPath(dir, entry.name),
+			path: joinPath(bundleDir, entry.name),
+			source: joinPath(dir, entry.name),
 			output: outputName(entry.name),
 			served: subset ?? defaultBundleName,
 		};
@@ -85,25 +93,27 @@ export async function resolveEntrypoints(dir: string): Promise<Resolved> {
 	}
 
 	if (defaultEntry) {
-		const paths = [defaultEntry, ...subsets].map((e) => e.path);
+		const sources = [defaultEntry, ...subsets].map((e) => e.source);
 		return {
 			entrypoints: [defaultEntry, ...subsets],
-			sideEffects: await Promise.all(paths.map(fileUrl)),
+			sideEffects: await Promise.all(sources.map(fileUrl)),
 		};
 	}
 
 	const components: string[] = [];
+	const bundled: string[] = [];
 	for await (const entry of walkDir(dir)) {
 		if (!entry.isFile) continue;
 		if (manifestRx.test(entry.name)) continue;
 		if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
 		components.push(await fileUrl(entry.path));
+		bundled.push("file://" + joinPath(bundleDir, entry.path.slice(dir.length).replace(/^\//, "")));
 	}
 
 	if (components.length === 0) {
 		return {
 			entrypoints: subsets,
-			sideEffects: await Promise.all(subsets.map((e) => fileUrl(e.path))),
+			sideEffects: await Promise.all(subsets.map((e) => fileUrl(e.source))),
 		};
 	}
 
@@ -113,15 +123,20 @@ export async function resolveEntrypoints(dir: string): Promise<Resolved> {
 	const synthesized = joinPath(tempDir, "bearmetal-components.ts");
 	await Deno.writeTextFile(
 		synthesized,
-		components.map((url) => `import "${url}";`).join("\n"),
+		bundled.map((url) => `import "${url}";`).join("\n"),
 	);
 
 	return {
 		entrypoints: [
-			{ path: synthesized, output: "bearmetal-components.js", served: defaultBundleName },
+			{
+				path: synthesized,
+				source: synthesized,
+				output: "bearmetal-components.js",
+				served: defaultBundleName,
+			},
 			...subsets,
 		],
-		sideEffects: [...components, ...await Promise.all(subsets.map((e) => fileUrl(e.path)))],
+		sideEffects: [...components, ...await Promise.all(subsets.map((e) => fileUrl(e.source)))],
 		tempDir,
 	};
 }
@@ -139,4 +154,44 @@ export function serveMap(
 	const served = new Map<string, string>();
 	for (const [name, code] of scripts) served.set(byOutput.get(name) ?? name, code);
 	return served;
+}
+
+/**
+ * The app's own `jsxImportSource`, for the stripped mirror's pragma.
+ *
+ * Read from the config Deno itself resolved rather than assumed, because a copy
+ * of a component outside the project gets no `compilerOptions` at all and the
+ * pragma is the only thing that tells the bundler which runtime built the JSX.
+ * Guessing `@bearmetal/jsx` would be right for most apps and silently wrong for
+ * one that points somewhere else.
+ */
+export async function appJsxImportSource(from = "."): Promise<string | undefined> {
+	let dir = await Deno.realPath(from).catch(() => null);
+	while (dir) {
+		for (const name of ["deno.json", "deno.jsonc"]) {
+			const config = await readJson(joinPath(dir, name));
+			const source = config?.compilerOptions?.jsxImportSource;
+			if (typeof source === "string") return source;
+		}
+		const parent = directoryOf(dir);
+		if (parent === dir) break;
+		dir = parent;
+	}
+	return undefined;
+}
+
+type PartialConfig = { compilerOptions?: { jsxImportSource?: unknown } };
+
+async function readJson(path: string): Promise<PartialConfig | null> {
+	try {
+		// `jsonc` is close enough to JSON for the one key that matters here once
+		// comments are out of the way; a config this cannot read simply falls
+		// through to the next candidate.
+		const text = (await Deno.readTextFile(path))
+			.replace(/^\s*\/\/.*$/gm, "")
+			.replace(/,(\s*[}\]])/g, "$1");
+		return JSON.parse(text) as PartialConfig;
+	} catch {
+		return null;
+	}
 }
