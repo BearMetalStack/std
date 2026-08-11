@@ -133,8 +133,41 @@ Component stylesheets do not come from the bundle. They are collected on the ser
 component's module is imported, with `:scope` rewritten to the tag, and served as that one
 stylesheet — so the first paint is styled without waiting for any JavaScript.
 
-`serverInit` and `stylesheet` bodies are stripped from the bundle on the way out. That is what keeps
-a component's database queries and file reads and their entire dependency tree out of the client.
+### What does not ship
+
+`serverInit` and `stylesheet` bodies are removed from every component _before_ the bundler reads it,
+not from the bundle afterwards. The difference is the dependency tree:
+
+```ts
+import { db } from "../db.ts"; // only used by serverInit
+```
+
+Emptying the body in the finished bundle deletes the body and nothing else — the graph was walked
+long before, so `db.ts` and everything behind it is already in the file. Stripping first is what
+makes the import unused, and an unused import is one the bundler can drop.
+
+The components directory is mirrored into a temporary copy with the bodies gone, and the bundler is
+pointed at the copy; the server goes on importing the originals, because it needs the halves the
+browser must not have. Anything the copy cannot reach — a component pulled in from another package,
+or through an import-map alias — is still stripped, just from the output, so its body never ships
+even though its imports do.
+
+::: tip Guarantee it
+
+For a dependency that must never reach the browser under any circumstances, import it inside
+`serverInit()` rather than at the top of the file:
+
+```ts
+override async serverInit() {
+	const { db } = await import("../db.ts");
+	this.rows.set(await db.rows());
+}
+```
+
+The import goes with the body, so there is nothing left for the bundler to find at all.
+
+:::
+
 Nothing else about a component is server-only, so nothing else is removed.
 
 ## Then the browser picks it up

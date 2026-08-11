@@ -124,11 +124,25 @@ one has bitten:
   shipped and finds nothing to upgrade with.
 - **Views name components, they do not import them.** A view is server-only. Importing a component
   class renders it and does not ship it — only the components directory feeds the bundle.
-- **`stripServerCode` runs over minified output.** It empties `serverInit`/`stylesheet` bodies, and
-  a miss means database queries reach a browser. It works against a code/not-code mask built in one
-  pass (`scanMask`) precisely because the ad-hoc scanner it replaced did not know a regex literal
-  from division, desynced partway through a real bundle, and silently stopped stripping. It warns
-  loudly if a definition survives; treat that warning as a leak.
+- **The client rebuilds rather than adopts, so `@state` is handed over out of band.** A component's
+  first client render replaces its children, discarding nested components that had already hydrated.
+  `app/hydration.ts` lifts every snapshot out of the document before that happens and hands it to
+  whatever is rebuilt at the same _path_ (the chain of component tags). Adoption inside the JSX
+  runtime is not available: the automatic runtime builds bottom-up, so `jsx()` runs for a child long
+  before the parent it would be positioned inside exists, and there is no cursor to walk.
+- **Server code is stripped twice, and the first one is the one that matters.** `mirrorStripped`
+  (`app/ssr/prestrip.ts`) copies the components directory with `serverInit`/`stylesheet` bodies
+  already gone and the bundler reads _that_, because emptying a body in the finished bundle leaves
+  everything it imported in the file — the graph was walked first. `stripServerCode` still runs over
+  the output as the net for modules the mirror cannot reach. A miss in either means database queries
+  reach a browser: it works against a code/not-code mask built in one pass (`scanMask`) because the
+  ad-hoc scanner it replaced did not know a regex literal from division, desynced partway through a
+  real bundle, and silently stopped stripping. It warns loudly if a definition survives; treat that
+  warning as a leak.
+- **The mirror lives outside the project, so its JSX files need a pragma.** `compilerOptions` come
+  from the config Deno resolved for the program and do not reach a copy in a temp directory —
+  without `@jsxImportSource` the mirror compiles against the default runtime and the bundle ships
+  `React.createElement`. `appJsxImportSource()` reads the app's own setting rather than assuming.
 
 `app/ssr` owns rendering and `bundleEntrypoints`; `stack` owns discovery, serving and the
 `contributeHead()` registration. `Page()` injects nothing on its own.
