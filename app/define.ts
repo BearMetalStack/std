@@ -8,7 +8,6 @@ type BmElementConstructor = {
 	stylesheet?: string | CSSStyleSheet;
 };
 
-const registry = new Map<string, string>();
 const stylesheetRegistry = new Map<string, string>();
 
 /**
@@ -36,12 +35,6 @@ function defineAll(): void {
 // "install the microdom" and "import the components" stops mattering.
 onDomChanged(defineAll);
 
-export function registerComponent(tag: string, url: string): void {
-	registry.set(tag, url);
-}
-export function getComponentUrl(tag: string): string | undefined {
-	return registry.get(tag);
-}
 export function getTagStylesheet(tag: string): string | undefined {
 	return stylesheetRegistry.get(tag);
 }
@@ -49,16 +42,35 @@ export function getAllStylesheets(): string {
 	return stylesheetRegistry.values().toArray().join("\n");
 }
 
+/**
+ * Names a component and registers it as a custom element.
+ *
+ * The tag is normalized (see {@linkcode normalizeComponentName}) and set as the
+ * class's `static tag`, so `${this.tag}` in a stylesheet and `<my-thing />` in a
+ * template always agree.
+ *
+ * There is no second argument. `@define` used to take `import.meta` so that the
+ * server renderer could look up a tag's module and bundle it — the client bundle
+ * is now built from the components directory in one pass instead of assembled
+ * per page, so there is nothing to look up. See the
+ * [components directory](https://bear-metal.dev/getting-started/components/component-directory).
+ *
+ * @example
+ * ```tsx
+ * @define("counter")
+ * export class Counter extends BMElement {
+ *   get template() { return <span>{this.count}</span>; }
+ * }
+ * ```
+ */
 export function define(
 	tag: string,
-	meta?: ImportMeta,
 ): <T extends BmElementConstructor>(target: T, context: ClassDecoratorContext) => void {
 	return function <T extends BmElementConstructor>(
 		target: T,
 		context: ClassDecoratorContext,
 	) {
 		tag = normalizeComponentName(tag);
-		const moduleUrl = meta?.url;
 		target.tag = tag;
 
 		// Register the element wherever there is a registry to register it with.
@@ -71,11 +83,9 @@ export function define(
 			defineAll();
 		});
 
-		// The registries the SSR bundler reads: where to find a tag's client
-		// module, and what CSS to inline for it. Filled in unconditionally — the
-		// cost is two Map entries, and the alternative is a component that
+		// The stylesheet the server inlines for this tag. Recorded unconditionally
+		// — the cost is a Map entry, and the alternative is a component that
 		// silently ships without styles depending on where it was first imported.
-		if (moduleUrl) registry.set(tag, moduleUrl);
 		const s = target.stylesheet;
 		if (typeof s === "string") stylesheetRegistry.set(tag, s.replaceAll(/:scope/gm, tag));
 

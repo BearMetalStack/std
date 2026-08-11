@@ -14,7 +14,7 @@ export function resetLog(): void {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-@define("load-greeting", import.meta)
+@define("load-greeting")
 export class LoadGreeting extends BMElement {
 	@prop()
 	accessor who = this.signal("world");
@@ -38,7 +38,7 @@ export class LoadGreeting extends BMElement {
 }
 
 /** A component whose `serverInit()` reveals another one that also has to load. */
-@define("load-outer", import.meta)
+@define("load-outer")
 export class LoadOuter extends BMElement {
 	@state()
 	accessor ready = this.signal(false);
@@ -56,7 +56,7 @@ export class LoadOuter extends BMElement {
 }
 
 /** Renders nothing server-side: its tag and attributes are the whole output. */
-@define("client-only-widget", import.meta)
+@define("client-only-widget")
 export class ClientOnlyWidget extends BMElement {
 	static override client = true;
 
@@ -65,7 +65,7 @@ export class ClientOnlyWidget extends BMElement {
 	}
 }
 
-@define("plain-thing", import.meta)
+@define("plain-thing")
 export class PlainThing extends BMElement {
 	protected override get template() {
 		return <em>plain</em>;
