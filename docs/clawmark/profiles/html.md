@@ -9,6 +9,10 @@ output format, so the matchers live on the rules themselves in `rules/*.ts`, and
 true inverse of `toHtml`. What the module adds on top is the style resolver — which exists mainly to
 survive pasted-from-Word HTML — and the structural elements markdown has no equivalent for.
 
+There is a **write** profile too, `htmlWriter` — see [Styled output](#styled-output) below. `toHtml`
+remains the right thing for plain markdown-in-markup-out; the writer exists for when the output
+needs a stylesheet.
+
 It is the default, so most callers never name it:
 
 ```ts
@@ -232,3 +236,42 @@ parseInlineStyle("font-weight: bold; color: red");
 ```
 
 Property names are lowercased and trimmed; values are trimmed but otherwise untouched.
+
+## Styled output
+
+```ts
+import { htmlWriter } from "@bearmetal/clawmark/profiles/html";
+import { createDocumentStyles, markdownWith } from "@bearmetal/clawmark";
+
+const result = markdownWith(src, htmlWriter({ styles }));
+result.parts["index.html"]; // <p class="scene-break">…
+result.parts["styles.css"]; // .scene-break { text-align: center; … }
+```
+
+`toHtml` walks the tree through each rule's `renderOpen`, which returns a hardcoded string and has
+nowhere to put a class. `htmlWriter` is a real [`WriteProfile`](../write), so the same
+[style registry](../styles) that drives docx and odt drives HTML too.
+
+| Option           | Default       |                                                               |
+| ---------------- | ------------- | ------------------------------------------------------------- |
+| `styles`         | —             | the `DocumentStyles` registry                                 |
+| `stylesheet`     | `"part"`      | `"part"`, `"inline"` (a `<style>` element), or `"none"`       |
+| `document`       | `"fragment"`  | `"full"` wraps the body in a whole `<!doctype html>` document |
+| `classPrefix`    | `""`          | namespaces every emitted class and every generated rule       |
+| `pageBreakClass` | `"pagebreak"` | `class` on a rendered page break                              |
+| `emitters`       | `[]`          | extra emitters, consulted before the built-ins                |
+
+Binding a style to a tag the writer already knows **decorates** it rather than replacing it: a
+blockquote bound to `Verse` stays a `<blockquote>` and gains `class="verse"`. That is the opposite
+of what docx and odt do, and correct in both places — CSS decorates elements, while the office
+formats have only a style name to work with.
+
+::: warning `htmlWriter` and `toHtml` are two implementations of one format, and every class either
+emits is read back by a `match()` on the same rule. They must not drift.
+`profiles/html/html_write_test.ts` pins them together by asserting the writer's output against
+`toHtml`'s across a corpus covering every construct in `defaultRules()`; extend that corpus when you
+add a rule. :::
+
+The two are byte-identical except for text escaping: `escapeHtml` escapes quotes in text content and
+the XML serializer does not, because text content is the one place they need no escaping. Both parse
+to the same characters.

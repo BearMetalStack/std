@@ -130,6 +130,7 @@ export default defineConfig({
 							{ text: "Rules", link: "/clawmark/rules" },
 							{ text: "Reverse pipeline", link: "/clawmark/reverse" },
 							{ text: "Writing", link: "/clawmark/write" },
+							{ text: "Document styles", link: "/clawmark/styles" },
 							{ text: "Profile DSL", link: "/clawmark/dsl" },
 							{
 								text: "Profiles",

@@ -12,6 +12,12 @@ markdownWith("# Hello", docxWriter()); // parse and write in one step
 convert(contentXml, odtProfile(), docxWriter()); // read one format, write another
 ```
 
+Four writers ship: [`htmlWriter`](./profiles/html), [`docxWriter`](./profiles/docx),
+[`odtWriter`](./profiles/odt), and `textWriter` (`@bearmetal/clawmark/profiles/text`), which
+flattens a tree to prose and nothing else. All but the last take a
+[document style registry](./styles) — that is how a custom rule gets its own formatting without an
+emitter per format.
+
 ## Why this is a third direction
 
 `Rule.renderOpen` returns an HTML string and takes no format parameter. That is fine for HTML and
