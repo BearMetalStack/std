@@ -318,6 +318,15 @@ export type BreakKind = "page" | "column";
 export interface ResolvedStyle {
 	/** Named style, e.g. "Heading1" / "Quote" / "T1". */
 	named?: string;
+	/**
+	 * Named *character* style, e.g. "Hyperlink" / "Thought".
+	 *
+	 * Separate from `named` because the two coexist on one run: a `<w:r>` inside
+	 * a `Quote` paragraph can carry `<w:rStyle w:val="Emphasis"/>` at the same
+	 * time. Folding both into `named` would let an inline style silently
+	 * overwrite the block style it sits inside.
+	 */
+	charStyle?: string;
 	blockRole?: "heading" | "paragraph" | "quote" | "code" | "list" | "table";
 	headingLevel?: number;
 	bold?: boolean;
@@ -332,7 +341,8 @@ export interface ResolvedStyle {
 		checked?: boolean;
 		id?: string;
 	};
-	align?: "l" | "c" | "r";
+	/** Horizontal alignment: left, center, right, justified. */
+	align?: "l" | "c" | "r" | "j";
 	/**
 	 * Forced break before/after the block this style applies to.
 	 *
@@ -378,6 +388,143 @@ export interface StyleTable {
 	/** Flattens a style through its `basedOn` chain. Memoized, cycle-safe. */
 	resolve(idOrName: string): ResolvedStyle;
 	readonly defaults: ResolvedStyle;
+}
+
+// ===========================================================================
+// Document styles: the caller's own formatting, applied document-wide.
+//
+// `ResolvedStyle` is deliberately small - it is what *rules match on*, and an
+// open property bag would destroy the ergonomics of `whereStyle(s => s.bold)`.
+// Typography does not belong in it.
+//
+// So rich formatting lives in a separate registry keyed by style *name*, and
+// `ResolvedStyle.named` / `charStyle` is the link between the two. A writer
+// reads the name off the node, looks the block up here, and spells it in its
+// own format - one registry, three target vocabularies, no per-format code on
+// the caller's side.
+// ===========================================================================
+
+/**
+ * A CSS length, kept as text.
+ *
+ * Stored verbatim rather than parsed to a number because the target formats
+ * disagree on what they can express: HTML wants `1.5em` to *stay* relative,
+ * while docx twips and ODF `fo:` lengths have no relative form at all and have
+ * to be resolved against a base font size. Normalizing on the way in would
+ * throw away the information HTML needs.
+ */
+export type CssLength = string;
+
+/** Which of a format's two style vocabularies a block belongs to. */
+export type BlockFamily = "paragraph" | "text";
+
+/**
+ * One named style's formatting, in a vocabulary every target can express.
+ *
+ * Every property here maps to all three of CSS, WordprocessingML, and ODF.
+ * Anything that does not belongs in `css`, which reaches the HTML output only.
+ */
+export interface StyleBlock {
+	/** Human-facing name. Defaults to the key it was registered under. */
+	displayName?: string;
+	/** Paragraph (block) or text (inline) style. Default "paragraph". */
+	family?: BlockFamily;
+	/** Inherits every unset property from another registered style. */
+	basedOn?: string;
+	/** Style applied to the paragraph *following* this one. */
+	nextStyle?: string;
+	/** CSS class the html writer emits. Default: kebab-case of the name. */
+	className?: string;
+	/** HTML element the html writer wraps this style in. Default from `role`. */
+	element?: string;
+	/**
+	 * Normalized role, so the readers and the built-in matchers recognize a
+	 * custom style as a heading/quote/code block rather than a bare paragraph.
+	 */
+	role?: ResolvedStyle["blockRole"];
+	headingLevel?: number;
+
+	// ---- character ---------------------------------------------------------
+	fontFamily?: string;
+	fontSize?: CssLength;
+	fontWeight?: "normal" | "bold" | number;
+	fontStyle?: "normal" | "italic";
+	color?: string;
+	background?: string;
+	smallCaps?: boolean;
+	textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
+	letterSpacing?: CssLength;
+	underline?: boolean;
+	strike?: boolean;
+
+	// ---- paragraph ---------------------------------------------------------
+	align?: ResolvedStyle["align"];
+	/** A unitless multiple (`1.5`) or a length (`18pt`). */
+	lineHeight?: CssLength | number;
+	spaceBefore?: CssLength;
+	spaceAfter?: CssLength;
+	indentLeft?: CssLength;
+	indentRight?: CssLength;
+	/** First-line indent. Negative values become a hanging indent. */
+	textIndent?: CssLength;
+	breakBefore?: BreakKind;
+	breakAfter?: BreakKind;
+	keepWithNext?: boolean;
+	keepTogether?: boolean;
+	widowControl?: boolean;
+
+	/**
+	 * Declarations no office format can express, passed through to CSS output
+	 * verbatim. The `ResolvedStyle.ext` of this interface.
+	 */
+	css?: Record<string, string>;
+}
+
+export interface DocumentStylesOptions {
+	/**
+	 * Font size that `em`/`rem`/`%` resolve against when converting to docx and
+	 * ODF, which have no relative lengths. Default "12pt".
+	 */
+	baseFontSize?: CssLength;
+	onWarn?(message: string): void;
+}
+
+/**
+ * A caller-supplied set of named styles, plus the bindings that attach them to
+ * node tags.
+ *
+ * Every method that registers something returns `this`, so a whole document's
+ * styling reads as one expression.
+ */
+export interface DocumentStyles {
+	define(name: string, block: StyleBlock): DocumentStyles;
+	defineAll(blocks: Record<string, StyleBlock>): DocumentStyles;
+	/** Parses the supported CSS subset; each `.foo` rule becomes a style. */
+	fromCss(source: string): DocumentStyles;
+	/**
+	 * Binds a node tag to a style name - how a custom rule declares its look
+	 * without writing an emitter per format. A node may override the binding
+	 * with a `style` key in its own `data`.
+	 */
+	bind(tag: TokenIdentifier, name: string): DocumentStyles;
+
+	get(name: string): StyleBlock | undefined;
+	/** Flattened through `basedOn`. Memoized and cycle-guarded. */
+	resolve(name: string): StyleBlock;
+	/** The style name a node should use, or undefined if it has none. */
+	nameFor(node: Node): string | undefined;
+	/** Style id for the office formats: `"Scene Break"` -> `"SceneBreak"`. */
+	idFor(name: string): string;
+	/** CSS class for the html writer: `"Scene Break"` -> `"scene-break"`. */
+	classFor(name: string): string;
+	/** Registered styles in definition order. */
+	readonly entries: readonly (readonly [string, StyleBlock])[];
+	readonly options: Required<Omit<DocumentStylesOptions, "onWarn">>;
+	/**
+	 * A `StyleTable` view of the registry, so a *read* profile resolves the same
+	 * names back to the same normalized roles a writer used.
+	 */
+	table(): StyleTable;
 }
 
 // ---- profiles -------------------------------------------------------------

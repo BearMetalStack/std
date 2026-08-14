@@ -9,7 +9,7 @@
  * breaks the round trip silently.
  */
 
-import type { StyleDef } from "../../types.ts";
+import type { ResolvedStyle, StyleDef } from "../../types.ts";
 import { XML_DECL } from "../../xml/build.ts";
 
 export const MIMETYPE = "application/vnd.oasis.opendocument.text";
@@ -132,7 +132,12 @@ export function listStyle(name: string, kind: "ordered" | "unordered"): string {
 	return `\t<text:list-style style:name="${name}">\n${levels.join("\n")}\n\t</text:list-style>`;
 }
 
-const ODF_ALIGN: Record<"l" | "c" | "r", string> = { l: "start", c: "center", r: "end" };
+const ODF_ALIGN: Record<NonNullable<ResolvedStyle["align"]>, string> = {
+	l: "start",
+	c: "center",
+	r: "end",
+	j: "justify",
+};
 
 /**
  * `<style:style style:family="paragraph">` for one interned automatic style.

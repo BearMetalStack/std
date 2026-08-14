@@ -178,13 +178,19 @@ function textRun(
 interface ParagraphOptions {
 	styleId?: string;
 	numPr?: { numId: string; level: number };
-	align?: "l" | "c" | "r";
+	align?: ResolvedStyle["align"];
 	border?: boolean;
 	/** `<w:pageBreakBefore/>`. Only "page" has a `<w:pPr>` spelling in docx. */
 	breakBefore?: BreakKind;
 }
 
-const JC: Record<"l" | "c" | "r", string> = { l: "left", c: "center", r: "right" };
+/** Word spells justified alignment `both`, not `justify`. */
+const JC: Record<NonNullable<ResolvedStyle["align"]>, string> = {
+	l: "left",
+	c: "center",
+	r: "right",
+	j: "both",
+};
 
 /**
  * A `<w:p>` with its `<w:pPr>` already in place.

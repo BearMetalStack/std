@@ -70,13 +70,18 @@ function runProperties(rPr: XmlElement | undefined): ResolvedStyle {
 	return out;
 }
 
-const ALIGN: Record<string, "l" | "c" | "r"> = {
+const ALIGN: Record<string, NonNullable<ResolvedStyle["align"]>> = {
 	left: "l",
 	start: "l",
 	center: "c",
 	centre: "c",
 	right: "r",
 	end: "r",
+	// Word's own spelling of justified is `both`; `distribute` stretches the
+	// last line as well, which no other format can express, so it folds in.
+	both: "j",
+	justify: "j",
+	distribute: "j",
 };
 
 /** Builds a `StyleTable` from a parsed `word/styles.xml`. */
