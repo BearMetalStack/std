@@ -4,6 +4,9 @@ import { parseXml } from "../../xml/mod.ts";
 import type { XmlElement } from "../../xml/types.ts";
 import { odtProfile, odtWriter } from "./mod.ts";
 import { docxProfile, docxWriter } from "../docx/mod.ts";
+import { createDocumentStyles } from "../../format.ts";
+import { renderWith } from "../../write.ts";
+import type { Node } from "../../types.ts";
 
 function write(md: string): Record<string, string> {
 	return markdownWith(md, odtWriter()).parts;
@@ -256,4 +259,118 @@ Deno.test("normalization: content survives the trip unchanged", () => {
 	const after = read(convert(MALFORMED_ODT, odtProfile(), odtWriter()).parts);
 	assertEquals(before, "# The Title\n\nBody with **bold** and undefined-style text.");
 	assertEquals(after, before);
+});
+
+// ---- caller-defined styles ------------------------------------------------
+
+const NOVEL = createDocumentStyles()
+	.define("Scene Break", {
+		align: "c",
+		spaceBefore: "1.5em",
+		fontStyle: "italic",
+		letterSpacing: "0.3em",
+		keepWithNext: true,
+		lineHeight: 1.5,
+	})
+	.define("Chapter Title", {
+		role: "heading",
+		headingLevel: 1,
+		breakBefore: "page",
+		fontSize: "24pt",
+		fontFamily: '"EB Garamond", serif',
+		color: "#334455",
+	})
+	.define("Thought", { family: "text", fontStyle: "italic" })
+	.bind("graver:scenebreak", "Scene Break")
+	.bind("graver:thought", "Thought");
+
+function tree(...children: Node[]): Node {
+	const root: Node = { tag: "core:root", data: {}, children };
+	for (const child of children) child.parent = root;
+	return root;
+}
+
+function node(tag: string, children: Node[] = [], data: Record<string, unknown> = {}): Node {
+	const self: Node = { tag: tag as Node["tag"], data, children };
+	for (const child of children) child.parent = self;
+	return self;
+}
+
+const text = (value: string) => node("core:text", [], { value });
+
+Deno.test("odt write: a registered style is a common style in styles.xml", () => {
+	const part = markdownWith("hi", odtWriter({ styles: NOVEL })).parts["styles.xml"];
+
+	assertEquals(part.split('style:name="SceneBreak"').length - 1, 1);
+	// The display name is kept, since ODF cannot hold a space in style:name.
+	assertStringIncludes(part, 'style:display-name="Scene Break"');
+	assertStringIncludes(part, 'fo:text-align="center"');
+	// 1.5em at the default 12pt base is 18pt.
+	assertStringIncludes(part, 'fo:margin-top="18pt"');
+	assertStringIncludes(part, 'fo:keep-with-next="always"');
+	// A unitless line height has no ODF spelling; the equivalent is a percentage.
+	assertStringIncludes(part, 'fo:line-height="150%"');
+	assertStringIncludes(part, 'fo:font-size="24pt"');
+	// style:font-name takes one font, fo:font-family keeps the whole stack.
+	assertStringIncludes(part, 'style:font-name="EB Garamond"');
+	assertStringIncludes(part, 'fo:font-family="&quot;EB Garamond&quot;, serif"');
+	assertStringIncludes(part, 'style:default-outline-level="1"');
+});
+
+Deno.test("odt write: paragraph properties precede text properties", () => {
+	// ODF requires the order; a validating reader rejects the reverse.
+	const part = markdownWith("hi", odtWriter({ styles: NOVEL })).parts["styles.xml"];
+	const scene = part.slice(part.indexOf('style:name="SceneBreak"'));
+	assertEquals(
+		scene.indexOf("<style:paragraph-properties") < scene.indexOf("<style:text-properties"),
+		true,
+	);
+});
+
+Deno.test("odt write: a character style carries no paragraph properties", () => {
+	const part = markdownWith("hi", odtWriter({ styles: NOVEL })).parts["styles.xml"];
+	assertStringIncludes(
+		part,
+		'<style:style style:name="Thought" style:family="text"><style:text-properties fo:font-style="italic"/></style:style>',
+	);
+});
+
+Deno.test("odt write: a bound node references its style by name", () => {
+	const parts = renderWith(
+		tree(node("graver:scenebreak", [text("* * *")])),
+		odtWriter({ styles: NOVEL }),
+	).parts;
+
+	assertStringIncludes(
+		parts["content.xml"],
+		'<text:p text:style-name="SceneBreak">* * *</text:p>',
+	);
+});
+
+Deno.test("odt write: an inline style becomes a span referencing it", () => {
+	const parts = renderWith(
+		tree(node("core:paragraph", [node("graver:thought", [text("no")])])),
+		odtWriter({ styles: NOVEL }),
+	).parts;
+
+	assertStringIncludes(parts["content.xml"], '<text:span text:style-name="Thought">no</text:span>');
+});
+
+Deno.test("odt write: binding a known tag restyles it without nesting paragraphs", () => {
+	const styles = createDocumentStyles()
+		.define("Verse", { fontStyle: "italic", indentLeft: "2em" })
+		.bind("md:blockquote", "Verse");
+	const content = markdownWith("> a line\n", odtWriter({ styles })).parts["content.xml"];
+
+	assertStringIncludes(content, '<text:p text:style-name="Verse">');
+	assertEquals(content.split("<text:p ").length - 1, 1);
+});
+
+Deno.test("odt write: a registered style replaces the built-in it collides with", () => {
+	const styles = createDocumentStyles().define("Quote", { indentLeft: "3cm" });
+	const part = markdownWith("hi", odtWriter({ styles })).parts["styles.xml"];
+
+	assertEquals(part.split('style:name="Quote"').length - 1, 1);
+	assertStringIncludes(part, 'fo:margin-left="3cm"');
+	assertEquals(part.includes('fo:margin-left="1cm"'), false);
 });

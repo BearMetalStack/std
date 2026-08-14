@@ -17,6 +17,8 @@ import type { HtmlStyleOptions } from "./styles.ts";
 
 export { htmlStyleResolver, parseInlineStyle } from "./styles.ts";
 export type { HtmlStyleOptions } from "./styles.ts";
+export { htmlWriter } from "./write.ts";
+export type { HtmlWriteOptions } from "./write.ts";
 
 /**
  * Elements that carry no markdown meaning but whose *children* do. Dropping

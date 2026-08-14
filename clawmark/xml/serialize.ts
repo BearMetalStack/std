@@ -1,6 +1,6 @@
 import type { XmlNode } from "./types.ts";
 import { DOCUMENT_NAME } from "./types.ts";
-import { VOID } from "./html_tables.ts";
+import { BOOLEAN_ATTRS, VOID } from "./html_tables.ts";
 
 /**
  * Re-serializes an `XmlNode` tree back to markup. Needed by the crawler's
@@ -24,7 +24,12 @@ export function serializeXml(node: XmlNode, mode: "xml" | "html" = "xml"): strin
 				return node.children.map((c) => serializeXml(c, mode)).join("");
 			}
 			const attrs = [...node.attrs]
-				.map(([k, v]) => ` ${k}="${escapeAttr(v)}"`)
+				.map(([k, v]) =>
+					// `<input disabled>`, not `<input disabled="">`. Only in html
+					// mode, and only for attributes where the two really are the
+					// same thing - XML has no bare-attribute form at all.
+					mode === "html" && v === "" && BOOLEAN_ATTRS.has(k) ? ` ${k}` : ` ${k}="${escapeAttr(v)}"`
+				)
 				.join("");
 			const isVoid = mode === "html" && VOID.has(node.name);
 			if (isVoid) return `<${node.qname}${attrs}>`;
