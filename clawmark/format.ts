@@ -125,6 +125,78 @@ function round(value: number): number {
 	return Math.round(value * 100) / 100;
 }
 
+// ---- colors ---------------------------------------------------------------
+
+/**
+ * The HTML basic color keywords.
+ *
+ * Deliberately not the full 148-name CSS list: this exists so `color: black` in
+ * a hand-written stylesheet reaches Word, not to be a color library. Anything
+ * else has to be written as a hex or `rgb()` value, and `toHexColor` says so
+ * rather than guessing.
+ */
+const NAMED_COLORS: Record<string, string> = {
+	black: "000000",
+	silver: "C0C0C0",
+	gray: "808080",
+	grey: "808080",
+	white: "FFFFFF",
+	maroon: "800000",
+	red: "FF0000",
+	purple: "800080",
+	fuchsia: "FF00FF",
+	magenta: "FF00FF",
+	green: "008000",
+	lime: "00FF00",
+	olive: "808000",
+	yellow: "FFFF00",
+	navy: "000080",
+	blue: "0000FF",
+	teal: "008080",
+	aqua: "00FFFF",
+	cyan: "00FFFF",
+};
+
+const RGB_RX = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i;
+
+/**
+ * A CSS color as the bare six-digit hex WordprocessingML wants - no `#`.
+ *
+ * Returns undefined for anything unrecognized, so a caller can warn instead of
+ * writing a malformed attribute that makes Word reject the whole document.
+ */
+export function toHexColor(value: string | undefined): string | undefined {
+	if (value === undefined) return undefined;
+	const trimmed = value.trim().toLowerCase();
+
+	const named = NAMED_COLORS[trimmed];
+	if (named) return named;
+
+	if (trimmed.startsWith("#")) {
+		const hex = trimmed.slice(1);
+		if (/^[0-9a-f]{3}$/.test(hex)) {
+			return [...hex].map((c) => c + c).join("").toUpperCase();
+		}
+		// An 8-digit value carries alpha, which docx cannot express; keep the
+		// color and drop the transparency rather than losing the color too.
+		if (/^[0-9a-f]{6}([0-9a-f]{2})?$/.test(hex)) return hex.slice(0, 6).toUpperCase();
+		return undefined;
+	}
+
+	const rgb = RGB_RX.exec(trimmed);
+	if (rgb) {
+		return rgb.slice(1, 4)
+			.map((part) => {
+				const channel = Math.max(0, Math.min(255, Math.round(Number(part))));
+				return channel.toString(16).padStart(2, "0");
+			})
+			.join("")
+			.toUpperCase();
+	}
+
+	return undefined;
+}
+
 /**
  * Whether a CSS `font-weight` counts as bold.
  *

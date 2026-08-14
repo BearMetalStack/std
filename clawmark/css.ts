@@ -408,6 +408,7 @@ export function declarationsFor(block: StyleBlock): [string, string][] {
 	// Clawmark's own properties come last so they read as metadata rather than
 	// as formatting, and only when they carry information a default would not.
 	if (block.role !== undefined) push(CUSTOM.role, block.role);
+	if (block.element !== undefined) push(CUSTOM.element, block.element);
 	if (block.family === "text") push(CUSTOM.family, "text");
 	if (block.nextStyle !== undefined) push(CUSTOM.next, block.nextStyle);
 

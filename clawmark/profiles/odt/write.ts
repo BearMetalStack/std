@@ -28,6 +28,7 @@
 
 import type {
 	AnyEmitter,
+	DocumentStyles,
 	EmitContext,
 	EmitResult,
 	Node,
@@ -37,11 +38,11 @@ import type {
 	WriteResult,
 } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
-import { out } from "../../dsl.ts";
+import { out, outAny } from "../../dsl.ts";
 import { append } from "../../xml/build.ts";
 import { createStyleSink } from "../../style.ts";
 import { serializeXml } from "../../xml/serialize.ts";
-import { wrapsSoleBlock } from "../../rules/paragraph.ts";
+import { hasBlockChildren, wrapsSoleBlock } from "../../rules/paragraph.ts";
 import { breakKind } from "../../rules/extra/mod.ts";
 import {
 	listStyle,
@@ -65,6 +66,12 @@ export interface OdtWriteOptions {
 	monoFont?: string;
 	/** `<meta:generator>` value. Default "clawmark". */
 	generator?: string;
+	/**
+	 * Caller-defined named styles. Every registered style is written into
+	 * `styles.xml` as a common style, and any node bound to one references it by
+	 * name rather than interning an automatic style for it.
+	 */
+	styles?: DocumentStyles;
 	/** Extra emitters, consulted before the built-ins. */
 	emitters?: AnyEmitter[];
 }
@@ -180,6 +187,7 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 	const monoFont = options.monoFont ?? "Liberation Mono";
 	const generator = options.generator ?? "clawmark";
 	const styles = createStyleSink({ prefix: { paragraph: "P", text: "T", list: "L" } });
+	const documentStyles = options.styles;
 
 	/** A `<text:list>`'s style name, one per kind, deduped through the sink. */
 	const listStyleName = (ctx: EmitContext, kind: "ordered" | "unordered") =>
@@ -191,6 +199,40 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 		// The lexer opens a paragraph around every block construct; without this
 		// every heading and list would sit inside a `<text:p>`.
 		out("core:paragraph").where(wrapsSoleBlock).unwrap(),
+
+		// ---- caller-defined styles -----------------------------------------
+		//
+		// Ahead of every built-in, so a binding wins over the default spelling of
+		// a tag. A registered style is a *common* style in styles.xml, so it is
+		// referenced by name directly and never interned through the sink.
+		...(documentStyles
+			? [
+				outAny()
+					.where((node) => documentStyles.nameFor(node) !== undefined)
+					.named("out:odt-styled")
+					.to((node, ctx) => {
+						const name = documentStyles.nameFor(node)!;
+						const id = documentStyles.idFor(name);
+						if (documentStyles.resolve(name).family === "text") {
+							if (node.children.length === 0) return { kind: "drop" };
+							return {
+								kind: "element",
+								el: ctx.el("text:span", { "text:style-name": id }),
+							};
+						}
+						// A wrapper around blocks lets those blocks carry the
+						// style; only a wrapper around bare inline content is a
+						// paragraph in its own right. See `hasBlockChildren`.
+						if (hasBlockChildren(node)) {
+							return { kind: "style", style: { named: id } };
+						}
+						return {
+							kind: "element",
+							el: ctx.el("text:p", { "text:style-name": id }),
+						};
+					}),
+			]
+			: []),
 
 		// ---- blocks --------------------------------------------------------
 
@@ -415,7 +457,7 @@ ${automatic}
 					"mimetype": MIMETYPE,
 					"META-INF/manifest.xml": manifest(),
 					"content.xml": content,
-					"styles.xml": stylesPart(monoFont),
+					"styles.xml": stylesPart({ monoFont, styles: documentStyles }),
 					"meta.xml": meta(generator),
 				},
 				primary: "content.xml",

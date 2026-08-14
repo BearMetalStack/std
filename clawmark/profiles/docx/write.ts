@@ -26,6 +26,7 @@
 import type {
 	AnyEmitter,
 	BreakKind,
+	DocumentStyles,
 	EmitContext,
 	Node,
 	ResolvedStyle,
@@ -33,11 +34,11 @@ import type {
 	WriteResult,
 } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
-import { out } from "../../dsl.ts";
+import { out, outAny } from "../../dsl.ts";
 import { append, XML_DECL } from "../../xml/build.ts";
 import { serializeXml } from "../../xml/serialize.ts";
 import { createResourceSink } from "../../write.ts";
-import { wrapsSoleBlock } from "../../rules/paragraph.ts";
+import { hasBlockChildren, wrapsSoleBlock } from "../../rules/paragraph.ts";
 import { breakKind } from "../../rules/extra/mod.ts";
 import { DOCX_NS, REL_NS, WML_NS } from "./styles.ts";
 import {
@@ -77,6 +78,12 @@ export interface DocxWriteOptions {
 	 * `<wp:extent>` gets this. Default 914400 (one inch) square.
 	 */
 	imageExtent?: { cx: number; cy: number };
+	/**
+	 * Caller-defined named styles. Every registered style is written into
+	 * `word/styles.xml` as a document-wide definition, and any node bound to one
+	 * references it by name rather than carrying direct formatting.
+	 */
+	styles?: DocumentStyles;
 	/** Extra emitters, consulted before the built-ins. */
 	emitters?: AnyEmitter[];
 }
@@ -135,21 +142,37 @@ function footnoteId(ctx: EmitContext, label: string): number {
 
 // ---- element helpers ------------------------------------------------------
 
+/**
+ * What every run builder needs: the two font knobs, plus the registry a
+ * character style name resolves through. Carried as one object so adding the
+ * registry did not mean threading a second argument through eight call sites.
+ */
+type RunOptions =
+	& Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>
+	& Pick<DocxWriteOptions, "styles">;
+
 /** `<w:rPr>` for a resolved style, or undefined when the style is empty. */
 function runProperties(
 	style: ResolvedStyle,
 	ctx: EmitContext,
-	options: Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>,
+	options: RunOptions,
 ): XmlElement | undefined {
+	// CT_RPr is a schema *sequence*, same as `<w:pPr>`: rStyle, rFonts, b, i,
+	// strike, highlight, u is the declared order. Emitting these in the order
+	// they happened to be written produces a part Word will not open.
 	const props: XmlElement[] = [];
-	if (style.bold) props.push(ctx.el("w:b"));
-	if (style.italic) props.push(ctx.el("w:i"));
-	if (style.strike) props.push(ctx.el("w:strike"));
-	if (style.underline) props.push(ctx.el("w:u", { "w:val": "single" }));
-	if (style.highlight) props.push(ctx.el("w:highlight", { "w:val": options.highlightColor }));
+	if (style.charStyle) {
+		const id = options.styles?.idFor(style.charStyle) ?? style.charStyle;
+		props.push(ctx.el("w:rStyle", { "w:val": id }));
+	}
 	if (style.mono) {
 		props.push(ctx.el("w:rFonts", { "w:ascii": options.monoFont, "w:hAnsi": options.monoFont }));
 	}
+	if (style.bold) props.push(ctx.el("w:b"));
+	if (style.italic) props.push(ctx.el("w:i"));
+	if (style.strike) props.push(ctx.el("w:strike"));
+	if (style.highlight) props.push(ctx.el("w:highlight", { "w:val": options.highlightColor }));
+	if (style.underline) props.push(ctx.el("w:u", { "w:val": "single" }));
 	return props.length === 0 ? undefined : ctx.el("w:rPr", {}, props);
 }
 
@@ -164,7 +187,7 @@ function runProperties(
 function textRun(
 	value: string,
 	ctx: EmitContext,
-	options: Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>,
+	options: RunOptions,
 	style: ResolvedStyle = ctx.style,
 	preserve = true,
 ): XmlElement {
@@ -226,8 +249,15 @@ function paragraph(ctx: EmitContext, options: ParagraphOptions = {}): XmlElement
 	return p;
 }
 
-/** The paragraph style the current block frame calls for. */
-function blockStyleId(style: ResolvedStyle): string | undefined {
+/**
+ * The paragraph style the current block frame calls for.
+ *
+ * A caller-registered name wins over the built-in role mapping, so binding
+ * `md:blockquote` to a `PullQuote` style restyles every blockquote in the
+ * document without touching an emitter.
+ */
+function blockStyleId(style: ResolvedStyle, styles?: DocumentStyles): string | undefined {
+	if (style.named !== undefined) return styles?.idFor(style.named) ?? style.named;
 	switch (style.blockRole) {
 		case "quote":
 			return "Quote";
@@ -244,10 +274,12 @@ function blockStyleId(style: ResolvedStyle): string | undefined {
 
 /** A write profile that turns a clawmark tree into WordprocessingML. */
 export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
-	const opts = {
+	const opts: RunOptions = {
 		monoFont: options.monoFont ?? "Consolas",
 		highlightColor: options.highlightColor ?? "yellow",
+		styles: options.styles,
 	};
+	const styles = options.styles;
 	const extent = options.imageExtent ?? { cx: DEFAULT_EXTENT, cy: DEFAULT_EXTENT };
 	const resources = createResourceSink();
 
@@ -259,6 +291,41 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 		// double-wrapped.
 		out("core:paragraph").where(wrapsSoleBlock).unwrap(),
 
+		// ---- caller-defined styles -----------------------------------------
+		//
+		// Ahead of every built-in, so a binding wins over the default spelling of
+		// a tag. This is the whole extension point: a custom rule declares a
+		// style name once and needs no emitter of its own in any format.
+		...(styles
+			? [
+				outAny()
+					.where((node) => styles.nameFor(node) !== undefined)
+					.named("out:docx-styled")
+					.to((node, ctx) => {
+						const name = styles.nameFor(node)!;
+						const block = styles.resolve(name);
+						// An inline style contributes a frame and no element, exactly
+						// as `md:bold` does - the run is built by whichever emitter
+						// finally reaches the text.
+						if (block.family === "text") {
+							return { kind: "style", style: { charStyle: name } };
+						}
+						// A wrapper around blocks lets those blocks carry the
+						// style; only a wrapper around bare inline content is a
+						// paragraph in its own right. See `hasBlockChildren`.
+						if (hasBlockChildren(node)) {
+							return { kind: "style", style: { named: name } };
+						}
+						// The formatting lives in the style definition, not on
+						// the paragraph - that is what makes it document-wide.
+						return {
+							kind: "element",
+							el: paragraph(ctx, { styleId: styles.idFor(name) }),
+						};
+					}),
+			]
+			: []),
+
 		// ---- blocks --------------------------------------------------------
 
 		out("md:heading").to((node, ctx) => {
@@ -269,7 +336,7 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 		out("core:paragraph").to((_node, ctx) => ({
 			kind: "element",
 			el: paragraph(ctx, {
-				styleId: blockStyleId(ctx.style),
+				styleId: blockStyleId(ctx.style, options.styles),
 				align: ctx.style.align,
 				breakBefore: ctx.style.breakBefore,
 			}),
@@ -289,7 +356,7 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 		// comes from the frame the blockquote pushed.
 		out("md:lineitem").to((_node, ctx) => ({
 			kind: "element",
-			el: paragraph(ctx, { styleId: blockStyleId(ctx.style) ?? "Quote" }),
+			el: paragraph(ctx, { styleId: blockStyleId(ctx.style, options.styles) ?? "Quote" }),
 		})),
 
 		// `<w:t>` cannot hold a newline, so a code block is one paragraph per
@@ -452,7 +519,7 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 				"_rels/.rels": packageRels(),
 				"word/document.xml": ctx.serialize(document),
 				"word/_rels/document.xml.rels": documentRels(resources.entries, notes.size > 0),
-				"word/styles.xml": stylesPart(opts.monoFont),
+				"word/styles.xml": stylesPart({ monoFont: opts.monoFont, styles }),
 				"word/numbering.xml": numberingPart(nums),
 			};
 			if (notes.size > 0) parts["word/footnotes.xml"] = footnotesPart(notes);
@@ -489,7 +556,7 @@ function emitListItem(
 	node: Node,
 	parent: XmlElement,
 	ctx: EmitContext,
-	opts: Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>,
+	opts: RunOptions,
 ): void {
 	const list = ctx.style.list;
 	const p = paragraph(ctx, {
@@ -515,7 +582,7 @@ const BORDER = { "w:val": "single", "w:sz": 4, "w:space": 0, "w:color": "auto" }
 function buildTable(
 	node: Node,
 	ctx: EmitContext,
-	opts: Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>,
+	opts: RunOptions,
 ): XmlElement {
 	const rows = node.children.filter((child) => child.tag === "md:tablerow");
 	const format = node.children.find((child) => child.tag === "md:tableformat");
