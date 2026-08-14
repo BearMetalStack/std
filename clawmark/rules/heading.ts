@@ -11,9 +11,6 @@ export const headingRule: Rule<HeadingData> = {
 	tokenize(ctx) {
 		const level = ctx.peek(6).match(/^#{1,6}/)?.[0].length ?? 1;
 		ctx.cursor += level - 1;
-		// v1 (webbies/lib/md/lexer.ts) leaves the space after "#"s as literal
-		// content ("# Title" -> " Title") - stripping it here instead, since
-		// every markdown flavor treats it as marker syntax, not text.
 		if (ctx.peek(1, 1) === " ") ctx.cursor += 1;
 		ctx.pushBlock("md:heading", { singleLine: true });
 		return { tag: "md:heading", data: { level, phase: "open" } };

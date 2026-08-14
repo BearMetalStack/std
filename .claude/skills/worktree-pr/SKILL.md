@@ -13,13 +13,7 @@ worktree and branch, and finishes as a PR opened via `tea`.
 1. Determine the repo name and a short branch name from the task description, e.g.
    `feature/type-export-fix`. Prefer `feature/`, `fix/`, or `chore/` as the prefix based on the
    nature of the task.
-2. Create the worktree as a sibling directory outside the main repo:
-   ```bash
-   git worktree add ~/repo-worktrees/<branch-name> -b <branch-name>
-   ```
-   (Substitute the actual branch name for the directory name — keep them identical for easy lookup.)
-   This avoids the main repo, so there's nothing to gitignore and no risk of tooling getting
-   confused by a nested worktree.
+2. Always create the worktree off of main.
 3. `cd` into that worktree directory and do all work there — edits, tests, commits — never in the
    original repo checkout.
 
@@ -31,15 +25,15 @@ worktree and branch, and finishes as a PR opened via `tea`.
 ## Opening the PR
 
 1. Push the branch:
-   ```bash
-   git push -u origin <branch-name>
-   ```
+    ```bash
+    git push -u origin <branch-name>
+    ```
 2. Open the PR against the default branch using `tea`:
-   ```bash
-   tea pr create --title "<short title>" --description "<brief summary>"
-   ```
-   Keep the description minimal — a short summary of what changed and why is enough, no required
-   template.
+    ```bash
+    tea pr create --title "<short title>" --description "<brief summary>"
+    ```
+    Keep the description minimal — a short summary of what changed and why is enough, no required
+    template.
 3. Report the PR URL/number back once created.
 
 ## Cleanup
