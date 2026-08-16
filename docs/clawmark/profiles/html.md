@@ -257,6 +257,7 @@ nowhere to put a class. `htmlWriter` is a real [`WriteProfile`](../write), so th
 | `styles`         | —             | the `DocumentStyles` registry                                 |
 | `stylesheet`     | `"part"`      | `"part"`, `"inline"` (a `<style>` element), or `"none"`       |
 | `document`       | `"fragment"`  | `"full"` wraps the body in a whole `<!doctype html>` document |
+| `output`         | `"html"`      | `"xhtml"` self-closes void elements and canonicalizes boolean attributes |
 | `classPrefix`    | `""`          | namespaces every emitted class and every generated rule       |
 | `pageBreakClass` | `"pagebreak"` | `class` on a rendered page break                              |
 | `emitters`       | `[]`          | extra emitters, consulted before the built-ins                |
@@ -275,3 +276,24 @@ add a rule. :::
 The two are byte-identical except for text escaping: `escapeHtml` escapes quotes in text content and
 the XML serializer does not, because text content is the one place they need no escaping. Both parse
 to the same characters.
+
+### XHTML output
+
+```ts
+htmlWriter({ output: "xhtml" });
+```
+
+`toHtml` stays HTML-only — it's the small renderer meant to ship in the browser. `htmlWriter` builds
+a real element tree, so `output: "xhtml"` gets XHTML for free from the same emitters, via
+[`serializeXml`'s `"xhtml"` mode](../xml#serializing): void elements self-close (`<br/>`, `<img
+.../>`) and boolean attributes take their canonical minimized form (`disabled="disabled"`, `checked="checked"`)
+instead of HTML's bare `disabled`.
+
+Combined with `document: "full"`, it also adds `xmlns="http://www.w3.org/1999/xhtml"` and
+`xml:lang` on `<html>`, plus a leading `<?xml version="1.0" encoding="UTF-8"?>` declaration.
+Fragments (the default `document` mode) never get a declaration — it's only legal as the very first
+thing in a document, and a fragment is meant to be embedded into one, not be one.
+
+Raw markup (`md:raw`) still parses with HTML's tolerant rules either way — `<br>` written loosely in
+source markup comes out `<br/>` under `output: "xhtml"` regardless, since void/boolean handling is
+decided at serialize time from the tag name, not from how the fragment was parsed.

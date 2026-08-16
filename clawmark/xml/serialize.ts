@@ -1,4 +1,4 @@
-import type { XmlNode } from "./types.ts";
+import type { SerializeMode, XmlNode } from "./types.ts";
 import { DOCUMENT_NAME } from "./types.ts";
 import { BOOLEAN_ATTRS, VOID } from "./html_tables.ts";
 
@@ -7,7 +7,7 @@ import { BOOLEAN_ATTRS, VOID } from "./html_tables.ts";
  * `raw` unmatched-policy, and worth its weight again in readable test-failure
  * messages.
  */
-export function serializeXml(node: XmlNode, mode: "xml" | "html" = "xml"): string {
+export function serializeXml(node: XmlNode, mode: SerializeMode = "xml"): string {
 	switch (node.kind) {
 		case "text":
 			return escapeText(node.value);
@@ -24,15 +24,19 @@ export function serializeXml(node: XmlNode, mode: "xml" | "html" = "xml"): strin
 				return node.children.map((c) => serializeXml(c, mode)).join("");
 			}
 			const attrs = [...node.attrs]
-				.map(([k, v]) =>
-					// `<input disabled>`, not `<input disabled="">`. Only in html
-					// mode, and only for attributes where the two really are the
-					// same thing - XML has no bare-attribute form at all.
-					mode === "html" && v === "" && BOOLEAN_ATTRS.has(k) ? ` ${k}` : ` ${k}="${escapeAttr(v)}"`
-				)
+				.map(([k, v]) => {
+					if (v === "" && BOOLEAN_ATTRS.has(k)) {
+						// `<input disabled>` in html - XML has no bare-attribute form.
+						if (mode === "html") return ` ${k}`;
+						// `<input disabled="disabled">` in xhtml - the canonical
+						// minimized form, not the `disabled=""` xml mode falls back to.
+						if (mode === "xhtml") return ` ${k}="${k}"`;
+					}
+					return ` ${k}="${escapeAttr(v)}"`;
+				})
 				.join("");
-			const isVoid = mode === "html" && VOID.has(node.name);
-			if (isVoid) return `<${node.qname}${attrs}>`;
+			const isVoid = (mode === "html" || mode === "xhtml") && VOID.has(node.name);
+			if (isVoid) return mode === "xhtml" ? `<${node.qname}${attrs}/>` : `<${node.qname}${attrs}>`;
 			if (node.children.length === 0 && node.selfClosing) {
 				return mode === "html"
 					? `<${node.qname}${attrs}></${node.qname}>`

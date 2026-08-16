@@ -6,7 +6,14 @@
  * out of graver into its own library.
  */
 
-import type { AttrMap, XmlElement, XmlNode, XmlParseOptions, XmlText } from "./xml/types.ts";
+import type {
+	AttrMap,
+	SerializeMode,
+	XmlElement,
+	XmlNode,
+	XmlParseOptions,
+	XmlText,
+} from "./xml/types.ts";
 
 export type Namespace = string;
 export type Identifier = string;
@@ -728,7 +735,7 @@ export interface WriteProfile {
 	styles?: StyleSink;
 	resources?: ResourceSink;
 	/** Serialization mode for the emitted parts. Default "xml". */
-	mode?: "xml" | "html";
+	mode?: SerializeMode;
 	/** Default "unwrap". */
 	unclaimed?: UnclaimedPolicy | UnclaimedHandler;
 	/**
