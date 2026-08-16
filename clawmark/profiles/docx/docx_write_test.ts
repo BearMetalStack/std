@@ -90,6 +90,16 @@ Deno.test("docx write: links, images, breaks, rules", () => {
 	assertStable("a\n\n---\n\nb");
 });
 
+Deno.test("docx write: a horizontal rule has room below it", () => {
+	// Same reasoning as the odt writer's: the space above the line is the empty
+	// paragraph's own line box, so the rule needs a matching space below it or it
+	// reads as attached to the paragraph that follows.
+	const part = write("a\n\n---\n\nb")["word/document.xml"];
+	const hr = part.slice(part.indexOf("<w:pBdr>"));
+
+	assertStringIncludes(hr.slice(0, hr.indexOf("</w:pPr>")), '<w:spacing w:after="240"/>');
+});
+
 Deno.test("docx write: footnotes", () => {
 	assertStable("ref[^1]\n\n[^1]: the note");
 	assertStable("one[^1] and two[^2]\n\n[^1]: first\n\n[^2]: second");

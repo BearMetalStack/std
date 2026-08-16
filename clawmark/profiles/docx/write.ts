@@ -157,9 +157,6 @@ function runProperties(
 	ctx: EmitContext,
 	options: RunOptions,
 ): XmlElement | undefined {
-	// CT_RPr is a schema *sequence*, same as `<w:pPr>`: rStyle, rFonts, b, i,
-	// strike, highlight, u is the declared order. Emitting these in the order
-	// they happened to be written produces a part Word will not open.
 	const props: XmlElement[] = [];
 	if (style.charStyle) {
 		const id = options.styles?.idFor(style.charStyle) ?? style.charStyle;
@@ -203,9 +200,14 @@ interface ParagraphOptions {
 	numPr?: { numId: string; level: number };
 	align?: ResolvedStyle["align"];
 	border?: boolean;
+	/** `<w:spacing w:after>`, in twips. */
+	spaceAfter?: number;
 	/** `<w:pageBreakBefore/>`. Only "page" has a `<w:pPr>` spelling in docx. */
 	breakBefore?: BreakKind;
 }
+
+/** Twips of space below a horizontal rule - one line at the default size. */
+const HR_SPACE_AFTER = 240;
 
 /** Word spells justified alignment `both`, not `justify`. */
 const JC: Record<NonNullable<ResolvedStyle["align"]>, string> = {
@@ -223,9 +225,6 @@ const JC: Record<NonNullable<ResolvedStyle["align"]>, string> = {
  * requires.
  */
 function paragraph(ctx: EmitContext, options: ParagraphOptions = {}): XmlElement {
-	// `<w:pPr>` is a schema *sequence*, not a bag: pStyle, pageBreakBefore,
-	// numPr, pBdr, jc is the order CT_PPrBase declares, and Word rejects a
-	// document that scrambles it.
 	const props: XmlElement[] = [];
 	if (options.styleId) props.push(ctx.el("w:pStyle", { "w:val": options.styleId }));
 	if (options.breakBefore === "page") props.push(ctx.el("w:pageBreakBefore"));
@@ -239,6 +238,9 @@ function paragraph(ctx: EmitContext, options: ParagraphOptions = {}): XmlElement
 		props.push(ctx.el("w:pBdr", {}, [
 			ctx.el("w:bottom", { "w:val": "single", "w:sz": 6, "w:space": 1, "w:color": "auto" }),
 		]));
+	}
+	if (options.spaceAfter !== undefined) {
+		props.push(ctx.el("w:spacing", { "w:after": options.spaceAfter }));
 	}
 	if (options.align && options.align !== "l") {
 		props.push(ctx.el("w:jc", { "w:val": JC[options.align] }));
@@ -286,16 +288,9 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 	const emitters: AnyEmitter[] = [
 		...(options.emitters ?? []),
 
-		// The lexer opens a paragraph around every block, so a heading arrives as
-		// `core:paragraph > md:heading`. Without this the whole document would be
-		// double-wrapped.
 		out("core:paragraph").where(wrapsSoleBlock).unwrap(),
 
 		// ---- caller-defined styles -----------------------------------------
-		//
-		// Ahead of every built-in, so a binding wins over the default spelling of
-		// a tag. This is the whole extension point: a custom rule declares a
-		// style name once and needs no emitter of its own in any format.
 		...(styles
 			? [
 				outAny()
@@ -304,20 +299,12 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 					.to((node, ctx) => {
 						const name = styles.nameFor(node)!;
 						const block = styles.resolve(name);
-						// An inline style contributes a frame and no element, exactly
-						// as `md:bold` does - the run is built by whichever emitter
-						// finally reaches the text.
 						if (block.family === "text") {
 							return { kind: "style", style: { charStyle: name } };
 						}
-						// A wrapper around blocks lets those blocks carry the
-						// style; only a wrapper around bare inline content is a
-						// paragraph in its own right. See `hasBlockChildren`.
 						if (hasBlockChildren(node)) {
 							return { kind: "style", style: { named: name } };
 						}
-						// The formatting lives in the style definition, not on
-						// the paragraph - that is what makes it document-wide.
 						return {
 							kind: "element",
 							el: paragraph(ctx, { styleId: styles.idFor(name) }),
@@ -342,9 +329,6 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 			}),
 		})),
 
-		// Unlike ODF, docx has a real element for this - a break run in a
-		// paragraph of its own. `w:type="column"` covers the other kind, which
-		// `<w:pageBreakBefore/>` cannot express at all.
 		out("md:pagebreak").to((node, ctx) => {
 			const p = paragraph(ctx);
 			append(p, ctx.el("w:r", {}, [ctx.el("w:br", { "w:type": breakKind(node) })]));
@@ -352,16 +336,12 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 		}),
 
 		out("md:blockquote").style({ blockRole: "quote" }),
-		// Each line of a blockquote is a paragraph of its own; the Quote style
-		// comes from the frame the blockquote pushed.
+
 		out("md:lineitem").to((_node, ctx) => ({
 			kind: "element",
 			el: paragraph(ctx, { styleId: blockStyleId(ctx.style, options.styles) ?? "Quote" }),
 		})),
 
-		// `<w:t>` cannot hold a newline, so a code block is one paragraph per
-		// line. `docxProfile` merges the run back into a single node - see
-		// `buildCodeBlock` there.
 		out("md:codeblock").to((node, ctx) => {
 			const value = String((node.data as { value?: string }).value ?? "");
 			const nodes = value.split("\n").map((line) => {
@@ -374,7 +354,7 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 
 		out("md:hr").to((_node, ctx) => ({
 			kind: "nodes",
-			nodes: [paragraph(ctx, { border: true })],
+			nodes: [paragraph(ctx, { border: true, spaceAfter: HR_SPACE_AFTER })],
 		})),
 
 		// ---- lists ---------------------------------------------------------
@@ -382,10 +362,6 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 		out(["md:orderedlist", "md:unorderedlist"]).to((node, ctx) => {
 			const kind = node.tag === "md:orderedlist" ? "ordered" : "unordered";
 			const outer = ctx.style.list;
-			// A nested list of the *same* kind continues its parent's numbering at
-			// a deeper level; a different kind needs its own definition, because
-			// one `w:num` resolves every level through a single abstract
-			// definition and would render an ordered sublist as bullets.
 			const reuse = outer !== undefined && outer.kind === kind;
 			const numId = reuse ? outer.id! : mintNum(ctx, kind);
 			return {
@@ -420,8 +396,6 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 			};
 		}),
 
-		// The definition contributes nothing to the body - it is emitted into a
-		// detached paragraph and stashed for `word/footnotes.xml`.
 		out("md:footnotedef").to((node, ctx) => ({
 			kind: "custom",
 			run: () => {
@@ -435,9 +409,6 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 						ctx.el("w:footnoteRef"),
 					]),
 				);
-				// Deliberately *not* `xml:space="preserve"`: Word wants a space
-				// after the mark, but the reader must collapse it away at block
-				// start or every definition comes back with a leading blank.
 				append(p, textRun(" ", ctx, opts, {}, false));
 				ctx.children(p);
 				footnotes(ctx).set(label, { docxId: id, body: [p] });
@@ -506,8 +477,6 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 
 			const document = ctx.el("w:document");
 			const bodyEl = ctx.el("w:body", {}, body as XmlElement[]);
-			// A section marker closes a valid body; Word inserts a default one
-			// anyway, but writing it makes the part self-describing.
 			append(bodyEl, ctx.el("w:sectPr"));
 			append(document, bodyEl);
 			for (const [prefix, uri] of Object.entries(DOCX_WRITE_NS)) {
@@ -566,8 +535,6 @@ function emitListItem(
 	append(parent, p);
 
 	if (node.tag === "md:checkitem") {
-		// docx has no checkbox a paragraph can carry, so the state becomes a
-		// glyph. It reads back as literal text, not as a check item.
 		const checked = (node.data as { checked?: boolean }).checked === true;
 		append(p, textRun(checked ? CHECK_GLYPH.on : CHECK_GLYPH.off, ctx, opts));
 	}
@@ -612,8 +579,6 @@ function buildTable(
 	rows.forEach((row, index) => {
 		const cells = (row.data as { columns?: string[] }).columns ?? [];
 		const tr = ctx.el("w:tr");
-		// The header row is marked so it repeats across a page break, which is
-		// what a markdown header row means as closely as docx can say it.
 		if (index === 0) append(tr, ctx.el("w:trPr", {}, [ctx.el("w:tblHeader")]));
 		for (let column = 0; column < columns; column++) {
 			const p = paragraph(ctx, { align: align[column] });

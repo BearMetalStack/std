@@ -122,6 +122,13 @@ A registered style whose id collides with a built-in (`Quote`, `Heading1`, `Sour
 **replaces** it, in every format. Restyling the defaults for one novel does not mean forking a
 writer.
 
+Register it under the built-in's **display name** — `Heading 1`, `Preformatted Text`,
+`Horizontal Line`, and `Normal`/`Standard` for body text. ODF spells a space in a `style:name` as
+`_20_`, so the odt writer maps those names onto `Heading_20_1` and friends for you; a name written
+that way directly would not match anything. And a replacement is a replacement: a horizontal rule is
+a border, `StyleBlock` has no border property, so registering `Horizontal Line` restyles the spacing
+around the rule and loses the line.
+
 ## Units
 
 Absolute units (`pt in cm mm px pc`) convert exactly. `em`, `rem` and `%` resolve against

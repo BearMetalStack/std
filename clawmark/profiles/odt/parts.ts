@@ -78,13 +78,52 @@ export interface StylesPartOptions {
 	styles?: DocumentStyles;
 }
 
+/**
+ * The gap below a horizontal rule.
+ *
+ * The rule is an empty paragraph with a bottom border, so the space *above* the
+ * line is that paragraph's own line box - roughly one line. Without a matching
+ * margin below it the line sits flush against the paragraph that follows, which
+ * reads as a rule attached to the next paragraph rather than a divider between
+ * two. One line's worth of margin puts it back in the middle.
+ */
+const HR_MARGIN_BOTTOM = "0.5cm";
+
+/**
+ * ODF names of the built-ins whose display name contains a space.
+ *
+ * ODF encodes a space in a `style:name` as `_20_`, while `DocumentStyles.idFor`
+ * mangles a name to PascalCase - so `"Heading 1"` arrives here as `Heading1`
+ * and would define a *second*, unreferenced style next to `Heading_20_1` rather
+ * than replacing it. Mapping the two spellings onto each other is what makes
+ * "a registered style whose id collides with a built-in replaces it" true in
+ * odt as well as docx, which is the only way a caller restyles headings.
+ *
+ * Note what replacement means for `Horizontal Line`: `StyleBlock` has no border
+ * property, so a style registered under that name supplies the spacing and
+ * loses the line itself.
+ */
+const BUILTIN_ODF_NAMES = new Map<string, string>([
+	["HorizontalLine", "Horizontal_20_Line"],
+	["PreformattedText", "Preformatted_20_Text"],
+	...[1, 2, 3, 4, 5, 6].map((level) =>
+		[`Heading${level}`, `Heading_20_${level}`] as [string, string]
+	),
+]);
+
+/**
+ * The `style:name` a caller-defined style is written and referenced under -
+ * `idFor`, except where that collides with a built-in spelled the ODF way.
+ */
+export function odtStyleId(name: string, styles: DocumentStyles): string {
+	const id = styles.idFor(name);
+	return BUILTIN_ODF_NAMES.get(id) ?? id;
+}
+
 export function stylesPart(options: StylesPartOptions | string): string {
 	const opts: StylesPartOptions = typeof options === "string" ? { monoFont: options } : options;
 	const monoFont = opts.monoFont;
 
-	// Keyed by style name so a caller-registered style displaces the built-in
-	// it collides with - restyling `Quote` for one novel should not require
-	// forking the writer.
 	const defs = new Map<string, string>([
 		["Standard", `\t\t<style:style style:name="Standard" style:family="paragraph"/>`],
 	]);
@@ -112,12 +151,12 @@ export function stylesPart(options: StylesPartOptions | string): string {
 	defs.set(
 		"Horizontal_20_Line",
 		`\t\t<style:style style:name="Horizontal_20_Line" style:display-name="Horizontal Line" style:family="paragraph" style:parent-style-name="Standard">
-\t\t\t<style:paragraph-properties fo:border-bottom="0.06pt solid #000000" fo:padding-bottom="0.04cm"/>
+\t\t\t<style:paragraph-properties fo:border-bottom="0.06pt solid #000000" fo:padding-bottom="0.04cm" fo:margin-bottom="${HR_MARGIN_BOTTOM}"/>
 \t\t</style:style>`,
 	);
 
 	for (const [name] of opts.styles?.entries ?? []) {
-		defs.set(opts.styles!.idFor(name), odtStyle(name, opts.styles!));
+		defs.set(odtStyleId(name, opts.styles!), odtStyle(name, opts.styles!));
 	}
 
 	return `${XML_DECL}<office:document-styles ${nsAttrs()} office:version="${ODF_VERSION}">
@@ -164,8 +203,6 @@ function odtParagraphProperties(block: StyleBlock, basePt: number): XmlElement |
 		attrs["fo:orphans"] = block.widowControl ? "2" : "0";
 	}
 	if (typeof block.lineHeight === "number") {
-		// ODF has no unitless line height; the equivalent is a percentage of
-		// single spacing, which is what a unitless CSS value already means.
 		attrs["fo:line-height"] = `${Math.round(block.lineHeight * 100)}%`;
 	} else if (block.lineHeight !== undefined) {
 		attrs["fo:line-height"] = length(block.lineHeight);
@@ -204,8 +241,6 @@ function odtTextProperties(block: StyleBlock, basePt: number): XmlElement | unde
 	if (block.strike !== undefined) {
 		attrs["style:text-line-through-style"] = block.strike ? "solid" : "none";
 	}
-	// A character style carries its background on the text properties; a
-	// paragraph style carries it on the paragraph properties instead.
 	if (block.background && block.family === "text") {
 		attrs["fo:background-color"] = block.background;
 	}
@@ -229,25 +264,23 @@ function primaryFont(stack: string): string {
 export function odtStyle(name: string, styles: DocumentStyles): string {
 	const block = styles.resolve(name);
 	const basePt = basePoints(styles);
-	const id = styles.idFor(name);
+	const id = odtStyleId(name, styles);
 	const family = block.family === "text" ? "text" : "paragraph";
 
 	const attrs: AttrMap = { "style:name": id, "style:family": family };
 	const display = block.displayName ?? name;
 	if (display !== id) attrs["style:display-name"] = display;
 	attrs["style:parent-style-name"] = block.basedOn
-		? styles.idFor(block.basedOn)
-		: family === "paragraph"
+		? odtStyleId(block.basedOn, styles)
+		: family === "paragraph" && id !== "Standard"
 		? "Standard"
 		: undefined;
-	if (block.nextStyle) attrs["style:next-style-name"] = styles.idFor(block.nextStyle);
+	if (block.nextStyle) attrs["style:next-style-name"] = odtStyleId(block.nextStyle, styles);
 	if (block.headingLevel !== undefined) {
 		attrs["style:default-outline-level"] = block.headingLevel;
 	}
 
 	const children: XmlElement[] = [];
-	// A text-family style has no paragraph half; writing one makes LibreOffice
-	// discard the whole definition.
 	if (family === "paragraph") {
 		const paragraph = odtParagraphProperties(block, basePt);
 		if (paragraph) children.push(paragraph);
@@ -333,9 +366,6 @@ export function paragraphStyle(def: StyleDef): string {
 export function textStyle(def: StyleDef, monoFont: string): string {
 	const style = def.style;
 	const props: string[] = [];
-	// An automatic text style derives from a common one when the run carries a
-	// named character style *and* direct formatting on top of it - without the
-	// parent, the named style's own formatting is lost at that run.
 	const parent = def.basedOn ? ` style:parent-style-name="${def.basedOn}"` : "";
 	if (style.bold !== undefined) props.push(`fo:font-weight="${style.bold ? "bold" : "normal"}"`);
 	if (style.italic !== undefined) {

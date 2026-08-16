@@ -261,8 +261,6 @@ function paragraphProperties(block: StyleBlock, basePt: number): XmlElement | un
 	if (before !== undefined) spacing["w:before"] = before;
 	if (after !== undefined) spacing["w:after"] = after;
 	if (typeof block.lineHeight === "number") {
-		// `auto` means "w:line is a multiple of single spacing", and single
-		// spacing is 240 twentieths - so 1.5 line spacing is w:line="360".
 		spacing["w:line"] = Math.round(240 * block.lineHeight);
 		spacing["w:lineRule"] = "auto";
 	} else if (block.lineHeight !== undefined) {
@@ -280,8 +278,7 @@ function paragraphProperties(block: StyleBlock, basePt: number): XmlElement | un
 	const first = toTwips(parseLength(block.textIndent), basePt);
 	if (left !== undefined) ind["w:left"] = left;
 	if (right !== undefined) ind["w:right"] = right;
-	// docx has no negative first-line indent; a hanging indent is the same shape
-	// spelled as its own attribute.
+
 	if (first !== undefined && first < 0) ind["w:hanging"] = Math.abs(first);
 	else if (first !== undefined) ind["w:firstLine"] = first;
 	if (Object.keys(ind).length > 0) props.push(el("w:ind", ind));
@@ -350,17 +347,12 @@ export function docxStyle(name: string, styles: DocumentStyles): string {
 	const basePt = basePoints(styles);
 	const family = block.family === "text" ? "character" : "paragraph";
 
-	// `<w:name>` carries its value in `w:val`, not as text content. As element
-	// text it parses fine and Word ignores it, so the style shows up in the
-	// document with an empty name in the style gallery.
 	const children: XmlElement[] = [
 		el("w:name", { "w:val": block.displayName ?? name }),
 	];
 	if (block.basedOn) children.push(el("w:basedOn", { "w:val": styles.idFor(block.basedOn) }));
 	if (block.nextStyle) children.push(el("w:next", { "w:val": styles.idFor(block.nextStyle) }));
 
-	// A character style has no paragraph half at all - writing one produces a
-	// document Word opens with the style silently missing.
 	if (family === "paragraph") {
 		const pPr = paragraphProperties(block, basePt);
 		if (pPr) children.push(pPr);
@@ -368,9 +360,10 @@ export function docxStyle(name: string, styles: DocumentStyles): string {
 	const rPr = styleRunProperties(block, basePt);
 	if (rPr) children.push(rPr);
 
+	const id = styles.idFor(name);
 	const style = el(
 		"w:style",
-		{ "w:type": family, "w:styleId": styles.idFor(name) },
+		{ "w:type": family, "w:default": id === "Normal" ? "1" : undefined, "w:styleId": id },
 		children,
 	);
 	return `\t${serializeXml(style)}`;

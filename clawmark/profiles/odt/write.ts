@@ -52,6 +52,7 @@ import {
 	nsAttrs,
 	ODF_VERSION,
 	ODT_WRITE_NS,
+	odtStyleId,
 	paragraphStyle,
 	stylesPart,
 	textStyle,
@@ -196,15 +197,9 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 	const emitters: AnyEmitter[] = [
 		...(options.emitters ?? []),
 
-		// The lexer opens a paragraph around every block construct; without this
-		// every heading and list would sit inside a `<text:p>`.
 		out("core:paragraph").where(wrapsSoleBlock).unwrap(),
 
 		// ---- caller-defined styles -----------------------------------------
-		//
-		// Ahead of every built-in, so a binding wins over the default spelling of
-		// a tag. A registered style is a *common* style in styles.xml, so it is
-		// referenced by name directly and never interned through the sink.
 		...(documentStyles
 			? [
 				outAny()
@@ -212,7 +207,7 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 					.named("out:odt-styled")
 					.to((node, ctx) => {
 						const name = documentStyles.nameFor(node)!;
-						const id = documentStyles.idFor(name);
+						const id = odtStyleId(name, documentStyles);
 						if (documentStyles.resolve(name).family === "text") {
 							if (node.children.length === 0) return { kind: "drop" };
 							return {
@@ -220,9 +215,6 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 								el: ctx.el("text:span", { "text:style-name": id }),
 							};
 						}
-						// A wrapper around blocks lets those blocks carry the
-						// style; only a wrapper around bare inline content is a
-						// paragraph in its own right. See `hasBlockChildren`.
 						if (hasBlockChildren(node)) {
 							return { kind: "style", style: { named: id } };
 						}
@@ -250,8 +242,6 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 			};
 		}),
 
-		// A paragraph inside a list item is the item's content, not a block of
-		// its own - the item emitter has already opened the `<text:p>`.
 		out("core:paragraph").whereParent("md:listitem").unwrap(),
 		out("core:paragraph").whereParent("md:checkitem").unwrap(),
 		out("core:paragraph").to((_node, ctx) => ({
@@ -267,9 +257,6 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 			}),
 		})),
 
-		// ODF spells a page break as a property of a paragraph, not as an element
-		// of its own - so this is an empty paragraph whose automatic style carries
-		// `fo:break-before`, which is exactly what LibreOffice writes for Ctrl+Enter.
 		out("md:pagebreak").to((node, ctx) => ({
 			kind: "nodes",
 			nodes: [
@@ -282,8 +269,6 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 			],
 		})),
 
-		// ODF has no multi-line paragraph either: a code block is one
-		// `<text:p>` per line, which `odtProfile` merges back.
 		out("md:codeblock").to((node, ctx) => {
 			const value = String((node.data as { value?: string }).value ?? "");
 			const nodes = value.split("\n").map((line) => {
@@ -352,11 +337,6 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 
 		// ---- inline --------------------------------------------------------
 
-		// Unlike a docx run, a `<text:span>` nests - so emphasis emits a real
-		// element carrying only its own property, and `md:bold > md:italic`
-		// survives as two spans rather than collapsing into one combined style.
-		// That is why these are elements here and style frames in the docx
-		// writer: the difference is a property of the formats, not a choice.
 		out("md:bold").to((node, ctx) => span(node, ctx, { bold: true })),
 		out("md:italic").to((node, ctx) => span(node, ctx, { italic: true })),
 		out("md:bolditalic").to((node, ctx) => span(node, ctx, { bold: true, italic: true })),
@@ -426,9 +406,6 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 		styles,
 		emitters,
 		assemble(body, ctx) {
-			// Every family the sink can hand out has to be represented here, or a
-			// style is minted, referenced by the body, and then silently dropped
-			// from the file - which reads as "my element vanished".
 			const automatic = [
 				...styles.defs.filter((def) => def.type === "paragraph")
 					.map((def: StyleDef) => paragraphStyle(def)),
@@ -452,8 +429,6 @@ ${automatic}
 
 			return {
 				parts: {
-					// No trailing newline: some readers compare the entry byte for
-					// byte against the media type.
 					"mimetype": MIMETYPE,
 					"META-INF/manifest.xml": manifest(),
 					"content.xml": content,
@@ -483,8 +458,6 @@ function emitListItem(node: Node, parent: XmlElement, ctx: EmitContext): void {
 	append(item, p);
 
 	if (node.tag === "md:checkitem") {
-		// ODF has no checkbox a list item can carry, so the state becomes a
-		// glyph. It reads back as literal text, not as a check item.
 		const checked = (node.data as { checked?: boolean }).checked === true;
 		append(p, ctx.txt(checked ? CHECK_GLYPH.on : CHECK_GLYPH.off));
 	}
@@ -512,10 +485,6 @@ function buildTable(node: Node, ctx: EmitContext): XmlElement {
 		const cells = (row.data as { columns?: string[] }).columns ?? [];
 		const tr = ctx.el("table:table-row");
 		for (let column = 0; column < columns; column++) {
-			// Alignment is a paragraph *property* in ODF, so it goes through an
-			// automatic style. `fo:text-align` written as an attribute on
-			// `<text:p>` - which is what this did before paragraph styles were
-			// interned - is not valid ODF and is ignored by every reader.
 			const columnAlign = align[column];
 			const p = ctx.el("text:p", {
 				"text:style-name": paragraphStyleName(
@@ -527,7 +496,6 @@ function buildTable(node: Node, ctx: EmitContext): XmlElement {
 			if (value !== "") append(p, ctx.txt(value));
 			append(tr, ctx.el("table:table-cell", { "office:value-type": "string" }, [p]));
 		}
-		// A header row is a real element in ODF, unlike in docx.
 		append(index === 0 ? headerRows(table, ctx) : table, tr);
 	});
 

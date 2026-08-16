@@ -374,3 +374,48 @@ Deno.test("odt write: a registered style replaces the built-in it collides with"
 	assertStringIncludes(part, 'fo:margin-left="3cm"');
 	assertEquals(part.includes('fo:margin-left="1cm"'), false);
 });
+
+Deno.test("odt write: a registered heading replaces the built-in the body references", () => {
+	const styles = createDocumentStyles().define("Heading 1", {
+		role: "heading",
+		headingLevel: 1,
+		align: "c",
+		fontSize: "20pt",
+	});
+	const parts = markdownWith("# One", odtWriter({ styles })).parts;
+
+	// The definition has to take the ODF spelling of the name - `Heading_20_1`,
+	// not the PascalCase `Heading1` - or it defines a second style next to the
+	// built-in and the body goes on referencing the one it replaced.
+	assertEquals(parts["styles.xml"].split('style:name="Heading_20_1"').length - 1, 1);
+	assertEquals(parts["styles.xml"].includes('style:name="Heading1"'), false);
+	assertStringIncludes(parts["styles.xml"], 'fo:text-align="center"');
+	assertStringIncludes(parts["styles.xml"], 'fo:font-size="20pt"');
+	assertEquals(parts["styles.xml"].includes('fo:font-size="24pt"'), false);
+	assertStringIncludes(parts["content.xml"], 'text:style-name="Heading_20_1"');
+});
+
+Deno.test("odt write: a node bound to a displaced built-in references its ODF name", () => {
+	const styles = createDocumentStyles()
+		.define("Heading 2", { role: "heading", headingLevel: 2, align: "c" })
+		.bind("graver:chaptertitle", "Heading 2");
+	const parts = renderWith(
+		tree(node("graver:chaptertitle", [text("The Drowned Bell")])),
+		odtWriter({ styles }),
+	).parts;
+
+	assertStringIncludes(
+		parts["content.xml"],
+		'<text:p text:style-name="Heading_20_2">The Drowned Bell</text:p>',
+	);
+});
+
+Deno.test("odt write: a horizontal rule has room below it", () => {
+	// The line is the bottom border of an empty paragraph, so the space above it
+	// is that paragraph's own line box; without a matching margin below, the rule
+	// sits flush against the next paragraph.
+	const part = markdownWith("a\n\n---\n\nb", odtWriter()).parts["styles.xml"];
+	const hr = part.slice(part.indexOf('style:name="Horizontal_20_Line"'));
+
+	assertStringIncludes(hr.slice(0, hr.indexOf("</style:style>")), 'fo:margin-bottom="0.5cm"');
+});
