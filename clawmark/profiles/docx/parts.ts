@@ -2,10 +2,15 @@
  * @module
  * The parts of a `.docx` that are boilerplate rather than content.
  *
- * These are template strings rather than `el()` trees on purpose: nothing in
- * them varies with the document except the two loops at the bottom, and a
- * literal is both shorter and far easier to check against the spec than the
- * builder calls that would produce it.
+ * The fixed parts are template strings rather than `el()` trees on purpose:
+ * nothing in them varies with the document except the two loops at the bottom,
+ * and a literal is both shorter and far easier to check against the spec than
+ * the builder calls that would produce it.
+ *
+ * Caller-defined styles are the exception and go through `el()`, because they
+ * interpolate values this module did not write - a font name or a color from
+ * someone's stylesheet - and a template string would need `escapeAttr` at every
+ * one of them, which is exactly the kind of thing that gets forgotten once.
  *
  * The style ids here are the ones `styleFromName()` in style.ts already
  * recognizes, so a document written by this profile reads back correctly even
@@ -13,8 +18,18 @@
  * or a `w:name` without changing that function breaks the round trip silently.
  */
 
-import type { ResourceEntry } from "../../types.ts";
-import { XML_DECL } from "../../xml/build.ts";
+import type { DocumentStyles, ResourceEntry, StyleBlock } from "../../types.ts";
+import { el, XML_DECL } from "../../xml/build.ts";
+import { serializeXml } from "../../xml/serialize.ts";
+import type { AttrMap, XmlElement } from "../../xml/types.ts";
+import {
+	basePoints,
+	isBoldWeight,
+	parseLength,
+	toHalfPoints,
+	toHexColor,
+	toTwips,
+} from "../../format.ts";
 
 /**
  * Relationship *type* URIs live under `officeDocument`, but the XML namespaces
@@ -122,46 +137,236 @@ function headingStyle(level: number): string {
 \t</w:style>`;
 }
 
-/**
- * `word/styles.xml`.
- *
- * Only the styles this writer actually references. Word is content with a
- * sparse styles part - it falls back to its own built-in definitions for
- * anything a document names but does not define - so there is nothing to gain
- * from shipping the full latent-style table a real Word export carries.
- */
-export function stylesPart(monoFont: string): string {
-	const headings = [1, 2, 3, 4, 5, 6].map(headingStyle).join("\n");
-	return `${XML_DECL}<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-\t<w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+/** The built-in definitions, keyed by style id so a caller's can displace one. */
+function builtins(monoFont: string): Map<string, string> {
+	const out = new Map<string, string>([
+		[
+			"Normal",
+			`\t<w:style w:type="paragraph" w:default="1" w:styleId="Normal">
 \t\t<w:name w:val="Normal"/>
-\t</w:style>
-${headings}
-\t<w:style w:type="paragraph" w:styleId="Quote">
+\t</w:style>`,
+		],
+	]);
+	for (const level of [1, 2, 3, 4, 5, 6]) out.set(`Heading${level}`, headingStyle(level));
+	out.set(
+		"Quote",
+		`\t<w:style w:type="paragraph" w:styleId="Quote">
 \t\t<w:name w:val="Quote"/>
 \t\t<w:basedOn w:val="Normal"/>
 \t\t<w:pPr><w:ind w:left="720"/></w:pPr>
-\t</w:style>
-\t<w:style w:type="paragraph" w:styleId="SourceCode">
+\t</w:style>`,
+	);
+	out.set(
+		"SourceCode",
+		`\t<w:style w:type="paragraph" w:styleId="SourceCode">
 \t\t<w:name w:val="Source Code"/>
 \t\t<w:basedOn w:val="Normal"/>
 \t\t<w:pPr><w:spacing w:after="0"/></w:pPr>
 \t\t<w:rPr><w:rFonts w:ascii="${escapeAttr(monoFont)}" w:hAnsi="${escapeAttr(monoFont)}"/></w:rPr>
-\t</w:style>
-\t<w:style w:type="paragraph" w:styleId="ListParagraph">
+\t</w:style>`,
+	);
+	out.set(
+		"ListParagraph",
+		`\t<w:style w:type="paragraph" w:styleId="ListParagraph">
 \t\t<w:name w:val="List Paragraph"/>
 \t\t<w:basedOn w:val="Normal"/>
-\t</w:style>
-\t<w:style w:type="character" w:styleId="Hyperlink">
+\t</w:style>`,
+	);
+	out.set(
+		"Hyperlink",
+		`\t<w:style w:type="character" w:styleId="Hyperlink">
 \t\t<w:name w:val="Hyperlink"/>
 \t\t<w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr>
-\t</w:style>
-\t<w:style w:type="character" w:styleId="FootnoteReference">
+\t</w:style>`,
+	);
+	out.set(
+		"FootnoteReference",
+		`\t<w:style w:type="character" w:styleId="FootnoteReference">
 \t\t<w:name w:val="footnote reference"/>
 \t\t<w:rPr><w:vertAlign w:val="superscript"/></w:rPr>
-\t</w:style>
+\t</w:style>`,
+	);
+	return out;
+}
+
+export interface StylesPartOptions {
+	monoFont: string;
+	/** Caller-defined styles, emitted alongside (or over) the built-ins. */
+	styles?: DocumentStyles;
+}
+
+/**
+ * `word/styles.xml`.
+ *
+ * Only the styles this writer actually references, plus whatever the caller
+ * registered. Word is content with a sparse styles part - it falls back to its
+ * own built-in definitions for anything a document names but does not define -
+ * so there is nothing to gain from shipping the full latent-style table a real
+ * Word export carries.
+ *
+ * A registered style whose id collides with a built-in **replaces** it. That is
+ * the point: restyling `Quote` or `Heading1` for one novel should not require
+ * forking the writer.
+ */
+export function stylesPart(options: StylesPartOptions | string): string {
+	const opts: StylesPartOptions = typeof options === "string" ? { monoFont: options } : options;
+	const defs = builtins(opts.monoFont);
+	for (const [name] of opts.styles?.entries ?? []) {
+		defs.set(opts.styles!.idFor(name), docxStyle(name, opts.styles!));
+	}
+
+	return `${XML_DECL}<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+${[...defs.values()].join("\n")}
 </w:styles>
 `;
+}
+
+// ---- caller-defined styles ------------------------------------------------
+
+const DOCX_JC: Record<string, string> = { l: "left", c: "center", r: "right", j: "both" };
+
+const CAPS: Record<string, string | undefined> = {
+	uppercase: "caps",
+	lowercase: undefined,
+	capitalize: undefined,
+	none: undefined,
+};
+
+function on(name: string, value?: boolean): XmlElement {
+	return value === false ? el(name, { "w:val": "0" }) : el(name);
+}
+
+/**
+ * `<w:pPr>` for a caller-defined style.
+ *
+ * `<w:pPr>` is a schema *sequence*, not a bag - CT_PPrBase declares
+ * `keepNext, keepLines, pageBreakBefore, widowControl, pBdr, shd, spacing, ind,
+ * jc, outlineLvl` in that order, and Word rejects a document that scrambles it.
+ * The order of the pushes below is therefore load-bearing, not cosmetic.
+ */
+function paragraphProperties(block: StyleBlock, basePt: number): XmlElement | undefined {
+	const props: XmlElement[] = [];
+
+	if (block.keepWithNext) props.push(on("w:keepNext"));
+	if (block.keepTogether) props.push(on("w:keepLines"));
+	if (block.breakBefore === "page") props.push(on("w:pageBreakBefore"));
+	if (block.widowControl !== undefined) props.push(on("w:widowControl", block.widowControl));
+
+	const shading = toHexColor(block.background);
+	if (shading) props.push(el("w:shd", { "w:val": "clear", "w:color": "auto", "w:fill": shading }));
+
+	const spacing: AttrMap = {};
+	const before = toTwips(parseLength(block.spaceBefore), basePt);
+	const after = toTwips(parseLength(block.spaceAfter), basePt);
+	if (before !== undefined) spacing["w:before"] = before;
+	if (after !== undefined) spacing["w:after"] = after;
+	if (typeof block.lineHeight === "number") {
+		spacing["w:line"] = Math.round(240 * block.lineHeight);
+		spacing["w:lineRule"] = "auto";
+	} else if (block.lineHeight !== undefined) {
+		const exact = toTwips(parseLength(block.lineHeight), basePt);
+		if (exact !== undefined) {
+			spacing["w:line"] = exact;
+			spacing["w:lineRule"] = "exact";
+		}
+	}
+	if (Object.keys(spacing).length > 0) props.push(el("w:spacing", spacing));
+
+	const ind: AttrMap = {};
+	const left = toTwips(parseLength(block.indentLeft), basePt);
+	const right = toTwips(parseLength(block.indentRight), basePt);
+	const first = toTwips(parseLength(block.textIndent), basePt);
+	if (left !== undefined) ind["w:left"] = left;
+	if (right !== undefined) ind["w:right"] = right;
+
+	if (first !== undefined && first < 0) ind["w:hanging"] = Math.abs(first);
+	else if (first !== undefined) ind["w:firstLine"] = first;
+	if (Object.keys(ind).length > 0) props.push(el("w:ind", ind));
+
+	if (block.align && DOCX_JC[block.align]) {
+		props.push(el("w:jc", { "w:val": DOCX_JC[block.align] }));
+	}
+	if (block.headingLevel !== undefined) {
+		props.push(el("w:outlineLvl", { "w:val": block.headingLevel - 1 }));
+	}
+
+	return props.length === 0 ? undefined : el("w:pPr", {}, props);
+}
+
+/**
+ * `<w:rPr>` for a caller-defined style. CT_RPr is a sequence too:
+ * `rFonts, b, i, caps, smallCaps, strike, color, spacing, sz, szCs, u`.
+ */
+function styleRunProperties(block: StyleBlock, basePt: number): XmlElement | undefined {
+	const props: XmlElement[] = [];
+
+	if (block.fontFamily) {
+		const family = primaryFont(block.fontFamily);
+		props.push(el("w:rFonts", { "w:ascii": family, "w:hAnsi": family, "w:cs": family }));
+	}
+	if (block.fontWeight !== undefined) props.push(on("w:b", isBoldWeight(block.fontWeight)));
+	if (block.fontStyle !== undefined) props.push(on("w:i", block.fontStyle === "italic"));
+	if (block.textTransform !== undefined && CAPS[block.textTransform]) {
+		props.push(on(`w:${CAPS[block.textTransform]}`));
+	}
+	if (block.smallCaps !== undefined) props.push(on("w:smallCaps", block.smallCaps));
+	if (block.strike !== undefined) props.push(on("w:strike", block.strike));
+
+	const color = toHexColor(block.color);
+	if (color) props.push(el("w:color", { "w:val": color }));
+
+	const tracking = toTwips(parseLength(block.letterSpacing), basePt);
+	if (tracking !== undefined) props.push(el("w:spacing", { "w:val": tracking }));
+
+	const size = toHalfPoints(parseLength(block.fontSize), basePt);
+	if (size !== undefined) {
+		props.push(el("w:sz", { "w:val": size }));
+		props.push(el("w:szCs", { "w:val": size }));
+	}
+	if (block.underline !== undefined) {
+		props.push(el("w:u", { "w:val": block.underline ? "single" : "none" }));
+	}
+
+	return props.length === 0 ? undefined : el("w:rPr", {}, props);
+}
+
+/**
+ * The first family in a CSS font stack, unquoted.
+ *
+ * docx names exactly one font per script; it has no notion of a fallback list,
+ * so the stack collapses to its head rather than being written out and ignored.
+ */
+function primaryFont(stack: string): string {
+	const first = stack.split(",")[0].trim();
+	return first.replace(/^["']|["']$/g, "");
+}
+
+/** One caller-defined style, as a serialized `<w:style>`. */
+export function docxStyle(name: string, styles: DocumentStyles): string {
+	const block = styles.resolve(name);
+	const basePt = basePoints(styles);
+	const family = block.family === "text" ? "character" : "paragraph";
+
+	const children: XmlElement[] = [
+		el("w:name", { "w:val": block.displayName ?? name }),
+	];
+	if (block.basedOn) children.push(el("w:basedOn", { "w:val": styles.idFor(block.basedOn) }));
+	if (block.nextStyle) children.push(el("w:next", { "w:val": styles.idFor(block.nextStyle) }));
+
+	if (family === "paragraph") {
+		const pPr = paragraphProperties(block, basePt);
+		if (pPr) children.push(pPr);
+	}
+	const rPr = styleRunProperties(block, basePt);
+	if (rPr) children.push(rPr);
+
+	const id = styles.idFor(name);
+	const style = el(
+		"w:style",
+		{ "w:type": family, "w:default": id === "Normal" ? "1" : undefined, "w:styleId": id },
+		children,
+	);
+	return `\t${serializeXml(style)}`;
 }
 
 /** One list instance, as minted during the emit pass. */

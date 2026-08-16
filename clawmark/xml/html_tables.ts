@@ -24,6 +24,42 @@ export const VOID: Set<string> = new Set([
 	"wbr",
 ]);
 
+/**
+ * Attributes whose presence is the whole value.
+ *
+ * XML has no such thing - `disabled=""` is the only legal spelling - so the
+ * builder stores `true` as an empty string and the serializer writes it back
+ * out that way. In HTML that is *equivalent* but not *identical*, and identical
+ * is what the html write profile needs: its output is compared against the
+ * `renderOpen` path, which writes the bare form.
+ */
+export const BOOLEAN_ATTRS: Set<string> = new Set([
+	"allowfullscreen",
+	"async",
+	"autofocus",
+	"autoplay",
+	"checked",
+	"controls",
+	"default",
+	"defer",
+	"disabled",
+	"formnovalidate",
+	"inert",
+	"ismap",
+	"itemscope",
+	"loop",
+	"multiple",
+	"muted",
+	"nomodule",
+	"novalidate",
+	"open",
+	"playsinline",
+	"readonly",
+	"required",
+	"reversed",
+	"selected",
+]);
+
 /** Content is scanned verbatim to the matching close tag and never decoded. */
 export const RAW_TEXT: Set<string> = new Set(["script", "style"]);
 

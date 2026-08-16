@@ -26,6 +26,7 @@
 import type {
 	AnyEmitter,
 	BreakKind,
+	DocumentStyles,
 	EmitContext,
 	Node,
 	ResolvedStyle,
@@ -33,11 +34,11 @@ import type {
 	WriteResult,
 } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
-import { out } from "../../dsl.ts";
+import { out, outAny } from "../../dsl.ts";
 import { append, XML_DECL } from "../../xml/build.ts";
 import { serializeXml } from "../../xml/serialize.ts";
 import { createResourceSink } from "../../write.ts";
-import { wrapsSoleBlock } from "../../rules/paragraph.ts";
+import { hasBlockChildren, wrapsSoleBlock } from "../../rules/paragraph.ts";
 import { breakKind } from "../../rules/extra/mod.ts";
 import { DOCX_NS, REL_NS, WML_NS } from "./styles.ts";
 import {
@@ -77,6 +78,12 @@ export interface DocxWriteOptions {
 	 * `<wp:extent>` gets this. Default 914400 (one inch) square.
 	 */
 	imageExtent?: { cx: number; cy: number };
+	/**
+	 * Caller-defined named styles. Every registered style is written into
+	 * `word/styles.xml` as a document-wide definition, and any node bound to one
+	 * references it by name rather than carrying direct formatting.
+	 */
+	styles?: DocumentStyles;
 	/** Extra emitters, consulted before the built-ins. */
 	emitters?: AnyEmitter[];
 }
@@ -135,21 +142,34 @@ function footnoteId(ctx: EmitContext, label: string): number {
 
 // ---- element helpers ------------------------------------------------------
 
+/**
+ * What every run builder needs: the two font knobs, plus the registry a
+ * character style name resolves through. Carried as one object so adding the
+ * registry did not mean threading a second argument through eight call sites.
+ */
+type RunOptions =
+	& Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>
+	& Pick<DocxWriteOptions, "styles">;
+
 /** `<w:rPr>` for a resolved style, or undefined when the style is empty. */
 function runProperties(
 	style: ResolvedStyle,
 	ctx: EmitContext,
-	options: Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>,
+	options: RunOptions,
 ): XmlElement | undefined {
 	const props: XmlElement[] = [];
-	if (style.bold) props.push(ctx.el("w:b"));
-	if (style.italic) props.push(ctx.el("w:i"));
-	if (style.strike) props.push(ctx.el("w:strike"));
-	if (style.underline) props.push(ctx.el("w:u", { "w:val": "single" }));
-	if (style.highlight) props.push(ctx.el("w:highlight", { "w:val": options.highlightColor }));
+	if (style.charStyle) {
+		const id = options.styles?.idFor(style.charStyle) ?? style.charStyle;
+		props.push(ctx.el("w:rStyle", { "w:val": id }));
+	}
 	if (style.mono) {
 		props.push(ctx.el("w:rFonts", { "w:ascii": options.monoFont, "w:hAnsi": options.monoFont }));
 	}
+	if (style.bold) props.push(ctx.el("w:b"));
+	if (style.italic) props.push(ctx.el("w:i"));
+	if (style.strike) props.push(ctx.el("w:strike"));
+	if (style.highlight) props.push(ctx.el("w:highlight", { "w:val": options.highlightColor }));
+	if (style.underline) props.push(ctx.el("w:u", { "w:val": "single" }));
 	return props.length === 0 ? undefined : ctx.el("w:rPr", {}, props);
 }
 
@@ -164,7 +184,7 @@ function runProperties(
 function textRun(
 	value: string,
 	ctx: EmitContext,
-	options: Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>,
+	options: RunOptions,
 	style: ResolvedStyle = ctx.style,
 	preserve = true,
 ): XmlElement {
@@ -178,13 +198,24 @@ function textRun(
 interface ParagraphOptions {
 	styleId?: string;
 	numPr?: { numId: string; level: number };
-	align?: "l" | "c" | "r";
+	align?: ResolvedStyle["align"];
 	border?: boolean;
+	/** `<w:spacing w:after>`, in twips. */
+	spaceAfter?: number;
 	/** `<w:pageBreakBefore/>`. Only "page" has a `<w:pPr>` spelling in docx. */
 	breakBefore?: BreakKind;
 }
 
-const JC: Record<"l" | "c" | "r", string> = { l: "left", c: "center", r: "right" };
+/** Twips of space below a horizontal rule - one line at the default size. */
+const HR_SPACE_AFTER = 240;
+
+/** Word spells justified alignment `both`, not `justify`. */
+const JC: Record<NonNullable<ResolvedStyle["align"]>, string> = {
+	l: "left",
+	c: "center",
+	r: "right",
+	j: "both",
+};
 
 /**
  * A `<w:p>` with its `<w:pPr>` already in place.
@@ -194,9 +225,6 @@ const JC: Record<"l" | "c" | "r", string> = { l: "left", c: "center", r: "right"
  * requires.
  */
 function paragraph(ctx: EmitContext, options: ParagraphOptions = {}): XmlElement {
-	// `<w:pPr>` is a schema *sequence*, not a bag: pStyle, pageBreakBefore,
-	// numPr, pBdr, jc is the order CT_PPrBase declares, and Word rejects a
-	// document that scrambles it.
 	const props: XmlElement[] = [];
 	if (options.styleId) props.push(ctx.el("w:pStyle", { "w:val": options.styleId }));
 	if (options.breakBefore === "page") props.push(ctx.el("w:pageBreakBefore"));
@@ -211,6 +239,9 @@ function paragraph(ctx: EmitContext, options: ParagraphOptions = {}): XmlElement
 			ctx.el("w:bottom", { "w:val": "single", "w:sz": 6, "w:space": 1, "w:color": "auto" }),
 		]));
 	}
+	if (options.spaceAfter !== undefined) {
+		props.push(ctx.el("w:spacing", { "w:after": options.spaceAfter }));
+	}
 	if (options.align && options.align !== "l") {
 		props.push(ctx.el("w:jc", { "w:val": JC[options.align] }));
 	}
@@ -220,8 +251,15 @@ function paragraph(ctx: EmitContext, options: ParagraphOptions = {}): XmlElement
 	return p;
 }
 
-/** The paragraph style the current block frame calls for. */
-function blockStyleId(style: ResolvedStyle): string | undefined {
+/**
+ * The paragraph style the current block frame calls for.
+ *
+ * A caller-registered name wins over the built-in role mapping, so binding
+ * `md:blockquote` to a `PullQuote` style restyles every blockquote in the
+ * document without touching an emitter.
+ */
+function blockStyleId(style: ResolvedStyle, styles?: DocumentStyles): string | undefined {
+	if (style.named !== undefined) return styles?.idFor(style.named) ?? style.named;
 	switch (style.blockRole) {
 		case "quote":
 			return "Quote";
@@ -238,20 +276,42 @@ function blockStyleId(style: ResolvedStyle): string | undefined {
 
 /** A write profile that turns a clawmark tree into WordprocessingML. */
 export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
-	const opts = {
+	const opts: RunOptions = {
 		monoFont: options.monoFont ?? "Consolas",
 		highlightColor: options.highlightColor ?? "yellow",
+		styles: options.styles,
 	};
+	const styles = options.styles;
 	const extent = options.imageExtent ?? { cx: DEFAULT_EXTENT, cy: DEFAULT_EXTENT };
 	const resources = createResourceSink();
 
 	const emitters: AnyEmitter[] = [
 		...(options.emitters ?? []),
 
-		// The lexer opens a paragraph around every block, so a heading arrives as
-		// `core:paragraph > md:heading`. Without this the whole document would be
-		// double-wrapped.
 		out("core:paragraph").where(wrapsSoleBlock).unwrap(),
+
+		// ---- caller-defined styles -----------------------------------------
+		...(styles
+			? [
+				outAny()
+					.where((node) => styles.nameFor(node) !== undefined)
+					.named("out:docx-styled")
+					.to((node, ctx) => {
+						const name = styles.nameFor(node)!;
+						const block = styles.resolve(name);
+						if (block.family === "text") {
+							return { kind: "style", style: { charStyle: name } };
+						}
+						if (hasBlockChildren(node)) {
+							return { kind: "style", style: { named: name } };
+						}
+						return {
+							kind: "element",
+							el: paragraph(ctx, { styleId: styles.idFor(name) }),
+						};
+					}),
+			]
+			: []),
 
 		// ---- blocks --------------------------------------------------------
 
@@ -263,15 +323,12 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 		out("core:paragraph").to((_node, ctx) => ({
 			kind: "element",
 			el: paragraph(ctx, {
-				styleId: blockStyleId(ctx.style),
+				styleId: blockStyleId(ctx.style, options.styles),
 				align: ctx.style.align,
 				breakBefore: ctx.style.breakBefore,
 			}),
 		})),
 
-		// Unlike ODF, docx has a real element for this - a break run in a
-		// paragraph of its own. `w:type="column"` covers the other kind, which
-		// `<w:pageBreakBefore/>` cannot express at all.
 		out("md:pagebreak").to((node, ctx) => {
 			const p = paragraph(ctx);
 			append(p, ctx.el("w:r", {}, [ctx.el("w:br", { "w:type": breakKind(node) })]));
@@ -279,16 +336,12 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 		}),
 
 		out("md:blockquote").style({ blockRole: "quote" }),
-		// Each line of a blockquote is a paragraph of its own; the Quote style
-		// comes from the frame the blockquote pushed.
+
 		out("md:lineitem").to((_node, ctx) => ({
 			kind: "element",
-			el: paragraph(ctx, { styleId: blockStyleId(ctx.style) ?? "Quote" }),
+			el: paragraph(ctx, { styleId: blockStyleId(ctx.style, options.styles) ?? "Quote" }),
 		})),
 
-		// `<w:t>` cannot hold a newline, so a code block is one paragraph per
-		// line. `docxProfile` merges the run back into a single node - see
-		// `buildCodeBlock` there.
 		out("md:codeblock").to((node, ctx) => {
 			const value = String((node.data as { value?: string }).value ?? "");
 			const nodes = value.split("\n").map((line) => {
@@ -301,7 +354,7 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 
 		out("md:hr").to((_node, ctx) => ({
 			kind: "nodes",
-			nodes: [paragraph(ctx, { border: true })],
+			nodes: [paragraph(ctx, { border: true, spaceAfter: HR_SPACE_AFTER })],
 		})),
 
 		// ---- lists ---------------------------------------------------------
@@ -309,10 +362,6 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 		out(["md:orderedlist", "md:unorderedlist"]).to((node, ctx) => {
 			const kind = node.tag === "md:orderedlist" ? "ordered" : "unordered";
 			const outer = ctx.style.list;
-			// A nested list of the *same* kind continues its parent's numbering at
-			// a deeper level; a different kind needs its own definition, because
-			// one `w:num` resolves every level through a single abstract
-			// definition and would render an ordered sublist as bullets.
 			const reuse = outer !== undefined && outer.kind === kind;
 			const numId = reuse ? outer.id! : mintNum(ctx, kind);
 			return {
@@ -347,8 +396,6 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 			};
 		}),
 
-		// The definition contributes nothing to the body - it is emitted into a
-		// detached paragraph and stashed for `word/footnotes.xml`.
 		out("md:footnotedef").to((node, ctx) => ({
 			kind: "custom",
 			run: () => {
@@ -362,9 +409,6 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 						ctx.el("w:footnoteRef"),
 					]),
 				);
-				// Deliberately *not* `xml:space="preserve"`: Word wants a space
-				// after the mark, but the reader must collapse it away at block
-				// start or every definition comes back with a leading blank.
 				append(p, textRun(" ", ctx, opts, {}, false));
 				ctx.children(p);
 				footnotes(ctx).set(label, { docxId: id, body: [p] });
@@ -433,8 +477,6 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 
 			const document = ctx.el("w:document");
 			const bodyEl = ctx.el("w:body", {}, body as XmlElement[]);
-			// A section marker closes a valid body; Word inserts a default one
-			// anyway, but writing it makes the part self-describing.
 			append(bodyEl, ctx.el("w:sectPr"));
 			append(document, bodyEl);
 			for (const [prefix, uri] of Object.entries(DOCX_WRITE_NS)) {
@@ -446,7 +488,7 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 				"_rels/.rels": packageRels(),
 				"word/document.xml": ctx.serialize(document),
 				"word/_rels/document.xml.rels": documentRels(resources.entries, notes.size > 0),
-				"word/styles.xml": stylesPart(opts.monoFont),
+				"word/styles.xml": stylesPart({ monoFont: opts.monoFont, styles }),
 				"word/numbering.xml": numberingPart(nums),
 			};
 			if (notes.size > 0) parts["word/footnotes.xml"] = footnotesPart(notes);
@@ -483,7 +525,7 @@ function emitListItem(
 	node: Node,
 	parent: XmlElement,
 	ctx: EmitContext,
-	opts: Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>,
+	opts: RunOptions,
 ): void {
 	const list = ctx.style.list;
 	const p = paragraph(ctx, {
@@ -493,8 +535,6 @@ function emitListItem(
 	append(parent, p);
 
 	if (node.tag === "md:checkitem") {
-		// docx has no checkbox a paragraph can carry, so the state becomes a
-		// glyph. It reads back as literal text, not as a check item.
 		const checked = (node.data as { checked?: boolean }).checked === true;
 		append(p, textRun(checked ? CHECK_GLYPH.on : CHECK_GLYPH.off, ctx, opts));
 	}
@@ -509,7 +549,7 @@ const BORDER = { "w:val": "single", "w:sz": 4, "w:space": 0, "w:color": "auto" }
 function buildTable(
 	node: Node,
 	ctx: EmitContext,
-	opts: Required<Pick<DocxWriteOptions, "monoFont" | "highlightColor">>,
+	opts: RunOptions,
 ): XmlElement {
 	const rows = node.children.filter((child) => child.tag === "md:tablerow");
 	const format = node.children.find((child) => child.tag === "md:tableformat");
@@ -539,8 +579,6 @@ function buildTable(
 	rows.forEach((row, index) => {
 		const cells = (row.data as { columns?: string[] }).columns ?? [];
 		const tr = ctx.el("w:tr");
-		// The header row is marked so it repeats across a page break, which is
-		// what a markdown header row means as closely as docx can say it.
 		if (index === 0) append(tr, ctx.el("w:trPr", {}, [ctx.el("w:tblHeader")]));
 		for (let column = 0; column < columns; column++) {
 			const p = paragraph(ctx, { align: align[column] });

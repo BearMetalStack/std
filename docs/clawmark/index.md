@@ -7,8 +7,9 @@ swappable set of `Rule` definitions rather than a fixed grammar.
 import { convert, htmlToMarkdown, markdownWith, toHtml, xmlToMarkdown } from "@bearmetal/clawmark";
 ```
 
-Zero dependencies and no host APIs: no `DOMParser`, no `Deno.*`, no `globalThis`. The same code runs
-in Deno, a browser, and a worker.
+No external dependencies and no host APIs: no `DOMParser`, no `Deno.*`, no `globalThis`. The same
+code runs in Deno, a browser, and a worker. The only thing it imports at all is
+`@bearmetal/miscellanea/string`, for case conversion.
 
 ## The shape of it
 

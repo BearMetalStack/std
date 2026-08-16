@@ -215,6 +215,7 @@ export const EMPTY_STYLE_TABLE: StyleTable = createStyleTable([]);
  */
 const SINK_KEYS: readonly (keyof ResolvedStyle)[] = [
 	"named",
+	"charStyle",
 	"blockRole",
 	"headingLevel",
 	"bold",

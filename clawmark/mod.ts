@@ -37,6 +37,8 @@ export { Crawler, postProcess } from "./crawl.ts";
 export { createResourceSink, MarkupWriter, renderWith, singlePart } from "./write.ts";
 export * from "./xml/mod.ts";
 export * from "./style.ts";
+export * from "./format.ts";
+export * from "./css.ts";
 export * from "./dsl.ts";
 export { htmlProfile } from "./profiles/html/mod.ts";
 export type { HtmlProfileOptions } from "./profiles/html/mod.ts";

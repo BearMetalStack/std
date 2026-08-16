@@ -10,6 +10,8 @@
 		"./serialize": "./serialize.ts",
 		"./write": "./write.ts",
 		"./style": "./style.ts",
+		"./format": "./format.ts",
+		"./css": "./css.ts",
 		"./dsl": "./dsl.ts",
 		"./profiles/html": "./profiles/html/mod.ts",
 		"./profiles/docx": "./profiles/docx/mod.ts",

@@ -1,17 +1,17 @@
 import type { ResolvedStyle, StyleResolver } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
+import { parseDeclarations } from "../../css.ts";
+import { isBoldWeight } from "../../format.ts";
 
-/** Parses an inline `style="..."` attribute into a property map. */
-export function parseInlineStyle(value: string | undefined): Map<string, string> {
-	const out = new Map<string, string>();
-	if (!value) return out;
-	for (const decl of value.split(";")) {
-		const colon = decl.indexOf(":");
-		if (colon < 0) continue;
-		out.set(decl.slice(0, colon).trim().toLowerCase(), decl.slice(colon + 1).trim());
-	}
-	return out;
-}
+/**
+ * Parses an inline `style="..."` attribute into a property map.
+ *
+ * An alias for the stylesheet parser's declaration reader - an inline style
+ * attribute *is* a declaration block, and having two parsers for it meant a
+ * `font-family: "Foo, Bar", serif` split at the comma in one and not the other.
+ */
+export const parseInlineStyle: (value: string | undefined) => Map<string, string> =
+	parseDeclarations;
 
 /**
  * Word's HTML export writes list structure into CSS rather than into
@@ -36,7 +36,6 @@ const MSO_CLASSES: Record<string, ResolvedStyle> = {
 	msoheading6: { blockRole: "heading", headingLevel: 6 },
 };
 
-const BOLD_WEIGHTS = new Set(["bold", "bolder", "600", "700", "800", "900"]);
 const MONO_RX = /mono|courier|consolas|menlo|monaco/i;
 const TRANSPARENT_RX = /^(transparent|#fff(fff)?|white|rgba?\(\s*255\s*,\s*255\s*,\s*255)/i;
 
@@ -65,7 +64,7 @@ export function htmlStyleResolver(options: HtmlStyleOptions = {}): StyleResolver
 			const css = parseInlineStyle(el.attrs.get("style"));
 			if (css.size > 0) {
 				const weight = css.get("font-weight");
-				if (weight) out.bold = BOLD_WEIGHTS.has(weight.toLowerCase());
+				if (weight) out.bold = isBoldWeight(weight);
 
 				const fontStyle = css.get("font-style");
 				if (fontStyle) out.italic = /^(italic|oblique)/i.test(fontStyle);
@@ -83,6 +82,7 @@ export function htmlStyleResolver(options: HtmlStyleOptions = {}): StyleResolver
 				if (align === "center") out.align = "c";
 				else if (align === "right") out.align = "r";
 				else if (align === "left") out.align = "l";
+				else if (align === "justify") out.align = "j";
 
 				// Word puts list structure in CSS, not in markup.
 				const msoList = css.get("mso-list");

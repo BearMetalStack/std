@@ -23,8 +23,8 @@ only thing any two formats have to agree on.
 `defaultRules()` covers Markdown-equivalent syntax (headings, emphasis, lists, tables, blockquotes,
 links, images, footnotes, code, horizontal rules), plus the common extensions `~~strikethrough~~`,
 `==highlight==`, and `++underline++` — the last in the markdown-it-ins tradition, because the office
-formats this engine reverses have underline even though CommonMark does not. Zero dependencies, no
-host APIs — the same code runs in Deno, a browser, and a worker.
+formats this engine reverses have underline even though CommonMark does not. No external
+dependencies and no host APIs — the same code runs in Deno, a browser, and a worker.
 
 ```ts
 import { convert, htmlToMarkdown, markdownWith, toHtml, xmlToMarkdown } from "@bearmetal/clawmark";
