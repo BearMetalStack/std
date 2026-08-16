@@ -40,6 +40,19 @@ Parsing uses HTML mode: names fold to lowercase, void and raw-text elements are 
 implicit-close table applies (`<li>` closes `<li>`), unquoted attributes and stray `<` are
 tolerated, and namespace resolution is skipped. See [the XML parser](../xml).
 
+Pass `input: "xhtml"` when the source is genuinely well-formed XHTML and you want strictness
+enforced instead of assumed away: parsing switches to XML mode, so malformed markup surfaces as a
+recoverable error rather than being silently patched over, `xmlns` is resolved, and — unlike the
+default — tag/attribute names are **not** folded to lowercase, since valid XHTML is already
+lowercase and a caller asking for strictness presumably wants that checked, not corrected.
+
+```ts
+htmlToMarkdown(xhtmlText, { input: "xhtml" });
+```
+
+Well-formed input reverses to the same markdown either way; this option only matters for input that
+might not be.
+
 ## What it handles
 
 Every construct in [the default rule set](../#supported-markdown) reverses, because each rule
@@ -102,6 +115,7 @@ interface HtmlProfileOptions {
 	unmatched?: UnmatchedPolicy | UnmatchedHandler; // default "unwrap"
 	unmatchedByTag?: Record<string, UnmatchedPolicy | UnmatchedHandler>;
 	classMap?: Record<string, ResolvedStyle>; // extra class -> style mappings
+	input?: "html" | "xhtml"; // parse strictness, default "html" - see Input above
 }
 ```
 
@@ -252,15 +266,15 @@ result.parts["styles.css"]; // .scene-break { text-align: center; … }
 nowhere to put a class. `htmlWriter` is a real [`WriteProfile`](../write), so the same
 [style registry](../styles) that drives docx and odt drives HTML too.
 
-| Option           | Default       |                                                               |
-| ---------------- | ------------- | ------------------------------------------------------------- |
-| `styles`         | —             | the `DocumentStyles` registry                                 |
-| `stylesheet`     | `"part"`      | `"part"`, `"inline"` (a `<style>` element), or `"none"`       |
-| `document`       | `"fragment"`  | `"full"` wraps the body in a whole `<!doctype html>` document |
+| Option           | Default       |                                                                          |
+| ---------------- | ------------- | ------------------------------------------------------------------------ |
+| `styles`         | —             | the `DocumentStyles` registry                                            |
+| `stylesheet`     | `"part"`      | `"part"`, `"inline"` (a `<style>` element), or `"none"`                  |
+| `document`       | `"fragment"`  | `"full"` wraps the body in a whole `<!doctype html>` document            |
 | `output`         | `"html"`      | `"xhtml"` self-closes void elements and canonicalizes boolean attributes |
-| `classPrefix`    | `""`          | namespaces every emitted class and every generated rule       |
-| `pageBreakClass` | `"pagebreak"` | `class` on a rendered page break                              |
-| `emitters`       | `[]`          | extra emitters, consulted before the built-ins                |
+| `classPrefix`    | `""`          | namespaces every emitted class and every generated rule                  |
+| `pageBreakClass` | `"pagebreak"` | `class` on a rendered page break                                         |
+| `emitters`       | `[]`          | extra emitters, consulted before the built-ins                           |
 
 Binding a style to a tag the writer already knows **decorates** it rather than replacing it: a
 blockquote bound to `Verse` stays a `<blockquote>` and gains `class="verse"`. That is the opposite
@@ -285,14 +299,15 @@ htmlWriter({ output: "xhtml" });
 
 `toHtml` stays HTML-only — it's the small renderer meant to ship in the browser. `htmlWriter` builds
 a real element tree, so `output: "xhtml"` gets XHTML for free from the same emitters, via
-[`serializeXml`'s `"xhtml"` mode](../xml#serializing): void elements self-close (`<br/>`, `<img
-.../>`) and boolean attributes take their canonical minimized form (`disabled="disabled"`, `checked="checked"`)
-instead of HTML's bare `disabled`.
+[`serializeXml`'s `"xhtml"` mode](../xml#serializing): void elements self-close (`<br/>`,
+`<img
+.../>`) and boolean attributes take their canonical minimized form (`disabled="disabled"`,
+`checked="checked"`) instead of HTML's bare `disabled`.
 
-Combined with `document: "full"`, it also adds `xmlns="http://www.w3.org/1999/xhtml"` and
-`xml:lang` on `<html>`, plus a leading `<?xml version="1.0" encoding="UTF-8"?>` declaration.
-Fragments (the default `document` mode) never get a declaration — it's only legal as the very first
-thing in a document, and a fragment is meant to be embedded into one, not be one.
+Combined with `document: "full"`, it also adds `xmlns="http://www.w3.org/1999/xhtml"` and `xml:lang`
+on `<html>`, plus a leading `<?xml version="1.0" encoding="UTF-8"?>` declaration. Fragments (the
+default `document` mode) never get a declaration — it's only legal as the very first thing in a
+document, and a fragment is meant to be embedded into one, not be one.
 
 Raw markup (`md:raw`) still parses with HTML's tolerant rules either way — `<br>` written loosely in
 source markup comes out `<br/>` under `output: "xhtml"` regardless, since void/boolean handling is

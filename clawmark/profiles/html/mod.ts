@@ -80,13 +80,28 @@ export interface HtmlProfileOptions extends HtmlStyleOptions {
 	unmatched?: Profile["unmatched"];
 	/** Per-element-name overrides of `unmatched`. */
 	unmatchedByTag?: Profile["unmatchedByTag"];
+	/**
+	 * Parse strictness for the source markup. `"html"` (the default) is
+	 * tolerant: void/raw-text elements and the implicit-close table are
+	 * honored, names fold to lowercase, and unquoted attributes and stray `<`
+	 * are recovered from rather than rejected - what real-world "HTML-ish"
+	 * input, including Word's export and clawmark's own `htmlWriter` output,
+	 * actually needs.
+	 *
+	 * `"xhtml"` parses strictly as XML instead: malformed markup surfaces as a
+	 * recoverable error rather than being silently patched over, and `xmlns`
+	 * is resolved. Well-formed input reverses to the same markdown either
+	 * way - this only matters to a caller who wants strictness enforced on
+	 * genuinely XHTML source rather than assumed away.
+	 */
+	input?: "html" | "xhtml";
 }
 
 /** A profile that turns clawmark's own HTML output - and ordinary HTML - back into markdown. */
 export function htmlProfile(options: HtmlProfileOptions = {}): Profile {
 	return {
 		name: "html",
-		parse: { mode: "html" },
+		parse: { mode: options.input === "xhtml" ? "xml" : "html" },
 		styles: htmlStyleResolver(options),
 		// Order is precedence. Caller rules first, then the real constructs,
 		// then the structural fallbacks - so a <span class="highlight"> is
