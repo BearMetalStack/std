@@ -58,6 +58,8 @@ export interface HtmlWriteOptions {
 	 * own stylesheet or adopts one into a shadow root via `toCss()`.
 	 */
 	stylesheet?: "part" | "inline" | "none";
+	/** Replaces "styles.css" when using `"part"` */
+	stylesheetName?: `${string}.css`;
 	/** `"fragment"` (the default) or a whole `<!doctype html>` document. */
 	document?: "fragment" | "full";
 	/**
@@ -165,21 +167,21 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 	const emitters: AnyEmitter[] = [
 		...(options.emitters ?? []),
 
-		// The lexer opens a paragraph around every block, so a heading arrives as
-		// `core:paragraph > md:heading`; without this every block gets a redundant
-		// `<p>` around it.
 		out("core:paragraph").where(wrapsSoleBlock).unwrap(),
 		out("core:paragraph").to(wrap("p")),
 
 		// ---- blocks --------------------------------------------------------
 
 		out("md:heading").to((node, ctx) => {
-			const level = Math.min(6, Math.max(1, Number(data(node).level) || 1));
+			const level = Math.min(
+				6,
+				Math.max(1, Number(data(node).level) || 1),
+			);
 			return { kind: "element", el: ctx.el(`h${level}`, attrs(node)) };
 		}),
 
 		out("md:blockquote").to(wrap("blockquote")),
-		// A blockquote line is a paragraph of its own, matching `blockquoteRule`.
+
 		out("md:lineitem").to(wrap("p")),
 
 		out("md:codeblock").to((node, ctx) => {
@@ -195,7 +197,10 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 			};
 		}),
 
-		out("md:hr").to((node, ctx) => ({ kind: "nodes", nodes: [ctx.el("hr", attrs(node))] })),
+		out("md:hr").to((node, ctx) => ({
+			kind: "nodes",
+			nodes: [ctx.el("hr", attrs(node))],
+		})),
 
 		out("md:pagebreak").to((node, ctx) => ({
 			kind: "nodes",
@@ -215,11 +220,20 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 		out("md:orderedlist").to(wrap("ol")),
 		out("md:unorderedlist").to((node, ctx) => ({
 			kind: "element",
-			el: ctx.el("ul", attrs(node, data(node).style === "none" ? { class: "none" } : {})),
+			el: ctx.el(
+				"ul",
+				attrs(
+					node,
+					data(node).style === "none" ? { class: "none" } : {},
+				),
+			),
 		})),
 		out("md:listitem").to((node, ctx) => ({
 			kind: "element",
-			el: ctx.el("li", attrs(node, data(node).style ? { class: "none" } : {})),
+			el: ctx.el(
+				"li",
+				attrs(node, data(node).style ? { class: "none" } : {}),
+			),
 		})),
 		out("md:checkitem").to((node, ctx) => {
 			const li = ctx.el("li", attrs(node));
@@ -235,10 +249,6 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 		}),
 
 		// ---- tables --------------------------------------------------------
-		//
-		// The head row renders before the alignment row has been seen, so its
-		// alignment is not knowable yet; `tableRowRule` centers it instead, and
-		// this has to make the same choice or the two disagree.
 
 		out("md:table").to((node, ctx) => {
 			tableState(ctx).head = true;
@@ -259,7 +269,12 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 			const tr = ctx.el("tr", attrs(node));
 			columns.forEach((cell, index) => {
 				const align = state.head ? "c" : (state.columnAlign?.[index] ?? "l");
-				append(tr, ctx.el(cellTag, { style: CELL_ALIGN[align] }, [ctx.txt(cell)]));
+				append(
+					tr,
+					ctx.el(cellTag, { style: CELL_ALIGN[align] }, [
+						ctx.txt(cell),
+					]),
+				);
 			});
 			return {
 				kind: "nodes",
@@ -275,7 +290,9 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 				kind: "nodes",
 				nodes: [
 					ctx.el("sup", attrs(node), [
-						ctx.el("a", { href: `#fn-${id}`, id: `fnref-${id}` }, [ctx.txt(id)]),
+						ctx.el("a", { href: `#fn-${id}`, id: `fnref-${id}` }, [
+							ctx.txt(id),
+						]),
 					]),
 				],
 			};
@@ -284,10 +301,10 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 		out("md:footnotedef").to((node, ctx) => {
 			const id = str(node, "id");
 			const aside = ctx.el("aside", attrs(node, { id }));
-			append(aside, ctx.el("a", { href: `#fnref-${id}` }, [ctx.txt("↩")]));
-			// The trailing space separates the backlink from the note body, and
-			// `footnoteDefRule` emits it too - without it the reader gets
-			// "↩Some note" and the collapse leaves no word boundary.
+			append(
+				aside,
+				ctx.el("a", { href: `#fnref-${id}` }, [ctx.txt("↩")]),
+			);
 			append(aside, ctx.txt(" "));
 			return { kind: "element", el: aside };
 		}),
@@ -318,7 +335,10 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 				nodes: [
 					ctx.el(
 						"a",
-						attrs(node, { href: str(node, "href"), title: title as string | undefined }),
+						attrs(node, {
+							href: str(node, "href"),
+							title: title as string | undefined,
+						}),
 						[ctx.txt(str(node, "text"))],
 					),
 				],
@@ -344,21 +364,16 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 			nodes: [ctx.el("br", attrs(node))],
 		})),
 
-		// Raw markup is parsed rather than spliced in as text: the writer's output
-		// is a node tree, and there is no "unescaped string" node to hold it. The
-		// parse is lossless for well-formed input and self-closing for the rest,
-		// which is strictly better than what concatenation would produce.
 		out("md:raw").to((node) => {
 			const value = str(node, "value");
 			if (value === "") return { kind: "drop" };
-			return { kind: "nodes", nodes: new XmlParser(value, { mode: "html" }).parse().children };
+			return {
+				kind: "nodes",
+				nodes: new XmlParser(value, { mode: "html" }).parse().children,
+			};
 		}),
 
 		// ---- caller-defined styles -----------------------------------------
-		//
-		// Last, not first: a bound tag that a built-in already claims has been
-		// decorated with its class by `attrs()` above. This only catches tags no
-		// emitter knows - which is exactly the custom-rule case it exists for.
 		...(styles
 			? [
 				outAny()
@@ -369,7 +384,10 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 						const block = styles.resolve(name);
 						return {
 							kind: "element",
-							el: ctx.el(defaultElement(block, node), attrs(node)),
+							el: ctx.el(
+								defaultElement(block, node),
+								attrs(node),
+							),
 						};
 					}),
 			]
@@ -385,24 +403,27 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 			const nodes = [...body];
 
 			if (stylesheet === "inline" && css !== "") {
-				// A `<style>` element's content is raw text in HTML, so the CSS must
-				// not be escaped - `cdata` is the one node kind that serializes
-				// verbatim in both modes.
-				nodes.unshift(el("style", {}, [{ kind: "cdata", value: css } as XmlNode]));
+				nodes.unshift(
+					el("style", {}, [{ kind: "cdata", value: css } as XmlNode]),
+				);
 			}
 
-			const markup = nodes.map((node) => serializeXml(node, mode)).join("");
+			const markup = nodes.map((node) => serializeXml(node, mode)).join(
+				"",
+			);
 			const parts: Record<string, string> = {
 				"index.html": options.document === "full"
 					? fullDocument(markup, {
 						title: options.title ?? "Document",
 						lang: options.lang ?? "en",
-						css: stylesheet === "part" && css !== "" ? "styles.css" : undefined,
+						css: stylesheet === "part" && css !== ""
+							? options.stylesheetName ?? "styles.css"
+							: undefined,
 						mode,
 					})
 					: markup,
 			};
-			if (stylesheet === "part" && css !== "") parts["styles.css"] = css;
+			if (stylesheet === "part" && css !== "") parts[options.stylesheetName ?? "styles.css"] = css;
 
 			return {
 				parts,
