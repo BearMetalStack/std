@@ -273,3 +273,57 @@ Deno.test("html write: markdown that looks like markup is still escaped", () => 
 	assertEquals(html("<div><b>x</b></div>\n"), toHtml("<div><b>x</b></div>\n", defaultRules()));
 	assertStringIncludes(html("<div><b>x</b></div>\n"), "&lt;div&gt;");
 });
+
+// ---- xhtml ------------------------------------------------------------------
+
+Deno.test("html write: default output is unchanged (regression)", () => {
+	// Void elements stay bare and boolean attributes stay in HTML's short form
+	// when `output` is not passed - the whole point is that xhtml is opt-in.
+	assertStringIncludes(html("one\\\ntwo\n"), "<br>");
+	assertStringIncludes(html("---\n"), "<hr>");
+	const checklist = html("- [x] done\n- [ ] todo\n");
+	assertStringIncludes(checklist, '<input type="checkbox" disabled checked>');
+	assertStringIncludes(checklist, '<input type="checkbox" disabled>');
+});
+
+Deno.test("html write: xhtml self-closes void elements", () => {
+	const xhtml = (md: string) => html(md, htmlWriter({ output: "xhtml" }));
+	assertStringIncludes(xhtml("one\\\ntwo\n"), "<br/>");
+	assertStringIncludes(xhtml("---\n"), "<hr/>");
+	assertStringIncludes(xhtml("![alt](img.png)\n"), '<img src="img.png" alt="alt"/>');
+});
+
+Deno.test("html write: xhtml canonicalizes boolean attributes", () => {
+	const checklist = html("- [x] done\n- [ ] todo\n", htmlWriter({ output: "xhtml" }));
+	assertStringIncludes(checklist, 'disabled="disabled" checked="checked"');
+	assertStringIncludes(checklist, 'type="checkbox" disabled="disabled"/>');
+});
+
+Deno.test("html write: xhtml raw markup normalizes loosely-written void tags", () => {
+	// `md:raw` still parses in tolerant html mode - the loose `<br>` is only
+	// self-closed because *serializing* happens in xhtml mode, independent of
+	// how the fragment was parsed.
+	const result = renderWith(
+		tree(node("md:raw", [], { value: "<p>a<br>b</p>" })),
+		htmlWriter({ output: "xhtml" }),
+	);
+	assertEquals(result.parts["index.html"], "<p>a<br/>b</p>");
+});
+
+Deno.test("html write: xhtml full document gets xmlns and an xml declaration", () => {
+	const doc = write("hi\n", htmlWriter({ output: "xhtml", document: "full", lang: "fr" }))[
+		"index.html"
+	];
+	assertStringIncludes(doc, '<?xml version="1.0" encoding="UTF-8"?>\n<!doctype html>');
+	assertStringIncludes(
+		doc,
+		'<html lang="fr" xml:lang="fr" xmlns="http://www.w3.org/1999/xhtml">',
+	);
+});
+
+Deno.test("html write: xhtml fragments never get an xml declaration", () => {
+	// A declaration is only legal as the very first thing in a document - a
+	// fragment meant for embedding elsewhere must never carry one.
+	const fragment = html("hi\n", htmlWriter({ output: "xhtml" }));
+	assertEquals(fragment.startsWith("<?xml"), false);
+});

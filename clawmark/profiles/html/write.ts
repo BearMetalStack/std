@@ -36,7 +36,7 @@ import type {
 	WriteProfile,
 	WriteResult,
 } from "../../types.ts";
-import type { AttrMap, XmlNode } from "../../xml/types.ts";
+import type { AttrMap, SerializeMode, XmlNode } from "../../xml/types.ts";
 import { out, outAny } from "../../dsl.ts";
 import { append, el, txt } from "../../xml/build.ts";
 import { serializeXml } from "../../xml/serialize.ts";
@@ -60,6 +60,14 @@ export interface HtmlWriteOptions {
 	stylesheet?: "part" | "inline" | "none";
 	/** `"fragment"` (the default) or a whole `<!doctype html>` document. */
 	document?: "fragment" | "full";
+	/**
+	 * Serialization target. `"xhtml"` self-closes void elements (`<br/>`) and
+	 * writes boolean attributes in canonical form (`disabled="disabled"`)
+	 * instead of the bare HTML form. With `document: "full"`, `"xhtml"` also
+	 * adds `xmlns`/`xml:lang` on `<html>` and a leading XML declaration.
+	 * Default `"html"`.
+	 */
+	output?: "html" | "xhtml";
 	/** Prefix on every emitted class, so styles can be namespaced. */
 	classPrefix?: string;
 	/** `<title>` for `document: "full"`. Default "Document". */
@@ -126,6 +134,7 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 	const prefix = options.classPrefix ?? "";
 	const stylesheet = options.stylesheet ?? "part";
 	const pageBreakClass = options.pageBreakClass ?? "pagebreak";
+	const mode: SerializeMode = options.output ?? "html";
 
 	/**
 	 * Attributes for one node, with the bound style's class merged in.
@@ -369,7 +378,7 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 
 	return {
 		name: "html",
-		mode: "html",
+		mode,
 		emitters,
 		assemble(body, ctx): WriteResult {
 			const css = styles ? toCss(styles, { classPrefix: prefix }) : "";
@@ -382,13 +391,14 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 				nodes.unshift(el("style", {}, [{ kind: "cdata", value: css } as XmlNode]));
 			}
 
-			const markup = nodes.map((node) => serializeXml(node, "html")).join("");
+			const markup = nodes.map((node) => serializeXml(node, mode)).join("");
 			const parts: Record<string, string> = {
 				"index.html": options.document === "full"
 					? fullDocument(markup, {
 						title: options.title ?? "Document",
 						lang: options.lang ?? "en",
 						css: stylesheet === "part" && css !== "" ? "styles.css" : undefined,
+						mode,
 					})
 					: markup,
 			};
@@ -407,15 +417,20 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 
 function fullDocument(
 	body: string,
-	options: { title: string; lang: string; css?: string },
+	options: { title: string; lang: string; css?: string; mode: SerializeMode },
 ): string {
 	const link = options.css ? `\n\t<link rel="stylesheet" href="${options.css}">` : "";
-	return `<!doctype html>
-<html lang="${options.lang}">
+	const xhtml = options.mode === "xhtml";
+	const decl = xhtml ? `<?xml version="1.0" encoding="UTF-8"?>\n` : "";
+	const htmlAttrs = xhtml
+		? `lang="${options.lang}" xml:lang="${options.lang}" xmlns="http://www.w3.org/1999/xhtml"`
+		: `lang="${options.lang}"`;
+	return `${decl}<!doctype html>
+<html ${htmlAttrs}>
 <head>
 \t<meta charset="utf-8">
 \t<meta name="viewport" content="width=device-width, initial-scale=1">
-\t<title>${serializeXml(txt(options.title), "html")}</title>${link}
+\t<title>${serializeXml(txt(options.title), options.mode)}</title>${link}
 </head>
 <body>
 ${body}

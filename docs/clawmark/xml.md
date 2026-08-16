@@ -265,9 +265,15 @@ serializeXml(parseXml(src)); // the same string back
 ```
 
 ```ts
-serializeXml(node, mode?: "xml" | "html")
+serializeXml(node, mode?: "xml" | "html" | "xhtml")
 ```
 
 Text and attribute values are escaped. In `"html"` mode void elements stay void instead of gaining a
 closing tag — which is why the `raw` [unmatched policy](./reverse#unmatched-elements) passes the
 profile's mode through.
+
+`"xhtml"` produces markup that is both valid HTML and well-formed XML: void elements self-close
+(`<br/>`, not `<br>`) and boolean attributes are written in their canonical minimized form
+(`disabled="disabled"`, not the bare `disabled` HTML allows or the `disabled=""` plain `"xml"` mode
+falls back to). It has no parsing counterpart — well-formed XHTML source already parses correctly
+under `"xml"` mode, so there is nothing for a parser-side `"xhtml"` mode to do differently.

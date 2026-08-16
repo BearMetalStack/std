@@ -68,6 +68,13 @@ export type AttrMap = Record<string, string | number | boolean | undefined>;
 
 export type XmlMode = "xml" | "html";
 
+/**
+ * Modes `serializeXml` understands. A superset of `XmlMode` - `"xhtml"` has no
+ * parse-time counterpart, since well-formed XHTML already parses correctly
+ * under `"xml"` mode.
+ */
+export type SerializeMode = XmlMode | "xhtml";
+
 export interface XmlParseOptions {
 	/**
 	 * "xml" (default) is strict and case-sensitive with namespace tracking.
