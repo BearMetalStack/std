@@ -10,7 +10,14 @@
 
 import { joinPath, stringsSufficientlySimilar } from "@bearmetal/miscellanea";
 import { type Infer, Schema } from "./schema.ts";
-import type { RouterHandler, Service, ServiceActions, ServiceToken, StateType } from "./types.ts";
+import type {
+	RouterErrorHandler,
+	RouterHandler,
+	Service,
+	ServiceActions,
+	ServiceToken,
+	StateType,
+} from "./types.ts";
 import {
 	alarmTrustedNameCollision,
 	logTrustedRoute,
@@ -170,6 +177,8 @@ export interface AnyModule<TState extends StateType = StateType> {
 	readonly rawRoutes: Iterable<[string, RouteConfig<TState>]>;
 	readonly rawServices: Iterable<[string, Service]>;
 	_startCallbacks?: (() => Promise<void>)[];
+	/** Error handlers registered in this subtree, bubbled up at mount. */
+	_errorHandlers?: RouterErrorHandler[];
 	// deno-lint-ignore no-explicit-any
 	_setParent?(parent: any): void;
 	/** Trusted names claimed anywhere in this module's subtree: name -> class name. */
@@ -224,6 +233,8 @@ export class Module<TState extends StateType = {}> {
 	// deno-lint-ignore no-explicit-any
 	_pendingCallbacks: ((parent: Module<any>) => boolean | void)[] = [];
 	_startCallbacks: (() => Promise<void>)[] = [];
+	/** Public so a parent can drain a child's error handlers when it is mounted. */
+	_errorHandlers: RouterErrorHandler[] = [];
 
 	/**
 	 * The Router (or Module) this module was mounted on, or `null` if not yet mounted.
@@ -282,6 +293,31 @@ export class Module<TState extends StateType = {}> {
 	 */
 	onStart(callback: () => Promise<void>): this {
 		this._startCallbacks.push(callback);
+		return this;
+	}
+
+	/**
+	 * Register a handler for errors thrown out of the middleware chain.
+	 *
+	 * Without one, `Router.handler` swallows the error and answers a bare 500 -
+	 * a crashing template is indistinguishable from a genuine failure. Handlers
+	 * registered on a Module bubble up to the root Router when it is mounted, so
+	 * a feature module can report its own errors.
+	 *
+	 * Handlers run in registration order. The first to return a `Response` wins;
+	 * returning nothing makes the handler observe-only, letting the remaining
+	 * handlers see the error before the router falls through to its own 500.
+	 * A handler that throws is caught and logged so it cannot mask the original.
+	 *
+	 * @example
+	 * ```ts
+	 * router.onError((err, ctx) => {
+	 *   console.error(`${ctx.url.pathname} failed:`, err);
+	 * });
+	 * ```
+	 */
+	onError(handler: RouterErrorHandler): this {
+		this._errorHandlers.push(handler);
 		return this;
 	}
 
@@ -494,6 +530,9 @@ export class Module<TState extends StateType = {}> {
 		}
 		if (module._startCallbacks) {
 			this._startCallbacks.push(...module._startCallbacks);
+		}
+		if (module._errorHandlers) {
+			this._errorHandlers.push(...module._errorHandlers);
 		}
 		for (const [name, ctor] of module._trustedClaims ?? []) {
 			this.#registerClaim({ name, ctor }, "*", "(nested)", false);
