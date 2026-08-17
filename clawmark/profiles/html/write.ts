@@ -44,6 +44,7 @@ import { XmlParser } from "../../xml/parser.ts";
 import { hasBlockChildren, wrapsSoleBlock } from "../../rules/paragraph.ts";
 import { breakKind } from "../../rules/extra/mod.ts";
 import { toCss } from "../../css.ts";
+import { dedented } from "@bearmetal/miscellanea/string";
 
 export interface HtmlWriteOptions {
 	/**
@@ -440,22 +441,27 @@ function fullDocument(
 	body: string,
 	options: { title: string; lang: string; css?: string; mode: SerializeMode },
 ): string {
-	const link = options.css ? `\n\t<link rel="stylesheet" href="${options.css}">` : "";
 	const xhtml = options.mode === "xhtml";
-	const decl = xhtml ? `<?xml version="1.0" encoding="UTF-8"?>\n` : "";
+	const link = options.css
+		? `<link rel="stylesheet" href="${options.css}">${xhtml ? "</link>" : ""}`
+		: "";
+	const decl = xhtml ? `<?xml version="1.0" encoding="UTF-8"?>\n` : "<!doctyp html>\n";
 	const htmlAttrs = xhtml
 		? `lang="${options.lang}" xml:lang="${options.lang}" xmlns="http://www.w3.org/1999/xhtml"`
 		: `lang="${options.lang}"`;
-	return `${decl}<!doctype html>
-<html ${htmlAttrs}>
-<head>
-\t<meta charset="utf-8">
-\t<meta name="viewport" content="width=device-width, initial-scale=1">
-\t<title>${serializeXml(txt(options.title), options.mode)}</title>${link}
-</head>
-<body>
-${body}
-</body>
-</html>
+	return dedented`
+		${decl}
+		<html ${htmlAttrs}>
+			<head>
+				<meta charset="utf-8">${xhtml ? "</meta>" : ""}
+				<meta name="viewport" content="width=device-width, initial-scale=1">
+				${xhtml ? "</meta>" : ""}
+				<title>${serializeXml(txt(options.title), options.mode)}</title>
+				${link}
+			</head>
+			<body>
+				${body}
+			</body>
+		</html>
 `;
 }
