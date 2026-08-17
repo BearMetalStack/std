@@ -19,7 +19,7 @@ import {
 	withQuery,
 } from "./manifest.ts";
 import { discoverFrom, rootFallbackFor } from "./discover.ts";
-import { isHtml, outputPathFor, redirectShim, writeResponse } from "./write.ts";
+import { isHtml, redirectShim, writeResponse } from "./write.ts";
 import type {
 	DiecastConfig,
 	GeneratedPage,
