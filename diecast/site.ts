@@ -137,10 +137,13 @@ export function printSuggestions(site: SiteDefinition): void {
 export async function runDiecast(
 	site: SiteDefinition,
 	args: string[] = Deno.args,
-): Promise<never> {
+): Promise<void> {
+	// `Deno.exitCode` rather than `Deno.exit`: exiting outright discards whatever
+	// is still buffered on stdout, which loses the whole report the moment the
+	// output is piped anywhere.
 	if (args.includes("--help") || args.includes("-h")) {
 		console.log(USAGE);
-		Deno.exit(0);
+		return;
 	}
 
 	const command = args.find((a) => !a.startsWith("-")) ?? "build";
@@ -148,15 +151,16 @@ export async function runDiecast(
 	if (command === "suggest") {
 		await site.router.ready();
 		printSuggestions(site);
-		Deno.exit(0);
+		return;
 	}
 
 	if (command !== "build") {
 		console.error(`unknown command "${command}"\n\n${USAGE}`);
-		Deno.exit(2);
+		Deno.exitCode = 2;
+		return;
 	}
 
 	const config = applyFlags(site, args);
 	const report = await diecast(config.router, config);
-	Deno.exit(printReport(report));
+	Deno.exitCode = printReport(report);
 }

@@ -226,6 +226,52 @@ Deno.test("writes a nested chunk where the browser asks for it, fetching it from
 	});
 });
 
+Deno.test("does not write a page where an asset was expected", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		// The page is written to md/intro/index.html, so `../chunk-Z9.js` resolves
+		// to /md/chunk-Z9.js - which this catch-all page route answers 200 HTML
+		// for, treating the filename as a slug. Writing that would leave an HTML
+		// body at a .js path, and the page using it would break silently.
+		router.route("/md/:file").get(() =>
+			Html(`<script type="module">import "../chunk-Z9.js";</script>`)
+		);
+
+		const report = await diecast(router, {
+			outDir,
+			manifest: { "/md/:file": { permutations: [{ params: { file: "intro" } }] } },
+			discover: { links: false },
+		});
+
+		assertEquals(await exists(joinPath(outDir, "md/chunk-Z9.js")), false);
+		assertEquals(await exists(joinPath(outDir, "md/chunk-Z9.js/index.html")), false);
+
+		assertEquals(report.ok, false);
+		assertEquals(report.failures.length, 1);
+		assertStringIncludes(report.failures[0].message, "returned HTML");
+	});
+});
+
+Deno.test("prefers the root fallback over a colliding page route", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/md/:file").get(() =>
+			Html(`<script type="module">import "../chunk-Z9.js";</script>`)
+		);
+		// The real chunk, served at the root the way stack does it.
+		router.route("/chunk-Z9.js").get(() => Script("export const z = 9;"));
+
+		const report = await diecast(router, {
+			outDir,
+			manifest: { "/md/:file": { permutations: [{ params: { file: "intro" } }] } },
+			discover: { links: false },
+		});
+
+		assertEquals(report.ok, true);
+		assertEquals(await read(outDir, "md/chunk-Z9.js"), "export const z = 9;");
+	});
+});
+
 Deno.test("turns a redirect into a shim a static host can serve", async () => {
 	await withTempDir(async (outDir) => {
 		const router = new Router();

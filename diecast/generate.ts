@@ -167,16 +167,31 @@ export async function diecast(
 			return;
 		}
 
-		// A chunk imported relatively from a nested page resolves to a path the
-		// live server may not answer, though the file still belongs there.
-		if (res.status === 404 && job.kind === "asset") {
+		// An asset is never an HTML document. When one comes back - or the fetch
+		// failed outright - the path did not reach the file: a chunk imported
+		// relatively from a nested page resolves somewhere the live server does
+		// not serve it, and can even collide with a parameterised page route,
+		// which answers 200 for a slug that is really a filename. The file still
+		// belongs where the browser asked for it, so retry at the site root.
+		if (job.kind === "asset" && (!res.ok || isHtml(res.headers.get("content-type")))) {
 			const fallback = rootFallbackFor(job.url);
 			if (fallback) {
 				const retry = await router.handler(
 					new Request(fallback, { method: "GET" }),
 					{} as unknown as Deno.ServeHandlerInfo<Deno.Addr>,
 				);
-				if (retry.ok) res = retry;
+				if (retry.ok && !isHtml(retry.headers.get("content-type"))) res = retry;
+			}
+			// Writing an HTML body to an asset path would produce a file that is
+			// served with the wrong type and silently breaks the page using it.
+			if (res.ok && isHtml(res.headers.get("content-type"))) {
+				failures.push({
+					url: key,
+					status: res.status,
+					message: "expected an asset but the route returned HTML - no such asset is served",
+				});
+				if (config.strict) aborted = true;
+				return;
 			}
 		}
 
