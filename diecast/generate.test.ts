@@ -1,0 +1,297 @@
+import { assertEquals, assertStringIncludes } from "@std/assert";
+import Router, { Html, Script } from "@bearmetal/router";
+import { joinPath } from "@bearmetal/miscellanea";
+import { diecast } from "./generate.ts";
+import { defineManifest } from "./manifest.ts";
+
+async function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
+	const dir = await Deno.makeTempDir();
+	try {
+		await fn(dir);
+	} finally {
+		await Deno.remove(dir, { recursive: true });
+	}
+}
+
+const read = (dir: string, file: string) => Deno.readTextFile(joinPath(dir, file));
+
+async function exists(path: string): Promise<boolean> {
+	try {
+		await Deno.stat(path);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+Deno.test("generates every static route", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() => Html("<h1>home</h1>"));
+		router.route("/about").get(() => Html("<h1>about</h1>"));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, true);
+		assertEquals(report.failures, []);
+		assertEquals(await read(outDir, "index.html"), "<h1>home</h1>");
+		assertEquals(await read(outDir, "about/index.html"), "<h1>about</h1>");
+	});
+});
+
+Deno.test("flat output style writes sibling files", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/about").get(() => Html("<h1>about</h1>"));
+
+		await diecast(router, { outDir, outputStyle: "flat", discover: { links: false } });
+
+		assertEquals(await read(outDir, "about.html"), "<h1>about</h1>");
+	});
+});
+
+Deno.test("generates a page per manifest permutation", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/md/:file").get((ctx) => Html(`<h1>${ctx.params.file}</h1>`));
+
+		const manifest = defineManifest({
+			"/md/:file": {
+				permutations: () => ["intro", "advanced"].map((file) => ({ params: { file } })),
+			},
+		});
+
+		const report = await diecast(router, { outDir, manifest, discover: { links: false } });
+
+		assertEquals(report.ok, true);
+		assertEquals(await read(outDir, "md/intro/index.html"), "<h1>intro</h1>");
+		assertEquals(await read(outDir, "md/advanced/index.html"), "<h1>advanced</h1>");
+	});
+});
+
+Deno.test("query permutations render with their query and honour out", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/search").get((ctx) => Html(`<p>${ctx.url.searchParams.get("q")}</p>`));
+
+		const manifest = defineManifest({
+			"/search": {
+				permutations: [
+					{ params: {}, query: { q: "bears" }, out: "search/bears/index.html" },
+				],
+			},
+		});
+
+		await diecast(router, { outDir, manifest, discover: { links: false } });
+
+		assertEquals(await read(outDir, "search/bears/index.html"), "<p>bears</p>");
+	});
+});
+
+Deno.test("reports an uncovered parameterised route without rendering it", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/about").get(() => Html("<h1>about</h1>"));
+		router.route("/md/:file").get(() => Html("<h1>md</h1>"));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, false);
+		assertEquals(report.problems.length, 1);
+		assertEquals(report.problems[0].kind, "uncovered-route");
+		// The rest of the site is still built.
+		assertEquals(await read(outDir, "about/index.html"), "<h1>about</h1>");
+	});
+});
+
+Deno.test("skip opts a route out without reporting it", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/md/:file").get(() => Html("<h1>md</h1>"));
+
+		const report = await diecast(router, {
+			outDir,
+			manifest: { "/md/:file": { permutations: [], skip: true } },
+			discover: { links: false },
+		});
+
+		assertEquals(report.ok, true);
+	});
+});
+
+Deno.test("surfaces the real error behind a handler crash", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/good").get(() => Html("<h1>good</h1>"));
+		router.route("/bad").get(() => {
+			throw new Error("template exploded");
+		});
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, false);
+		assertEquals(report.failures.length, 1);
+		assertEquals(report.failures[0].url, "/bad");
+		assertEquals(report.failures[0].status, 500);
+		// Without onError this would only ever have been an opaque 500.
+		assertStringIncludes(report.failures[0].message, "template exploded");
+
+		// Report and continue: the good page is still written.
+		assertEquals(await read(outDir, "good/index.html"), "<h1>good</h1>");
+	});
+});
+
+Deno.test("strict aborts instead of finishing the build", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/bad").get(() => {
+			throw new Error("nope");
+		});
+
+		const report = await diecast(router, {
+			outDir,
+			strict: true,
+			discover: { links: false },
+		});
+
+		assertEquals(report.ok, false);
+		assertEquals(report.failures.length, 1);
+	});
+});
+
+Deno.test("follows same-origin links to pages not otherwise queued", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() =>
+			Html(`<a href="/md/intro">intro</a><a href="https://example.com">off</a>`)
+		);
+		router.route("/md/:file").get((ctx) => Html(`<h1>${ctx.params.file}</h1>`));
+
+		const report = await diecast(router, {
+			outDir,
+			// The param route is deliberately declared skipped, so the only way
+			// this page can appear is by following the link.
+			manifest: { "/md/:file": { permutations: [], skip: true } },
+			discover: { links: true },
+		});
+
+		assertEquals(report.ok, true);
+		assertEquals(await read(outDir, "md/intro/index.html"), "<h1>intro</h1>");
+	});
+});
+
+Deno.test("fetches assets referenced by attributes and by inline module imports", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() =>
+			Html(`<!DOCTYPE html><html><head>
+				<link rel="stylesheet" href="/site.css">
+				<script type="module">import "./chunk-A1B2.js";</script>
+			</head><body>hi</body></html>`)
+		);
+		router.route("/site.css").get(() =>
+			new Response("body{}", {
+				headers: { "Content-Type": "text/css" },
+			})
+		);
+		router.route("/chunk-A1B2.js").get(() => Script("export const x = 1;"));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, true);
+		assertEquals(await read(outDir, "site.css"), "body{}");
+		// The chunk is only reachable through the inline script body.
+		assertEquals(await read(outDir, "chunk-A1B2.js"), "export const x = 1;");
+	});
+});
+
+Deno.test("writes a nested chunk where the browser asks for it, fetching it from the root", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/md/:file").get(() =>
+			Html(`<script type="module">import "./chunk-Z9.js";</script>`)
+		);
+		// Served only at the root, the way stack's single-segment /:script route does.
+		router.route("/chunk-Z9.js").get(() => Script("export const z = 9;"));
+
+		const report = await diecast(router, {
+			outDir,
+			manifest: { "/md/:file": { permutations: [{ params: { file: "intro" } }] } },
+			discover: { links: false },
+		});
+
+		assertEquals(report.ok, true);
+		// The page lives at /md/intro/, so the browser requests /md/intro/chunk-Z9.js.
+		assertEquals(await read(outDir, "md/intro/chunk-Z9.js"), "export const z = 9;");
+	});
+});
+
+Deno.test("turns a redirect into a shim a static host can serve", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/old").get(() =>
+			new Response(null, { status: 301, headers: { Location: "/new" } })
+		);
+		router.route("/new").get(() => Html("<h1>new</h1>"));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, true);
+		const shim = await read(outDir, "old/index.html");
+		assertStringIncludes(shim, `url=/new`);
+		assertEquals(await read(outDir, "new/index.html"), "<h1>new</h1>");
+	});
+});
+
+Deno.test("copies directories mounted with serveDirectory", async () => {
+	await withTempDir(async (outDir) => {
+		const assets = await Deno.makeTempDir();
+		try {
+			await Deno.writeTextFile(joinPath(assets, "logo.svg"), "<svg/>");
+			await Deno.mkdir(joinPath(assets, "fonts"));
+			await Deno.writeTextFile(joinPath(assets, "fonts/body.woff2"), "font");
+
+			const router = new Router();
+			router.route("/").get(() => Html("<h1>home</h1>"));
+			router.serveDirectory(assets, "/assets");
+
+			const report = await diecast(router, { outDir, discover: { links: false } });
+
+			assertEquals(report.copiedDirs, ["/assets"]);
+			assertEquals(await read(outDir, "assets/logo.svg"), "<svg/>");
+			assertEquals(await read(outDir, "assets/fonts/body.woff2"), "font");
+		} finally {
+			await Deno.remove(assets, { recursive: true });
+		}
+	});
+});
+
+Deno.test("skips non-GET routes and the reserved namespace", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() => Html("<h1>home</h1>"));
+		router.route("/submit").post(() => new Response("ok"));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, true);
+		assertEquals(report.pages.map((p) => p.url), ["/"]);
+		assertEquals(await exists(joinPath(outDir, "submit")), false);
+	});
+});
+
+Deno.test("reports what it wrote", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/about").get(() => Html("<h1>about</h1>"));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.pages.length, 1);
+		assertEquals(report.pages[0].file, "about/index.html");
+		assertEquals(report.pages[0].status, 200);
+		assertStringIncludes(report.pages[0].contentType ?? "", "text/html");
+		assertEquals(report.pages[0].bytes, "<h1>about</h1>".length);
+		assertEquals(report.duration >= 0, true);
+	});
+});
