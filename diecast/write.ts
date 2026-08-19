@@ -40,6 +40,12 @@ export function isHtml(contentType: string | null): boolean {
 	return normalizeContentType(contentType) === "text/html";
 }
 
+/** True for a response whose body is a JS module - worth scanning for further imports. */
+export function isScript(contentType: string | null): boolean {
+	const type = normalizeContentType(contentType);
+	return type === "text/javascript" || type === "application/javascript";
+}
+
 export function extensionFor(contentType: string | null): string | undefined {
 	return EXTENSIONS[normalizeContentType(contentType)];
 }

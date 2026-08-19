@@ -18,8 +18,8 @@ import {
 	resolvePermutations,
 	withQuery,
 } from "./manifest.ts";
-import { discoverFrom, rootFallbackFor } from "./discover.ts";
-import { isHtml, redirectShim, writeResponse } from "./write.ts";
+import { discoverFrom, discoverFromScript, rootFallbackFor } from "./discover.ts";
+import { isHtml, isScript, redirectShim, writeResponse } from "./write.ts";
 import type {
 	DiecastConfig,
 	GeneratedPage,
@@ -72,6 +72,13 @@ export async function diecast(
 
 	const pages: GeneratedPage[] = [];
 	const failures: GenerationFailure[] = [];
+	// An asset route with no extension in its URL (a route param, not a
+	// filename) still needs one on disk to be servable - but nothing else
+	// rewrites the pages that reference it by the original, extensionless
+	// path. Recorded here and patched into every written page once the whole
+	// site is known, so the file that exists and the path that gets requested
+	// stay the same string.
+	const remaps = new Map<string, string>();
 
 	// The router swallows handler errors into a bare 500. Registering a handler
 	// is what makes the real cause reportable.
@@ -230,6 +237,10 @@ export async function diecast(
 
 		const contentType = res.headers.get("content-type");
 		const html = isHtml(contentType) ? await res.clone().text() : null;
+		const script = html === null && job.kind === "asset" && discover.assets &&
+				isScript(contentType)
+			? await res.clone().text()
+			: null;
 
 		const written = await writeResponse(res, job.url, {
 			outDir: config.outDir,
@@ -244,6 +255,11 @@ export async function diecast(
 			bytes: written.bytes,
 		});
 
+		if (job.kind === "asset" && !job.out) {
+			const requested = job.url.pathname.replace(/^\/+/, "");
+			if (written.file !== requested) remaps.set(job.url.pathname, `/${written.file}`);
+		}
+
 		if (html !== null && job.kind === "page") {
 			// Resolve against the file that was written, not the URL it was
 			// rendered from. A page rendered at `/md/intro` and written to
@@ -255,6 +271,14 @@ export async function diecast(
 			for (const asset of found.assets) enqueue({ url: asset, kind: "asset" });
 			for (const link of found.links) enqueue({ url: link, kind: "page" });
 		}
+
+		if (script !== null) {
+			// A chunk's own relative imports resolve against the chunk's own URL,
+			// not the page that first pulled it in - same rule browsers use.
+			for (const asset of discoverFromScript(script, job.url)) {
+				enqueue({ url: asset, kind: "asset" });
+			}
+		}
 	};
 
 	while (cursor < queue.length && !aborted) {
@@ -263,9 +287,41 @@ export async function diecast(
 		await Promise.all(batch.map(renderOne));
 	}
 
+	if (remaps.size > 0) await applyRemaps(config.outDir, pages, remaps);
+
 	const copiedDirs = discover.directories ? await copyStaticDirs(router, config) : [];
 
 	return report(pages, failures, problems, copiedDirs, started);
+}
+
+/**
+ * Patch every written HTML or script file so a reference to an extensionless
+ * asset path points at the extension it was actually written under.
+ *
+ * Runs once, after the whole site is known, because a page is written before
+ * the assets it references have been fetched - there is no way to know at
+ * write time whether one of them will need remapping.
+ */
+async function applyRemaps(
+	outDir: string,
+	pages: GeneratedPage[],
+	remaps: Map<string, string>,
+): Promise<void> {
+	for (const page of pages) {
+		if (!isHtml(page.contentType) && !isScript(page.contentType)) continue;
+		const target = joinPath(outDir, page.file);
+		let text: string;
+		try {
+			text = await Deno.readTextFile(target);
+		} catch {
+			continue;
+		}
+		let patched = text;
+		for (const [from, to] of remaps) {
+			patched = patched.replaceAll(`"${from}"`, `"${to}"`).replaceAll(`'${from}'`, `'${to}'`);
+		}
+		if (patched !== text) await Deno.writeTextFile(target, patched);
+	}
 }
 
 /** Copy every directory the router serves from disk into the output. */

@@ -1,10 +1,12 @@
 import { assertEquals } from "@std/assert";
 import {
 	discoverFrom,
+	discoverFromScript,
 	extractReferences,
 	inlineModuleImports,
 	resolveReference,
 	rootFallbackFor,
+	scriptImports,
 } from "./discover.ts";
 
 const PAGE = new URL("http://localhost/about");
@@ -98,6 +100,27 @@ Deno.test("discoverFrom de-duplicates and honours the toggles", () => {
 
 	const noAssets = discoverFrom(html, PAGE, { assets: false, links: true });
 	assertEquals(noAssets.assets, []);
+});
+
+Deno.test("scriptImports finds a chunk's own static and dynamic imports", () => {
+	// The shape @bearmetal/jsx's isomorphic boundary actually emits: a runtime
+	// branch between a client and server module, buried inside an already-
+	// bundled chunk rather than the page's inline script.
+	const js = `
+		import { x } from "./chunk-A.js";
+		var M = typeof document<"u" ? await import("./mod-CLIENT.js") : await import("./mod-SERVER.js");
+		export { x };
+	`;
+	assertEquals(scriptImports(js), ["./chunk-A.js", "./mod-CLIENT.js", "./mod-SERVER.js"]);
+});
+
+Deno.test("discoverFromScript resolves a chunk's imports against its own URL, not the page's", () => {
+	const js = `import "./mod-CLIENT.js";`;
+	const chunkUrl = new URL("http://localhost/chunk-A.js");
+	assertEquals(
+		discoverFromScript(js, chunkUrl).map((u) => u.pathname),
+		["/mod-CLIENT.js"],
+	);
 });
 
 Deno.test("rootFallbackFor only applies below the top level", () => {

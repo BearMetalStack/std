@@ -326,6 +326,49 @@ Deno.test("skips non-GET routes and the reserved namespace", async () => {
 	});
 });
 
+Deno.test("follows an import inside an already-fetched chunk", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() => Html(`<script type="module">import "./chunk-A.js";</script>`));
+		// The entry chunk pulls in a further chunk by its own relative import -
+		// not visible anywhere in the page's HTML.
+		router.route("/chunk-A.js").get(() => Script(`import "./chunk-B.js"; export const a = 1;`));
+		router.route("/chunk-B.js").get(() => Script("export const b = 2;"));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, true);
+		assertEquals(
+			await read(outDir, "chunk-B.js"),
+			"export const b = 2;",
+		);
+	});
+});
+
+Deno.test("rewrites a page's reference once an extensionless asset gains one on disk", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() =>
+			Html(`<script type="module" src="/@bearmetal/components/index"></script>`)
+		);
+		// A route param, not a filename - the live server answers with no
+		// extension in the URL at all.
+		router.route("/@bearmetal/components/:bundle").get(() => Script("export const c = 1;"));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, true);
+		assertEquals(
+			await read(outDir, "@bearmetal/components/index.js"),
+			"export const c = 1;",
+		);
+		// The file only exists at the .js path - the reference has to match it.
+		const html = await read(outDir, "index.html");
+		assertStringIncludes(html, `src="/@bearmetal/components/index.js"`);
+		assertEquals(html.includes(`src="/@bearmetal/components/index"`), false);
+	});
+});
+
 Deno.test("reports what it wrote", async () => {
 	await withTempDir(async (outDir) => {
 		const router = new Router();

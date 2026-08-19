@@ -72,6 +72,34 @@ export function extractReferences(html: string): PageReferences {
 }
 
 /**
+ * Import specifiers in a JS module's own source - the whole file is already a
+ * script body, so no `<script>` extraction step is needed first.
+ *
+ * A shared chunk can itself import a further chunk - `@bearmetal/jsx`'s
+ * isomorphic runtime boundary picks between a client and server module at
+ * request time, and that split lives inside an already-fetched chunk rather
+ * than the page's inline script. Miss it and the grandchild chunk is never
+ * written, and every page that pulls it in silently fails to hydrate.
+ */
+export function scriptImports(js: string): string[] {
+	const out: string[] = [];
+	for (const spec of js.matchAll(SPECIFIER)) {
+		if (spec[1]) out.push(spec[1]);
+	}
+	return out;
+}
+
+/** The same-origin module specifiers a JS file imports, resolved against its own URL. */
+export function discoverFromScript(js: string, scriptUrl: URL): URL[] {
+	const seen = new Map<string, URL>();
+	for (const spec of scriptImports(js)) {
+		const url = resolveReference(spec, scriptUrl);
+		if (url) seen.set(url.href, url);
+	}
+	return [...seen.values()];
+}
+
+/**
  * Resolve a specifier against the page that contained it.
  *
  * Relative specifiers resolve against the document's own URL - that is what the
