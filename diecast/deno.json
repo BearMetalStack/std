@@ -1,0 +1,17 @@
+{
+	"name": "@bearmetal/diecast",
+	"description": "Static site generation for the BearMetal router",
+	"version": "0.0.1",
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts",
+		"./manifest": "./manifest.ts",
+		"./module": "./module.ts",
+		"./init": "./init.ts"
+	},
+	"tasks": {
+		"test": "deno test -RWE",
+		"dev": "deno test --watch -RWE"
+	},
+	"license": "GPL-3.0-only"
+}

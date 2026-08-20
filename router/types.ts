@@ -73,3 +73,24 @@ export type RouterHandler<T extends StateType = StateType, TBody = string> = (
 	ctx: RouterContext<T, TBody>,
 	next: () => Promise<Response>,
 ) => Promise<Response> | Response;
+
+/**
+ * @description a handler for errors thrown out of the middleware chain.
+ *
+ * Registered with `module.onError()`. Handlers run in registration order and the
+ * first one to return a `Response` wins. Returning nothing makes a handler
+ * observe-only: every remaining handler still sees the error and the router
+ * falls through to its own 500.
+ */
+export type RouterErrorHandler = (
+	error: unknown,
+	ctx: RouterContext<StateType, unknown>,
+) => Response | void | Promise<Response | void>;
+
+/** A directory mounted with `Router.serveDirectory`, as recorded by `Router.staticMounts`. */
+export interface StaticMount {
+	/** Resolved `file:` URL of the directory, with a trailing slash. */
+	dir: URL;
+	/** URL prefix the directory is served under. */
+	root: string;
+}

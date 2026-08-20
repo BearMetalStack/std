@@ -1,0 +1,15 @@
+{
+	"tasks": {
+		"diecast": "deno run -A diecast.ts",
+		"serve": "deno run -RN jsr:@std/http/file-server dist"
+	},
+	"imports": {
+		"@components/": "./components/",
+		"@views/": "./views/"
+	},
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx/server",
+		"jsxImportSourceTypes": "@bearmetal/jsx/server"
+	}
+}

@@ -26,15 +26,27 @@ import {
 } from "./module.ts";
 import type {
 	RouterContext,
+	RouterErrorHandler,
 	RouterHandler,
 	Service,
 	ServiceActions,
 	ServiceToken,
 	StateType,
+	StaticMount,
 } from "./types.ts";
 import { joinPath } from "@bearmetal/miscellanea";
+import { isDev } from "@bearmetal/miscellanea/environment";
 
-export type { RouterContext, RouterHandler, Service, ServiceActions, ServiceToken, StateType };
+export type {
+	RouterContext,
+	RouterErrorHandler,
+	RouterHandler,
+	Service,
+	ServiceActions,
+	ServiceToken,
+	StateType,
+	StaticMount,
+};
 
 export { isAnyModule, Module };
 export type { AnyModule, ModuleStateOf };
@@ -309,9 +321,33 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 
 		try {
 			return await executeMiddleware();
-		} catch {
-			return InternalError();
+		} catch (e) {
+			return await this.#handleError(e, ctx);
 		}
+	}
+
+	/**
+	 * Offer a thrown error to every registered handler, in registration order,
+	 * and answer with the first `Response` one produces. Handlers returning
+	 * nothing are observe-only, so a logger does not stop a later handler from
+	 * rendering an error page.
+	 */
+	async #handleError(
+		error: unknown,
+		ctx: RouterContext<StateType, unknown>,
+	): Promise<Response> {
+		for (const handler of this._errorHandlers) {
+			try {
+				const res = await handler(error, ctx);
+				if (res instanceof Response) return res;
+			} catch (handlerError) {
+				console.error("[router] onError handler threw:", handlerError);
+			}
+		}
+		if (this._errorHandlers.length === 0 && isDev()) {
+			console.error(`[router] unhandled error in ${ctx.url.pathname}:`, error);
+		}
+		return InternalError();
 	}
 
 	private findMatchingRoutes(url: URL) {
@@ -324,6 +360,21 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 	}
 
 	// ─── Static file serving ───────────────────────────────────────────────────
+
+	#staticMounts: StaticMount[] = [];
+
+	/**
+	 * Every directory mounted with `serveDirectory`, with the resolved directory
+	 * URL rather than the specifier it was declared with.
+	 *
+	 * The route a mount registers is an opaque `"/prefix*"` wildcard, so the
+	 * directory behind it is otherwise unrecoverable from `routeRegistry`. Tools
+	 * that need the files themselves - a static site generator copying assets
+	 * into an output directory, say - read them from here.
+	 */
+	get staticMounts(): readonly StaticMount[] {
+		return this.#staticMounts;
+	}
 
 	/**
 	 * Serves the contents of `dir` under the URL prefix `root`.
@@ -359,6 +410,7 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 				: (source.split("/").filter(Boolean).at(-1) ?? source);
 		}
 		const effectiveDir = toDirectoryUrl(dirSpec);
+		this.#staticMounts.push({ dir: effectiveDir, root });
 
 		if (queryable) {
 			this.get(root + "/_dir", async () => {

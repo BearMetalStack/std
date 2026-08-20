@@ -2,6 +2,7 @@
 import { assertEquals } from "@std/assert";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import Router from "./router.ts";
+import { Module } from "./module.ts";
 
 describe("Router", () => {
 	let router: Router;
@@ -414,6 +415,116 @@ describe("Router", () => {
 			} finally {
 				Deno.chdir(cwd);
 			}
+		});
+
+		it("should record every mount on staticMounts", () => {
+			router.serveDirectory(dir, "/assets");
+			router.serveDirectory(dir + "/nested", "/deep");
+
+			assertEquals(router.staticMounts.length, 2);
+			assertEquals(router.staticMounts[0].root, "/assets");
+			assertEquals(router.staticMounts[1].root, "/deep");
+			// Recorded resolved, not as the specifier it was declared with.
+			assertEquals(router.staticMounts[0].dir.protocol, "file:");
+			assertEquals(router.staticMounts[0].dir.pathname.endsWith("/"), true);
+		});
+	});
+
+	describe("onError", () => {
+		const boom = () => {
+			throw new Error("kaboom");
+		};
+
+		it("should still answer 500 when no handler is registered", async () => {
+			router.route("/boom").get(boom);
+
+			const res = await router.handle(new Request("http://localhost/boom"), {} as any);
+			assertEquals(res.status, 500);
+		});
+
+		it("should hand the error and context to an observe-only handler", async () => {
+			let seen: unknown;
+			let seenPath: string | undefined;
+			router.onError((err, ctx) => {
+				seen = err;
+				seenPath = ctx.url.pathname;
+			});
+			router.route("/boom").get(boom);
+
+			const res = await router.handle(new Request("http://localhost/boom"), {} as any);
+			// Observing does not suppress the router's own 500.
+			assertEquals(res.status, 500);
+			assertEquals((seen as Error).message, "kaboom");
+			assertEquals(seenPath, "/boom");
+		});
+
+		it("should let a handler answer with its own Response", async () => {
+			router.onError(() => new Response("handled", { status: 503 }));
+			router.route("/boom").get(boom);
+
+			const res = await router.handle(new Request("http://localhost/boom"), {} as any);
+			assertEquals(res.status, 503);
+			assertEquals(await res.text(), "handled");
+		});
+
+		it("should run handlers in order and stop at the first Response", async () => {
+			const calls: string[] = [];
+			router.onError(() => {
+				calls.push("first");
+			});
+			router.onError(() => {
+				calls.push("second");
+				return new Response("second", { status: 502 });
+			});
+			router.onError(() => {
+				calls.push("third");
+			});
+			router.route("/boom").get(boom);
+
+			const res = await router.handle(new Request("http://localhost/boom"), {} as any);
+			assertEquals(res.status, 502);
+			assertEquals(calls, ["first", "second"]);
+		});
+
+		it("should not let a throwing handler mask the original error", async () => {
+			let seen: unknown;
+			router.onError(() => {
+				throw new Error("handler is broken");
+			});
+			router.onError((err) => {
+				seen = err;
+			});
+			router.route("/boom").get(boom);
+
+			const res = await router.handle(new Request("http://localhost/boom"), {} as any);
+			assertEquals(res.status, 500);
+			assertEquals((seen as Error).message, "kaboom");
+		});
+
+		it("should bubble handlers up from a mounted module", async () => {
+			let seen: unknown;
+			const mod = new Module();
+			mod.onError((err) => {
+				seen = err;
+			});
+			mod.route("/boom").get(boom);
+			router.use(mod);
+
+			const res = await router.handle(new Request("http://localhost/boom"), {} as any);
+			assertEquals(res.status, 500);
+			assertEquals((seen as Error).message, "kaboom");
+		});
+
+		it("should support async handlers", async () => {
+			router.onError(async () => {
+				await Promise.resolve();
+				return new Response("async", { status: 418 });
+			});
+			router.route("/boom").get(boom);
+
+			const res = await router.handle(new Request("http://localhost/boom"), {} as any);
+			assertEquals(res.status, 418);
+			assertEquals(await res.text(), "async");
 		});
 	});
 });
