@@ -76,13 +76,11 @@ export function outputPathFor(
 
 	if (!isHtml(contentType)) {
 		if (clean === "") return "index";
-		// An asset URL with no extension still needs one to be servable.
 		const ext = extensionFor(contentType);
 		return ext && !/\.[A-Za-z0-9]+$/.test(clean) ? `${clean}.${ext}` : clean;
 	}
 
 	if (clean === "") return "index.html";
-	// A URL that already names a file is taken at its word.
 	if (/\.html?$/i.test(clean)) return clean;
 	return outputStyle === "flat" ? `${clean}.html` : joinPath(clean, "index.html");
 }

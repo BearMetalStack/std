@@ -72,22 +72,13 @@ export async function diecast(
 
 	const pages: GeneratedPage[] = [];
 	const failures: GenerationFailure[] = [];
-	// An asset route with no extension in its URL (a route param, not a
-	// filename) still needs one on disk to be servable - but nothing else
-	// rewrites the pages that reference it by the original, extensionless
-	// path. Recorded here and patched into every written page once the whole
-	// site is known, so the file that exists and the path that gets requested
-	// stay the same string.
 	const remaps = new Map<string, string>();
 
-	// The router swallows handler errors into a bare 500. Registering a handler
-	// is what makes the real cause reportable.
 	const thrown = new Map<string, unknown>();
 	router.onError((error, ctx) => {
 		thrown.set(ctx.url.pathname + ctx.url.search, error);
 	});
 
-	// `onStart` work - migrations, bundling - has to finish before anything renders.
 	await router.ready();
 
 	const classified = classifyRoutes(router);
@@ -103,8 +94,6 @@ export async function diecast(
 	};
 
 	for (const route of routesOfClass(classified, "static")) {
-		// A static route can still carry permutations - that is how a page is
-		// generated once per query string.
 		if (!config.manifest?.[route.path]) {
 			enqueue({ url: new URL(route.path, origin), kind: "page" });
 		}
@@ -152,8 +141,6 @@ export async function diecast(
 
 	await ensureDir(config.outDir);
 
-	// Rendering feeds the queue: a page's assets and links are only known once it
-	// has been rendered, so the pool drains a queue that grows as it works.
 	let cursor = 0;
 	let aborted = false;
 
@@ -174,12 +161,6 @@ export async function diecast(
 			return;
 		}
 
-		// An asset is never an HTML document. When one comes back - or the fetch
-		// failed outright - the path did not reach the file: a chunk imported
-		// relatively from a nested page resolves somewhere the live server does
-		// not serve it, and can even collide with a parameterised page route,
-		// which answers 200 for a slug that is really a filename. The file still
-		// belongs where the browser asked for it, so retry at the site root.
 		if (job.kind === "asset" && (!res.ok || isHtml(res.headers.get("content-type")))) {
 			const fallback = rootFallbackFor(job.url);
 			if (fallback) {
@@ -189,8 +170,6 @@ export async function diecast(
 				);
 				if (retry.ok && !isHtml(retry.headers.get("content-type"))) res = retry;
 			}
-			// Writing an HTML body to an asset path would produce a file that is
-			// served with the wrong type and silently breaks the page using it.
 			if (res.ok && isHtml(res.headers.get("content-type"))) {
 				failures.push({
 					url: key,
@@ -261,11 +240,6 @@ export async function diecast(
 		}
 
 		if (html !== null && job.kind === "page") {
-			// Resolve against the file that was written, not the URL it was
-			// rendered from. A page rendered at `/md/intro` and written to
-			// `md/intro/index.html` is served at `/md/intro/`, so a relative
-			// specifier in it means something different from what the render URL
-			// would suggest.
 			const servedFrom = new URL(`/${written.file}`, origin);
 			const found = discoverFrom(html, servedFrom, discover);
 			for (const asset of found.assets) enqueue({ url: asset, kind: "asset" });
@@ -273,8 +247,6 @@ export async function diecast(
 		}
 
 		if (script !== null) {
-			// A chunk's own relative imports resolve against the chunk's own URL,
-			// not the page that first pulled it in - same rule browsers use.
 			for (const asset of discoverFromScript(script, job.url)) {
 				enqueue({ url: asset, kind: "asset" });
 			}

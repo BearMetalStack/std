@@ -47,8 +47,6 @@ export type DiecastModuleOptions = {
  */
 export function diecastModule(opts: DiecastModuleOptions): Module {
 	const outputStyle = opts.outputStyle ?? "index";
-	// `{ pathname }` rather than the string form, which `URLPattern` rejects
-	// without a base URL. This is how the router compiles its own routes.
 	const ignore = (opts.ignore ?? []).map((p) =>
 		p instanceof URLPattern ? p : new URLPattern({ pathname: p })
 	);
@@ -61,8 +59,6 @@ export function diecastModule(opts: DiecastModuleOptions): Module {
 		if (res.status !== 200) return res;
 		if (!opts.allContentTypes && !isHtml(res.headers.get("content-type"))) return res;
 
-		// A Response body is a single-use stream, so the snapshot gets the copy
-		// and the caller keeps the original.
 		const snapshot = res.clone();
 		writeResponse(snapshot, ctx.url, { outDir: opts.outDir, outputStyle })
 			.catch((error) => opts.onError?.(error, ctx.url));

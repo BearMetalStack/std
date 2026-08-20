@@ -112,7 +112,6 @@ export function discoverFromScript(js: string, scriptUrl: URL): URL[] {
 export function resolveReference(specifier: string, pageUrl: URL): URL | null {
 	const trimmed = specifier.trim();
 	if (!trimmed || trimmed.startsWith("#")) return null;
-	// Bare specifiers are import-map entries the browser never fetches by path.
 	if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed) && !/^https?:/i.test(trimmed)) return null;
 
 	let resolved: URL;

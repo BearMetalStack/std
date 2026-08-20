@@ -57,7 +57,6 @@ export function fillPath(pattern: string, params: Record<string, unknown>): stri
 	return pattern.replace(/:([A-Za-z_$][\w$]*)\??/g, (whole, name: string) => {
 		const value = params[name];
 		if (value === undefined || value === null) {
-			// An optional parameter left out drops its segment entirely.
 			return whole.endsWith("?") ? "" : whole;
 		}
 		return encodeURIComponent(String(value));

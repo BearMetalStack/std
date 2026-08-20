@@ -49,7 +49,6 @@ function classifyOne(path: string, methods: readonly string[]): RouteClassificat
 	});
 
 	if (!methods.includes("GET")) {
-		// Middleware-only routes register no method at all and land here too.
 		return skip(
 			methods.length === 0 ? "middleware only" : `no GET handler (${methods.join(", ")})`,
 		);
@@ -61,8 +60,6 @@ function classifyOne(path: string, methods: readonly string[]): RouteClassificat
 		return { path, class: "needs-manifest", params };
 	}
 	if (IS_PATTERN.test(path)) {
-		// Wildcards and regex groups match a set diecast cannot enumerate, and a
-		// manifest cannot name the groups either.
 		return skip("unnameable pattern");
 	}
 	return { path, class: "static", params };
@@ -85,9 +82,6 @@ function classifyOne(path: string, methods: readonly string[]): RouteClassificat
 export function classifyRoutes(router: AnyModule): Map<string, RouteClassification> {
 	const out = new Map<string, RouteClassification>();
 	for (const [path, config] of router.rawRoutes) {
-		// `rawRoutes` rather than `routeRegistry` because it is the member the
-		// structural `AnyModule` interface guarantees, so a Module built against
-		// another copy of the package still works here.
 		const methods = Object.keys(config.handlers).filter((m) => m !== _use);
 		out.set(path, classifyOne(path, methods));
 	}

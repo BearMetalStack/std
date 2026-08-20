@@ -42,8 +42,6 @@ export async function init(dir = "."): Promise<string[]> {
 	for (const [name, contents] of files) {
 		const path = joinPath(dir, name);
 		try {
-			// `createNew` makes the existence check and the write one step, so a
-			// file appearing in between cannot be clobbered.
 			await Deno.writeTextFile(path, contents, { createNew: true });
 			written.push(name);
 		} catch (error) {

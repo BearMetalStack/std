@@ -138,9 +138,6 @@ export async function runDiecast(
 	site: SiteDefinition,
 	args: string[] = Deno.args,
 ): Promise<void> {
-	// `Deno.exitCode` rather than `Deno.exit`: exiting outright discards whatever
-	// is still buffered on stdout, which loses the whole report the moment the
-	// output is piped anywhere.
 	if (args.includes("--help") || args.includes("-h")) {
 		console.log(USAGE);
 		return;
