@@ -48,7 +48,7 @@ function buildBreadCrumbs(base: string) {
 	return as;
 }
 
-@define("bm-breadcrumb", import.meta)
+@define("bm-breadcrumb")
 export class Breadcrumb extends BMElement {
 	#onRouteChange = () => this.#build();
 

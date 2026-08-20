@@ -21,7 +21,7 @@ type GoogleFontsProps = {
 
 export async function GoogleFonts(
 	{ fonts, display = "swap" }: GoogleFontsProps,
-): Promise<Element | import("@bearmetal/jsx").Html> {
+): Promise<import("@bearmetal/jsx/jsx-runtime").JSX.Element> {
 	const href = `https://fonts.googleapis.com/css2?family=${
 		fonts.map(buildFamilyString).join("&family=")
 	}&display=${display}`;

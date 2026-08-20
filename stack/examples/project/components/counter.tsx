@@ -1,5 +1,5 @@
-// /**  @jsxImportSource "@bearmetal/jsx/client" */
-// /**  @jsxImportSourceTypes "@bearmetal/jsx/client" */
+// /**  @jsxImportSource "@bearmetal/jsx" */
+// /**  @jsxImportSourceTypes "@bearmetal/jsx" */
 
 import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";

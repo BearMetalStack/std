@@ -1,8 +1,6 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@bearmetal/jsx@^0.0.11": "0.0.11",
-    "jsr:@bearmetal/miscellanea@^0.0.5": "0.0.5",
     "jsr:@bearmetal/router@*": "0.4.0",
     "jsr:@david/console-static-text@0.3": "0.3.4",
     "jsr:@david/dax@0.45.0": "0.45.0",
@@ -35,19 +33,6 @@
     "npm:esbuild@0.20.2": "0.20.2"
   },
   "jsr": {
-    "@bearmetal/jsx@0.0.11": {
-      "integrity": "2eb3ad3bfa16cf6556da8b819c501cda5c0acc24537454547ce2e14c934aae53",
-      "dependencies": [
-        "jsr:@bearmetal/jsx",
-        "jsr:@bearmetal/miscellanea"
-      ]
-    },
-    "@bearmetal/miscellanea@0.0.5": {
-      "integrity": "da1a724453eff7d47dbc2524e4410232cf062e37e4138f04131b145a8dd256a6",
-      "dependencies": [
-        "jsr:@bearmetal/miscellanea"
-      ]
-    },
     "@bearmetal/router@0.4.0": {
       "integrity": "8abd34b0046e27b518dc9067b71aa6df8ecc0acbd98578998c669e83430b590a"
     },
@@ -341,11 +326,6 @@
         "dependencies": [
           "jsr:@std/streams@^1.1.1",
           "jsr:@std/tar@~0.1.10"
-        ]
-      },
-      "stack/examples/project": {
-        "dependencies": [
-          "jsr:@bearmetal/jsx@^0.0.11"
         ]
       }
     }

@@ -3,11 +3,16 @@
 	"version": "0.0.8",
 	"license": "GPL-3.0-only",
 	"exports": {
-		".": "./mod.ts",
-		"./create": "./create.ts"
+		".": "./mod.tsx",
+		"./create": "./create.ts",
+		"./types": "./types.ts"
 	},
 	"tasks": {
-		"dev": "deno run --watch main.ts"
+		"dev": "deno test --watch",
+		"bm:templates": {
+			"description": "Regenerates the embedded scaffolding templates from the example apps",
+			"command": "deno run -RW templates/generate.ts"
+		}
 	},
 	"fmt": {
 		"useTabs": true
@@ -22,9 +27,5 @@
 	"compilerOptions": {
 		"jsx": "react-jsx",
 		"jsxImportSource": "@bearmetal/jsx"
-	},
-	"imports": {
-		"@std/streams": "jsr:@std/streams@^1.1.1",
-		"@std/tar": "jsr:@std/tar@^0.1.10"
 	}
 }

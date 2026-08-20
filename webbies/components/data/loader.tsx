@@ -4,7 +4,7 @@ import { animationSheet } from "@style";
 import { BmIcon } from "@components";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 
-@define("bm-loader", import.meta)
+@define("bm-loader")
 export class Loader extends BMElement {
 	get template(): JSX.Element {
 		return (

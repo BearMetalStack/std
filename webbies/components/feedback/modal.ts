@@ -46,7 +46,7 @@ const shadowStyles = css`
 	}
 `;
 
-@define("bm-modal", import.meta)
+@define("bm-modal")
 export class Modal extends BMElement {
 	#dialog!: HTMLDialogElement;
 	#resolvers: Array<(returnValue: string) => void> = [];

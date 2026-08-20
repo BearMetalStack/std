@@ -2,19 +2,15 @@
  * Side-effect entry point: importing this module installs Slag over the DOM
  * globals immediately.
  *
- * Put it **first** in the import list of any module that touches
- * `@bearmetal/jsx` or `@bearmetal/app` — both read `HTMLElement`/`document` when
- * they are evaluated, not when they are called.
- *
  * ```ts
  * import "@bearmetal/slag/global";
- * import { MyComponent } from "./my-component.ts"; // reaches jsx/app
  * ```
  *
- * (The second line names a local module deliberately: an import specifier
- * written in a doc comment is indistinguishable from a real one to
- * `workspace_scripts/dep_graph.ts`, which scans source text, so naming a
- * workspace package here would invent a dependency edge that does not exist.)
+ * Import order used to matter here, and no longer does. Installing announces
+ * itself, and the one class that has to choose a base class at module-evaluation
+ * time — the custom element base in the rendering stack — re-points itself when
+ * it hears. A module that reached that stack *before* this line ends up with the
+ * same `HTMLElement` as one that came after.
  *
  * For a teardown-able install (per-test setup), import `installGlobals` from
  * `@bearmetal/slag` and call it yourself.

@@ -2,7 +2,7 @@ import { define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 import { PopoverBase } from "./base.ts";
 
-@define("bm-icon-popover", import.meta)
+@define("bm-icon-popover")
 export class PopoverIcon extends PopoverBase {
 	override init(): void {
 		console.log(this.children);

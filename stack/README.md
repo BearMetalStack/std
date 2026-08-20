@@ -23,11 +23,20 @@ and answer a few questions.
 The wizard will ask whether to include optional modules: a database connector, an auth module, and a
 dev proxy. Each can also be toggled directly via flags:
 
-| Flag          | Description                                             |
-| ------------- | ------------------------------------------------------- |
-| `--use-db`    | Include the Postgres database connector                 |
-| `--auth`      | Include the auth module                                 |
-| `--dev-proxy` | Include a dev proxy (you will be prompted for the host) |
+| Flag                 | Description                                                        |
+| -------------------- | ------------------------------------------------------------------ |
+| `--name=<app>`       | Name of the app, and the directory it is created in                |
+| `--here`             | Create the app in the current directory, which must be empty       |
+| `--template=<name>`  | Template to scaffold from                                          |
+| `--default`          | Take every default and ask nothing beyond the name                 |
+| `--use-db=postgres`  | Include the Postgres database connector                            |
+| `--auth`             | Include the auth module (`--no-auth` answers the question as well) |
+| `--dev-proxy=<host>` | Serve the app under `<host>` in development                        |
+| `--dry-run`          | Print what would be written without writing it                     |
+| `-n`                 | Never prompt; missing required args become an error                |
+
+`deno create jsr:@bearmetal/stack -- --help` prints the same table, generated from the definitions
+the wizard prompts from.
 
 ### Learn More
 
@@ -41,6 +50,22 @@ For a more detailed walkthrough of creating your first app, visit the
 SSR is currently always enabled, however you are not required to use it. Every generated project
 includes a layout and a home page implemented as middleware, but neither are required and both can
 be removed.
+
+### Components and the client bundle
+
+Everything under `components/` (or `src/components/`) is registered on the server and bundled for
+the browser as one file, served from `/@bearmetal/components/index` and referenced from every page's
+`<head>`. Two consequences worth knowing:
+
+- A view names a component by its tag — `<my-counter />` — and does not import it. That is what the
+  directory buys you.
+- The bundle is the whole app, not the page. A page-sized bundle breaks the moment a client-side
+  `<Router>` navigates to a page whose components were never shipped.
+
+Drop a `components/manifest.ts` in to take over the list explicitly, and
+`components/<subset>.manifest.ts` to build extra bundles you load yourself. Component stylesheets
+are collected server-side and served alongside as `/@bearmetal/components/index.css`, so the first
+paint is styled without waiting for the bundle.
 
 ### Database
 
@@ -69,8 +94,10 @@ you can customize it by following the tutorial in the Drip docs.
 
 ### JSX
 
-BearMetal's JSX implementation is built for minimalism. The client-side layer creates real DOM nodes
-directly, and the server-side layer renders HTML strings without a virtual DOM.
+BearMetal's JSX implementation is built for minimalism, and there is one of it. The runtime builds
+real DOM nodes on both sides — in a browser that is the browser's `document`, on a server it is
+[`@bearmetal/slag`](https://jsr.io/@bearmetal/slag), a microdom whose trees serialize themselves. A
+component is written once and renders in both places.
 
 A few quirks worth knowing:
 

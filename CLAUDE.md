@@ -93,11 +93,11 @@ them yourself.
   catch this; it rewrites bare workspace specifiers into `jsr:` ones at publish time). Don't
   reintroduce a dependency on it from a published package. `publish_workspace.ts` refuses to publish
   any package that imports it.
-- JSX packages set `compilerOptions.jsx: "react-jsx"` and `jsxImportSource` to either
-  `@bearmetal/jsx/client` (DOM output, web components) or `@bearmetal/jsx/server` (SSR, produces
-  `Html` string wrappers). Get this backwards and JSX either won't render server-side or won't
-  produce real DOM nodes client-side — check the consuming package's `deno.json` before assuming
-  which runtime is active.
+- JSX packages set `compilerOptions.jsx: "react-jsx"` and `jsxImportSource: "@bearmetal/jsx"`. There
+  is exactly one runtime and it always builds DOM nodes; on a server that `document` is
+  `@bearmetal/slag`, whose trees serialize themselves. There is no client/server variant to choose
+  between and no import-order rule to respect — `BMC` re-points its prototype chain at whichever
+  `HTMLElement` is ambient, whenever that changes (`jsx/lib/dom.ts`).
 
 ### compilerOptions belong to the root
 
@@ -111,6 +111,45 @@ So `lib` is defined **once, at the root**, as the union every package needs, and
 overrides it. Packages should only set genuinely package-specific `compilerOptions` (`jsx`,
 `jsxImportSource`, `types`). If you find yourself adding `lib` to a package, you are about to break
 its dependents. Run `deno task workspace:check` after touching any `deno.json`.
+
+## The client bundle (`stack/`, `app/ssr/`)
+
+One bundle for the whole app, built once at startup from the components directory (`components/` or
+`src/components/`), served from `/@bearmetal/components/index` with its CSS next to it, and
+_referenced_ from every page's `<head>` rather than inlined. Three rules follow from that and each
+one has bitten:
+
+- **Never bundle per page.** `Page()` used to collect the custom elements a page rendered and bundle
+  their modules. A client-side `<Router>` then navigates to a page whose components were never
+  shipped and finds nothing to upgrade with.
+- **Views name components, they do not import them.** A view is server-only. Importing a component
+  class renders it and does not ship it — only the components directory feeds the bundle.
+- **The client rebuilds rather than adopts, so `@state` is handed over out of band.** A component's
+  first client render replaces its children, discarding nested components that had already hydrated.
+  `app/hydration.ts` lifts every snapshot out of the document before that happens and hands it to
+  whatever is rebuilt at the same _path_ (the chain of component tags). Adoption inside the JSX
+  runtime is not available: the automatic runtime builds bottom-up, so `jsx()` runs for a child long
+  before the parent it would be positioned inside exists, and there is no cursor to walk.
+- **Server code is stripped twice, and the first one is the one that matters.** `mirrorStripped`
+  (`app/ssr/prestrip.ts`) copies the components directory with `serverInit`/`stylesheet` bodies
+  already gone and the bundler reads _that_, because emptying a body in the finished bundle leaves
+  everything it imported in the file — the graph was walked first. `stripServerCode` still runs over
+  the output as the net for modules the mirror cannot reach. A miss in either means database queries
+  reach a browser: it works against a code/not-code mask built in one pass (`scanMask`) because the
+  ad-hoc scanner it replaced did not know a regex literal from division, desynced partway through a
+  real bundle, and silently stopped stripping. It warns loudly if a definition survives; treat that
+  warning as a leak.
+- **The mirror lives outside the project, so its JSX files need a pragma.** `compilerOptions` come
+  from the config Deno resolved for the program and do not reach a copy in a temp directory —
+  without `@jsxImportSource` the mirror compiles against the default runtime and the bundle ships
+  `React.createElement`. `appJsxImportSource()` reads the app's own setting rather than assuming.
+
+`app/ssr` owns rendering and `bundleEntrypoints`; `stack` owns discovery, serving and the
+`contributeHead()` registration. `Page()` injects nothing on its own.
+
+The scaffolding templates are **generated from the example apps** (`deno task bm:templates` in
+`stack/`, output `stack/templates/embedded.ts`), so a template is type-checked by `workspace:check`
+like any other code. Edit `stack/examples/project`, then regenerate.
 
 ## The reserved `/@bearmetal/*` namespace (`router/`)
 
@@ -161,12 +200,20 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
     failing at that point throws). `onStart()` runs once after all `onAdopted` checks pass, for
     async init like migrations.
 - **`app/`** — the component framework: `BMElement` (custom element base class wiring
-  signals/effects/refs/context into the Custom Elements lifecycle), `@define(tag, import.meta)`
-  decorator, `app/signals` (pinned TC39 Signals polyfill), `app/context` (both call-stack-scoped
-  "stack context" for SSR and DOM-tree-walking "DOM context" for components — extend via
-  declaration-merging `ContextMap`), `app/ssr` (`Layout`/`Page` router middleware that renders JSX,
-  scans for used custom elements, and bundles only those components' client modules into the
-  response).
+  signals/effects/refs/context into the Custom Elements lifecycle), the `@define(tag)` decorator
+  (one argument — it took `import.meta` while `Page()` bundled per page, and no longer does),
+  `app/signals` (pinned TC39 Signals polyfill), `app/context` (both call-stack-scoped "stack
+  context" for SSR and DOM-tree-walking "DOM context" for components — extend via
+  declaration-merging `ContextMap`), `app/ssr` (`Layout`/`Page` router middleware plus the
+  `renderToTree`/`renderToString` renderer — renders synchronously against Slag, settles every
+  `serverInit()` and promise the tree raised, snapshots `@state` into the markup, then appends
+  whatever registered a `contributeHead()` contributor to `<head>`).
+  - Component lifecycle across the seam: one `template`, rendered by one runtime on both sides.
+    `init()` is the browser half and never runs during a server render; `serverInit()` is the server
+    half and never ships to the browser (`stripServerCode` empties it). `@state` marks the signals
+    the renderer snapshots into `data-bm-state` and the browser hydrates back before its first
+    render. `static client = true` opts a component out of server rendering entirely. Documented in
+    `docs/getting-started/ssr/`.
 - **`db/`** — Postgres/KV connector exposed as a router `Module` + `Service`. See the
   **TableRegistry pattern** below — this is the one non-obvious cross-cutting mechanism in the
   codebase.

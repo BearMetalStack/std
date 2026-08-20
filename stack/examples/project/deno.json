@@ -1,12 +1,11 @@
 {
 	"tasks": {
 		"dev": "deno run -A --watch main.ts",
-		"prod": "export BEARMETAL_ENV=prod && deno run -A --watch main.ts"
+		"prod": "export BEARMETAL_ENV=prod && deno run -A main.ts"
 	},
 	"imports": {
-		"@app/": "app/",
-		"@views/": "views/",
-		"@bearmetal/jsx": "jsr:@bearmetal/jsx@^0.0.11"
+		"@components/": "components/",
+		"@views/": "views/"
 	},
 	"compilerOptions": {
 		"jsx": "react-jsx",

@@ -9,7 +9,7 @@
 // navigation, therefore no activation) left the page blank.
 import "@bearmetal/slag/global";
 import { assert, assertEquals } from "@std/assert";
-import { setCurrentOwner } from "@bearmetal/jsx/client";
+import { setCurrentOwner } from "@bearmetal/jsx";
 import { createRoot } from "@bearmetal/slag/testing";
 import type { SlagElement } from "@bearmetal/slag";
 import { navigate, resetLocationState, setUrl } from "./location.ts";

@@ -9,6 +9,6 @@
 	"license": "GPL-3.0-only",
 	"compilerOptions": {
 		"jsx": "react-jsx",
-		"jsxImportSource": "@bearmetal/jsx/client"
+		"jsxImportSource": "@bearmetal/jsx"
 	}
 }

@@ -160,7 +160,7 @@ injectStyle(
 const OBSERVED = ["fade", "dismissible"] as const;
 type Attribute = typeof OBSERVED[number];
 
-@define("bm-toast", import.meta)
+@define("bm-toast")
 export class Toast extends BMElement {
 	static observedAttributes = OBSERVED;
 
@@ -238,5 +238,5 @@ export class Toast extends BMElement {
 	}
 }
 
-@define("bm-toast-host", import.meta)
+@define("bm-toast-host")
 export class ToastHost extends BMElement {}

@@ -1,7 +1,7 @@
 import { BMElement, define } from "@bearmetal/app";
 import { html } from "@bearmetal/miscellanea";
 
-@define("bm-popover", import.meta)
+@define("bm-popover")
 export class PopoverBase extends BMElement {
 	init() {
 		this.useShadow();

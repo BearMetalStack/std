@@ -1,39 +1,53 @@
-const _MARKER = Symbol.for("bearmetal.bmc");
+import { DetachedElement, rebaseOnDom } from "./dom.ts";
 
-// deno-lint-ignore no-explicit-any
-const _Base = ((globalThis as any).HTMLElement ?? class {}) as abstract new (...args: any[]) => any;
+const _MARKER: unique symbol = Symbol.for("bearmetal.bmc");
 
-export abstract class BMC extends _Base {
+/**
+ * The base every BearMetal custom element extends.
+ *
+ * `BMC` is an `HTMLElement` — whichever one is ambient. It is declared against
+ * a placeholder and re-pointed at the real base as soon as one exists, so a
+ * module may reach it before or after the DOM globals are installed and get the
+ * same class either way. See `./dom.ts` for how, and why that is not optional.
+ *
+ * There is one rendering path: the JSX runtime builds real nodes, in a browser
+ * and on a server alike. A component therefore has no server-only counterpart
+ * to keep in sync — no `serverRender`, no `serverLoad`, no second template.
+ * What replaces them lives on `BMElement` in `@bearmetal/app`: one `template`,
+ * and a `serverInit()` the server awaits before it serializes.
+ */
+export abstract class BMC extends DetachedElement {
 	static readonly [_MARKER] = true;
 	static tag: string;
-	/** @description tells SSR that this component is client-only */
+
+	/**
+	 * Marks a component as client-only: the server emits its tag and attributes
+	 * and stops there, leaving it to render when it upgrades in the browser.
+	 *
+	 * For the few things that genuinely cannot run server-side — a canvas, a
+	 * media player, a map. Everything else should render, so the page has
+	 * content before the bundle lands.
+	 */
 	static client: boolean = false;
 
-	static serverRender(
-		_props: Record<string, unknown>,
-		children: string,
-	): string | Promise<string> {
-		return children;
-	}
-
-	static serverLoad?(
-		_props: Record<string, unknown>,
-	): Record<string, unknown> | Promise<Record<string, unknown>> {
-		return {};
-	}
-
+	/** The nearest ancestor element that is also a BearMetal component. */
 	get parentBMC(): BMC | null {
-		if (typeof document === "undefined") return null;
-		const self = this as unknown as HTMLElement;
-		let current = self.parentElement;
-		while (current && !isBMC(current)) {
-			current = current?.parentElement;
+		let current = this.parentElement;
+		while (current && !isBMC(current.constructor)) {
+			current = current.parentElement;
 		}
-
-		return current as unknown as BMC;
+		return current as unknown as BMC | null;
 	}
 }
 
+rebaseOnDom(BMC);
+
+/**
+ * Whether `v` is a `BMC` subclass.
+ *
+ * Takes the **constructor**, not an instance — this is what the JSX runtime
+ * asks about a tag. For an instance, pass `instance.constructor`.
+ */
 export function isBMC(v: unknown): v is typeof BMC {
 	// deno-lint-ignore no-explicit-any
 	return typeof v === "function" && (v as any)[_MARKER] === true;

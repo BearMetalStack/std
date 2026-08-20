@@ -1,6 +1,6 @@
 # @bearmetal/jsx
 
-JSX runtimes for client and server, in one package.
+One JSX runtime, for the client and the server.
 
 [![License: GPL v3](https://badger.bear-metal.dev/?label=License&value=GPL+v3&extra=&labelColor=label-light&valueColor=info-invert&extraColor=&variant=)](https://www.gnu.org/licenses/gpl-3.0)
 
@@ -12,51 +12,19 @@ Add to your project's `deno.json`:
 {
 	"compilerOptions": {
 		"jsx": "react-jsx",
-		"jsxImportSource": "@bearmetal/jsx/server"
+		"jsxImportSource": "@bearmetal/jsx"
 	}
 }
 ```
 
-Use `@bearmetal/jsx/client` instead if you're targeting the DOM. You don't need to import anything
-in your `.tsx` files - the runtime is injected automatically.
+That is the whole configuration, wherever the code runs. You don't need to import anything in your
+`.tsx` files — the runtime is injected automatically.
 
-## Client vs server
+## One runtime
 
-|               | `@bearmetal/jsx/client`                     | `@bearmetal/jsx/server`     |
-| ------------- | ------------------------------------------- | --------------------------- |
-| `JSX.Element` | `Element \| DocumentFragment`               | `Html` (a string wrapper)   |
-| Output        | Live DOM nodes via `document.createElement` | HTML strings via `Html`     |
-| Use for       | Web components, browser-side rendering      | SSR, static HTML generation |
-
-**Server** renders to an `Html` instance whose `.raw` holds the HTML string:
+JSX always builds real DOM nodes:
 
 ```tsx
-import { Html } from "@bearmetal/jsx";
-
-const page = (
-	<html lang="en">
-		<body>
-			<h1>Hello</h1>
-		</body>
-	</html>
-);
-// page instanceof Html
-console.log(page.raw); // <html lang="en"><body><h1>Hello</h1></body></html>
-```
-
-String children are HTML-escaped by default. Use `raw` to opt out:
-
-```tsx
-const trusted = "<em>already safe</em>";
-<div raw>{trusted}</div>  // not escaped
-<div>{trusted}</div>       // escaped: &lt;em&gt;...
-```
-
-**Client** produces real DOM nodes:
-
-```tsx
-import { BMC } from "@bearmetal/jsx/client";
-
 const el = (
 	<div class="card">
 		<p>Hello</p>
@@ -65,14 +33,51 @@ const el = (
 document.body.appendChild(el);
 ```
 
-## Shared exports
+On a server, `document` is [`@bearmetal/slag`](https://jsr.io/@bearmetal/slag) — a microdom whose
+trees serialize themselves — so that same code produces markup:
 
-`@bearmetal/jsx` (the root) exports the shared primitives used by both runtimes:
+```ts
+import { installGlobals, serialize } from "@bearmetal/slag";
+installGlobals();
+
+serialize(el); // '<div class="card"><p>Hello</p></div>'
+```
+
+There is no second, string-building runtime, so a component has one implementation and one set of
+behaviour rather than two that have to be kept in agreement.
+
+There used to be `@bearmetal/jsx/client` and `@bearmetal/jsx/server`, chosen from `typeof document`
+at import time. That made module evaluation order load-bearing — and a `.tsx` file could never win,
+because the transform injects its runtime import above anything the source itself writes. Both
+subpaths are gone; import `@bearmetal/jsx` or `@bearmetal/jsx/jsx-runtime`.
+
+## Children
+
+String children are escaped. `Html` wraps markup that is already safe, and passes through untouched:
+
+```tsx
+import { Html } from "@bearmetal/jsx";
+
+const trusted = "<em>already safe</em>";
+
+<div>{trusted}</div>; // escaped: &lt;em&gt;already safe&lt;/em&gt;
+<div>{new Html(trusted)}</div>; // <em>already safe</em>
+<div $raw>{trusted}</div>; // <em>already safe</em>
+```
+
+A child may also be:
+
+- a **signal** — anything with a `get()`. The runtime holds a slot for it and updates that slot when
+  it changes, without touching the rest of the tree.
+- a **promise** — the slot stays empty until it resolves. During a server render the renderer waits
+  for it before serializing, so an `async` component's output lands in the response.
+
+## Exports
 
 ```ts
 import { BMC, escapeHtml, Html, isBMC } from "@bearmetal/jsx";
 ```
 
-`Html` wraps a raw HTML string and passes through unescaped when used as a child in server JSX.
-`BMC` is the base class for web components that support both server rendering and client-side
-hydration.
+`BMC` is the base class for web components. It extends whichever `HTMLElement` is ambient and
+re-points itself if that changes, so it does not matter whether a microdom was installed before or
+after the module loaded.

@@ -148,7 +148,7 @@ const shadowStyles = css`
 	}
 `;
 
-@define("bm-drawer", import.meta)
+@define("bm-drawer")
 export class Drawer extends BMElement {
 	#backdrop!: HTMLDivElement;
 	#handleRow!: HTMLDivElement;

@@ -18,6 +18,7 @@ export default defineConfig({
 				text: "Packages",
 				items: [
 					{ text: "@bearmetal/app", link: "/app" },
+					{ text: "@bearmetal/jsx", link: "/jsx" },
 					{ text: "@bearmetal/router", link: "/router/" },
 					{ text: "@bearmetal/forge", link: "/forge" },
 					{ text: "@bearmetal/events", link: "/events" },
@@ -40,10 +41,11 @@ export default defineConfig({
 						link: "/index",
 						collapsed: false,
 						items: [
-							{ text: "/components", link: "/component-directory" },
+							{ text: "@components", link: "/component-directory" },
 							{ text: "Templates", link: "/templates" },
 							{ text: "Lifecycle", link: "/lifecycle" },
 							{ text: "Reactivity", link: "/reactivity" },
+							{ text: "Props", link: "/props" },
 							{ text: "DOM refs", link: "/dom-refs" },
 							{ text: "List Rendering", link: "/lists" },
 						],
@@ -60,10 +62,11 @@ export default defineConfig({
 					{
 						text: "SSR",
 						base: "getting-started/ssr",
-						link: "/ssr",
+						link: "/index",
 						collapsed: false,
 						items: [
-							{ text: "banana", link: "/bananas" },
+							{ text: "Loading data", link: "/data-loading" },
+							{ text: "The render API", link: "/rendering" },
 						],
 					},
 				],
@@ -71,6 +74,7 @@ export default defineConfig({
 			"/": {
 				items: [
 					{ text: "@bearmetal/app", link: "/app" },
+					{ text: "@bearmetal/jsx", link: "/jsx" },
 					{
 						text: "@bearmetal/router",
 						link: "/router/",

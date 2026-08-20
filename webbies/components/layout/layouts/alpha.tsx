@@ -82,7 +82,7 @@ injectStyle(
 	`,
 );
 
-@define("bm-layout-alpha", import.meta)
+@define("bm-layout-alpha")
 export class AlphaLayout extends BMElement {
 	get template(): JSX.Element {
 		return (

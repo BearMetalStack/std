@@ -1,4 +1,5 @@
 import { SlagDocument } from "./document.ts";
+import { SlagHistory, SlagLocation } from "./location.ts";
 import { customElementRegistry, type SlagCustomElementRegistry } from "./custom_elements.ts";
 import { SlagCSSStyleSheet, type SlagStyleDeclaration } from "./css.ts";
 import { SlagElement, SlagHTMLElement, SlagSVGElement, SlagTemplateElement } from "./element.ts";
@@ -43,9 +44,34 @@ export class SlagWindow extends EventTarget {
 	readonly innerHeight = 0;
 	readonly devicePixelRatio = 1;
 
-	constructor(document: SlagDocument = new SlagDocument()) {
+	/**
+	 * The current URL, and the history stack that moves it.
+	 *
+	 * Navigating either one dispatches `popstate`/`hashchange` on the window,
+	 * exactly as a browser would, so code that listens for them works unchanged.
+	 * Both are per-window, which on a server means per-process — see
+	 * `./location.ts` for why that makes them a convenience rather than a source
+	 * of truth for routing.
+	 */
+	readonly location: SlagLocation;
+	readonly history: SlagHistory;
+
+	constructor(document: SlagDocument = new SlagDocument(), url?: string | URL) {
 		super();
 		this.document = document;
+
+		let previousHash = "";
+		this.location = new SlagLocation(url, (href) => {
+			const hash = new URL(href).hash;
+			if (hash !== previousHash) {
+				previousHash = hash;
+				this.dispatchEvent(new Event("hashchange"));
+			}
+		});
+		previousHash = new URL(this.location.href).hash;
+		this.history = new SlagHistory(this.location, () => {
+			this.dispatchEvent(new Event("popstate"));
+		});
 	}
 
 	get self(): SlagWindow {

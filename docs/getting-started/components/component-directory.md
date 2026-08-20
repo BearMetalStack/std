@@ -7,7 +7,7 @@ prev:
   link: "./index"
 ---
 
-# `/components`
+# `@components`
 
 The `/components` directory (also referred to as `@components`) contains all components that you
 wish to be permanently available on the client. By default, all components within this directory
@@ -20,7 +20,31 @@ actually being included here.
 
 The directory is found at either `components/` or `src/components/`, relative to where you start
 your server. The default bundle is served from `/@bearmetal/components/index` and its script tag is
-injected into every HTML response, so you never need to reference it yourself.
+injected into every HTML response, so you never need to reference it yourself. Every component's
+`static stylesheet` is served next to it as `/@bearmetal/components/index.css`, linked from the same
+place.
+
+Both URLs carry a `?v=` hash of their contents, so they are served `immutable` and fetched once.
+
+## Views name components, they do not import them
+
+A view is server-only: it renders once, per request, and never runs again in the browser. So a view
+that imports a component class gets the component _rendered_ but not _shipped_ — the module is not
+in the bundle unless it is in this directory.
+
+```tsx
+// views/home.tsx
+export const home = Page(() => <app-main />); // ✓ registered by @components, bundled
+```
+
+```tsx
+// ✗ renders on the server, then does nothing in the browser
+import { App } from "../components/main.tsx";
+export const home = Page(() => <App />);
+```
+
+Naming the tag is the whole point of the directory: the component is registered before the first
+request, so the tag resolves, and it is in the bundle, so it upgrades.
 
 ## `manifest.ts` and `<subset>.manifest.ts` files
 
@@ -64,6 +88,5 @@ import "./component-b.ts";
 ```
 
 Every bundle is built in a single pass with code splitting on, so anything a subset shares with the
-default bundle — including the `@bearmetal/app` runtime and its signals — is hoisted into a shared
-chunk that each bundle imports. Adding a subset does not duplicate the components or the runtime it
-has in common with the others.
+default bundle is hoisted into a shared chunk that each bundle imports. Adding a subset does not
+duplicate the components or the runtime it has in common with the others.

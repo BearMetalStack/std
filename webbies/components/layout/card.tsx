@@ -37,7 +37,7 @@ injectStyle(
 	`,
 );
 
-@define("bm-card", import.meta)
+@define("bm-card")
 export class Card extends BMElement {
 	get template(): JSX.Element {
 		return (

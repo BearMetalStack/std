@@ -190,6 +190,63 @@ protected init() {
 Calling it after `init()` returns is too late - the fragment has already been appended to the host
 element's light DOM.
 
+Because `init()` is browser-only, a server render never attaches a shadow root: the template goes
+into the light DOM and any children passed to the component are replaced by it. If the component is
+built around `<slot>`, set `static client = true` so the server emits the tag and its children
+untouched and the browser slots them on upgrade.
+
+---
+
+## `init()` and `serverInit()` are two halves, not two versions
+
+`init()` runs when the element connects in a browser. `serverInit()` runs when it renders on the
+server. Neither runs on the other side, and the bundler empties `serverInit()`'s body on its way to
+the client, so anything it imports stays server-side.
+
+```ts
+// ❌ Loading in init() - runs in every visitor's browser, after the page has already painted
+protected init() {
+  fetch(`/api/rows`).then((r) => r.json()).then((rows) => this.#rows.set(rows));
+}
+```
+
+```ts
+// ✅ Load on the server, carry the result over in the markup
+@state() accessor rows = this.signal<Row[]>([]);
+
+override async serverInit() {
+  this.rows.set(await db.rows());
+}
+```
+
+The renderer starts every `serverInit()` on the page and awaits them as a batch, so siblings load in
+parallel. Only `@state`-marked signals cross to the browser, and only values that survive
+`JSON.stringify`.
+
+---
+
+## A prop does not survive a server render
+
+Setting a declared `@prop` writes the child's signal directly rather than an attribute — that is
+what makes a signal prop a live binding — so nothing about it appears in the markup.
+
+Between components this never shows: the parent's `template` runs again in the browser and hands the
+child the same props. It shows at the page boundary, where a `Page()` view is not a component and
+does not run again:
+
+```tsx
+// ❌ `user` configures the server render and is then gone
+router.route("/dashboard").get(Page((ctx) => <dashboard-page user={ctx.state.user} />));
+```
+
+```tsx
+// ✅ the component loads it and marks it @state, so the browser has it too
+router.route("/dashboard").get(Page(() => <dashboard-page />));
+```
+
+An undeclared attribute (`data-…`, or any name the component has no accessor for) does serialize, if
+all you need across is a scalar the component can read back itself.
+
 ---
 
 ## Light DOM children aren't available synchronously in `connectedCallback`

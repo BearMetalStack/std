@@ -1,11 +1,19 @@
-import type { BMC } from "@bearmetal/jsx";
 import type { ContextMap } from "./stackContext.ts";
+
+/**
+ * Any element can carry or resolve context.
+ *
+ * Not `BMC`: providing is a property on the node and injecting is a walk up
+ * `parentElement`, neither of which needs a component. A plain wrapper element
+ * between a provider and its consumer must not break the chain.
+ */
+type ContextNode = Element;
 
 const PROVIDER_KEY = Symbol("bm-context");
 
 type ProviderMap = Map<string, unknown>;
 
-function getProviderMap(el: BMC): ProviderMap {
+function getProviderMap(el: ContextNode): ProviderMap {
 	const existing = (el as any)[PROVIDER_KEY];
 	if (existing) return existing;
 	const map: ProviderMap = new Map();
@@ -14,21 +22,21 @@ function getProviderMap(el: BMC): ProviderMap {
 }
 
 export function provide<K extends keyof ContextMap>(
-	el: BMC,
+	el: ContextNode,
 	key: K,
 	value: ContextMap[K],
 ): void;
-export function provide(el: BMC, key: string, value: unknown): void;
-export function provide(el: BMC, key: string, value: unknown) {
+export function provide(el: ContextNode, key: string, value: unknown): void;
+export function provide(el: ContextNode, key: string, value: unknown) {
 	getProviderMap(el).set(key, value);
 }
 
 export function inject<K extends keyof ContextMap>(
-	el: BMC,
+	el: ContextNode,
 	key: K,
 ): ContextMap[K] | undefined;
-export function inject<T>(el: BMC, key: string): T | undefined;
-export function inject(el: BMC, key: string): unknown {
+export function inject<T>(el: ContextNode, key: string): T | undefined;
+export function inject(el: ContextNode, key: string): unknown {
 	let current: Element | null = el as unknown as Element | null;
 	while (current) {
 		const map: ProviderMap | undefined = (current as any)[PROVIDER_KEY];
@@ -39,11 +47,11 @@ export function inject(el: BMC, key: string): unknown {
 }
 
 export function injectOrThrow<K extends keyof ContextMap>(
-	el: BMC,
+	el: ContextNode,
 	key: K,
 ): ContextMap[K];
-export function injectOrThrow<T>(el: BMC, key: string): T;
-export function injectOrThrow(el: BMC, key: string): unknown {
+export function injectOrThrow<T>(el: ContextNode, key: string): T;
+export function injectOrThrow(el: ContextNode, key: string): unknown {
 	const value = inject(el, key);
 	if (value === undefined) {
 		throw new Error(`No provider found for context key '${key}'`);

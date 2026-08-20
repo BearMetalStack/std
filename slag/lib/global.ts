@@ -1,32 +1,29 @@
 /**
  * Installing Slag over the platform globals.
  *
- * ## Import order matters
+ * ## Import order does not matter
  *
- * Some modules in this stack read DOM globals at **module-evaluation time**, not
- * at call time:
+ * It used to. `BMC` captured `globalThis.HTMLElement` as its base class when
+ * its module was evaluated, and the JSX runtime picked a client or server half
+ * from `typeof document` at the same moment — so both had to be imported
+ * *after* the globals existed, and a `.tsx` file could not arrange that at all,
+ * since the JSX transform injects its runtime import above everything the
+ * source writes.
  *
- * - `@bearmetal/jsx`'s `BMC` captures `globalThis.HTMLElement` to use as its base
- *   class the moment the module is imported.
- * - `@bearmetal/jsx/jsx-runtime` picks the client or server runtime from
- *   `typeof document !== "undefined"`, once, on import.
- *
- * So the globals have to exist *before* those modules load. Static imports are
- * evaluated in source order, which makes a side-effect import the reliable way
- * to guarantee it:
+ * Neither is true now. There is one JSX runtime, which reads `document` when it
+ * is called, and {@linkcode installGlobals} announces itself to anything that
+ * had to pick a base class early, which re-points its prototype chain at the
+ * real `HTMLElement`. Install the globals whenever you like — top of the file,
+ * inside a test body — and everything that already loaded catches up.
  *
  * ```ts
- * import "@bearmetal/slag/global"; // must come first
- * import { MyComponent } from "./my-component.ts"; // reaches jsx/app
+ * import { installGlobals } from "@bearmetal/slag";
+ *
+ * const uninstall = installGlobals({ url: "https://example.com/about" });
  * ```
  *
- * The second line names a local module on purpose. `dep_graph.ts` scans source
- * text for import specifiers and cannot tell a doc comment from real code, so
- * spelling a workspace package here would invent a `slag -> app` edge and
- * reverse the publish order.
- *
- * Calling {@linkcode installGlobals} from inside a test body is too late for
- * those two, though it is fine for anything that reads `document` lazily.
+ * The side-effect form (`@bearmetal/slag/global`) still exists and is still the
+ * least ceremony for a whole-file install.
  */
 
 import { SlagDocument } from "./document.ts";
@@ -38,9 +35,29 @@ import { SlagComment, SlagNode, SlagText } from "./node.ts";
 import { SlagDocumentFragment } from "./fragment.ts";
 import { SlagShadowRoot } from "./shadow.ts";
 
+/**
+ * Where classes that must extend the ambient `HTMLElement` park their
+ * "the DOM changed, re-point yourself" callbacks.
+ *
+ * Reached through a global symbol rather than an import: `@bearmetal/jsx`
+ * registers `BMC` here, and Slag sits *below* jsx in the dependency graph, so
+ * importing it would invert that. See `jsx/lib/dom.ts` for the other half.
+ */
+const DOM_REBASE_HOOKS: unique symbol = Symbol.for("bearmetal.dom.rebaseHooks");
+
+/** Tells every rebased class that `globalThis.HTMLElement` has changed. */
+function notifyDomChanged(): void {
+	// deno-lint-ignore no-explicit-any
+	const hooks = (globalThis as any)[DOM_REBASE_HOOKS] as Set<() => void> | undefined;
+	if (!hooks) return;
+	for (const hook of hooks) hook();
+}
+
 const GLOBAL_NAMES = [
 	"window",
 	"document",
+	"location",
+	"history",
 	"customElements",
 	"Node",
 	"Text",
@@ -57,10 +74,16 @@ const GLOBAL_NAMES = [
 export interface InstallGlobalsOptions {
 	/** Reuse an existing document instead of creating a fresh one. */
 	document?: SlagDocument;
+	/** Initial `location.href`. Defaults to `http://localhost/`. */
+	url?: string | URL;
 }
 
 /**
  * Installs Slag's classes on `globalThis`.
+ *
+ * Announces itself afterwards, so classes that had to extend `HTMLElement`
+ * before one existed can re-point at the real base — which is what makes the
+ * order of this call relative to the rest of the imports stop mattering.
  *
  * @returns A teardown that restores whatever was there before — including
  * "nothing", so a test file that installs Slag will not leak it into a file that
@@ -75,10 +98,12 @@ export function installGlobals(options: InstallGlobalsOptions = {}): () => void 
 	}
 
 	const document = options.document ?? new SlagDocument();
-	const window = new SlagWindow(document);
+	const window = new SlagWindow(document, options.url);
 
 	global.window = window;
 	global.document = document;
+	global.location = window.location;
+	global.history = window.history;
 	global.customElements = customElementRegistry;
 	global.Node = SlagNode;
 	global.Text = SlagText;
@@ -91,11 +116,14 @@ export function installGlobals(options: InstallGlobalsOptions = {}): () => void 
 	global.ShadowRoot = SlagShadowRoot;
 	global.CSSStyleSheet = SlagCSSStyleSheet;
 
+	notifyDomChanged();
+
 	return () => {
 		for (const [name, before] of previous) {
 			if (before.present) global[name] = before.value;
 			else delete global[name];
 		}
+		notifyDomChanged();
 	};
 }
 

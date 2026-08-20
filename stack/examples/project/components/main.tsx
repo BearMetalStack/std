@@ -1,8 +1,7 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
-import { Joke } from "@app/joke.tsx";
 
-@define("app-main", import.meta)
+@define("app-main")
 export class App extends BMElement {
 	static get stylesheet() {
 		return css`
@@ -151,7 +150,7 @@ export class App extends BMElement {
 						Edit <code>app/main.tsx</code> to make it yours.
 					</p>
 				</div>
-				<Joke />
+				<app-joke />
 			</main>
 		);
 	}

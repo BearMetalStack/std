@@ -4,12 +4,12 @@ import { getDefaultTheme, loadTheme } from "./theme.ts";
 
 export async function ThemeStyle(
 	{ theme }: { theme?: string | null },
-): Promise<import("@bearmetal/jsx/server").Html> {
+): Promise<import("@bearmetal/jsx/jsx-runtime").JSX.Element> {
 	const data = theme ? await loadTheme(theme) : await getDefaultTheme();
 	return <style id="thingy" $raw>{themeCSS(data, ":root").replaceAll(/\n\s*/g, " ")}</style>;
 }
 
-export function BaseStyle(): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
+export function BaseStyle(): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
 	return (
 		<style $raw>
 			{css`
@@ -279,7 +279,7 @@ export function BaseStyle(): import("@bearmetal/jsx/server/jsx-runtime").JSX.Ele
 
 export function ComponentStyle(
 	{ root }: { root?: string },
-): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
+): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
 	let style = css`
 		/* ============================================================
 		 form elements
@@ -679,7 +679,7 @@ export function ComponentStyle(
 	);
 }
 
-export function Animations(): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
+export function Animations(): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
 	return (
 		<style>
 			{css`
@@ -759,7 +759,7 @@ export function Animations(): import("@bearmetal/jsx/server/jsx-runtime").JSX.El
 
 export function BMDripBase(
 	{ theme }: { theme?: string },
-): import("@bearmetal/jsx/server/jsx-runtime").JSX.Element {
+): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
 	return (
 		<>
 			<ThemeStyle theme={theme} />

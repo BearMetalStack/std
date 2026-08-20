@@ -1,0 +1,119 @@
+/**
+ * Late binding to the ambient DOM.
+ *
+ * `BMC` has to extend `HTMLElement`, and `extends` is evaluated once, when the
+ * class is defined. That used to make import order load-bearing: a module that
+ * reached `BMC` before a microdom was installed got a class extending a bare
+ * `Object`, and the failure surfaced much later as `node.contains is not a
+ * function`. A `.tsx` file could not win at all, because the JSX transform
+ * injects its runtime import above everything the source writes.
+ *
+ * So the base class is not captured — it is *re-pointed*. A class's prototype
+ * chain is two mutable links (`Ctor.[[Prototype]]` and
+ * `Ctor.prototype.[[Prototype]]`), and rewriting them retargets the whole
+ * hierarchy at once: subclasses chain through `BMC.prototype`, so they follow
+ * without knowing anything happened. Instances follow too, since the prototype
+ * objects are mutated in place rather than replaced.
+ *
+ * Whoever installs the globals announces it by calling the hooks parked on
+ * {@linkcode DOM_REBASE_HOOKS}. That is a global symbol rather than an import so
+ * the DOM implementation never has to depend on this package — and so two
+ * separately bundled copies of this module still share one hook set.
+ */
+
+// deno-lint-ignore no-explicit-any
+export type ElementBase = abstract new (...args: any[]) => any;
+
+/**
+ * `globalThis[DOM_REBASE_HOOKS]` is a `Set<() => void>`. A DOM implementation
+ * calls every hook in it right after installing or removing its globals.
+ *
+ * @see {@linkcode rebaseOnDom}
+ */
+export const DOM_REBASE_HOOKS: unique symbol = Symbol.for("bearmetal.dom.rebaseHooks");
+
+/** The placeholder implementation. Empty on purpose: everything real is grafted on. */
+class Detached {}
+
+/**
+ * The class `BMC` is declared against.
+ *
+ * At runtime this is an empty placeholder until a DOM shows up, at which point
+ * {@linkcode rebaseOnDom} re-points anything built on it at the real
+ * `HTMLElement`. To a type checker its *instances* are `HTMLElement`, which is
+ * what they will be by the time any exists — so a component gets the element
+ * API it actually has, with no cast at each use.
+ *
+ * The constructor stays permissive on purpose. When a component class is used
+ * as a JSX tag (`<BmIcon icon="x" />`), TypeScript resolves the allowed props
+ * from the first constructor parameter; `HTMLElement`'s takes none, which would
+ * make every prop on every class tag an error.
+ */
+export const DetachedElement: {
+	// deno-lint-ignore no-explicit-any
+	new (...args: any[]): globalThis.HTMLElement;
+	prototype: globalThis.HTMLElement;
+} = Detached as unknown as {
+	// deno-lint-ignore no-explicit-any
+	new (...args: any[]): globalThis.HTMLElement;
+	prototype: globalThis.HTMLElement;
+};
+
+function hooks(): Set<() => void> {
+	// deno-lint-ignore no-explicit-any
+	const global = globalThis as any;
+	return global[DOM_REBASE_HOOKS] ??= new Set<() => void>();
+}
+
+/** The ambient `HTMLElement`, or {@linkcode DetachedElement} when there is none. */
+export function currentElementBase(): ElementBase {
+	// deno-lint-ignore no-explicit-any
+	return (globalThis as any).HTMLElement ?? DetachedElement;
+}
+
+/**
+ * Points `target`'s prototype chain at the ambient `HTMLElement`, and keeps it
+ * pointed there as the globals change.
+ *
+ * Call this once, immediately after declaring the class. It is safe to call
+ * before a DOM exists — that is the whole point — and safe to call when one
+ * already does.
+ */
+export function rebaseOnDom(target: ElementBase): void {
+	const apply = () => {
+		const base = currentElementBase();
+		if (Object.getPrototypeOf(target) === base) return;
+		Object.setPrototypeOf(target, base);
+		Object.setPrototypeOf(
+			(target as { prototype: object }).prototype,
+			(base as unknown as { prototype: object }).prototype,
+		);
+	};
+	apply();
+	hooks().add(apply);
+}
+
+/**
+ * Runs `hook` whenever the DOM globals change, and once immediately.
+ *
+ * For work that needs a DOM but may be reached before there is one — most
+ * importantly registering custom elements, since a class decorator runs when
+ * its module is evaluated and a server does not install the microdom until it
+ * renders. Registering a hook means the order stops mattering: whichever
+ * happens second catches up.
+ */
+export function onDomChanged(hook: () => void): void {
+	hook();
+	hooks().add(hook);
+}
+
+/**
+ * Announces that the DOM globals changed.
+ *
+ * Exported for completeness; the implementations that matter (a browser, which
+ * never changes, and `@bearmetal/slag`, which must not import this package)
+ * reach the hook set through {@linkcode DOM_REBASE_HOOKS} directly.
+ */
+export function notifyDomChanged(): void {
+	for (const hook of hooks()) hook();
+}

@@ -35,7 +35,7 @@ injectStyle(
 
 const Observed = ["sheet", "icon"] as const;
 
-@define("bm-icon", import.meta)
+@define("bm-icon")
 export class BmIcon extends BMElement {
 	static get observedAttributes(): typeof Observed {
 		return Observed;

@@ -1,10 +1,18 @@
-import "./_test_dom.ts";
+// The DOM here is @bearmetal/slag — the same one a server render uses, so these
+// tests exercise the real thing rather than a shim that agrees with it by
+// accident. Installing it inside the file body is fine now: nothing in this
+// package captures a DOM global at module-evaluation time.
+import { installGlobals } from "@bearmetal/slag";
+installGlobals();
+
 import { assertEquals, assertStrictEquals } from "@std/assert";
-import { jsx, setEffectImpl } from "../client/jsx-runtime.ts";
+import { Fragment, jsx, setEffectImpl } from "../jsx-runtime.ts";
+import { Html } from "./html.ts";
+import { beginRenderScope, collectInto, endRenderScope } from "./pending.ts";
 
 // A manual reactive harness: an effect runs once and re-runs whenever any test
 // signal changes. Enough to drive appendReactiveChild without the signals lib,
-// keeping the jsx package's tests dependency-free.
+// keeping the jsx package's runtime dependencies at zero.
 const runners = new Set<() => void>();
 setEffectImpl((fn) => {
 	fn();
@@ -116,4 +124,81 @@ Deno.test("re-rendering to the same node leaves it in the DOM untouched", () => 
 	assertEquals(removals, 0, "an unchanged node should never be pulled out of the DOM");
 	assertEquals(container.innerHTML, "<div>STABLE</div>");
 	assertStrictEquals(container.childNodes[1], stable);
+});
+
+Deno.test("text children are escaped and Html children are not", () => {
+	const container = jsx("div", {
+		children: ["<b>plain</b>", new Html("<b>markup</b>")],
+	}) as unknown as El;
+
+	assertEquals(container.innerHTML, "&lt;b&gt;plain&lt;/b&gt;<b>markup</b>");
+});
+
+Deno.test("$raw treats string children as markup", () => {
+	const container = jsx("div", {
+		$raw: true,
+		children: "<em>raw</em>",
+	}) as unknown as El;
+
+	assertEquals(container.innerHTML, "<em>raw</em>");
+});
+
+Deno.test("a reactive child carrying Html renders markup, not escaped text", () => {
+	const val = signal(new Html("<i>one</i>"));
+	const container = jsx("div", { children: { get: () => val.get() } }) as unknown as El;
+
+	assertEquals(container.innerHTML, "<i>one</i>");
+	val.set(new Html("<i>two</i>"));
+	assertEquals(container.innerHTML, "<i>two</i>", "the old markup is replaced, not appended to");
+});
+
+Deno.test("a fragment flattens its children without a wrapper element", () => {
+	const frag = Fragment({ children: ["a", jsx("b", { children: "c" })] });
+	const container = jsx("div", { children: frag }) as unknown as El;
+
+	assertEquals(container.innerHTML, "a<b>c</b>");
+});
+
+Deno.test("a promise child holds its place and fills in when it resolves", async () => {
+	const container = jsx("div", {
+		children: ["before", Promise.resolve(jsx("span", { children: "late" })), "after"],
+	}) as unknown as El;
+
+	assertEquals(container.innerHTML, "beforeafter", "the slot is empty until the promise settles");
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	assertEquals(container.innerHTML, "before<span>late</span>after");
+});
+
+Deno.test("a render scope collects the promises raised while it is collecting", async () => {
+	const scope = beginRenderScope();
+	try {
+		const { result, work } = collectInto(scope, () =>
+			jsx("div", {
+				children: Promise.resolve("resolved"),
+			}) as unknown as El);
+
+		assertEquals(work.length, 1, "the pending child registered itself with the open scope");
+		assertEquals(result.innerHTML, "");
+
+		await Promise.all(work);
+		assertEquals(result.innerHTML, "resolved", "awaiting the scope's work settles the markup");
+
+		assertEquals(
+			collectInto(scope, () => {}).work.length,
+			0,
+			"work is drained as it is read, so a renderer can loop until there is none",
+		);
+	} finally {
+		endRenderScope(scope);
+	}
+});
+
+Deno.test("outside a render scope, nothing is collected", () => {
+	// A browser is never inside a scope. The promise still resolves into place;
+	// it is simply not something anyone waits for.
+	const scope = beginRenderScope();
+	endRenderScope(scope);
+
+	jsx("div", { children: Promise.resolve("x") });
+	assertEquals(scope.work.size, 0);
 });

@@ -20,7 +20,8 @@
  * ```
  *
  * To run browser-targeted code unchanged, install it over the globals — see
- * `installGlobals`, and note the import-order caveat documented there.
+ * `installGlobals`. It can be called at any point; anything already loaded that
+ * had to pick a base class without a DOM is told to re-point itself.
  *
  * @module
  */
@@ -40,6 +41,7 @@ export {
 } from "./lib/element.ts";
 export { SlagDocument } from "./lib/document.ts";
 export { SlagWindow } from "./lib/window.ts";
+export { SlagHistory, SlagLocation } from "./lib/location.ts";
 export { createStyleDeclaration, SlagCSSStyleSheet } from "./lib/css.ts";
 export {
 	customElementRegistry,

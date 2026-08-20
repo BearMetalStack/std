@@ -1,6 +1,6 @@
 import { BMElement, define } from "@bearmetal/app";
 
-@define("bm-tab", import.meta)
+@define("bm-tab")
 export class BmTab extends BMElement {
 	init() {
 		if (!this.hasAttribute("active")) this.style.display = "none";
@@ -17,7 +17,7 @@ export class BmTab extends BMElement {
 	}
 }
 
-@define("bm-tabs", import.meta)
+@define("bm-tabs")
 export class BmTabs extends BMElement {
 	init() {
 		Promise.resolve().then(() => this._build());

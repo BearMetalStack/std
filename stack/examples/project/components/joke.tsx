@@ -1,4 +1,4 @@
-import { BMElement, define } from "@bearmetal/app";
+import { BMElement, define, state } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
 
 @define("app-joke")
@@ -26,14 +26,23 @@ export class Joke extends BMElement<{ joke: Element }> {
 		`;
 	}
 
-	static async serverLoad(_props: Record<string, unknown>) {
+	/**
+	 * The punchline, loaded on the server and carried to the browser in the
+	 * markup — `@state` is what makes it survive the trip, so the client never
+	 * fetches it.
+	 */
+	@state()
+	accessor punchline = this.signal("");
+
+	override async serverInit() {
 		await Promise.resolve();
-		return { orange: "Orange you glad I didn't say banana?" };
+		this.punchline.set("Orange you glad I didn't say banana?");
 	}
 
-	init() {
+	override init() {
 		this.addEffect(() => {
-			if (!this.signals.$orange) return;
+			const punchline = this.punchline.get();
+			if (!punchline) return;
 			let count = 0;
 			const joke = [
 				"Knock knock",
@@ -48,7 +57,7 @@ export class Joke extends BMElement<{ joke: Element }> {
 					case 15:
 						return "Orange who?";
 					case 16:
-						return this.signals.$orange.get() as string;
+						return punchline;
 					default:
 						return joke[count % joke.length];
 				}
@@ -60,9 +69,9 @@ export class Joke extends BMElement<{ joke: Element }> {
 					: l.toLowerCase().includes("banana")
 					? "banana"
 					: "";
-				this.refs.joke.append(<p class={c}>{l}</p> as Node);
+				this.refs.joke.append(<p class={c}>{l}</p>);
 
-				if (l === this.signals.$orange.get()) {
+				if (l === punchline) {
 					clearInterval(to);
 				}
 				this.refs.joke.scrollTop = this.refs.joke.scrollHeight;
@@ -72,9 +81,9 @@ export class Joke extends BMElement<{ joke: Element }> {
 		});
 	}
 
-	get template() {
+	override get template() {
 		const m = this.computed(() => {
-			if (this.signals.$orange) return undefined;
+			if (this.punchline.get()) return null;
 			return (
 				<p class="banana">
 					If you are seeing this, it means I wasn't rendered on the server. Dang, guess there's no

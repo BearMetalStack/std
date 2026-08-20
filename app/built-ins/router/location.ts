@@ -7,7 +7,10 @@
  * tests running under a microdom that has a `document` but no navigation APIs.
  */
 
+import { isServerRendering } from "@bearmetal/jsx";
 import { Signal } from "../../signals/wrapper.ts";
+import { getContextItemOrDefault } from "../../context/stackContext.ts";
+import { RENDER_URL } from "../../ssr/context.ts";
 
 /**
  * Whether a DOM is present. Read lazily rather than captured at module scope so
@@ -15,6 +18,20 @@ import { Signal } from "../../signals/wrapper.ts";
  */
 function hasDocument(): boolean {
 	return typeof document !== "undefined";
+}
+
+/**
+ * The URL the current server render is for, when this is one.
+ *
+ * Scoped to the render's call stack rather than kept in a module, which is what
+ * makes it correct with several requests in flight: a render is synchronous, so
+ * nothing can interleave and read someone else's URL. A server does have a
+ * `globalThis.location` under the microdom, but it is per-process and therefore
+ * exactly the wrong thing to route on.
+ */
+export function renderUrl(): string | undefined {
+	if (!isServerRendering()) return undefined;
+	return getContextItemOrDefault<string | undefined>(RENDER_URL, undefined);
 }
 
 const FALLBACK_HREF = "http://localhost/";
@@ -45,13 +62,15 @@ export function urlSignal(): Signal.State<string> {
 /**
  * The current href, read without subscribing to it.
  *
- * The signal is the source of truth even where a `location` exists — `location`
- * is only ever an *input* to it, pushed in by {@linkcode syncUrl}. Resolving
- * relative navigation against `location` instead would silently ignore anything
- * the host had set through {@linkcode setUrl}.
+ * Inside a server render the answer is that render's URL, which is scoped to
+ * its call stack and so cannot be confused with a concurrent request's.
+ * Otherwise the signal is the source of truth even where a `location` exists —
+ * `location` is only ever an *input* to it, pushed in by {@linkcode syncUrl}.
+ * Resolving relative navigation against `location` instead would silently
+ * ignore anything the host had set through {@linkcode setUrl}.
  */
 export function currentHref(): string {
-	return state ? href : globalThis.location?.href ?? FALLBACK_HREF;
+	return renderUrl() ?? (state ? href : globalThis.location?.href ?? FALLBACK_HREF);
 }
 
 const subscribers = new Set<(href: string) => void>();
@@ -178,6 +197,11 @@ let interceptorRefs = 0;
  */
 export function interceptLinkClicks(): () => void {
 	if (!hasDocument()) return () => {};
+	// A server render has a `document`, and it is shared by every request in the
+	// process. Hanging a click listener on it would outlive the page being
+	// rendered and accumulate one per render — and nothing is ever going to click
+	// on markup that is about to become a string.
+	if (isServerRendering()) return () => {};
 
 	interceptorRefs++;
 	if (!removeInterceptor) {

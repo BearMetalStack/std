@@ -173,7 +173,7 @@ async function* walk(dir: string, skip: ReadonlySet<string>): AsyncGenerator<str
  *
  * Handles the shapes that actually appear in this repo: bare
  * (`@bearmetal/jsx`), registry-prefixed (`jsr:@bearmetal/router`), versioned
- * (`jsr:@bearmetal/db@^0.0.8`), and sub-path (`@bearmetal/jsx/server`).
+ * (`jsr:@bearmetal/db@^0.0.8`), and sub-path (`@bearmetal/jsx/jsx-runtime`).
  */
 export function specifierToPackage(specifier: string, scope: ScopeString = SCOPE): string | null {
 	const bare = specifier.replace(/^(?:jsr|npm|https?):(?:\/\/)?/, "");

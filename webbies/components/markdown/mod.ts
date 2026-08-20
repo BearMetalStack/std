@@ -30,7 +30,7 @@ const STYLE = css`
 	}
 `;
 
-@define("bm-md", import.meta)
+@define("bm-md")
 export class Markdown extends BMElement {
 	static observedAttributes = ["src"];
 
