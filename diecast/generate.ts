@@ -18,8 +18,16 @@ import {
 	resolvePermutations,
 	withQuery,
 } from "./manifest.ts";
-import { discoverFrom, discoverFromScript, rootFallbackFor } from "./discover.ts";
-import { isHtml, isScript, redirectShim, writeResponse } from "./write.ts";
+import {
+	decodeEntities,
+	discoverFrom,
+	discoverFromScript,
+	rawReferences,
+	resolveReference,
+	rootFallbackFor,
+	scriptImports,
+} from "./discover.ts";
+import { hrefFor, isHtml, isScript, redirectShim, writeResponse } from "./write.ts";
 import type {
 	DiecastConfig,
 	GeneratedPage,
@@ -234,9 +242,14 @@ export async function diecast(
 			bytes: written.bytes,
 		});
 
-		if (job.kind === "asset" && !job.out) {
-			const requested = job.url.pathname.replace(/^\/+/, "");
-			if (written.file !== requested) remaps.set(job.url.pathname, `/${written.file}`);
+		if (!job.out) {
+			// A page's own path is expected to move - `/about` is served from
+			// `about/index.html` and every host resolves that. A query is not:
+			// the file is named for it, so the references have to be too.
+			const rewritable = job.kind === "asset" || job.url.search !== "";
+			const requested = job.url.pathname + job.url.search;
+			const served = hrefFor(written.file);
+			if (rewritable && served !== requested) remaps.set(requested, served);
 		}
 
 		if (html !== null && job.kind === "page") {
@@ -259,7 +272,7 @@ export async function diecast(
 		await Promise.all(batch.map(renderOne));
 	}
 
-	if (remaps.size > 0) await applyRemaps(config.outDir, pages, remaps);
+	if (remaps.size > 0) await applyRemaps(config.outDir, pages, remaps, origin);
 
 	const copiedDirs = discover.directories ? await copyStaticDirs(router, config) : [];
 
@@ -267,20 +280,27 @@ export async function diecast(
 }
 
 /**
- * Patch every written HTML or script file so a reference to an extensionless
- * asset path points at the extension it was actually written under.
+ * Patch every written HTML or script file so a reference points at the file
+ * that was actually written for it - the extension an extensionless asset
+ * gained, or the digested name a query-carrying URL landed under.
  *
  * Runs once, after the whole site is known, because a page is written before
  * the assets it references have been fetched - there is no way to know at
  * write time whether one of them will need remapping.
+ *
+ * References are matched by resolving them, not by looking for the remapped
+ * path as text: `badge.svg?x=1` in a page under `/md/` names the same file as
+ * `/md/badge.svg?x=1`, and in real markup its `&` is written `&amp;`.
  */
 async function applyRemaps(
 	outDir: string,
 	pages: GeneratedPage[],
 	remaps: Map<string, string>,
+	origin: string,
 ): Promise<void> {
 	for (const page of pages) {
-		if (!isHtml(page.contentType) && !isScript(page.contentType)) continue;
+		const html = isHtml(page.contentType);
+		if (!html && !isScript(page.contentType)) continue;
 		const target = joinPath(outDir, page.file);
 		let text: string;
 		try {
@@ -288,12 +308,46 @@ async function applyRemaps(
 		} catch {
 			continue;
 		}
-		let patched = text;
-		for (const [from, to] of remaps) {
-			patched = patched.replaceAll(`"${from}"`, `"${to}"`).replaceAll(`'${from}'`, `'${to}'`);
-		}
+		const patched = rewriteReferences(
+			text,
+			new URL(`/${page.file}`, origin),
+			remaps,
+			html,
+		);
 		if (patched !== text) await Deno.writeTextFile(target, patched);
 	}
+}
+
+/** Substitute every reference in one file that names a remapped URL. */
+function rewriteReferences(
+	text: string,
+	pageUrl: URL,
+	remaps: Map<string, string>,
+	html: boolean,
+): string {
+	let out = text;
+	for (const raw of new Set(html ? rawReferences(text) : scriptImports(text))) {
+		const url = resolveReference(html ? decodeEntities(raw) : raw, pageUrl);
+		if (!url) continue;
+		const to = remaps.get(url.pathname + url.search);
+		if (to && to !== raw) out = replaceReference(out, raw, to);
+	}
+	return out;
+}
+
+/**
+ * Replace a reference where it is used as one - quoted, or as an unquoted
+ * attribute value - rather than everywhere the same characters happen to
+ * appear in the document.
+ */
+function replaceReference(text: string, from: string, to: string): string {
+	const pattern = from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	// Function replacements throughout: a written path may contain a `$`, which
+	// a string replacement would read as a capture reference.
+	return text
+		.replace(new RegExp(`"${pattern}"`, "g"), () => `"${to}"`)
+		.replace(new RegExp(`'${pattern}'`, "g"), () => `'${to}'`)
+		.replace(new RegExp(`=${pattern}(?=[\\s>])`, "g"), () => `=${to}`);
 }
 
 /** Copy every directory the router serves from disk into the output. */

@@ -40,6 +40,39 @@ meaningful extension: `/styles/site.css` becomes `styles/site.css`. An extension
 derived from its content type, so a `text/javascript` response at `/bundle` is written as
 `bundle.js`.
 
+## Query strings
+
+A URL's query is part of what was rendered, so it is part of the file name. An SVG generator
+programmed by its parameters is a different image per query, and a file system has nowhere to put
+the `?`:
+
+```txt
+dist/
+	badge.7f3c1a90e2.svg  <- /badge?label=build&value=passing
+	badge.0b19d4c7aa.svg  <- /badge?label=tests&value=84
+	search.5e2a8f1b03/index.html  <- /search?q=bears
+```
+
+The suffix is a digest of the query exactly as it was written, so it is the same on every build and
+different for every query — including a different parameter order, since a generator may well care
+about one.
+
+You do not link to those names yourself. Diecast rewrites every reference that pointed at the query
+form to the file it was written to, in each generated page and script, whether the reference was
+absolute (`/badge?label=build`), relative (`../badge?label=build`), or spelled with the `&amp;` that
+conforming markup requires. The report pairs them up: `url` is the URL with its query, `file` is
+where it landed.
+
+A page reached with **no** query is unaffected — `/about` is still `about/index.html`.
+
+::: tip Manifest permutations name themselves
+
+This is derivation for references diecast _found_. A permutation you declare with a `query` still
+requires an explicit [`out`](/diecast/manifest) — you know what that page should be called, and
+`search/bears/index.html` beats a digest.
+
+:::
+
 ## Redirects
 
 A static host has no redirect table, so a 3xx from your router cannot stay a 3xx. Diecast writes a

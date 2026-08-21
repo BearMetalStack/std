@@ -2,9 +2,11 @@ import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { joinPath } from "@bearmetal/miscellanea";
 import {
 	extensionFor,
+	hrefFor,
 	isHtml,
 	normalizeContentType,
 	outputPathFor,
+	queryTag,
 	redirectShim,
 	writeResponse,
 } from "./write.ts";
@@ -137,4 +139,81 @@ Deno.test("redirectShim points at the target and escapes it", () => {
 	const escaped = redirectShim(`/a?x=1&y="2"`);
 	assertStringIncludes(escaped, "&amp;");
 	assertStringIncludes(escaped, "&quot;");
+});
+
+Deno.test("outputPathFor names a query-carrying asset for its query", () => {
+	const one = outputPathFor("/badge?label=one", "image/svg+xml", "index");
+	const two = outputPathFor("/badge?label=two", "image/svg+xml", "index");
+
+	// The query is what the generator was programmed with, so it is part of
+	// the identity of the file - two queries cannot share one name.
+	assertEquals(one !== two, true);
+	assertEquals(one, `badge.${queryTag("label=one")}.svg`);
+	// The extension still comes from the content type, and stays last.
+	assertEquals(one.endsWith(".svg"), true);
+	// A path that already names a file keeps its own extension.
+	assertEquals(
+		outputPathFor("/badge.svg?label=one", "image/svg+xml", "index"),
+		`badge.${queryTag("label=one")}.svg`,
+	);
+});
+
+Deno.test("outputPathFor derives the same name on every build", () => {
+	assertEquals(
+		outputPathFor("/badge?a=1&b=2", "image/svg+xml"),
+		outputPathFor("/badge?a=1&b=2", "image/svg+xml"),
+	);
+	// Order is not normalised away - a generator may well care about it.
+	assertEquals(
+		outputPathFor("/badge?a=1&b=2", "image/svg+xml") !==
+			outputPathFor("/badge?b=2&a=1", "image/svg+xml"),
+		true,
+	);
+});
+
+Deno.test("outputPathFor keeps a query page clean-URL shaped", () => {
+	const tag = queryTag("q=bears");
+	assertEquals(outputPathFor("/search?q=bears", HTML, "index"), `search.${tag}/index.html`);
+	assertEquals(outputPathFor("/search?q=bears", HTML, "flat"), `search.${tag}.html`);
+	assertEquals(outputPathFor("/?q=bears", HTML, "index"), `index.${tag}/index.html`);
+	// No query, no tag.
+	assertEquals(outputPathFor("/search", HTML, "index"), "search/index.html");
+});
+
+Deno.test("queryTag is empty for no query", () => {
+	assertEquals(queryTag(""), "");
+	assertEquals(queryTag("?"), "");
+	assertEquals(queryTag("?a=1"), queryTag("a=1"));
+});
+
+Deno.test("hrefFor gives the URL a written file is served at", () => {
+	assertEquals(hrefFor("index.html"), "/");
+	assertEquals(hrefFor("about/index.html"), "/about/");
+	assertEquals(hrefFor("badge.a1b2c3.svg"), "/badge.a1b2c3.svg");
+	assertEquals(hrefFor("about.html"), "/about.html");
+});
+
+Deno.test("writeResponse keeps one file per query", async () => {
+	const outDir = await Deno.makeTempDir();
+	try {
+		const svg = (label: string) =>
+			new Response(`<svg>${label}</svg>`, { headers: { "Content-Type": "image/svg+xml" } });
+
+		const one = await writeResponse(
+			svg("one"),
+			new URL("http://localhost/badge?label=one"),
+			{ outDir },
+		);
+		const two = await writeResponse(
+			svg("two"),
+			new URL("http://localhost/badge?label=two"),
+			{ outDir },
+		);
+
+		assertEquals(one.file !== two.file, true);
+		assertEquals(await Deno.readTextFile(joinPath(outDir, one.file)), "<svg>one</svg>");
+		assertEquals(await Deno.readTextFile(joinPath(outDir, two.file)), "<svg>two</svg>");
+	} finally {
+		await Deno.remove(outDir, { recursive: true });
+	}
 });

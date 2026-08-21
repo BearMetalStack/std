@@ -60,29 +60,94 @@ function decodePath(pathname: string): string {
 }
 
 /**
+ * A short, stable digest of a string. FNV-1a over UTF-16 units, truncated.
+ *
+ * Nothing here is a security property - the digest only has to be the same on
+ * every build for the same input, and different for a different one.
+ */
+function digest(input: string): string {
+	const mask = 0xffffffffffffffffn;
+	let hash = 0xcbf29ce484222325n;
+	for (let i = 0; i < input.length; i++) {
+		hash = ((hash ^ BigInt(input.charCodeAt(i))) * 0x100000001b3n) & mask;
+	}
+	return hash.toString(16).padStart(16, "0").slice(0, 10);
+}
+
+/** Insert `.tag` into a path's last segment, ahead of any extension. */
+function tagged(path: string, tag: string): string {
+	const cut = path.lastIndexOf("/");
+	const dir = cut === -1 ? "" : path.slice(0, cut + 1);
+	const name = path.slice(cut + 1);
+	const dot = name.lastIndexOf(".");
+	return dot <= 0 ? `${dir}${name}.${tag}` : `${dir}${name.slice(0, dot)}.${tag}${name.slice(dot)}`;
+}
+
+/**
+ * The distinguishing part of a file name for a URL rendered with a query.
+ *
+ * A parameterised asset - the SVG a generator draws from its query, a search
+ * page - is a different document per query, and a file system has nowhere to
+ * put the `?`. So the query becomes a digest in the name: `/badge.svg?label=a`
+ * lands at `badge.<digest>.svg`, one file per query, stable across builds. The
+ * generator rewrites the references that pointed at the query form.
+ *
+ * The digest is taken over the query exactly as written rather than a
+ * normalised one, so a generator that cares about parameter order still gets a
+ * file per order.
+ */
+export function queryTag(search: string): string {
+	const query = search.startsWith("?") ? search.slice(1) : search;
+	return query === "" ? "" : digest(query);
+}
+
+/**
  * The file path a URL maps to, relative to the output directory.
  *
  * HTML gets the `outputStyle` treatment - `"index"` turns `/about` into
  * `about/index.html` so clean URLs work on any static host without rewrite
  * rules, `"flat"` turns it into `about.html`. Everything else keeps its URL
  * path, because assets already carry a meaningful extension.
+ *
+ * A query string is part of the identity of what was rendered, so it is part
+ * of the name too - see {@linkcode queryTag}. Pass it on: this takes a path
+ * that may still carry its `?query`, not a bare pathname.
  */
 export function outputPathFor(
 	pathname: string,
 	contentType: string | null,
 	outputStyle: OutputStyle = "index",
 ): string {
-	const clean = decodePath(pathname).replace(/^\/+/, "").replace(/\/+$/, "");
+	const cut = pathname.indexOf("?");
+	const tag = cut === -1 ? "" : queryTag(pathname.slice(cut + 1));
+	const path = cut === -1 ? pathname : pathname.slice(0, cut);
+	const clean = decodePath(path).replace(/^\/+/, "").replace(/\/+$/, "");
+	const withTag = (p: string) => tag ? tagged(p, tag) : p;
 
 	if (!isHtml(contentType)) {
-		if (clean === "") return "index";
+		if (clean === "" && !tag) return "index";
+		const base = clean === "" ? "index" : clean;
 		const ext = extensionFor(contentType);
-		return ext && !/\.[A-Za-z0-9]+$/.test(clean) ? `${clean}.${ext}` : clean;
+		const named = ext && !/\.[A-Za-z0-9]+$/.test(base) ? `${base}.${ext}` : base;
+		return withTag(named);
 	}
 
-	if (clean === "") return "index.html";
-	if (/\.html?$/i.test(clean)) return clean;
-	return outputStyle === "flat" ? `${clean}.html` : joinPath(clean, "index.html");
+	if (clean === "") return tag ? joinPath(`index.${tag}`, "index.html") : "index.html";
+	if (/\.html?$/i.test(clean)) return withTag(clean);
+	return outputStyle === "flat" ? `${withTag(clean)}.html` : joinPath(withTag(clean), "index.html");
+}
+
+/**
+ * The URL a static host serves a written file at.
+ *
+ * The inverse of {@linkcode outputPathFor} as far as a reference cares: a page
+ * written to `about/index.html` is linked as `/about/`, an asset as its own
+ * path. Used to point a rewritten reference at where the file actually landed.
+ */
+export function hrefFor(file: string): string {
+	const path = file.replace(/^\/+/, "");
+	if (path === "index.html") return "/";
+	return path.endsWith("/index.html") ? `/${path.slice(0, -"index.html".length)}` : `/${path}`;
 }
 
 /** Reject a path that would escape the output directory. */
@@ -113,7 +178,11 @@ export async function writeResponse(
 	opts: WriteOptions,
 ): Promise<{ file: string; bytes: number }> {
 	const relative = opts.out ??
-		outputPathFor(url.pathname, res.headers.get("content-type"), opts.outputStyle);
+		outputPathFor(
+			url.pathname + url.search,
+			res.headers.get("content-type"),
+			opts.outputStyle,
+		);
 
 	const target = joinPath(opts.outDir, relative);
 	assertContained(opts.outDir, target);

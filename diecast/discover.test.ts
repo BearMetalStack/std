@@ -1,9 +1,11 @@
 import { assertEquals } from "@std/assert";
 import {
+	decodeEntities,
 	discoverFrom,
 	discoverFromScript,
 	extractReferences,
 	inlineModuleImports,
+	rawReferences,
 	resolveReference,
 	rootFallbackFor,
 	scriptImports,
@@ -130,4 +132,42 @@ Deno.test("rootFallbackFor only applies below the top level", () => {
 	);
 	// Already at the root: nothing to fall back to.
 	assertEquals(rootFallbackFor(new URL("http://localhost/chunk-X.js")), null);
+});
+
+Deno.test("decodeEntities reads an attribute value the way a browser does", () => {
+	assertEquals(decodeEntities("/badge?a=1&amp;b=2"), "/badge?a=1&b=2");
+	assertEquals(decodeEntities("/badge?a=1&#38;b=2"), "/badge?a=1&b=2");
+	assertEquals(decodeEntities("/badge?a=1&#x26;b=2"), "/badge?a=1&b=2");
+	// A bare ampersand, and an entity that is not one, are left alone.
+	assertEquals(decodeEntities("/badge?a=1&b=2"), "/badge?a=1&b=2");
+	assertEquals(decodeEntities("/x?a=&notanentity;"), "/x?a=&notanentity;");
+});
+
+Deno.test("extractReferences keeps a reference's query", () => {
+	const html = `<img src="/badge?label=BearMetal&amp;value=Badger">`;
+	// Conforming markup escapes the separator - decoding it is what makes the
+	// second parameter `value` rather than `amp;value`.
+	assertEquals(extractReferences(html).assets, ["/badge?label=BearMetal&value=Badger"]);
+});
+
+Deno.test("rawReferences spells references the way the document does", () => {
+	const html = `<img src="/badge?a=1&amp;b=2"><a href="/search?q=bears">go</a>`;
+	assertEquals(rawReferences(html), ["/badge?a=1&amp;b=2", "/search?q=bears"]);
+});
+
+Deno.test("resolveReference and discoverFrom carry the query through", () => {
+	const url = resolveReference("/badge?label=a&value=b#frag", PAGE);
+	assertEquals(url?.pathname, "/badge");
+	assertEquals(url?.search, "?label=a&value=b");
+	assertEquals(url?.hash, "");
+
+	const found = discoverFrom(
+		`<img src="/badge?label=a"><img src="/badge?label=b"><img src="/badge?label=a">`,
+		PAGE,
+	);
+	// Same URL twice is one job; a different query is a different one.
+	assertEquals(found.assets.map((u) => u.pathname + u.search), [
+		"/badge?label=a",
+		"/badge?label=b",
+	]);
 });

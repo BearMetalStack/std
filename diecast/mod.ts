@@ -35,13 +35,21 @@ export { diecastModule } from "./module.ts";
 export type { DiecastModuleOptions } from "./module.ts";
 export {
 	extensionFor,
+	hrefFor,
 	isHtml,
 	normalizeContentType,
 	outputPathFor,
+	queryTag,
 	redirectShim,
 	writeResponse,
 } from "./write.ts";
-export { discoverFrom, extractReferences, inlineModuleImports } from "./discover.ts";
+export {
+	decodeEntities,
+	discoverFrom,
+	extractReferences,
+	inlineModuleImports,
+	rawReferences,
+} from "./discover.ts";
 export type { PageReferences } from "./discover.ts";
 
 export type * from "./types.ts";

@@ -37,6 +37,17 @@ that serve no bundled components at all.
 Off-origin references are left alone. So are `data:`, `mailto:`, bare specifiers and fragments —
 things the browser will never fetch by path.
 
+### Query strings are part of the reference
+
+`<img src="/badge?label=build&amp;value=passing">` is fetched with that query, and the response is
+written to a file named for it — see [query strings](/diecast/output#query-strings). Two references
+to the same generator with different parameters are two assets, and the references are rewritten to
+match.
+
+Attribute values are decoded before they are resolved, so the `&amp;` that valid markup requires
+separates two parameters rather than producing one called `amp;value`. The fragment is dropped: it
+never reaches the server.
+
 ## Where a specifier resolves to
 
 Relative specifiers resolve against **the file that was written**, not the URL the page was rendered

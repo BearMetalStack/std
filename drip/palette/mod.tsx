@@ -5,6 +5,7 @@ import { Html, Router } from "@bearmetal/router";
 import { Chain, css, js } from "@bearmetal/miscellanea";
 import { loadTheme } from "../theme.ts";
 import { ThemePreviewCard, ThemePreviewCardStyles } from "./ThemePreviewCard.tsx";
+import "@bearmetal/slag/global";
 
 export const router: Router = new Router();
 
@@ -430,4 +431,4 @@ router.get("/", async (ctx) => {
 	return Html("<!DOCTYPE html>" + (await page).toString());
 });
 
-if (import.meta.main) Deno.serve(router.handle);
+if (import.meta.main) Deno.serve({ port: 8345 }, router.handle);

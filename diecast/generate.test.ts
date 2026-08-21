@@ -384,3 +384,117 @@ Deno.test("reports what it wrote", async () => {
 		assertEquals(report.duration >= 0, true);
 	});
 });
+
+/** A generator programmed by its query, the way an SVG badge service is. */
+function badgeRouter(): Router {
+	const router = new Router();
+	router.route("/badge").get((ctx) =>
+		new Response(
+			`<svg><text>${ctx.url.searchParams.get("label")}</text></svg>`,
+			{ headers: { "Content-Type": "image/svg+xml" } },
+		)
+	);
+	return router;
+}
+
+Deno.test("writes one asset per query and points the page at each", async () => {
+	await withTempDir(async (outDir) => {
+		const router = badgeRouter();
+		router.route("/").get(() =>
+			Html(
+				`<img src="/badge?label=one&amp;color=red">` +
+					`<img src="/badge?label=two&amp;color=red">`,
+			)
+		);
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, true);
+		// Two badges, two files - not one file written twice. The route itself
+		// is static, so it also generates once with no query at all.
+		const svgs = report.pages.filter((p) => p.contentType?.startsWith("image/svg"));
+		assertEquals(svgs.length, 3);
+		assertEquals(new Set(svgs.map((p) => p.file)).size, 3);
+
+		const html = await read(outDir, "index.html");
+		// Nothing is left pointing at a query a static host cannot answer.
+		assertEquals(html.includes("/badge?"), false);
+		assertEquals(html.includes("&amp;"), false);
+
+		const srcs = [...html.matchAll(/src="([^"]+)"/g)].map((m) => m[1]);
+		assertEquals(srcs.length, 2);
+		const contents = await Promise.all(
+			srcs.map((src) => read(outDir, src.replace(/^\//, ""))),
+		);
+		// Each reference reaches the badge that was rendered for its query.
+		assertStringIncludes(contents[0], "<text>one</text>");
+		assertStringIncludes(contents[1], "<text>two</text>");
+	});
+});
+
+Deno.test("a query-carrying reference survives the ampersand escaping in markup", async () => {
+	await withTempDir(async (outDir) => {
+		const router = badgeRouter();
+		router.route("/").get(() => Html(`<img src="/badge?label=hi&amp;color=red">`));
+
+		await diecast(router, { outDir, discover: { links: false } });
+
+		const html = await read(outDir, "index.html");
+		const src = html.match(/src="([^"]+)"/)?.[1] ?? "";
+		// `&amp;` decoded to `&`, so the label parameter is the label and not
+		// swallowed by a parameter called `amp;color`.
+		assertStringIncludes(await read(outDir, src.replace(/^\//, "")), "<text>hi</text>");
+	});
+});
+
+Deno.test("rewrites a relative query reference from a nested page", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/md/badge").get((ctx) =>
+			new Response(`<svg>${ctx.url.searchParams.get("label")}</svg>`, {
+				headers: { "Content-Type": "image/svg+xml" },
+			})
+		);
+		// The page is written to md/intro/index.html, so `../badge?...` is
+		// requested as /md/badge?... - and the reference has to be rewritten
+		// where it sits, relative and all.
+		router.route("/md/intro").get(() => Html(`<img src="../badge?label=deep">`));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.ok, true);
+		const html = await read(outDir, "md/intro/index.html");
+		assertEquals(html.includes("badge?label=deep"), false);
+		const src = html.match(/src="([^"]+)"/)?.[1] ?? "";
+		assertStringIncludes(await read(outDir, src.replace(/^\//, "")), "<svg>deep</svg>");
+	});
+});
+
+Deno.test("a followed link with a query becomes its own page", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() =>
+			Html(`<a href="/search?q=bears">bears</a><a href="/search?q=bees">bees</a>`)
+		);
+		router.route("/search").get((ctx) =>
+			Html(`<h1>${ctx.url.searchParams.get("q") ?? "all"}</h1>`)
+		);
+
+		const report = await diecast(router, { outDir });
+
+		assertEquals(report.ok, true);
+		// The unparameterised route still generates at its own path.
+		assertEquals(await read(outDir, "search/index.html"), "<h1>all</h1>");
+
+		const hrefs = [...(await read(outDir, "index.html")).matchAll(/href="([^"]+)"/g)]
+			.map((m) => m[1]);
+		assertEquals(hrefs.some((h) => h.includes("?")), false);
+		assertEquals(new Set(hrefs).size, 2);
+
+		const pages = await Promise.all(
+			hrefs.map((h) => read(outDir, joinPath(h.replace(/^\//, ""), "index.html"))),
+		);
+		assertStringIncludes(pages[0], "<h1>bears</h1>");
+		assertStringIncludes(pages[1], "<h1>bees</h1>");
+	});
+});

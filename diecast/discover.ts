@@ -33,17 +33,68 @@ export type PageReferences = {
 	links: string[];
 };
 
+/** Character references that can appear in an attribute value. */
+const ENTITY = /&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|(amp|lt|gt|quot|apos|#39));/g;
+
+const NAMED: Record<string, string> = {
+	amp: "&",
+	lt: "<",
+	gt: ">",
+	quot: '"',
+	apos: "'",
+	"#39": "'",
+};
+
+/**
+ * Decode an HTML attribute value to the string the browser would use.
+ *
+ * A URL carrying more than one query parameter is written `?a=1&amp;b=2` in
+ * conforming markup - decoding is what makes the second parameter `b` rather
+ * than `amp;b`, and so what makes the request diecast issues the request the
+ * browser issues.
+ */
+export function decodeEntities(value: string): string {
+	if (!value.includes("&")) return value;
+	return value.replace(ENTITY, (whole, dec: string, hex: string, name: string) => {
+		if (dec !== undefined) return codePoint(Number(dec)) ?? whole;
+		if (hex !== undefined) return codePoint(parseInt(hex, 16)) ?? whole;
+		return NAMED[name] ?? whole;
+	});
+}
+
+function codePoint(value: number): string | undefined {
+	if (!Number.isFinite(value) || value < 0 || value > 0x10ffff) return undefined;
+	return String.fromCodePoint(value);
+}
+
 function captured(match: RegExpMatchArray): string | undefined {
 	return match[1] ?? match[2] ?? match[3];
 }
 
-function collect(html: string, rx: RegExp): string[] {
+/** Attribute values exactly as the document spells them, entities and all. */
+function collectRaw(html: string, rx: RegExp): string[] {
 	const out: string[] = [];
 	for (const match of html.matchAll(rx)) {
 		const value = captured(match);
 		if (value) out.push(value);
 	}
 	return out;
+}
+
+function collect(html: string, rx: RegExp): string[] {
+	return collectRaw(html, rx).map(decodeEntities);
+}
+
+/**
+ * Every reference-shaped string in a document, spelled as the document spells
+ * it - which is what a rewriter has to match on to substitute one.
+ */
+export function rawReferences(html: string): string[] {
+	return [
+		...collectRaw(html, ATTR_REF),
+		...collectRaw(html, ANCHOR),
+		...inlineModuleImports(html),
+	];
 }
 
 /**

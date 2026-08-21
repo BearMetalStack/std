@@ -80,12 +80,16 @@ export function printReport(report: GenerationReport): number {
 		console.error(`${colorize("manifest", "yellow")} ${problem.message}`);
 	}
 	for (const failure of report.failures) {
-		console.error(`${colorize("failed", "red")} ${failure.url} - ${failure.message}`);
+		console.error(
+			`${colorize("failed", "red")} ${failure.url} - ${failure.message}`,
+		);
 	}
 
 	const summary = [
 		`${report.pages.length} page${report.pages.length === 1 ? "" : "s"}`,
-		report.copiedDirs.length > 0 ? `${report.copiedDirs.length} directories copied` : null,
+		report.copiedDirs.length > 0
+			? `${report.copiedDirs.length} directories copied`
+			: null,
 		`${Math.round(report.duration)}ms`,
 	].filter(Boolean).join(", ");
 
@@ -104,7 +108,10 @@ export function printReport(report: GenerationReport): number {
 export function printSuggestions(site: SiteDefinition): void {
 	const classified = classifyRoutes(site.router);
 
-	const section = (title: string, cls: "static" | "needs-manifest" | "skip") => {
+	const section = (
+		title: string,
+		cls: "static" | "needs-manifest" | "skip",
+	) => {
 		const routes = routesOfClass(classified, cls);
 		if (routes.length === 0) return;
 		console.log(`\n${colorize(title, "cyan")}`);

@@ -48,6 +48,16 @@ diecastModule({
 `ignore` takes path patterns (or ready-made `URLPattern`s). Reach for it before anything
 user-specific or authenticated gets frozen to disk — see below.
 
+::: warning References are not rewritten
+
+A URL with a query is snapshotted to a file named for that query, the same as in a build — so two
+queries no longer overwrite each other. But the pages were rendered by a live server and still point
+at the query form: nothing rewrites them, because a page is written before the request for the thing
+it references has arrived. Query-parameterised assets need the
+[build](/diecast/output#query-strings), which knows the whole site before it patches anything.
+
+:::
+
 ## Writes do not block the response
 
 The snapshot is a side effect of serving the page and never adds latency to it. `diecastModule`
