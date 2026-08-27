@@ -5,11 +5,13 @@ import { listDripThemes } from "./drip/listDripThemes.ts";
 import { dripConfig } from "@bearmetal/drip";
 import { tmplr } from "@bearmetal/miscellanea";
 import { startMCP } from "@bearmetal/mcp";
+import { expandBundledMethodFlags, generateCommand, runGenerate } from "./generate/mod.ts";
 
-const args = ArgParser.commandFrom(Deno.args, {
+const args = ArgParser.commandFrom(expandBundledMethodFlags(Deno.args), {
 	mcp: {
 		$description: "Starts the BearMetal MCP server on stdio",
 	},
+	generate: generateCommand,
 	palette: {
 		$description: "Start the Drip Palette app in the current project.",
 		host: {
@@ -102,7 +104,10 @@ const tool = resolved.command;
 // using _cliTheme = startCliTheme("#25000e", "#f0a8c2");
 if (tool !== "mcp") {
 	console.log(tmplr.replace(/^\n\n/, "").trimEnd());
-	console.log("-=".repeat(Deno.consoleSize().columns / 2));
+	// `Deno.consoleSize()` throws when stdout is not a terminal (piped output, CI),
+	// which would otherwise crash every non-interactive invocation before it ran.
+	const columns = Deno.stdout.isTerminal() ? Deno.consoleSize().columns : 80;
+	console.log("-=".repeat(columns / 2));
 }
 
 switch (tool) {
@@ -130,6 +135,14 @@ switch (tool) {
 			if (resolved.default !== undefined) dripConfig("defaultTheme", resolved.default);
 
 			listDripThemes();
+		}
+		break;
+	case "generate route":
+		try {
+			await runGenerate(resolved);
+		} catch (e) {
+			console.error(colorize(e instanceof Error ? e.message : String(e), "red"));
+			Deno.exit(1);
 		}
 		break;
 	default:
