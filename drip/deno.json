@@ -24,5 +24,5 @@
 			"command": "deno run -A --watch palette/mod.tsx"
 		}
 	},
-	"license": "GPL-3.0-only"
+	"license": "MIT"
 }

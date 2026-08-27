@@ -16,7 +16,7 @@
 		"test": "deno test -RW",
 		"dev": "deno test --watch -RW"
 	},
-	"license": "GPL-3.0-only",
+	"license": "MIT",
 	"imports": {
 		"@/": "./",
 		"@string": "./string/mod.ts",

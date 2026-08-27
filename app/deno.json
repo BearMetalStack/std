@@ -28,7 +28,7 @@
 			"command": "deno run -RN jsr:@std/http/file-server $EXAMPLE_DIR/dist"
 		}
 	},
-	"license": "GPL-3.0-only",
+	"license": "MIT",
 	"imports": {
 		"@signals": "./signals/index.ts"
 	},

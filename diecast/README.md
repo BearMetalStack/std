@@ -73,4 +73,4 @@ Full docs at [the BearMetal docs site](https://bearmetal.dev/diecast/).
 
 ## License
 
-GPL-3.0-only
+MIT

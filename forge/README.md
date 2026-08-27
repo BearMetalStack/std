@@ -1,6 +1,6 @@
 # @bearmetal/forge
 
-[![License: GPL v3](https://badger.bear-metal.dev/?label=License&value=GPL+v3&extra=&labelColor=label-light&valueColor=info-invert&extraColor=&variant=)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: MIT](https://badger.bear-metal.dev/?label=License&value=MIT&extra=&labelColor=label-light&valueColor=info-invert&extraColor=&variant=)](https://opensource.org/licenses/MIT)
 [![JSR](https://badger.bear-metal.dev/?label=jsr&value=%40bearmetal%2Fforge&valueColor=info)](https://jsr.io/@bearmetal/forge)
 
 Runtime schema validation with TypeScript inference and JSON Schema generation, in the spirit of

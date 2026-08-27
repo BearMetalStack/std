@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/webbies",
 	"version": "0.0.7",
-	"license": "GPL-3.0-only",
+	"license": "MIT",
 	"tasks": {
 		"test": "deno test -R",
 		"dev": "deno -A --watch=components LinkMods.ts ./components & deno bundle --watch --platform=browser --sourcemap=inline public/index.html --outdir dist & deno run -NR --watch server.ts"

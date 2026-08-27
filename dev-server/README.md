@@ -1,6 +1,6 @@
 # @bearmetal/dev-server
 
-[![License: GPL v3](https://badger.bear-metal.dev/?label=License&value=GPL+v3&extra=&labelColor=label-light&valueColor=info-invert&extraColor=&variant=)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: MIT](https://badger.bear-metal.dev/?label=License&value=MIT&extra=&labelColor=label-light&valueColor=info-invert&extraColor=&variant=)](https://opensource.org/licenses/MIT)
 [![JSR](https://badger.bear-metal.dev/?label=jsr&value=%40bearmetal%2Fdev-server&valueColor=info)](https://jsr.io/@bearmetal/dev-server)
 
 A zero-config static file server for local development. It serves a directory as-is, bundling and

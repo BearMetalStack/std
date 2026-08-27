@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/jsx",
 	"version": "0.0.15",
-	"license": "GPL-3.0-only",
+	"license": "MIT",
 	"tasks": {
 		"dev": "deno test --watch",
 		"check": "deno check mod.ts jsx-runtime.ts types.ts"

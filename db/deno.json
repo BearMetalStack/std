@@ -9,7 +9,7 @@
 	"tasks": {
 		"dev": "deno test --watch"
 	},
-	"license": "GPL-3.0-only",
+	"license": "MIT",
 	"imports": {
 		"@connectors": "./connectors/mod.ts",
 		"@db/postgres": "jsr:@db/postgres@^0.19.5",

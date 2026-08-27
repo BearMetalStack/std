@@ -7,7 +7,7 @@
 <p align="center">The zero-dependency stack for the modern web.</p>
 
 <p align="center">
-  <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://badger.bear-metal.dev/?label=License&value=GPL+v3&extra=&labelColor=label-light&valueColor=info-invert&extraColor=&variant=" alt="License: GPL v3"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://badger.bear-metal.dev/?label=License&value=MIT&extra=&labelColor=label-light&valueColor=info-invert&extraColor=&variant=" alt="License: MIT"></a>
   <a href="https://deno.com"><img src="https://badger.bear-metal.dev/?label=Runtime&value=Deno&valueColor=info" alt="Runtime: Deno"></a>
   <a href="#project-status"><img src="https://badger.bear-metal.dev/?label=Status&value=Alpha&valueColor=warning" alt="Status: Alpha"></a>
 </p>
@@ -73,4 +73,4 @@ version of `0` are early alpha; packages at `1` should still be considered beta.
 
 ## License
 
-GPL-3.0-only. See each package's `deno.json` for specifics.
+MIT. See each package's `deno.json` for specifics.

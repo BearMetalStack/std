@@ -28,7 +28,7 @@
 			"write": true
 		}
 	},
-	"license": "GPL-3.0-only",
+	"license": "MIT",
 	"compilerOptions": {
 		"jsx": "react-jsx",
 		"jsxImportSource": "@bearmetal/jsx"
