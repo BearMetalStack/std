@@ -56,7 +56,11 @@ export function statementEnd(src: string, from: number): number {
 	return n;
 }
 
-/** Advances past a string or template literal that starts at `i`. */
+/**
+ * Advances past a string or template literal that starts at `i`. A `${ ... }`
+ * interpolation is skipped to its matching brace; strings nested inside one are
+ * rare in a route file and not worth a full tokeniser.
+ */
 function skipString(src: string, i: number): number {
 	const quote = src[i];
 	i++;
@@ -68,8 +72,6 @@ function skipString(src: string, i: number): number {
 			continue;
 		}
 		if (quote === "`" && c === "$" && src[i + 1] === "{") {
-			// A `${ ... }` expression: skip to its matching brace. Nested strings
-			// inside are rare in a route file and not worth a full tokeniser.
 			i += 2;
 			let depth = 1;
 			while (i < n && depth > 0) {

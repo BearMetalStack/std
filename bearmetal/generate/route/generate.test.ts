@@ -15,8 +15,6 @@ Deno.serve(router.handle);
 
 async function setup(withMain = true): Promise<string> {
 	const root = await Deno.makeTempDir({ prefix: "bmroute_" });
-	// Mirror the fmt config a scaffolded BearMetal app ships with, so the
-	// generated files are checked the way they will be in a real project.
 	await Deno.writeTextFile(`${root}/deno.json`, `{ "fmt": { "useTabs": true } }\n`);
 	if (withMain) await Deno.writeTextFile(`${root}/main.ts`, MAIN_TS);
 	return root;
@@ -91,7 +89,6 @@ Deno.test("creates a nested route, its parent, and wires the top module in", asy
 	const main = await read(`${root}/main.ts`);
 	assertStringIncludes(main, 'import { apiModule } from "./routes/api/mod.ts";');
 	assertStringIncludes(main, "router.use(apiModule());");
-	// Mounted before the static catch-all, so app routes are not shadowed.
 	assert(main.indexOf("router.use(apiModule());") < main.indexOf("serveDirectory"));
 
 	await assertFormatted(
@@ -120,7 +117,6 @@ Deno.test("promotes an existing leaf to a parent when nesting under it", async (
 	assertStringIncludes(id, 'router.route("/:id")');
 	assertStringIncludes(id, "export function idModule(): Router {");
 
-	// The parent's import of the promoted child is corrected to the mod.ts path.
 	const api = await read(`${root}/routes/api/mod.ts`);
 	assertStringIncludes(api, 'import { usersModule } from "./users/mod.ts";');
 
@@ -140,7 +136,6 @@ Deno.test("appends a new method to an existing route", async () => {
 	const users = await read(`${root}/routes/api/users.ts`);
 	assertStringIncludes(users, ".get(() => {");
 	assertStringIncludes(users, ".patch(() => {");
-	// Still a single chain, not a duplicate route.
 	assertEquals(users.match(/\.route\("\/users"\)/g)?.length, 1);
 
 	await assertFormatted(`${root}/routes/api/users.ts`);
@@ -181,7 +176,6 @@ Deno.test("wires body and response schemas from elsewhere", async () => {
 
 	const users = await read(`${root}/routes/api/users.ts`);
 	assertStringIncludes(users, 'import { user } from "../../schemas.ts";');
-	// deno fmt sorts named imports case-insensitively.
 	assertStringIncludes(users, 'import { notFound, ok } from "../../response/schemas.ts";');
 	assertStringIncludes(users, ".post(user, () => {");
 	assertStringIncludes(users, '.responds("get", { 200: ok, 404: notFound })');
@@ -214,10 +208,8 @@ export function apiModule(): Router {
 	await generateRoute(args(root, { path: "/api/users", get: true }));
 
 	const api = await read(`${root}/routes/api/mod.ts`);
-	// The hand-written standalone route survives the promotion verbatim.
 	assertStringIncludes(api, 'router.route("/api/banner")');
 	assertStringIncludes(api, "a standalone banner route");
-	// And the new child is mounted alongside it.
 	assertStringIncludes(api, 'router.use("/api", usersModule());');
 	assert(!(await exists(`${root}/routes/api.ts`)), "old api leaf removed after promotion");
 	assert(!(await exists(`${root}/routes/api/banner.ts`)), "banner was not turned into a child");

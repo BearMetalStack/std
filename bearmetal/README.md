@@ -18,9 +18,9 @@ template, and runs interactively (a wizard) or non-interactively (from flags).
 
 ### `generate route`
 
-Scaffolds route files following the router conventions: a leaf route is a `<segment>.ts` file that
-exports a `Router` factory (`usersModule`), and a route with children becomes a `<segment>/`
-directory with a `mod.ts` parent that mounts them. Dynamic `:param` segments map to `_param` files.
+Scaffolds route files under a filesystem layout: a leaf route is a `<segment>.ts` file that exports
+a `Router` factory (`usersModule`), and a route with children becomes a `<segment>/` directory with
+a `mod.ts` parent that mounts them. Dynamic `:param` segments map to `_param` files.
 
 ```sh
 # A wizard that asks for the path, methods, filename and schemas.
@@ -38,8 +38,6 @@ router, promotes a leaf to a parent (moving `api.ts` to `api/mod.ts` and fixing 
 gains children, appends a method to a route that already exists, wires a new top-level route into
 the app's entry file, and leaves hand-written standalone routes untouched.
 
-Method flags (bundle them, e.g. `-CRUD`): `-R/--get`, `-C/--post`, `-U/--put`, `-P/--patch`,
-`-D/--delete`, `-O/--options`. Other options: `--path`, `--body-schema=<path>:<export>`,
-`--response-schema=[status:]<path>:<export>` (repeatable, alias `--res-schema`), `--filename`,
-`--shorthand` (emit the single-method `router.get(path, handler)` form), `--routes-dir`, `--root`,
-`--no-wire` and `--dry-run`.
+Methods use CRUD-mnemonic letter aliases — `-C` create/POST, `-R` read/GET, `-U` update/PUT, `-D`
+delete, plus `-P` patch and `-O` options — and the cluster form `-CRUD` expands to the individual
+flags. Run `bearmetal generate route --help` for the full flag list.

@@ -13,7 +13,7 @@ import { parseBodySchema, parseResponseSchema } from "./schema.ts";
 
 /** Argument definitions for `bearmetal generate route`. */
 export const routeCommand = {
-	$description: "Scaffold a route file that follows BearMetal's router conventions",
+	$description: "Scaffold a router route file and wire it into the project",
 
 	path: {
 		type: "string",

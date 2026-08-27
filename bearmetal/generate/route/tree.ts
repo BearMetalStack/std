@@ -84,9 +84,6 @@ async function loadChildren(dir: string, parentPath: string): Promise<Map<string
 		}
 		if (!entry.isFile || !entry.name.endsWith(".ts") || entry.name === "mod.ts") continue;
 		const segment = fileNameToSegment(entry.name);
-		// A `users.ts` beside a `users/` directory is the stray remains of a
-		// promotion; the directory wins and the file is left for the planner to
-		// notice rather than silently double-registering the segment.
 		if (dirs.has(segmentDirName(entry.name))) continue;
 		const node = await makeNode(segment, parentPath, dir, {
 			kind: "leaf",
@@ -99,6 +96,11 @@ async function loadChildren(dir: string, parentPath: string): Promise<Map<string
 	return children;
 }
 
+/**
+ * The directory name a leaf file would share a segment with. A `users.ts` beside
+ * a `users/` directory is the stray remains of a promotion: the directory wins
+ * and the file is skipped rather than double-registering the segment.
+ */
 function segmentDirName(fileName: string): string {
 	return fileName.replace(/\.ts$/, "");
 }

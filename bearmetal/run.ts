@@ -104,8 +104,6 @@ const tool = resolved.command;
 // using _cliTheme = startCliTheme("#25000e", "#f0a8c2");
 if (tool !== "mcp") {
 	console.log(tmplr.replace(/^\n\n/, "").trimEnd());
-	// `Deno.consoleSize()` throws when stdout is not a terminal (piped output, CI),
-	// which would otherwise crash every non-interactive invocation before it ran.
 	const columns = Deno.stdout.isTerminal() ? Deno.consoleSize().columns : 80;
 	console.log("-=".repeat(columns / 2));
 }

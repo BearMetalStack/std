@@ -266,8 +266,6 @@ function ensureMethods(
 		return contents;
 	}
 
-	// Schema imports go in first; the chain is re-located afterwards so its
-	// indices are not left stale by the inserted import lines.
 	const usedBody = request.bodySchema && request.methods.some((m) => BODY_METHODS.includes(m));
 	const emitResponds = request.responseSchemas.length > 0;
 	contents = withSchemaImports(
@@ -301,7 +299,6 @@ function ensureMethods(
 		return insertBeforeChainEnd(contents, chain, append);
 	}
 
-	// No existing chain: add one (or a shorthand) before the return.
 	const statement = buildRouteStatement(node, request, varName, warnings);
 	const inserted = insertBeforeReturn(contents, varName, [statement]);
 	if (inserted === null) {
@@ -382,7 +379,12 @@ function buildRouteStatement(
 
 // ─── Wiring ─────────────────────────────────────────────────────────────────
 
-/** Ensures a new or moved top-level module is imported and mounted in the entry file. */
+/**
+ * Ensures a new or moved top-level module is imported and mounted in the entry
+ * file. Only a module the generator itself just created or moved is touched — a
+ * module that was already present is left as its author wired it, since a stray
+ * mount is worse than a missing one.
+ */
 function planWiring(
 	top: PlannedNode,
 	entry: EntryFile | null,
@@ -391,9 +393,6 @@ function planWiring(
 	warnings: string[],
 ): void {
 	if (!ctx.wire) return;
-	// Only touch the entry for a module the generator itself just created or
-	// moved; a module that was already there is assumed to be wired the way its
-	// author wanted, and a stray mount is worse than a missing one.
 	if (!top.created && !top.promoted) return;
 
 	if (!entry) {
