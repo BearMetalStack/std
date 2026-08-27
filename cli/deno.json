@@ -15,5 +15,5 @@
 		"dev": "deno test --watch",
 		"test": "deno test"
 	},
-	"license": "GPL-3.0-only"
+	"license": "MIT"
 }

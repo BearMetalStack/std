@@ -12,7 +12,7 @@
 		"test": "deno test -RWE",
 		"dev": "deno test --watch -RWE"
 	},
-	"license": "GPL-3.0-only",
+	"license": "MIT",
 	"imports": {
 		"@std/path": "jsr:@std/path@1"
 	}

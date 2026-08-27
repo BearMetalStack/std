@@ -10,5 +10,5 @@
 	"tasks": {
 		"dev": "deno test --watch"
 	},
-	"license": "GPL-3.0-only"
+	"license": "MIT"
 }

@@ -8,10 +8,9 @@
 	"tasks": {
 		"dev": "deno test --watch"
 	},
-	"license": "GPL-3.0-only",
+	"license": "MIT",
 	"files": [
 		"mod.ts",
-		"schema.ts",
-		"LICENSE"
+		"schema.ts"
 	]
 }
