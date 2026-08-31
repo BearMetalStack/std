@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/auth",
-	"version": "0.0.6",
+	"version": "0.0.7",
 	"exports": "./mod.ts",
 	"tasks": {
 		"dev": "deno run -P=test --env-file --watch main.ts"
