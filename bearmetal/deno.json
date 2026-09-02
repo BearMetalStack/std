@@ -5,6 +5,7 @@
 	"tasks": {
 		"dev": "deno run -A --watch main.ts",
 		"run": "deno run -A main.ts",
+		"test": "deno test -A",
 		"install": "deno install -gf -A -c deno.json -n bearmetal main.ts"
 	},
 	"exports": "./main.ts",
