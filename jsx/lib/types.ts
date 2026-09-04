@@ -29,6 +29,9 @@ export interface MakeCommonProps<Extra = never> {
 	tabindex?: number | Extra;
 	hidden?: boolean | Extra;
 	popover?: boolean | Extra;
+	// `draggable` is an enumerated global attribute — prefer the "true"/"false"
+	// strings; a bare boolean emits `draggable=""`, which browsers read as "auto".
+	draggable?: boolean | "true" | "false" | Extra;
 	children?: MakeChildren<Extra>;
 	$raw?: boolean;
 	ref?: string;
