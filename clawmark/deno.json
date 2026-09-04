@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/clawmark",
 	"description": "A rule-based markup engine: markdown, HTML, docx and odt, in both directions",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts",

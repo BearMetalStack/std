@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/db",
-	"version": "0.0.12",
+	"version": "0.0.13",
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.d.ts",
