@@ -31,6 +31,7 @@ export interface MakeCommonProps<Extra = never> {
 	tabindex?: number | Extra;
 	hidden?: boolean | Extra;
 	popover?: boolean | Extra;
+	draggable?: boolean | "true" | "false" | Extra;
 	children?: MakeChildren<Extra>;
 	$raw?: boolean;
 	ref?: string;
