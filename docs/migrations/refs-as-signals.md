@@ -8,20 +8,30 @@ changed, why, and how to find and convert every affected call site.
 
 Before this change, `this.refs.name` (and `getRefs()`'s return value) resolved directly to the
 `Element` a `ref="name"` attribute registered — a plain DOM handle, read synchronously. There was an
-implicit ordering guarantee: refs were registered before `init()` ran, so reading `this.refs.name`
-inside `init()` was safe as long as the ref's element was part of the same render.
+implicit ordering guarantee behind that: `BMElement`'s `connectedCallback` registered refs, _then_
+ran `init()`, then attached the rendered tree — so reading `this.refs.name` inside `init()` happened
+to work as long as the ref's element was part of the same render.
 
-As of this change, **every ref is a `Signal.State<Element | undefined>`.** `this.refs.name` and
-`getRefs()`'s properties are signals, not elements. There is no ordering guarantee to rely on
-anymore — a ref starts `undefined` and is set once its element renders (and reset to `undefined` if
+As of this change, **every ref is a `Signal.State<Element | undefined>`, and the ordering is
+reversed**: `connectedCallback` now runs `init()` **first**, before the template has rendered
+anything at all, then evaluates the template, registers refs, and attaches the tree as one
+immediate, uninterrupted step. `this.refs.name` and `getRefs()`'s properties are signals, not
+elements — a ref starts `undefined` and is set once its element renders (and reset to `undefined` if
 a reactive template re-renders without it), the same as any other signal in the codebase.
 
-| Before                                     | After                                                                                            |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `this.refs.name` is `Element \| undefined` | `this.refs.name` is `Signal.State<Element \| undefined>`                                         |
-| Read directly: `this.refs.name.value = x`  | Read via `.get()`: `this.refs.name.get()?.value = x` (or guard)                                  |
-| `getRefs<T>()` returns `T`                 | `getRefs<T>()` returns `RefSignals<T>` (each property wrapped in `Signal.State`)                 |
-| Safe to read synchronously in `init()`     | Read from inside `this.addEffect()`/`this.computed()`, or guard a one-off read with a null check |
+The practical consequence: **a ref is now guaranteed `undefined` if read synchronously inside
+`init()`**, every time, with no exceptions. There is no "it happened to already be registered" case
+left to rely on — `init()` runs strictly before the ref could possibly exist yet. Any ref access in
+`init()` must go through an effect (`this.addEffect()`) or computed (`this.computed()`), which will
+fire once the template registers the ref, the same way any other signal read would.
+
+| Before                                                    | After                                                                                         |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `this.refs.name` is `Element \| undefined`                | `this.refs.name` is `Signal.State<Element \| undefined>`                                      |
+| Read directly: `this.refs.name.value = x`                 | Read via `.get()`: `this.refs.name.get()?.value = x` (or guard)                               |
+| `getRefs<T>()` returns `T`                                | `getRefs<T>()` returns `RefSignals<T>` (each property wrapped in `Signal.State`)              |
+| `connectedCallback` order: registerRefs → init() → attach | `connectedCallback` order: init() → evaluate template → registerRefs → attach                 |
+| Refs happened to be readable synchronously in `init()`    | Refs are _always_ `undefined` if read synchronously in `init()` — read from an effect instead |
 
 The generic type argument you pass to `BMElement<{...}>` / `getRefs<{...}>()` is **unchanged** — it
 still names element types (`BMElement<{ input: HTMLInputElement }>`), not signal types. Only what
@@ -36,6 +46,26 @@ Refs used to be an untracked, ordering-dependent side channel invisible to the r
 opposite of every other piece of state in a BearMetal component. Making them real signals removes
 the special case: ref population is now an ordinary signal write, and consumers use the same
 `computed()`/`effect()` discipline they already use everywhere else.
+
+Reversing `connectedCallback`'s order is part of the same fix, not a separate concern: it turns
+"refs happen to be available in `init()` because of the order things run in today" into an invariant
+that can never silently change again — `init()` is lifecycle setup, strictly prior to whatever the
+template produces, and rendering (evaluate, register, attach) happens as one atomic step immediately
+after, with nothing else interposed between building the tree and mounting it live.
+
+## Checking `init()` methods specifically
+
+Because the ordering is now strict, search `init()` bodies for a **synchronous** read of `this.refs`
+— one not inside `this.addEffect()`/`this.computed()`/`getRefs()`'s own effect wrapper. These always
+read `undefined` now, where they may have worked before by coincidence:
+
+```bash
+# Find init() methods, then check each one by hand for a bare this.refs.<name> read
+# that isn't inside an addEffect()/computed() callback.
+grep -rn 'init()' --include='*.ts*' -A 20 | grep -B5 '\.refs\.'
+```
+
+Wrap any such read in `this.addEffect(() => { ... })`, following the conversion patterns below.
 
 ## Finding call sites to convert
 

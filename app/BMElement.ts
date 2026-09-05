@@ -141,6 +141,14 @@ export abstract class BMElement<
 			// writes once the renderer has awaited it.
 			if (onServer) this.#runServerInit();
 
+			// `init()` runs before the template is ever evaluated, so refs are
+			// never available synchronously in init() — only from inside an
+			// effect it registers, once #registerRefs() below sets them. That's
+			// not a special case for refs: init() runs once, up front, and
+			// everything the template produces (nodes, refs) comes strictly
+			// after it, mounted immediately with nothing else interposed.
+			if (!onServer) this.#runInit();
+
 			const t = this.template;
 			if (!isSignal(t)) {
 				// One path for both "no template" and "static template", so `init()`
@@ -158,15 +166,15 @@ export abstract class BMElement<
 				//   fragment and blank the component outright — which is what a
 				//   fragment-templated view did the moment anything it read resolved.
 				const node = t ? toNode(t) : null;
-				if (node) this.#registerRefs(node);
-				if (!onServer) this.#runInit();
-				if (node) this.#attach(node);
+				if (node) {
+					this.#registerRefs(node);
+					this.#attach(node);
+				}
 				return;
 			}
 			this.addEffect(() => {
 				const node = toNode(t.get());
 				this.#registerRefs(node);
-				if (!onServer) this.#runInit();
 				this.#attach(node);
 			});
 		} catch (e) {
@@ -179,12 +187,13 @@ export abstract class BMElement<
 	/**
 	 * Registers the `ref=` attributes in a rendered tree.
 	 *
-	 * Each ref is a `Signal.State`, so order relative to `init()` doesn't
-	 * matter: a consumer reading `this.refs.x.get()` inside an effect simply
-	 * re-runs once this sets it, the same as any other signal. A reactive
-	 * template calls this on every re-render, so a ref present in a previous
-	 * render but missing from this one is reset to `undefined` rather than
-	 * left pointing at a detached element.
+	 * Each ref is a `Signal.State`, and this always runs after `init()` — so a
+	 * ref is never set yet when `init()` runs. A consumer reads `this.refs.x`
+	 * from inside an effect it registers there, which simply fires once this
+	 * sets it, the same as any other signal. A reactive template calls this on
+	 * every re-render, so a ref present in a previous render but missing from
+	 * this one is reset to `undefined` rather than left pointing at a detached
+	 * element.
 	 */
 	#registerRefs(node: Node): void {
 		const found = new Set<string>();
@@ -234,8 +243,9 @@ export abstract class BMElement<
 	}
 
 	/**
-	 * Called once when the component connects to the DOM **in a browser**.
-	 * Override this to set up effects, refs, or one-time logic.
+	 * Called once when the component connects to the DOM **in a browser**,
+	 * before the template has rendered anything. Override this to set up
+	 * effects, refs, or one-time logic.
 	 *
 	 * Returning a function registers it as a cleanup, run on disconnect.
 	 *
@@ -245,10 +255,16 @@ export abstract class BMElement<
 	 * not be starting them. Server-side work belongs in
 	 * {@linkcode BMElement.serverInit}.
 	 *
+	 * Because this runs before the template renders, a `ref` it declares is not
+	 * registered yet — `this.refs.name` reads `undefined` if you call `.get()`
+	 * on it synchronously here. Read a ref from inside an effect instead; it
+	 * fires once the template registers it, the same as any other signal.
+	 *
 	 * @example
 	 * ```ts
 	 * protected init() {
 	 *   this.addEffect(() => console.log("mounted"));
+	 *   this.addEffect(() => this.refs.input.get()?.focus());
 	 *   const id = setInterval(tick, 1000);
 	 *   return () => clearInterval(id);
 	 * }
@@ -291,11 +307,11 @@ export abstract class BMElement<
 	/**
 	 * Runs `init()` once per connection and registers any teardown it returns.
 	 *
-	 * Untracked, and guarded. `init()` is lifecycle, not rendering: a signal it
-	 * reads must not become a dependency of the template that mounted it, or an
-	 * ordinary store update would re-render the component — and re-run `init`,
-	 * which is documented to run once and is where subscriptions and fetches
-	 * live.
+	 * Untracked, and guarded, and called before the template ever renders.
+	 * `init()` is lifecycle, not rendering: a signal it reads must not become a
+	 * dependency of the template that mounts after it, or an ordinary store
+	 * update would re-render the component — and re-run `init`, which is
+	 * documented to run once and is where subscriptions and fetches live.
 	 */
 	#runInit(): void {
 		if (this.#initialized) return;

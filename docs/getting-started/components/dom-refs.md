@@ -33,8 +33,9 @@ protected init() {
 }
 ```
 
-There's no ordering requirement between ref registration and `init()`: whichever runs first, the
-effect above simply fires once the ref is set — the same as it would for any other signal it reads.
+`init()` always runs _before_ the template renders, so `this.refs.paragraph` is guaranteed
+`undefined` if you call `.get()` on it synchronously inside `init()` itself. The effect above simply
+fires once the template registers the ref — the same as it would for any other signal it reads.
 
 ## Refs in Functional Components
 

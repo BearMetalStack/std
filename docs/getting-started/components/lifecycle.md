@@ -62,6 +62,10 @@ export class MyComponent extends BMElement {
 | Reaches the     | markup, and `@state` carries it onward    | live page                            |
 | In the browser? | no — its body is stripped from the bundle | yes                                  |
 
+`init()` runs before the template has rendered anything, so a `ref` it declares isn't registered yet
+— read one from inside an effect `init()` registers, not synchronously. See
+[Referencing DOM Elements](./dom-refs) for the ref API.
+
 Both are optional. A component with neither renders its `template` on both sides and that is all it
 does. The whole handoff is covered in [Server-Side Rendering](/getting-started/ssr/).
 
