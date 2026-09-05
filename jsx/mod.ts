@@ -39,6 +39,7 @@ export {
 	type Owner,
 	setCurrentOwner,
 	setEffectImpl,
+	setUntrackImpl,
 } from "./lib/jsx.ts";
 
 export type * from "./types.ts";

@@ -24,6 +24,7 @@ export {
 	type Owner,
 	setCurrentOwner,
 	setEffectImpl,
+	setUntrackImpl,
 } from "./lib/jsx.ts";
 export { isServerRendering, trackPending } from "./lib/pending.ts";
 export type * from "./types.ts";

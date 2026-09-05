@@ -1,4 +1,4 @@
-import type { Signal } from "@signals";
+import { Signal } from "@signals";
 
 /** The attribute types a declared prop can be coerced back from. */
 export type PropType = typeof String | typeof Number | typeof Boolean;
@@ -130,7 +130,7 @@ export function prop(type?: PropType): PropDecorator {
 		declared[name] = type;
 		return {
 			init(value: Signal.State<T>): Signal.State<T> {
-				declared[name] ??= inferType(value.get());
+				declared[name] ??= Signal.subtle.untrack(() => inferType(value.get()));
 				return value;
 			},
 		};

@@ -1,5 +1,11 @@
 import { Signal } from "@signals";
-import { getCurrentOwner, isServerRendering, setCurrentOwner, setEffectImpl } from "@bearmetal/jsx";
+import {
+	getCurrentOwner,
+	isServerRendering,
+	setCurrentOwner,
+	setEffectImpl,
+	setUntrackImpl,
+} from "@bearmetal/jsx";
 import type { SignalOf } from "./types.ts";
 
 let needsFlush = true;
@@ -100,7 +106,8 @@ export function effect(fn: () => CleanupFn | void): CleanupFn {
 	});
 
 	watcher.watch(computed);
-	computed.get();
+
+	Signal.subtle.untrack(() => computed.get());
 
 	return () => {
 		watcher.unwatch(computed);
@@ -108,12 +115,8 @@ export function effect(fn: () => CleanupFn | void): CleanupFn {
 	};
 }
 
-// The JSX runtime carries no reactivity of its own — it calls out to whatever
-// effect implementation has been registered, which is what keeps it a rendering
-// library rather than a framework. Registering here rather than in `BMElement`
-// means anything that reaches signals gets a reactive runtime, including a
-// server render that never constructs a component.
 setEffectImpl(effect);
+setUntrackImpl(Signal.subtle.untrack);
 
 export function createEffect(init: () => CleanupFn | void): CleanupFn {
 	if (!getCurrentOwner()) {
