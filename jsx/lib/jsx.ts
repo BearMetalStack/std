@@ -58,11 +58,6 @@ type EffectFn = (fn: () => CleanupFn | void) => CleanupFn;
 type UntrackFn = <T>(fn: () => T) => T;
 
 let _effect: EffectFn | null = null;
-// A plain call by default: without a signals implementation registered (as in
-// this package's own tests, which run signal-free), there is no tracking
-// context to shield anything from — the JSX runtime has no reactivity of its
-// own, `reactiveEffect` below is the same kind of injected no-op until
-// `setEffectImpl` is called.
 let _untrack: UntrackFn = (fn) => fn();
 export type Owner = {
 	registerCleanup(fn: CleanupFn): void;
@@ -318,13 +313,6 @@ function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalL
 		if (!parentNode) return;
 
 		if (v instanceof Node) {
-			// Already exactly where it belongs — leave it alone. Tearing an
-			// identical node out and putting it straight back is not a no-op in the
-			// DOM: it restarts CSS animations and transitions, drops focus and text
-			// selection, reloads iframes and media, and fires a disconnect/connect
-			// pair on every custom element inside it. A signal that recomputes to
-			// the same node (a memoised branch, a route whose params changed but
-			// whose component did not) must not cost any of that.
 			if (start.nextSibling === v && v.nextSibling === end) return;
 			clearRange(parentNode, start, end);
 			parentNode.insertBefore(v, end);
@@ -332,8 +320,6 @@ function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalL
 		}
 
 		if (!raw && !isHtmlLike(v) && !Array.isArray(v)) {
-			// Text in, text out: rewrite the existing node's data rather than
-			// swapping it, so a ticking counter does not churn nodes.
 			const text = v == null || v === false || v === true ? "" : String(v);
 			const only = start.nextSibling;
 			if (only && only.nextSibling === end && only.nodeType === 3) {
@@ -421,15 +407,6 @@ export function jsx(
 	const raw = Boolean($raw);
 
 	if (isBMC(tag)) {
-		// Untracked: constructing a component and giving it its initial props is
-		// not part of whatever render happens to be building this tree — it's an
-		// imperative side effect of rendering, the same way `init()`/`serverInit()`
-		// are (see `BMElement`'s `#runInit`). Without this, a signal a component
-		// reads while constructing itself (e.g. a `@prop`'s one-time type
-		// inference) or while applying a bare-value prop gets attributed as a
-		// dependency of the *ambient* computation instead — a parent's own
-		// `template`, if this element is being built mid-render — corrupting its
-		// tracking with a dependency that has nothing to do with its formula.
 		const el = _untrack(() => {
 			const el = document.createElement(tag.tag) as HTMLElement;
 			applyProps(el, rest);
