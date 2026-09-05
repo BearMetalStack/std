@@ -1,5 +1,6 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertFalse } from "@std/assert";
 import { getCurrentOwner, type Owner, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
+import { Signal } from "@signals";
 import { createComputed, createSignal, effect } from "./signals.ts";
 
 function flush(): Promise<void> {
@@ -107,4 +108,45 @@ Deno.test("a signal written from inside an effect does not notify its readers", 
 
 	stopWriter();
 	stopReader();
+});
+
+Deno.test("creating an effect nested inside another effect's run does not wire the inner effect as the outer's dependency", () => {
+	// Mirrors a child BMElement's connectedCallback (and its own addEffect) firing
+	// synchronously during a parent's render effect — e.g. from DOM insertion
+	// inside the parent's `#attach()`. `effect()`'s bootstrap evaluation used to
+	// call the internal Computed's `.get()` unwrapped, which — via the ordinary
+	// producerAccessed bookkeeping — attributed that read to whatever the
+	// *ambient* active consumer was, i.e. the outer effect still on the call
+	// stack. The inner effect then became a spurious live dependency of the
+	// outer one.
+	//
+	// This is checked structurally (via `Signal.subtle` introspection) rather
+	// than by counting re-runs: an effect's own wrapper Computed always
+	// evaluates to `undefined`, so a spurious version bump on it can never be
+	// observed this way — the edge itself is the bug, whether or not it happens
+	// to also cause a visible extra re-run in a particular case.
+	let outerComputed: Signal.Computed<unknown> | undefined;
+	let innerComputed: Signal.Computed<unknown> | undefined;
+	let stopInner: (() => void) | undefined;
+
+	const stopOuter = effect(() => {
+		outerComputed = Signal.subtle.currentComputed();
+		// The nested effect() call, made synchronously while `outerComputed` is
+		// still the graph's activeConsumer — mirrors a child component's
+		// connectedCallback (and its own addEffect) firing during the parent's
+		// #attach(), itself inside the parent's render effect.
+		stopInner = effect(() => {
+			innerComputed = Signal.subtle.currentComputed();
+		});
+	});
+
+	assertFalse(outerComputed === undefined);
+	assertFalse(innerComputed === undefined);
+	assertFalse(
+		Signal.subtle.introspectSinks(innerComputed!).includes(outerComputed!),
+		"the outer effect must not appear as a live consumer of the inner effect's own Computed",
+	);
+
+	stopInner!();
+	stopOuter();
 });

@@ -55,8 +55,10 @@ function isThenable(value: unknown): value is Promise<unknown> {
 
 type CleanupFn = () => void;
 type EffectFn = (fn: () => CleanupFn | void) => CleanupFn;
+type UntrackFn = <T>(fn: () => T) => T;
 
 let _effect: EffectFn | null = null;
+let _untrack: UntrackFn = (fn) => fn();
 export type Owner = {
 	registerCleanup(fn: CleanupFn): void;
 	registerRef?: (ref: string, el: Element) => void;
@@ -68,6 +70,15 @@ let _currentOwner: Owner = null;
 
 export function setEffectImpl(impl: EffectFn): void {
 	_effect = impl;
+}
+
+/**
+ * Registers the signals implementation's `untrack`, so constructing a
+ * component is never observable as a dependency of whatever render happens to
+ * be constructing it. See its one call site in `jsx()`, on the `isBMC` branch.
+ */
+export function setUntrackImpl(impl: UntrackFn): void {
+	_untrack = impl;
 }
 
 export function setCurrentOwner(
@@ -302,13 +313,6 @@ function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalL
 		if (!parentNode) return;
 
 		if (v instanceof Node) {
-			// Already exactly where it belongs — leave it alone. Tearing an
-			// identical node out and putting it straight back is not a no-op in the
-			// DOM: it restarts CSS animations and transitions, drops focus and text
-			// selection, reloads iframes and media, and fires a disconnect/connect
-			// pair on every custom element inside it. A signal that recomputes to
-			// the same node (a memoised branch, a route whose params changed but
-			// whose component did not) must not cost any of that.
 			if (start.nextSibling === v && v.nextSibling === end) return;
 			clearRange(parentNode, start, end);
 			parentNode.insertBefore(v, end);
@@ -316,8 +320,6 @@ function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalL
 		}
 
 		if (!raw && !isHtmlLike(v) && !Array.isArray(v)) {
-			// Text in, text out: rewrite the existing node's data rather than
-			// swapping it, so a ticking counter does not churn nodes.
 			const text = v == null || v === false || v === true ? "" : String(v);
 			const only = start.nextSibling;
 			if (only && only.nextSibling === end && only.nodeType === 3) {
@@ -405,8 +407,11 @@ export function jsx(
 	const raw = Boolean($raw);
 
 	if (isBMC(tag)) {
-		const el = document.createElement(tag.tag) as HTMLElement;
-		applyProps(el, rest);
+		const el = _untrack(() => {
+			const el = document.createElement(tag.tag) as HTMLElement;
+			applyProps(el, rest);
+			return el;
+		});
 		appendFlatChildren(el, flat, raw);
 		return el;
 	}

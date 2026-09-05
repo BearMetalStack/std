@@ -5,8 +5,9 @@
 import { installGlobals } from "@bearmetal/slag";
 installGlobals();
 
-import { assertEquals, assertStrictEquals } from "@std/assert";
-import { Fragment, jsx, setEffectImpl } from "../jsx-runtime.ts";
+import { assert, assertEquals, assertStrictEquals } from "@std/assert";
+import { Fragment, jsx, setEffectImpl, setUntrackImpl } from "../jsx-runtime.ts";
+import { BMC } from "./bmc.ts";
 import { Html } from "./html.ts";
 import { beginRenderScope, collectInto, endRenderScope } from "./pending.ts";
 
@@ -201,4 +202,65 @@ Deno.test("outside a render scope, nothing is collected", () => {
 
 	jsx("div", { children: Promise.resolve("x") });
 	assertEquals(scope.work.size, 0);
+});
+
+Deno.test("jsx() constructs a BMC element and applies its props inside the registered untrack", () => {
+	// A real signals implementation (`@bearmetal/app`) registers `Signal.subtle.untrack`
+	// here via `setUntrackImpl`. This pins the contract that implementation relies
+	// on: constructing a component from JSX, and applying its initial props, both
+	// happen *inside* whatever `untrack` was registered — so a signal read or
+	// write during either is never observable as a dependency of an ambient
+	// render.
+	//
+	// Without this, a component's own one-time bookkeeping read during
+	// construction (`@prop()`'s type inference is the motivating case) or a
+	// bare-value prop applied via `existing.set(val)` could wire that
+	// component's own signal as the dependency of whatever `this.computed()`
+	// happened to be building it — e.g. a parent's `template`, if the child is
+	// constructed mid-render.
+	let untrackDepth = 0;
+	setUntrackImpl((fn) => {
+		untrackDepth++;
+		try {
+			return fn();
+		} finally {
+			untrackDepth--;
+		}
+	});
+
+	let depthAtConstructionRead = -1;
+	let depthAtPropApplication = -1;
+
+	class Probe extends BMC {
+		static override tag = "jsx-untrack-probe";
+		// A writable-signal-shaped prop, mirroring `@prop() accessor greeting =
+		// this.signal(...)` — `applyProps` only reaches the `existing.set(val)`
+		// branch for a bare-value prop when the current value already looks like
+		// a signal.
+		greeting = signal<string | null>(null);
+
+		constructor() {
+			super();
+			// Mirrors `prop()`'s one-time type-inference read, made during
+			// construction against a signal only just created.
+			this.greeting.get();
+			depthAtConstructionRead = untrackDepth;
+			const originalSet = this.greeting.set;
+			this.greeting.set = (v: string | null) => {
+				originalSet(v);
+				depthAtPropApplication = untrackDepth;
+			};
+		}
+	}
+	customElements.define(Probe.tag, Probe as unknown as CustomElementConstructor);
+
+	jsx(Probe, { greeting: "hi", children: [] });
+
+	assert(depthAtConstructionRead > 0, "construction must run inside the registered untrack");
+	assert(
+		depthAtPropApplication > 0,
+		"applying a bare-value prop must run inside the registered untrack",
+	);
+
+	setUntrackImpl((fn) => fn());
 });
