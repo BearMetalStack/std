@@ -1,5 +1,6 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertFalse } from "@std/assert";
 import { getCurrentOwner, type Owner, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
+import { Signal } from "@signals";
 import { createComputed, createSignal, effect } from "./signals.ts";
 
 function flush(): Promise<void> {
@@ -107,4 +108,98 @@ Deno.test("a signal written from inside an effect does not notify its readers", 
 
 	stopWriter();
 	stopReader();
+});
+
+Deno.test("creating an effect nested inside another effect's run does not wire the inner effect as the outer's dependency", () => {
+	// Mirrors a child BMElement's connectedCallback (and its own addEffect) firing
+	// synchronously during a parent's render effect — e.g. from DOM insertion
+	// inside the parent's `#attach()`. `effect()`'s bootstrap evaluation used to
+	// call the internal Computed's `.get()` unwrapped, which — via the ordinary
+	// producerAccessed bookkeeping — attributed that read to whatever the
+	// *ambient* active consumer was, i.e. the outer effect still on the call
+	// stack. The inner effect then became a spurious live dependency of the
+	// outer one.
+	//
+	// This is checked structurally (via `Signal.subtle` introspection) rather
+	// than by counting re-runs: an effect's own wrapper Computed always
+	// evaluates to `undefined`, so a spurious version bump on it can never be
+	// observed this way — the edge itself is the bug, whether or not it happens
+	// to also cause a visible extra re-run in a particular case.
+	let outerComputed: Signal.Computed<unknown> | undefined;
+	let innerComputed: Signal.Computed<unknown> | undefined;
+	let stopInner: (() => void) | undefined;
+
+	const stopOuter = effect(() => {
+		outerComputed = Signal.subtle.currentComputed();
+		// The nested effect() call, made synchronously while `outerComputed` is
+		// still the graph's activeConsumer — mirrors a child component's
+		// connectedCallback (and its own addEffect) firing during the parent's
+		// #attach(), itself inside the parent's render effect.
+		stopInner = effect(() => {
+			innerComputed = Signal.subtle.currentComputed();
+		});
+	});
+
+	assertFalse(outerComputed === undefined);
+	assertFalse(innerComputed === undefined);
+	assertFalse(
+		Signal.subtle.introspectSinks(innerComputed!).includes(outerComputed!),
+		"the outer effect must not appear as a live consumer of the inner effect's own Computed",
+	);
+
+	stopInner!();
+	stopOuter();
+});
+
+Deno.test("reading a signal for bookkeeping and then writing it inside a foreign computation does not poison that computation's own dependency tracking", async () => {
+	// Mirrors `prop()`'s type-inference read (`value.get()`) immediately followed
+	// by `applyProps`'s `existing.set(val)` for a bare-value prop — both running
+	// during a *different* computed's evaluation (constructing a child element
+	// inside a parent's template). Reading a signal and then writing it within
+	// the same foreign computation's run left that computation's own recorded
+	// `producerLastReadVersion` for the signal permanently stale (the read
+	// captured the version *before* the write bumped it), so the computation
+	// would appear to have a changed dependency — and unconditionally
+	// recompute — on literally any later poll, even one triggered by a
+	// completely unrelated signal.
+	const cond = createSignal(false);
+	// A second, genuine dependency of the outer effect — standing in for
+	// whatever else in a real app eventually causes this template to be
+	// re-polled (another prop, another store). It has no relationship to
+	// `fresh` below; it exists only to trigger a re-poll of `template`.
+	const unrelated = createSignal(0);
+
+	let templateRuns = 0;
+
+	const template = createComputed(() => {
+		templateRuns++;
+		if (cond.get()) {
+			const fresh = createSignal<string | null>(null);
+			fresh.get();
+			fresh.set("hi");
+		}
+		return {};
+	});
+
+	const stop = effect(() => {
+		template.get();
+		unrelated.get();
+	});
+
+	assertEquals(templateRuns, 1);
+
+	cond.set(true);
+	await flush();
+	assertEquals(templateRuns, 2, "the template re-runs once for the real cond change");
+
+	unrelated.set(1);
+	await flush();
+	assertEquals(
+		templateRuns,
+		2,
+		"a change to an unrelated dependency of the *outer* effect must not force " +
+			"the template to recompute again",
+	);
+
+	stop();
 });

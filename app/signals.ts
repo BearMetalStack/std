@@ -100,7 +100,15 @@ export function effect(fn: () => CleanupFn | void): CleanupFn {
 	});
 
 	watcher.watch(computed);
-	computed.get();
+	// Untracked: creating an effect is not itself a read that whatever computation
+	// happens to be running should depend on. Skipping this leaks a producer edge
+	// to the *ambient* active consumer when `effect()` is invoked reentrantly — e.g.
+	// a child component's `connectedCallback` (and its own `addEffect`) firing
+	// synchronously during a parent's render effect, via DOM insertion inside that
+	// effect's body. The child's own effect would then be wired as a spurious live
+	// dependency of the parent's, and any later change reachable from the child's
+	// internals would dirty (and eventually force a real recompute of) the parent.
+	Signal.subtle.untrack(() => computed.get());
 
 	return () => {
 		watcher.unwatch(computed);

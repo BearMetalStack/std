@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertFalse } from "@std/assert";
 import { Signal } from "@signals";
 import { BMElement } from "./BMElement.ts";
 import { prop } from "./prop.ts";
@@ -87,6 +87,39 @@ Deno.test("each instance gets its own signal", () => {
 	a.count.set(5);
 	assertEquals(a.count.get(), 5);
 	assertEquals(b.count.get(), 0);
+});
+
+Deno.test("a component's first-ever construction, nested inside an ambient computation, does not wire its prop signal as that computation's dependency", () => {
+	// `declared[name] ??= inferType(value.get())` only actually calls `.get()`
+	// the first time any instance of a given class is constructed — later
+	// instances find `declared[name]` already resolved and short-circuit past
+	// it. So this class must be fresh: it stands in for a component being
+	// constructed for the very first time, nested inside some ancestor's
+	// render computation (e.g. a child element built by a parent's JSX inside
+	// `this.computed()`), which is exactly the scenario that leaked this read
+	// as a dependency of that ancestor before it was untracked.
+	class FreshOnFirstConstruction extends BMElement {
+		@prop()
+		accessor greeting = this.signal<string | null>(null);
+	}
+
+	let instance: FreshOnFirstConstruction | undefined;
+
+	const watcher = new Signal.subtle.Watcher(() => {});
+	const ambient = new Signal.Computed(() => {
+		instance = new FreshOnFirstConstruction();
+		return {};
+	});
+	watcher.watch(ambient);
+	ambient.get();
+
+	assert(instance !== undefined);
+	assertFalse(
+		Signal.subtle.introspectSinks(instance!.greeting).includes(ambient),
+		"the ambient computation must not become a live consumer of the freshly constructed prop signal",
+	);
+
+	watcher.unwatch(ambient);
 });
 
 Deno.test("an explicit type is used when the signal's initial value can't infer one", () => {
