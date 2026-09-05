@@ -106,14 +106,7 @@ export function effect(fn: () => CleanupFn | void): CleanupFn {
 	});
 
 	watcher.watch(computed);
-	// Untracked: creating an effect is not itself a read that whatever computation
-	// happens to be running should depend on. Skipping this leaks a producer edge
-	// to the *ambient* active consumer when `effect()` is invoked reentrantly — e.g.
-	// a child component's `connectedCallback` (and its own `addEffect`) firing
-	// synchronously during a parent's render effect, via DOM insertion inside that
-	// effect's body. The child's own effect would then be wired as a spurious live
-	// dependency of the parent's, and any later change reachable from the child's
-	// internals would dirty (and eventually force a real recompute of) the parent.
+
 	Signal.subtle.untrack(() => computed.get());
 
 	return () => {
@@ -122,16 +115,7 @@ export function effect(fn: () => CleanupFn | void): CleanupFn {
 	};
 }
 
-// The JSX runtime carries no reactivity of its own — it calls out to whatever
-// effect implementation has been registered, which is what keeps it a rendering
-// library rather than a framework. Registering here rather than in `BMElement`
-// means anything that reaches signals gets a reactive runtime, including a
-// server render that never constructs a component.
 setEffectImpl(effect);
-// Likewise for `untrack`: `jsx()` wraps a component's construction and initial
-// prop application in it (see the `isBMC` branch in `jsx/lib/jsx.ts`), so that
-// building a child element mid-render is never observable as a dependency of
-// the render building it.
 setUntrackImpl(Signal.subtle.untrack);
 
 export function createEffect(init: () => CleanupFn | void): CleanupFn {
