@@ -1,4 +1,4 @@
-import { Signal } from "@signals";
+import type { Signal } from "@signals";
 
 /** The attribute types a declared prop can be coerced back from. */
 export type PropType = typeof String | typeof Number | typeof Boolean;
@@ -130,14 +130,7 @@ export function prop(type?: PropType): PropDecorator {
 		declared[name] = type;
 		return {
 			init(value: Signal.State<T>): Signal.State<T> {
-				// Untracked: this is a one-time administrative read (inferring the
-				// attribute type from the signal's initial value), not a dependency
-				// the *constructing* component's render should carry. Without this,
-				// a component's first-ever construction — which can happen nested
-				// inside an ancestor's render computation, e.g. a child element
-				// built by a parent's JSX — would wire this signal as a producer of
-				// that ancestor, corrupting its dependency tracking.
-				declared[name] ??= Signal.subtle.untrack(() => inferType(value.get()));
+				declared[name] ??= inferType(value.get());
 				return value;
 			},
 		};

@@ -373,23 +373,6 @@ export function consumerAfterComputation(
 		}
 	}
 
-	// BearMetal forces `consumerAllowSignalWrites` true for every Computed, not
-	// just effects (see `Signal.Computed`'s constructor), so a computation may
-	// legitimately write a signal it already read earlier in this same run (a
-	// component constructed mid-render initializing one of its own props is the
-	// motivating case). Left as `producerAccessed` recorded it, that entry holds
-	// the version seen *before* the write, which the write already moved past —
-	// so on every later poll, triggered by literally any other producer's
-	// change anywhere, this node would find that producer "changed" and
-	// unconditionally recompute, even though nothing it actually cares about
-	// changed again. Refreshing to each producer's current version here folds
-	// any such in-flight write into this computation's own result, the same way
-	// a write during an effect body is already folded in rather than causing
-	// that effect to re-run (see the "does not notify its readers" test).
-	for (let i = 0; i < node.nextProducerIndex; i++) {
-		node.producerLastReadVersion[i] = node.producerNode[i].version;
-	}
-
 	// Truncate the producer tracking arrays.
 	// Perf note: this is essentially truncating the length to `node.nextProducerIndex`, but
 	// benchmarking has shown that individual pop operations are faster.

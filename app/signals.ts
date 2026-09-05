@@ -1,5 +1,11 @@
 import { Signal } from "@signals";
-import { getCurrentOwner, isServerRendering, setCurrentOwner, setEffectImpl } from "@bearmetal/jsx";
+import {
+	getCurrentOwner,
+	isServerRendering,
+	setCurrentOwner,
+	setEffectImpl,
+	setUntrackImpl,
+} from "@bearmetal/jsx";
 import type { SignalOf } from "./types.ts";
 
 let needsFlush = true;
@@ -122,6 +128,11 @@ export function effect(fn: () => CleanupFn | void): CleanupFn {
 // means anything that reaches signals gets a reactive runtime, including a
 // server render that never constructs a component.
 setEffectImpl(effect);
+// Likewise for `untrack`: `jsx()` wraps a component's construction and initial
+// prop application in it (see the `isBMC` branch in `jsx/lib/jsx.ts`), so that
+// building a child element mid-render is never observable as a dependency of
+// the render building it.
+setUntrackImpl(Signal.subtle.untrack);
 
 export function createEffect(init: () => CleanupFn | void): CleanupFn {
 	if (!getCurrentOwner()) {

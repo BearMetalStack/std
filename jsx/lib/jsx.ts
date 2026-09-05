@@ -55,8 +55,15 @@ function isThenable(value: unknown): value is Promise<unknown> {
 
 type CleanupFn = () => void;
 type EffectFn = (fn: () => CleanupFn | void) => CleanupFn;
+type UntrackFn = <T>(fn: () => T) => T;
 
 let _effect: EffectFn | null = null;
+// A plain call by default: without a signals implementation registered (as in
+// this package's own tests, which run signal-free), there is no tracking
+// context to shield anything from — the JSX runtime has no reactivity of its
+// own, `reactiveEffect` below is the same kind of injected no-op until
+// `setEffectImpl` is called.
+let _untrack: UntrackFn = (fn) => fn();
 export type Owner = {
 	registerCleanup(fn: CleanupFn): void;
 	registerRef?: (ref: string, el: Element) => void;
@@ -68,6 +75,15 @@ let _currentOwner: Owner = null;
 
 export function setEffectImpl(impl: EffectFn): void {
 	_effect = impl;
+}
+
+/**
+ * Registers the signals implementation's `untrack`, so constructing a
+ * component is never observable as a dependency of whatever render happens to
+ * be constructing it. See its one call site in `jsx()`, on the `isBMC` branch.
+ */
+export function setUntrackImpl(impl: UntrackFn): void {
+	_untrack = impl;
 }
 
 export function setCurrentOwner(
@@ -405,8 +421,20 @@ export function jsx(
 	const raw = Boolean($raw);
 
 	if (isBMC(tag)) {
-		const el = document.createElement(tag.tag) as HTMLElement;
-		applyProps(el, rest);
+		// Untracked: constructing a component and giving it its initial props is
+		// not part of whatever render happens to be building this tree — it's an
+		// imperative side effect of rendering, the same way `init()`/`serverInit()`
+		// are (see `BMElement`'s `#runInit`). Without this, a signal a component
+		// reads while constructing itself (e.g. a `@prop`'s one-time type
+		// inference) or while applying a bare-value prop gets attributed as a
+		// dependency of the *ambient* computation instead — a parent's own
+		// `template`, if this element is being built mid-render — corrupting its
+		// tracking with a dependency that has nothing to do with its formula.
+		const el = _untrack(() => {
+			const el = document.createElement(tag.tag) as HTMLElement;
+			applyProps(el, rest);
+			return el;
+		});
 		appendFlatChildren(el, flat, raw);
 		return el;
 	}
