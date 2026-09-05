@@ -96,15 +96,15 @@ parser and keeps it verbatim, which is all a server needs from it.
 
 ## Props
 
-| Prop                      | Behaviour                                                     |
-| ------------------------- | ------------------------------------------------------------- |
-| `class="a b"`             | Adds the classes. `class-foo={bool}` toggles one.             |
-| `onClick={fn}`            | `addEventListener("click", fn)` — any `on*` name, lowercased. |
-| `checked={true}`          | A boolean sets or removes the bare attribute.                 |
-| `style={obj}` and objects | Assigned as a property, not an attribute.                     |
-| `width={40}`              | `width` and `height` take a number and get `px`.              |
-| `ref="name"`              | Registers the element on the owning component's `this.refs`.  |
-| Anything else             | `setAttribute(key, String(value))`                            |
+| Prop                      | Behaviour                                                                                                                                     |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `class="a b"`             | Adds the classes. `class-foo={bool}` toggles one.                                                                                             |
+| `onClick={fn}`            | `addEventListener("click", fn)` — any `on*` name, lowercased.                                                                                 |
+| `checked={true}`          | A boolean sets or removes the bare attribute.                                                                                                 |
+| `style={obj}` and objects | Assigned as a property, not an attribute.                                                                                                     |
+| `width={40}`              | `width` and `height` take a number and get `px`.                                                                                              |
+| `ref="name"`              | Sets the owning component's `this.refs.name` signal to the element. See [Referencing DOM Elements](./getting-started/components/dom-refs.md). |
+| Anything else             | `setAttribute(key, String(value))`                                                                                                            |
 
 A `<button>` with no `type` gets `type="button"`, because a stray submit inside a form is never what
 was meant.
@@ -188,4 +188,6 @@ the same way a signal is.
 keeps it a rendering library rather than a framework. `@bearmetal/app` registers the signals-based
 implementation on import. `setCurrentOwner`/`getCurrentOwner` set who receives the cleanups and
 `ref` registrations produced while a tree is being built; `BMElement` sets itself as owner while its
-template renders.
+template renders. A ref registration is a signal write (`Owner.refs` holds one signal per name, kept
+duck-typed here so `jsx/` doesn't depend on a signals implementation), so it composes with the same
+`untrack` boundaries as everything else in this seam.

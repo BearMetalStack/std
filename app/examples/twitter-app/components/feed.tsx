@@ -146,7 +146,8 @@ export class TwitterComposer extends BMElement<{ textarea: HTMLTextAreaElement }
 		await new Promise((r) => setTimeout(r, 280));
 		postTweet(text);
 		this.#text.set("");
-		this.refs.textarea.value = "";
+		const textarea = this.refs.textarea.get();
+		if (textarea) textarea.value = "";
 		this.#posting.set(false);
 		composerOpen.set(false);
 	};
@@ -157,7 +158,7 @@ export class TwitterComposer extends BMElement<{ textarea: HTMLTextAreaElement }
 		// `init()` runs before the template fragment is attached to the DOM, so
 		// `.focus()` needs to be deferred to a microtask to take effect.
 		if (this.hasAttribute("autofocus")) {
-			queueMicrotask(() => this.refs.textarea.focus());
+			queueMicrotask(() => this.refs.textarea.get()?.focus());
 		}
 	}
 
