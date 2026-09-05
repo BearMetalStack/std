@@ -1,10 +1,10 @@
 ---
 next:
-    text: "List Rendering"
-    link: "./lists"
+  text: "List Rendering"
+  link: "./lists"
 prev:
-    text: "Reactivity"
-    link: "./reactivity"
+  text: "Reactivity"
+  link: "./reactivity"
 ---
 
 # Referencing DOM Elements
@@ -15,38 +15,45 @@ name you would like the ref to take.
 ```tsx
 <div>
 	<p ref="paragraph"></p>
-</div>
+</div>;
 ```
 
-Accessing the refs is easily done through `this.refs`.
+Each ref is a `Signal.State<Element | undefined>` — read it with `.get()` the same way you'd read
+any other signal, typically from inside `this.addEffect()` or `this.computed()`. It starts
+`undefined` and is set once the element it names has rendered, so guard against `undefined` rather
+than assuming it's already there.
 
 ```tsx
-const paragraph = this.refs.paragraph;
-paragraph.textContent = "Hello, ref!";
+protected init() {
+	this.addEffect(() => {
+		const paragraph = this.refs.paragraph.get();
+		if (!paragraph) return;
+		paragraph.textContent = "Hello, ref!";
+	});
+}
 ```
+
+There's no ordering requirement between ref registration and `init()`: whichever runs first, the
+effect above simply fires once the ref is set — the same as it would for any other signal it reads.
 
 ## Refs in Functional Components
 
 Functional components have no `this`, and so no `this.refs`. Instead, `@bearmetal/app` exposes
-`getRefs()`, which reads the refs of the nearest owning component.
+`getRefs()`, which reads the ref signals of the nearest owning component.
 
 ```tsx
-import { getRefs } from "@bearmetal/app";
+import { effect, getRefs } from "@bearmetal/app";
 
 function Field() {
 	const refs = getRefs<{ input: HTMLInputElement }>();
 	const input = <input ref="input" />;
-	queueMicrotask(() => refs.input.focus());
+	effect(() => refs.input.get()?.focus());
 	return input;
 }
 ```
 
 `getRefs()` takes the same type argument that `BMElement` does, for the same reason. See
 [Typing `this.refs`](#typing-this-refs) below.
-
-`getRefs()` returns a live view rather than a snapshot, so read from it _after_ the JSX declaring
-the ref has been evaluated. Reading `refs.input` on the line above `<input ref="input" />` gives you
-`undefined`.
 
 Like `createEffect()` and `each()`, `getRefs()` needs an owner. Called outside of a component, an
 `init()`, or an `each()` render callback, it warns and hands back an empty view.
@@ -59,13 +66,20 @@ registered wins. Name your refs accordingly. :::
 ## Typing `this.refs`
 
 Ref type inference is something that is currently very difficult to do automatically, so as a
-workaround you can currently type the refs of a component by passing a type argument to BMElement.
+workaround you can currently type the refs of a component by passing a type argument to BMElement —
+same as always, an element type per ref name.
 
 ```ts
 @define("component")
 export class Component extends BMElement<{ paragraph: HTMLParagraphElement }> {
 	init() {
-		const paragraph = this.refs.paragraph; // HTMLParagraphElement
+		this.addEffect(() => {
+			const paragraph = this.refs.paragraph.get(); // HTMLParagraphElement | undefined
+		});
 	}
 }
 ```
+
+`this.refs.paragraph` itself resolves to `Signal.State<HTMLParagraphElement | undefined>` — the
+generic argument still names the element type, and `this.refs`/`getRefs()` wrap each one in a signal
+for you.

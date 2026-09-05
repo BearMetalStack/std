@@ -12,18 +12,20 @@ that just don't work. Keep this somewhere.
 template = <div ref="container" />;
 
 protected init() {
-  this.refs.container; // undefined - refs aren't registered yet
+  this.refs.container.get(); // undefined - the ref never registered against this component
 }
 ```
 
 ```ts
-// ✅ Getter - runs at connect time, refs available in init()
+// ✅ Getter - runs at connect time, ref registers correctly
 protected get template() {
   return <div ref="container" />;
 }
 
 protected init() {
-  this.refs.container; // ✅
+  this.addEffect(() => {
+    this.refs.container.get(); // ✅ element, once registered
+  });
 }
 ```
 
@@ -66,7 +68,9 @@ protected get template() {
 protected init() {
   this.useShadow();
   this.addEffect(() => {
-    this.refs.counter.textContent = String(this.#count.get());
+    const counter = this.refs.counter.get();
+    if (!counter) return;
+    counter.textContent = String(this.#count.get());
   });
 }
 
@@ -118,7 +122,9 @@ protected get template() {
 
 protected init() {
   this.addEffect(() => {
-    this.refs.title.textContent = this.#title.get();
+    const title = this.refs.title.get();
+    if (!title) return;
+    title.textContent = this.#title.get();
   });
   this.addEffect(() => {
     // ... manually update list
