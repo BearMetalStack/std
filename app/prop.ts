@@ -1,4 +1,4 @@
-import type { Signal } from "@signals";
+import { Signal } from "@signals";
 
 /** The attribute types a declared prop can be coerced back from. */
 export type PropType = typeof String | typeof Number | typeof Boolean;
@@ -130,7 +130,16 @@ export function prop(type?: PropType): PropDecorator {
 		declared[name] = type;
 		return {
 			init(value: Signal.State<T>): Signal.State<T> {
-				declared[name] ??= inferType(value.get());
+				// Untracked: this is a one-time administrative read (inferring the
+				// attribute type from the signal's initial value), not a dependency
+				// the *constructing* component's render should carry. `jsx()`
+				// already untracks a BMC's construction (see the `isBMC` branch in
+				// `jsx/lib/jsx.ts`), but a component can also be built without JSX —
+				// a `template` that constructs a child directly via
+				// `document.createElement` is a supported pattern — so this stays
+				// untracked here too. Nesting is harmless: `Signal.subtle.untrack`
+				// composes with itself.
+				declared[name] ??= Signal.subtle.untrack(() => inferType(value.get()));
 				return value;
 			},
 		};
