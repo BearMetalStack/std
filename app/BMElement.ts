@@ -15,7 +15,7 @@ import { coerceProp, declaredProps } from "./prop.ts";
 import { declaredState } from "./state.ts";
 import { STATE_ATTRIBUTE, takeServerState } from "./hydration.ts";
 import { each } from "./built-ins/For.ts";
-import type { BMTemplate } from "./types.ts";
+import type { BMTemplate, RefSignals } from "./types.ts";
 
 export { STATE_ATTRIBUTE } from "./hydration.ts";
 
@@ -64,16 +64,25 @@ export abstract class BMElement<
 	 */
 	#disconnectPending = false;
 
-	#refs = new Map<string, Element>();
+	#refs = new Map<string, Signal.State<Element | undefined>>();
 
-	get refs(): TRefs {
-		return new Proxy({} as TRefs, {
-			get: (_, key: string) => this.#refs.get(key),
+	#refSignal(name: string): Signal.State<Element | undefined> {
+		let sig = this.#refs.get(name);
+		if (!sig) {
+			sig = new Signal.State<Element | undefined>(undefined);
+			this.#refs.set(name, sig);
+		}
+		return sig;
+	}
+
+	get refs(): RefSignals<TRefs> {
+		return new Proxy({} as RefSignals<TRefs>, {
+			get: (_, key: string) => this.#refSignal(key),
 		});
 	}
 
 	registerRef(name: string, el: Element): void {
-		this.#refs.set(name, el);
+		this.#refSignal(name).set(el);
 	}
 
 	get tag(): string {
@@ -170,13 +179,25 @@ export abstract class BMElement<
 	/**
 	 * Registers the `ref=` attributes in a rendered tree.
 	 *
-	 * Runs before `init()`, which is documented to reach them as `this.refs`.
+	 * Each ref is a `Signal.State`, so order relative to `init()` doesn't
+	 * matter: a consumer reading `this.refs.x.get()` inside an effect simply
+	 * re-runs once this sets it, the same as any other signal. A reactive
+	 * template calls this on every re-render, so a ref present in a previous
+	 * render but missing from this one is reset to `undefined` rather than
+	 * left pointing at a detached element.
 	 */
 	#registerRefs(node: Node): void {
-		if (node.nodeType === Node.TEXT_NODE) return;
-		(node as HTMLElement).querySelectorAll?.("[ref]")?.forEach((el) =>
-			this.registerRef(el.getAttribute("ref")!, el)
-		);
+		const found = new Set<string>();
+		if (node.nodeType !== Node.TEXT_NODE) {
+			(node as HTMLElement).querySelectorAll?.("[ref]")?.forEach((el) => {
+				const name = el.getAttribute("ref")!;
+				found.add(name);
+				this.registerRef(name, el);
+			});
+		}
+		for (const [name, sig] of this.#refs) {
+			if (!found.has(name)) sig.set(undefined);
+		}
 	}
 
 	/** Puts a rendered tree in the root, replacing whatever was there. */
@@ -400,11 +421,13 @@ export abstract class BMElement<
 }
 
 /**
- * Reads the refs of the nearest owning component. This is how a functional
- * component reaches a `ref` it declared, since it has no `this.refs` of its own.
+ * Reads the ref signals of the nearest owning component. This is how a
+ * functional component reaches a `ref` it declared, since it has no
+ * `this.refs` of its own.
  *
- * The returned object is a live view: read from it after the JSX that declares
- * the ref has been evaluated, not before.
+ * Each property is a `Signal.State<Element | undefined>` — read it from inside
+ * a `computed()`/`effect()` the same way you'd read any other signal, rather
+ * than assuming the element is already there.
  *
  * Refs share one namespace per owning component, so two instances of the same
  * functional component under one parent will collide on the same ref name and
@@ -415,12 +438,14 @@ export abstract class BMElement<
  * function Field() {
  *   const refs = getRefs<{ input: HTMLInputElement }>();
  *   const el = <input ref="input" />;
- *   queueMicrotask(() => refs.input.focus());
+ *   effect(() => refs.input.get()?.focus());
  *   return el;
  * }
  * ```
  */
-export function getRefs<T extends Record<string, Element> = Record<string, Element>>(): T {
+export function getRefs<T extends Record<string, Element> = Record<string, Element>>(): RefSignals<
+	T
+> {
 	const owner = getCurrentOwner();
 	if (!owner?.refs) {
 		console.warn(
@@ -430,7 +455,7 @@ export function getRefs<T extends Record<string, Element> = Record<string, Eleme
 				"  • a BMElement.init() method\n" +
 				"  • an each() render callback",
 		);
-		return {} as T;
+		return {} as RefSignals<T>;
 	}
-	return owner.refs as T;
+	return owner.refs as RefSignals<T>;
 }

@@ -7,13 +7,13 @@
 // error, and the template was never appended — the assertion saw an empty host
 // and blamed the template. Slag has the method, so the component actually mounts.
 import "@bearmetal/slag/global";
-import { assertEquals, assertExists } from "@std/assert";
+import { assert, assertEquals, assertExists, assertStrictEquals } from "@std/assert";
 import { setCurrentOwner } from "@bearmetal/jsx";
 import { createRoot } from "@bearmetal/slag/testing";
 import type { SlagElement } from "@bearmetal/slag";
 import { BMElement } from "./BMElement.ts";
 import { define } from "./define.ts";
-import { createComputed, createSignal } from "./signals.ts";
+import { createComputed, createSignal, flushEffects } from "./signals.ts";
 import type { BMTemplate } from "./types.ts";
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -183,11 +183,12 @@ Deno.test("init() runs for a component with no template at all", () => {
 	assertEquals(inits, 1, "a component may be pure behaviour with nothing to render");
 });
 
-Deno.test("init() can reach refs from the template that mounted it", () => {
-	// Ordering constraint: refs are registered before init() runs, which is what
-	// the documented `this.refs.field` in init() depends on.
+Deno.test("init() can reach refs via an effect, once the template registers them", async () => {
+	// Refs are Signal.State now, so there's no ordering guarantee to pin: an
+	// effect registered in init() just re-runs once #registerRefs() sets it,
+	// the same as any other signal.
 	setCurrentOwner(null);
-	let seen: unknown;
+	let seen: Element | undefined;
 
 	@define(freshTag())
 	class C extends BMElement {
@@ -199,10 +200,85 @@ Deno.test("init() can reach refs from the template that mounted it", () => {
 			return wrap as unknown as BMTemplate;
 		}
 		protected override init() {
-			seen = this.refs.field;
+			this.addEffect(() => {
+				seen = this.refs.field.get();
+			});
 		}
 	}
 
 	mount(C.tag);
-	assertExists(seen, "refs must be registered before init() runs");
+	await flush();
+	assertExists(seen, "an effect reading this.refs.field.get() observes it once render completes");
+});
+
+Deno.test("a conditionally-rendered ref appears and disappears as its effect observes it", async () => {
+	setCurrentOwner(null);
+	const show = createSignal(true);
+	const seen: Array<Element | undefined> = [];
+
+	@define(freshTag())
+	class C extends BMElement {
+		protected override get template(): BMTemplate {
+			return createComputed(() => {
+				if (!show.get()) return document.createElement("div");
+				const wrap = document.createElement("div");
+				const input = document.createElement("input");
+				input.setAttribute("ref", "field");
+				wrap.appendChild(input);
+				return wrap as unknown as Node;
+			}) as unknown as BMTemplate;
+		}
+		protected override init() {
+			this.addEffect(() => {
+				seen.push(this.refs.field.get());
+			});
+		}
+	}
+
+	mount(C.tag);
+	await flush();
+	assertExists(seen.at(-1), "ref is set once the conditional template first renders it");
+
+	show.set(false);
+	flushEffects();
+	assertEquals(seen.at(-1), undefined, "ref resets to undefined once its element disappears");
+
+	show.set(true);
+	flushEffects();
+	assertExists(seen.at(-1), "ref is set again once the element reappears");
+});
+
+Deno.test("a ref signal keeps its identity across a reactive template's re-renders", async () => {
+	setCurrentOwner(null);
+	const s = createSignal(0);
+
+	@define(freshTag())
+	class C extends BMElement {
+		protected override get template(): BMTemplate {
+			return createComputed(() => {
+				const wrap = document.createElement("div");
+				const input = document.createElement("input");
+				input.setAttribute("ref", "field");
+				input.setAttribute("data-n", String(s.get()));
+				wrap.appendChild(input);
+				return wrap as unknown as Node;
+			}) as unknown as BMTemplate;
+		}
+	}
+
+	const el = mount(C.tag) as unknown as C;
+	await flush();
+	const firstElement = el.refs.field.get();
+	const firstSignal = el.refs.field;
+
+	s.set(1);
+	await flush();
+	const secondElement = el.refs.field.get();
+
+	assertStrictEquals(
+		firstSignal,
+		el.refs.field,
+		"the ref signal object itself is stable across re-renders",
+	);
+	assert(firstElement !== secondElement, "the template did produce a new element each render");
 });
