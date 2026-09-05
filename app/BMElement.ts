@@ -124,10 +124,6 @@ export abstract class BMElement<
 
 		const onServer = isServerRendering();
 
-		// A client-only component is its tag and its attributes on the server and
-		// nothing else. Whatever it needs — a canvas, a media element, a map — was
-		// never going to survive serialization, so the browser builds it from
-		// scratch when the element upgrades.
 		if (onServer && (this.constructor as typeof BMElement).client) return;
 
 		if (!onServer) this.#hydrateState();
@@ -135,36 +131,11 @@ export abstract class BMElement<
 		const prevOwner = getCurrentOwner();
 		setCurrentOwner(this);
 		try {
-			// `serverInit()` starts before the template renders, so whatever it sets
-			// synchronously — everything up to its first `await` — is already in
-			// place for the first pass, and the rest arrives through the signals it
-			// writes once the renderer has awaited it.
 			if (onServer) this.#runServerInit();
-
-			// `init()` runs before the template is ever evaluated, so refs are
-			// never available synchronously in init() — only from inside an
-			// effect it registers, once #registerRefs() below sets them. That's
-			// not a special case for refs: init() runs once, up front, and
-			// everything the template produces (nodes, refs) comes strictly
-			// after it, mounted immediately with nothing else interposed.
-			if (!onServer) this.#runInit();
+			else this.#runInit();
 
 			const t = this.template;
 			if (!isSignal(t)) {
-				// One path for both "no template" and "static template", so `init()`
-				// has a single call site and runs either way — a component may be pure
-				// behaviour with nothing to render.
-				//
-				// A static template has nothing to re-render, so mounting it inside a
-				// reactive effect buys nothing and costs two real bugs:
-				//
-				// - Every signal `init()` touches would become a dependency of the
-				//   mount itself, so the first unrelated store update re-renders the
-				//   whole component (and re-runs `init`).
-				// - `t` is captured once, and appending a DocumentFragment *empties*
-				//   it. A second pass would then `replaceChildren()` with an empty
-				//   fragment and blank the component outright — which is what a
-				//   fragment-templated view did the moment anything it read resolved.
 				const node = t ? toNode(t) : null;
 				if (node) {
 					this.#registerRefs(node);
