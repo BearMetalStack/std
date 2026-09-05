@@ -63,18 +63,20 @@ export class Joke extends BMElement<{ joke: Element }> {
 				}
 			};
 			const to = setInterval(() => {
+				const jokeEl = this.refs.joke.get();
+				if (!jokeEl) return;
 				const l = line();
 				const c = l.toLowerCase().includes("orange")
 					? "orange"
 					: l.toLowerCase().includes("banana")
 					? "banana"
 					: "";
-				this.refs.joke.append(<p class={c}>{l}</p>);
+				jokeEl.append(<p class={c}>{l}</p>);
 
 				if (l === punchline) {
 					clearInterval(to);
 				}
-				this.refs.joke.scrollTop = this.refs.joke.scrollHeight;
+				jokeEl.scrollTop = jokeEl.scrollHeight;
 				count++;
 			}, 4000);
 			return () => clearInterval(to);
