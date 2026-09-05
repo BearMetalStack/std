@@ -15,7 +15,7 @@ import { coerceProp, declaredProps } from "./prop.ts";
 import { declaredState } from "./state.ts";
 import { STATE_ATTRIBUTE, takeServerState } from "./hydration.ts";
 import { each } from "./built-ins/For.ts";
-import type { BMTemplate } from "./types.ts";
+import type { BMTemplate, RefSignals } from "./types.ts";
 
 export { STATE_ATTRIBUTE } from "./hydration.ts";
 
@@ -64,16 +64,25 @@ export abstract class BMElement<
 	 */
 	#disconnectPending = false;
 
-	#refs = new Map<string, Element>();
+	#refs = new Map<string, Signal.State<Element | undefined>>();
 
-	get refs(): TRefs {
-		return new Proxy({} as TRefs, {
-			get: (_, key: string) => this.#refs.get(key),
+	#refSignal(name: string): Signal.State<Element | undefined> {
+		let sig = this.#refs.get(name);
+		if (!sig) {
+			sig = new Signal.State<Element | undefined>(undefined);
+			this.#refs.set(name, sig);
+		}
+		return sig;
+	}
+
+	get refs(): RefSignals<TRefs> {
+		return new Proxy({} as RefSignals<TRefs>, {
+			get: (_, key: string) => this.#refSignal(key),
 		});
 	}
 
 	registerRef(name: string, el: Element): void {
-		this.#refs.set(name, el);
+		this.#refSignal(name).set(el);
 	}
 
 	get tag(): string {
@@ -132,6 +141,14 @@ export abstract class BMElement<
 			// writes once the renderer has awaited it.
 			if (onServer) this.#runServerInit();
 
+			// `init()` runs before the template is ever evaluated, so refs are
+			// never available synchronously in init() — only from inside an
+			// effect it registers, once #registerRefs() below sets them. That's
+			// not a special case for refs: init() runs once, up front, and
+			// everything the template produces (nodes, refs) comes strictly
+			// after it, mounted immediately with nothing else interposed.
+			if (!onServer) this.#runInit();
+
 			const t = this.template;
 			if (!isSignal(t)) {
 				// One path for both "no template" and "static template", so `init()`
@@ -149,15 +166,15 @@ export abstract class BMElement<
 				//   fragment and blank the component outright — which is what a
 				//   fragment-templated view did the moment anything it read resolved.
 				const node = t ? toNode(t) : null;
-				if (node) this.#registerRefs(node);
-				if (!onServer) this.#runInit();
-				if (node) this.#attach(node);
+				if (node) {
+					this.#registerRefs(node);
+					this.#attach(node);
+				}
 				return;
 			}
 			this.addEffect(() => {
 				const node = toNode(t.get());
 				this.#registerRefs(node);
-				if (!onServer) this.#runInit();
 				this.#attach(node);
 			});
 		} catch (e) {
@@ -170,13 +187,26 @@ export abstract class BMElement<
 	/**
 	 * Registers the `ref=` attributes in a rendered tree.
 	 *
-	 * Runs before `init()`, which is documented to reach them as `this.refs`.
+	 * Each ref is a `Signal.State`, and this always runs after `init()` — so a
+	 * ref is never set yet when `init()` runs. A consumer reads `this.refs.x`
+	 * from inside an effect it registers there, which simply fires once this
+	 * sets it, the same as any other signal. A reactive template calls this on
+	 * every re-render, so a ref present in a previous render but missing from
+	 * this one is reset to `undefined` rather than left pointing at a detached
+	 * element.
 	 */
 	#registerRefs(node: Node): void {
-		if (node.nodeType === Node.TEXT_NODE) return;
-		(node as HTMLElement).querySelectorAll?.("[ref]")?.forEach((el) =>
-			this.registerRef(el.getAttribute("ref")!, el)
-		);
+		const found = new Set<string>();
+		if (node.nodeType !== Node.TEXT_NODE) {
+			(node as HTMLElement).querySelectorAll?.("[ref]")?.forEach((el) => {
+				const name = el.getAttribute("ref")!;
+				found.add(name);
+				this.registerRef(name, el);
+			});
+		}
+		for (const [name, sig] of this.#refs) {
+			if (!found.has(name)) sig.set(undefined);
+		}
 	}
 
 	/** Puts a rendered tree in the root, replacing whatever was there. */
@@ -213,8 +243,9 @@ export abstract class BMElement<
 	}
 
 	/**
-	 * Called once when the component connects to the DOM **in a browser**.
-	 * Override this to set up effects, refs, or one-time logic.
+	 * Called once when the component connects to the DOM **in a browser**,
+	 * before the template has rendered anything. Override this to set up
+	 * effects, refs, or one-time logic.
 	 *
 	 * Returning a function registers it as a cleanup, run on disconnect.
 	 *
@@ -224,10 +255,16 @@ export abstract class BMElement<
 	 * not be starting them. Server-side work belongs in
 	 * {@linkcode BMElement.serverInit}.
 	 *
+	 * Because this runs before the template renders, a `ref` it declares is not
+	 * registered yet — `this.refs.name` reads `undefined` if you call `.get()`
+	 * on it synchronously here. Read a ref from inside an effect instead; it
+	 * fires once the template registers it, the same as any other signal.
+	 *
 	 * @example
 	 * ```ts
 	 * protected init() {
 	 *   this.addEffect(() => console.log("mounted"));
+	 *   this.addEffect(() => this.refs.input.get()?.focus());
 	 *   const id = setInterval(tick, 1000);
 	 *   return () => clearInterval(id);
 	 * }
@@ -270,11 +307,11 @@ export abstract class BMElement<
 	/**
 	 * Runs `init()` once per connection and registers any teardown it returns.
 	 *
-	 * Untracked, and guarded. `init()` is lifecycle, not rendering: a signal it
-	 * reads must not become a dependency of the template that mounted it, or an
-	 * ordinary store update would re-render the component — and re-run `init`,
-	 * which is documented to run once and is where subscriptions and fetches
-	 * live.
+	 * Untracked, and guarded, and called before the template ever renders.
+	 * `init()` is lifecycle, not rendering: a signal it reads must not become a
+	 * dependency of the template that mounts after it, or an ordinary store
+	 * update would re-render the component — and re-run `init`, which is
+	 * documented to run once and is where subscriptions and fetches live.
 	 */
 	#runInit(): void {
 		if (this.#initialized) return;
@@ -400,11 +437,13 @@ export abstract class BMElement<
 }
 
 /**
- * Reads the refs of the nearest owning component. This is how a functional
- * component reaches a `ref` it declared, since it has no `this.refs` of its own.
+ * Reads the ref signals of the nearest owning component. This is how a
+ * functional component reaches a `ref` it declared, since it has no
+ * `this.refs` of its own.
  *
- * The returned object is a live view: read from it after the JSX that declares
- * the ref has been evaluated, not before.
+ * Each property is a `Signal.State<Element | undefined>` — read it from inside
+ * a `computed()`/`effect()` the same way you'd read any other signal, rather
+ * than assuming the element is already there.
  *
  * Refs share one namespace per owning component, so two instances of the same
  * functional component under one parent will collide on the same ref name and
@@ -415,12 +454,14 @@ export abstract class BMElement<
  * function Field() {
  *   const refs = getRefs<{ input: HTMLInputElement }>();
  *   const el = <input ref="input" />;
- *   queueMicrotask(() => refs.input.focus());
+ *   effect(() => refs.input.get()?.focus());
  *   return el;
  * }
  * ```
  */
-export function getRefs<T extends Record<string, Element> = Record<string, Element>>(): T {
+export function getRefs<T extends Record<string, Element> = Record<string, Element>>(): RefSignals<
+	T
+> {
 	const owner = getCurrentOwner();
 	if (!owner?.refs) {
 		console.warn(
@@ -430,7 +471,7 @@ export function getRefs<T extends Record<string, Element> = Record<string, Eleme
 				"  • a BMElement.init() method\n" +
 				"  • an each() render callback",
 		);
-		return {} as T;
+		return {} as RefSignals<T>;
 	}
-	return owner.refs as T;
+	return owner.refs as RefSignals<T>;
 }

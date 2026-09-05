@@ -173,7 +173,8 @@ API.
 
 ```tsx
 this.addEffect(() => {
-	const el = this.refs.input as HTMLInputElement;
+	const el = this.refs.input.get();
+	if (!el) return;
 	el.value = this.#value.get();
 	return () => {/* optional cleanup */};
 });
@@ -184,7 +185,8 @@ is an optional cleanup function.
 
 ### Refs
 
-Mark elements with a `ref` attribute to access them by name after render:
+Mark elements with a `ref` attribute to access them by name after render. Each ref is a
+`Signal.State<Element | undefined>` — read it with `.get()` from inside an effect or computed:
 
 ```tsx
 override get template() {
@@ -192,16 +194,20 @@ override get template() {
 }
 
 protected override init() {
-  (this.refs.field as HTMLInputElement).focus();
+  this.addEffect(() => {
+    this.refs.field.get()?.focus();
+  });
 }
 ```
 
-For typed refs, pass a type parameter to `BMElement`:
+For typed refs, pass a type parameter to `BMElement` — same as always, an element type per ref name:
 
 ```tsx
 class MyForm extends BMElement<{ field: HTMLInputElement }> {
 	protected override init() {
-		this.refs.field.focus();
+		this.addEffect(() => {
+			this.refs.field.get()?.focus(); // HTMLInputElement | undefined
+		});
 	}
 }
 ```

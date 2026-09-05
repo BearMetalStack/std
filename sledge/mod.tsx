@@ -156,13 +156,15 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 	#eyes?: SVGGElement;
 	#zMix: Map<SVGElement, [number, number, number, number]> = new Map();
 	#gaze = new GazeOffset((x, y) => {
+		const root = this.refs.root.get();
+		if (!root) return;
 		if (!this.#gazeEyesOnly) {
-			this.refs.root.style.setProperty("--offset-x", x.toFixed(4));
-			this.refs.root.style.setProperty("--offset-y", y.toFixed(4));
+			root.style.setProperty("--offset-x", x.toFixed(4));
+			root.style.setProperty("--offset-y", y.toFixed(4));
 			this.#updateZMix(Number(x.toFixed(4)), Number(y.toFixed(4)));
 		}
-		this.refs.root.style.setProperty("--glance-offset-x", x.toFixed(4));
-		this.refs.root.style.setProperty("--glance-offset-y", y.toFixed(4));
+		root.style.setProperty("--glance-offset-x", x.toFixed(4));
+		root.style.setProperty("--glance-offset-y", y.toFixed(4));
 
 		if (this.hasAttribute("debug")) {
 			this.style.setProperty("--offset-x", x.toFixed(4));
@@ -259,7 +261,9 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 	}
 
 	#mouseTracking = (e: MouseEvent) => {
-		const rect = this.refs.root.getBoundingClientRect();
+		const root = this.refs.root.get();
+		if (!root) return;
+		const rect = root.getBoundingClientRect();
 		const centerX = rect.left + rect.width / 2;
 		const centerY = rect.top + rect.height / 2;
 
@@ -357,9 +361,9 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 	}
 
 	sniff() {
-		this.refs.root.style.setProperty("--sniff", "1.1");
+		this.refs.root.get()?.style.setProperty("--sniff", "1.1");
 		setTimeout(() => {
-			this.refs.root.style.setProperty("--sniff", "1");
+			this.refs.root.get()?.style.setProperty("--sniff", "1");
 		}, 100);
 	}
 
@@ -372,7 +376,7 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 			last = t;
 			if (this.#sniffLevel >= 1.2) return;
 			this.#sniffLevel += .5 * d;
-			this.refs.root.style.setProperty("--sniff", `${this.#sniffLevel}`);
+			this.refs.root.get()?.style.setProperty("--sniff", `${this.#sniffLevel}`);
 			this.#sniffing = requestAnimationFrame(sniff);
 		};
 		this.#sniffing = requestAnimationFrame(sniff);
@@ -382,7 +386,7 @@ export class Sledge extends BMElement<{ root: SVGSVGElement }> {
 			cancelAnimationFrame(this.#sniffing);
 			this.#sniffing = undefined;
 			this.#sniffLevel = 1;
-			this.refs.root.style.setProperty("--sniff", "1");
+			this.refs.root.get()?.style.setProperty("--sniff", "1");
 		}
 	}
 

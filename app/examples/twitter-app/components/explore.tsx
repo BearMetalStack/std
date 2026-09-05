@@ -117,7 +117,8 @@ export class TwitterExplore extends BMElement<{ search: HTMLInputElement }> {
 								onClick={() => {
 									const term = t.topic.replace(/^#/, "");
 									this.#query.set(term);
-									this.refs.search.value = term;
+									const search = this.refs.search.get();
+									if (search) search.value = term;
 								}}
 							>
 								<span class="trending-topic">{t.topic}</span>

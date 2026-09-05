@@ -62,8 +62,12 @@ let _untrack: UntrackFn = (fn) => fn();
 export type Owner = {
 	registerCleanup(fn: CleanupFn): void;
 	registerRef?: (ref: string, el: Element) => void;
-	/** Live view of the owner's registered refs, read by `getRefs()`. */
-	refs?: Record<string, Element>;
+	/**
+	 * The owner's registered refs, read by `getRefs()` — one signal per ref
+	 * name, kept signals-implementation-agnostic here the same way
+	 * `SignalLike`/`WritableSignalLike` are.
+	 */
+	refs?: Record<string, WritableSignalLike>;
 } | null;
 
 let _currentOwner: Owner = null;

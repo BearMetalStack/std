@@ -5,7 +5,7 @@
 import { installGlobals } from "@bearmetal/slag";
 installGlobals();
 
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertStrictEquals } from "@std/assert";
 import { setCurrentOwner } from "@bearmetal/jsx";
 import { BMElement, getRefs } from "./BMElement.ts";
 
@@ -134,22 +134,35 @@ Deno.test("getRefs() reaches the owning component's refs", () => {
 
 	setCurrentOwner(el);
 	try {
-		assertEquals(getRefs().paragraph, paragraph);
+		assertEquals(getRefs().paragraph.get(), paragraph);
 	} finally {
 		setCurrentOwner(null);
 	}
 });
 
-Deno.test("getRefs() is a live view, readable after the ref registers", () => {
+Deno.test("getRefs() ref signals are readable after the ref registers", () => {
 	const el = element(class extends BMElement {});
 	setCurrentOwner(el);
 	try {
 		const refs = getRefs<{ late: Element }>();
-		assertEquals(refs.late, undefined);
+		assertEquals(refs.late.get(), undefined);
 
 		const late = document.createElement("div");
 		el.registerRef("late", late);
-		assertEquals(refs.late, late);
+		assertEquals(refs.late.get(), late);
+	} finally {
+		setCurrentOwner(null);
+	}
+});
+
+Deno.test("getRefs() ref signal identity persists across separate getRefs() calls", () => {
+	const el = element(class extends BMElement {});
+	setCurrentOwner(el);
+	try {
+		const first = getRefs<{ late: Element }>().late;
+		el.registerRef("late", document.createElement("div"));
+		const second = getRefs<{ late: Element }>().late;
+		assertStrictEquals(first, second);
 	} finally {
 		setCurrentOwner(null);
 	}
