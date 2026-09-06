@@ -97,15 +97,29 @@ export class LazySignal<T> extends Signal.State<T> {
 	}
 }
 
-export class DerivedSignal<T> extends Signal.Computed<T> {
-	constructor(init: () => T, callback: (val: T) => void) {
-		super(init);
-		this.#callback = callback;
+/**
+ * A `Signal.Computed` that's also writable, via a callback rather than
+ * mutable backing state - the safe way to hand `$bind` something derived
+ * from other signals.
+ *
+ * `$bind`'s DOM-push is its own independent effect, so a plain
+ * `Signal.State` kept in sync by *your* effect never reaches it: a signal
+ * written from inside an effect doesn't notify its readers (see
+ * `signals.test.ts`). `WritableComputed` sidesteps that by not needing an
+ * effect at all - `get()` reads the source signals directly, and `set()`
+ * forwards to whatever action should actually own the write (or is a
+ * no-op, if this field is read-only and committed some other way, e.g. on
+ * blur).
+ */
+export class WritableComputed<T> extends Signal.Computed<T> {
+	constructor(get: () => T, set: (val: T) => void) {
+		super(get);
+		this.#set = set;
 	}
-	#callback: (val: T) => void;
+	#set: (val: T) => void;
 
 	set(val: T) {
-		this.#callback(val);
+		this.#set(val);
 	}
 }
 
@@ -124,7 +138,7 @@ export class SpreadSignal<T extends object> extends Signal.State<T> {
 			Object.assign(
 				this.$,
 				k,
-				new DerivedSignal(() => this.get()[k as keyof T], (v) => {
+				new WritableComputed(() => this.get()[k as keyof T], (v) => {
 					const obj = this.get();
 					Object.assign(obj, k, v);
 					super.set(obj);
