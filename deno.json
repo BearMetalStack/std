@@ -12,9 +12,7 @@
 		"workspace:publish": {
 			"command": "deno run -P=publish --env-file workspace_scripts/publish_workspace.ts",
 			"description": "Publishes all packages in order of dependency",
-			"dependencies": [
-				"workspace:bump-versions"
-			]
+			"dependencies": ["workspace:bump-versions"]
 		},
 		"workspace:bump-versions": {
 			"command": "deno run -P=bump workspace_scripts/version_bump.ts",
@@ -40,9 +38,7 @@
 		"publish": {
 			"run": true,
 			"read": true,
-			"env": [
-				"JSR_PUBLISH_TOKEN"
-			]
+			"env": ["JSR_PUBLISH_TOKEN"]
 		},
 		"bump": {
 			"run": true,
@@ -50,9 +46,7 @@
 			"write": true
 		},
 		"check": {
-			"run": [
-				"deno"
-			],
+			"run": ["deno"],
 			"read": true
 		},
 		"docs": {
@@ -64,13 +58,8 @@
 			"net": true
 		}
 	},
-	"workspace": [
-		"./*",
-		"./*/examples/*"
-	],
-	"exclude": [
-		"docs/.vitepress"
-	],
+	"workspace": ["./*", "./*/examples/*"],
+	"exclude": ["docs/.vitepress", ".claude"],
 	"publish": {
 		"exclude": [
 			"**/*.test.ts",
@@ -79,10 +68,7 @@
 			"**/*_test.tsx"
 		]
 	},
-	"unstable": [
-		"raw-imports",
-		"bundle"
-	],
+	"unstable": ["raw-imports", "bundle"],
 	"imports": {
 		"@std/assert": "jsr:@std/assert@1",
 		"@std/cli": "jsr:@std/cli@1",
@@ -103,9 +89,7 @@
 	},
 	"lint": {
 		"rules": {
-			"exclude": [
-				"jsx-key"
-			]
+			"exclude": ["jsx-key"]
 		}
 	},
 	"compilerOptions": {
