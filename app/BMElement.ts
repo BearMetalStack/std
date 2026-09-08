@@ -138,15 +138,15 @@ export abstract class BMElement<
 			if (!isSignal(t)) {
 				const node = t ? toNode(t) : null;
 				if (node) {
-					this.#registerRefs(node);
 					this.#attach(node);
+					this.#registerRefs();
 				}
 				return;
 			}
 			this.addEffect(() => {
 				const node = toNode(t.get());
-				this.#registerRefs(node);
 				this.#attach(node);
+				this.#registerRefs();
 			});
 		} catch (e) {
 			console.log(this.tag, e);
@@ -156,28 +156,40 @@ export abstract class BMElement<
 	}
 
 	/**
-	 * Registers the `ref=` attributes in a rendered tree.
+	 * Reconciles the ref signals with what the current render actually mounted.
+	 * Runs after `#attach`, so `this.root` holds this render's tree.
 	 *
-	 * Each ref is a `Signal.State`, and this always runs after `init()` — so a
-	 * ref is never set yet when `init()` runs. A consumer reads `this.refs.x`
-	 * from inside an effect it registers there, which simply fires once this
-	 * sets it, the same as any other signal. A reactive template calls this on
-	 * every re-render, so a ref present in a previous render but missing from
-	 * this one is reset to `undefined` rather than left pointing at a detached
-	 * element.
+	 * A ref reaches a component by one of two routes. The JSX runtime calls
+	 * `registerRef` as it builds an element, leaving no attribute behind — the
+	 * signal is already pointing at the live element by the time this runs. A
+	 * raw-markup template instead carries a literal `ref=` attribute that only
+	 * exists once the markup is parsed, so those are picked up here by walking
+	 * the tree. Either way the test for "still live" is the same: the element
+	 * is in `this.root`. Anything else — a ref a previous render set and this
+	 * one dropped — is reset to `undefined` rather than left dangling.
+	 *
+	 * Each ref is a `Signal.State`, and this always runs after `init()`, so a
+	 * ref is never set when `init()` runs; read `this.refs.x` from inside an
+	 * effect and it fires once this sets it, the same as any other signal. The
+	 * scan is untracked so a reactive template's re-render, which calls this,
+	 * does not take every ref signal as a dependency of itself.
 	 */
-	#registerRefs(node: Node): void {
+	#registerRefs(): void {
+		const root = this.root;
 		const found = new Set<string>();
-		if (node.nodeType !== Node.TEXT_NODE) {
-			(node as HTMLElement).querySelectorAll?.("[ref]")?.forEach((el) => {
-				const name = el.getAttribute("ref")!;
-				found.add(name);
-				this.registerRef(name, el);
-			});
-		}
-		for (const [name, sig] of this.#refs) {
-			if (!found.has(name)) sig.set(undefined);
-		}
+		root.querySelectorAll?.("[ref]")?.forEach((el) => {
+			const name = el.getAttribute("ref")!;
+			found.add(name);
+			this.registerRef(name, el);
+		});
+		Signal.subtle.untrack(() => {
+			for (const [name, sig] of this.#refs) {
+				if (found.has(name)) continue;
+				const el = sig.get();
+				if (el && root.contains(el)) continue;
+				sig.set(undefined);
+			}
+		});
 	}
 
 	/** Puts a rendered tree in the root, replacing whatever was there. */

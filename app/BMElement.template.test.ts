@@ -9,6 +9,7 @@
 import "@bearmetal/slag/global";
 import { assert, assertEquals, assertExists, assertStrictEquals } from "@std/assert";
 import { setCurrentOwner } from "@bearmetal/jsx";
+import { jsx } from "@bearmetal/jsx/jsx-runtime";
 import { createRoot } from "@bearmetal/slag/testing";
 import type { SlagElement } from "@bearmetal/slag";
 import { BMElement } from "./BMElement.ts";
@@ -281,4 +282,76 @@ Deno.test("a ref signal keeps its identity across a reactive template's re-rende
 		"the ref signal object itself is stable across re-renders",
 	);
 	assert(firstElement !== secondElement, "the template did produce a new element each render");
+});
+
+// The JSX runtime registers a `ref=` prop by calling the owner's registerRef
+// directly and leaves no attribute on the element. #registerRefs walks the
+// mounted tree for `[ref]` attributes and won't see those, so its stale-ref
+// sweep has to recognise a JSX-registered ref by its element still being in the
+// tree — otherwise it clears the ref it was just handed.
+
+Deno.test("a ref declared through the JSX runtime is not cleared by #registerRefs", async () => {
+	setCurrentOwner(null);
+
+	@define(freshTag())
+	class C extends BMElement {
+		protected override get template(): BMTemplate {
+			return jsx("div", {
+				children: jsx("input", { ref: "field" }),
+			}) as unknown as BMTemplate;
+		}
+	}
+
+	const el = mount(C.tag) as unknown as C;
+	await flush();
+	assertExists(el.refs.field.get(), "the JSX-declared ref survives the mount");
+});
+
+Deno.test("a JSX ref in a reactive template survives its own re-renders", async () => {
+	setCurrentOwner(null);
+	const n = createSignal(0);
+
+	@define(freshTag())
+	class C extends BMElement {
+		protected override get template(): BMTemplate {
+			return createComputed(() =>
+				jsx("div", {
+					children: jsx("input", { ref: "field", "data-n": String(n.get()) }),
+				})
+			) as unknown as BMTemplate;
+		}
+	}
+
+	const el = mount(C.tag) as unknown as C;
+	await flush();
+	const first = el.refs.field.get();
+	assertExists(first, "JSX ref set on the first render");
+
+	n.set(1);
+	await flush();
+	const second = el.refs.field.get();
+	assertExists(second, "JSX ref still set after a re-render");
+	assert(first !== second, "the template produced a new element");
+});
+
+Deno.test("a JSX ref still resets to undefined when its element stops rendering", async () => {
+	setCurrentOwner(null);
+	const show = createSignal(true);
+
+	@define(freshTag())
+	class C extends BMElement {
+		protected override get template(): BMTemplate {
+			return createComputed(() =>
+				show.get() ? jsx("div", { children: jsx("input", { ref: "field" }) }) : jsx("div", {})
+			) as unknown as BMTemplate;
+		}
+	}
+
+	const el = mount(C.tag) as unknown as C;
+	await flush();
+	assertExists(el.refs.field.get(), "ref is set while its element renders");
+
+	show.set(false);
+	flushEffects();
+	assertEquals(el.refs.field.get(), undefined, "ref resets once its element is gone");
 });
