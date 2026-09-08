@@ -131,9 +131,12 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 		val = val + "px";
 	}
 	if (key === "class") {
+		const e = el as unknown as { prevClassList?: string[] };
 		const cs = (val as string).split(" ").filter(Boolean);
-		if (cs.length) el.classList.add(...cs);
-		else el.classList.remove(...el.classList);
+		const prev = e.prevClassList ?? [];
+		el.classList.remove(...prev);
+		e.prevClassList = cs;
+		el.classList.add(...cs);
 	} else if (key.startsWith("class-")) {
 		const cs = key.split("-")[1];
 		if (val) el.classList.add(cs);
