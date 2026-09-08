@@ -4,6 +4,7 @@ import { getDefaultTheme, loadTheme } from "@bearmetal/drip";
 import { themeCSS } from "./css/generate.ts";
 import type { CompliantID } from "./css/compliantCSS.ts";
 import { loadStylesheet } from "./theme.ts";
+import { fontFaceCSS, themeFontFaceCSS } from "./fonts/mod.ts";
 
 class DripModule extends TrustedModule {
 	#themes: Promise<Theme[]> = Promise.resolve([]);
@@ -27,6 +28,15 @@ class DripModule extends TrustedModule {
 			if (!stylesheet) return NotFound(`Stylesheet ${id} not found`);
 
 			return Style(stylesheet);
+		});
+		this.route("/@bearmetal/fonts").get(async () => {
+			const [theme] = await this.#themes;
+			return Style(theme ? themeFontFaceCSS(theme) : "");
+		});
+		this.route("/@bearmetal/fonts/:name").get((ctx) => {
+			const name = ctx.params.name ?? "";
+			const sheet = fontFaceCSS([name]);
+			return sheet ? Style(sheet) : NotFound(`Drip does not self-host a font named "${name}"`);
 		});
 	}
 

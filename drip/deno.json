@@ -6,6 +6,7 @@
 		"./types": "./types.ts",
 		"./tokens": "./css/tokens.ts",
 		"./ssr": "./ssr.tsx",
+		"./fonts": "./fonts/mod.ts",
 		"./namespaces": "./namespaces.ts",
 		"./palette": "./palette/mod.tsx",
 		"./build": "./build.ts"
@@ -14,11 +15,22 @@
 		"jsx": "react-jsx",
 		"jsxImportSource": "@bearmetal/jsx"
 	},
+	"publish": {
+		"exclude": [
+			"fonts/assets",
+			"fonts/tools",
+			"fonts/generate.ts"
+		]
+	},
 	"tasks": {
 		"dev": "deno test --watch",
 		"bm:drip": {
 			"description": "Generates theme completions and CSS",
 			"command": "deno run -RW -E=BEARMETAL_ENV,BEARMETAL_DRIP_STRICT mod.ts"
+		},
+		"bm:fonts": {
+			"description": "Re-embeds the self-hosted font sheets from fonts/assets",
+			"command": "deno run -RW fonts/generate.ts"
 		},
 		"drip:palette": {
 			"command": "deno run -A --watch palette/mod.tsx"

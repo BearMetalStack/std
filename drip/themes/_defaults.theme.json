@@ -1,8 +1,8 @@
 {
 	"font": {
-		"sans": "\"Urbanist\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Helvetica, Arial, sans-serif, \"Apple Color Emoji\"",
+		"sans": "\"Comfortaa\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Helvetica, Arial, sans-serif, \"Apple Color Emoji\"",
 		"serif": "\"Georgia\", \"Times New Roman\", Times, serif",
-		"mono": "\"JetBrains Mono\", \"Fira Code\", \"Cascadia Code\", ui-monospace, \"Courier New\", monospace",
+		"mono": "\"Monofur\", ui-monospace, \"JetBrains Mono\", \"Fira Code\", \"Cascadia Code\", \"Courier New\", monospace",
 		"display": { "$ref": "$font.sans" },
 		"body": { "$ref": "$font.sans" }
 	},
