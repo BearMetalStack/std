@@ -1337,14 +1337,10 @@ export const page = Layout((props) => (
 			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 			<meta name="description" content={props.description ?? "Generated with BearMetal SSR"} />
 			<title>{props.title}</title>
+			{/* BMDripBase self-hosts the theme's sans/mono (Comfortaa + Monofur). */}
 			<BMDripBase theme={props.theme} />
 			<GoogleFonts
 				fonts={[
-					{
-						family: "Urbanist",
-						wght: ["0,100..900", "1,100..900"],
-						ital: true,
-					},
 					{
 						family: "Orbitron",
 						wght: "400..900",
