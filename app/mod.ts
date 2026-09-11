@@ -1,5 +1,6 @@
 export * from "./define.ts";
 export * from "./BMElement.ts";
+export * from "./inspect.ts";
 export * from "./prop.ts";
 export * from "./state.ts";
 export * from "./signals.ts";

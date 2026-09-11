@@ -17,6 +17,24 @@ export type RefSignals<T extends Record<string, Element>> = {
 	[K in keyof T]: Signal.State<T[K] | undefined>;
 };
 
+/**
+ * A live, instance-bound handle to one reactive signal a component has opted
+ * into exposing for inspection. See `inspect()` (`app/inspect.ts`) and
+ * `BMElement.signalBindings()`.
+ *
+ * `get`/`set` close over the accessor's storage at decoration time via
+ * `context.access`, so they reach a signal held in a true `#private` field —
+ * which no string key, `Proxy`, or `Reflect` call ever could.
+ */
+export interface SignalBinding {
+	/** Display label — the field's declared name; `"#count"` for a private field. */
+	name: string;
+	/** True for a `Signal.Computed` binding; `set()` is a no-op when true. */
+	readonly: boolean;
+	get(): unknown;
+	set(value: unknown): void;
+}
+
 /** Anything a `template` may resolve to, other than a signal. */
 type TemplateValue = JSX.Element | Html | string | null | undefined;
 

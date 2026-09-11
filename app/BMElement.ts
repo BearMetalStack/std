@@ -13,9 +13,10 @@ import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import { effect } from "./signals.ts";
 import { coerceProp, declaredProps } from "./prop.ts";
 import { declaredState } from "./state.ts";
+import { declaredInspectable } from "./inspect.ts";
 import { STATE_ATTRIBUTE, takeServerState } from "./hydration.ts";
 import { each } from "./built-ins/For.ts";
-import type { BMTemplate, RefSignals } from "./types.ts";
+import type { BMTemplate, RefSignals, SignalBinding } from "./types.ts";
 
 export { STATE_ATTRIBUTE } from "./hydration.ts";
 
@@ -312,6 +313,31 @@ export abstract class BMElement<
 			if (signal instanceof Signal.State) entries.push([name, signal]);
 		}
 		return entries;
+	}
+
+	/**
+	 * Every signal this component exposes for inspection: its refs — framework-
+	 * owned, always included, named `refs.<name>` — plus whatever it opted into
+	 * with `@inspect()`.
+	 *
+	 * Not reactive on its own; read `.get()` from inside an effect/computed if
+	 * you want to watch one. Meaningful client-side only — a server-rendered
+	 * instance is thrown away before a devtools overlay could ever reach it.
+	 */
+	signalBindings(): SignalBinding[] {
+		const bindings: SignalBinding[] = [];
+		for (const [name, signal] of this.#refs) {
+			bindings.push({
+				name: `refs.${name}`,
+				readonly: true,
+				get: () => signal.get(),
+				set: () => {},
+			});
+		}
+		for (const factory of declaredInspectable(this.constructor)) {
+			bindings.push(factory(this));
+		}
+		return bindings;
 	}
 
 	/**
