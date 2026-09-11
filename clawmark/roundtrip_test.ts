@@ -85,7 +85,10 @@ Deno.test("raw html round-trips exactly: clawmark has no raw-html rule", () => {
 	assertBoth("<script>alert(1)</script>");
 });
 
-Deno.test("markup inside link text stays opaque", () => assertBoth("[**a**](x)"));
+Deno.test("markup inside link text renders as real markup, not opaque text", () => {
+	assertBoth("[**a**](x)");
+	assertEquals(toHtml("[**a**](x)"), '<p><a href="x"><strong>a</strong></a></p>');
+});
 
 // ---- ordinary HTML, not clawmark's own output -----------------------------
 

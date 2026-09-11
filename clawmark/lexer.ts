@@ -38,10 +38,12 @@ export class Lexer {
 	#previousToken: Token = BOF_TOKEN;
 	#openBlocks: OpenBlock[] = [];
 	#byTrigger = new Map<Char, AnyRule[]>();
+	#rules: AnyRule[];
 	#ctx: LexerContext;
 
 	constructor(input: string, rules: AnyRule[]) {
 		this.#input = input;
+		this.#rules = rules;
 		for (const rule of rules) {
 			const list = this.#byTrigger.get(rule.trigger) ?? [];
 			list.push(rule);
@@ -59,6 +61,9 @@ export class Lexer {
 		return {
 			peek: (length, offset = 0) => self.#peek(length, offset),
 			toNextSubstring: (sub, offset = 0) => self.#toNextSubstring(sub, offset),
+			get rules() {
+				return self.#rules;
+			},
 			get lineStart() {
 				return self.#lineStart;
 			},

@@ -1,9 +1,9 @@
 import type { Rule } from "../types.ts";
-import { appendLeaf, escapeHtml, textFallback } from "./helpers.ts";
+import { appendLeaf, escapeHtml, findBalancedClose, textFallback } from "./helpers.ts";
 
 type ImageData = { src: string; alt?: string; title?: string };
 
-const IMAGE_RX = /!\[(?<alt>[\s\S]*)\]\((?<src>[\S]*)(?: "(?<title>[\s\S]*)")?\)/;
+const SRC_RX = /^(?<src>[\S]*)(?: "(?<title>[\s\S]*)")?\)$/;
 
 export const imageRule: Rule<ImageData> = {
 	id: "md:image",
@@ -11,11 +11,19 @@ export const imageRule: Rule<ImageData> = {
 	validate: (ctx) => ctx.peek(2) === "![",
 
 	tokenize(ctx) {
-		const imgStr = ctx.toNextSubstring(")");
-		if (!imgStr) return textFallback<ImageData>("!");
-		const { alt, src, title } = imgStr.match(IMAGE_RX)?.groups ??
-			{ alt: undefined, src: "", title: undefined };
-		ctx.cursor += imgStr.length - 1;
+		// Alt text is never re-lexed (an `<img alt>` cannot itself contain
+		// markup), but its own boundary still has to be found by balancing
+		// `[`/`]` rather than jumping to the *nearest* `]` - the same
+		// nearest-delimiter bug rules/link.ts had, here in miniature: alt text
+		// containing a stray `]` would otherwise truncate early.
+		const closeBracket = findBalancedClose(ctx, "[", "]", 2);
+		if (closeBracket === null) return textFallback<ImageData>("!");
+		const alt = ctx.peek(closeBracket - 2, 2) || undefined;
+		if (ctx.peek(1, closeBracket + 1) !== "(") return textFallback<ImageData>("!");
+		const rest = ctx.toNextSubstring(")", closeBracket + 2);
+		if (!rest) return textFallback<ImageData>("!");
+		const { src, title } = rest.match(SRC_RX)?.groups ?? { src: "", title: undefined };
+		ctx.cursor += closeBracket + 2 + rest.length - 1;
 		return { tag: "md:image", data: { src, alt, title } };
 	},
 

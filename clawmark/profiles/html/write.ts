@@ -445,7 +445,9 @@ function fullDocument(
 	const link = options.css
 		? `<link rel="stylesheet" href="${options.css}">${xhtml ? "</link>" : ""}`
 		: "";
-	const decl = xhtml ? `<?xml version="1.0" encoding="UTF-8"?>\n` : "<!doctyp html>\n";
+	const decl = xhtml
+		? `<?xml version="1.0" encoding="UTF-8"?>\n<!doctype html>\n`
+		: "<!doctype html>\n";
 	const htmlAttrs = xhtml
 		? `lang="${options.lang}" xml:lang="${options.lang}" xmlns="http://www.w3.org/1999/xhtml"`
 		: `lang="${options.lang}"`;

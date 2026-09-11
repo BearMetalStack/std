@@ -147,7 +147,7 @@ the _forward_ engine rather than of the reverse pipeline:
 | `a\nb`              | `a b`              | A soft wrap collapses to a space in the lexer, irreversibly.                      |
 | header-only table   | alignment lost     | Header cells are always rendered centered, so only a body row carries the signal. |
 | `\|` in a cell      | breaks on re-parse | `tableRule.tokenize` splits on a bare `\|` with no escape awareness.              |
-| markup in link text | flattened          | Link text and image alt are opaque strings in both directions.                    |
+| markup in image alt | flattened          | An `<img alt>` cannot itself hold markup, so it stays an opaque string.           |
 
 `html → md → html` is the stronger invariant and holds throughout, since the cosmetic differences
 above all render identically.

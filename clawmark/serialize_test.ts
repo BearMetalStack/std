@@ -164,8 +164,9 @@ Deno.test("raw html has no rule, so angle brackets need no escaping", () => {
 	assertEquals(toHtml("<script>alert(1)</script>"), "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>");
 });
 
-Deno.test("markup inside link text is opaque in both directions", () => {
+Deno.test("markup inside link text is real markup, not opaque text", () => {
 	assertStable("[**a**](x)");
+	assertEquals(toHtml("[**a**](x)"), '<p><a href="x"><strong>a</strong></a></p>');
 });
 
 // ---- normalization --------------------------------------------------------

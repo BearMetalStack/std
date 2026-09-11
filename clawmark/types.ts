@@ -61,6 +61,21 @@ export interface LexerContext {
 	readonly blockDepth: number;
 
 	/**
+	 * Extension beyond v2.ts, used by link/image/table-cell parsing.
+	 *
+	 * Those constructs resolve their inner content (link text, a table cell)
+	 * in one `tokenize()` call via a regex or a line split, rather than by
+	 * staying open on the tree-builder's stack while the lexer's own
+	 * per-character loop keeps running - so nothing inside them ever gets a
+	 * chance to be recognized as its own construct (an emphasis run, an
+	 * image, another link). Exposing the active rule set lets a `tokenize()`
+	 * hand that inner text to a fresh `Lexer`/`TreeBuilder` pair and get back
+	 * real child nodes instead of an opaque string. See
+	 * `rules/helpers.ts`'s `parseInline`/`inlineOnly`.
+	 */
+	readonly rules: readonly AnyRule[];
+
+	/**
 	 * Extension beyond v2.ts, used by exactly one rule (ordered lists).
 	 * v1's ordered-list marker is recognized *after the fact*: digits get
 	 * buffered as plain text char-by-char, and only once the following `.`
