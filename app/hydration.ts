@@ -25,6 +25,8 @@
  * @module
  */
 
+import { isComponentElement } from "./util/dom.ts";
+
 /** Where a server render leaves the `@state` it wants the browser to pick up. */
 export const STATE_ATTRIBUTE = "data-bm-state";
 
@@ -59,7 +61,7 @@ function path(el: Element): string {
 	const parts: string[] = [];
 	let node: Element | null = el;
 	while (node) {
-		if (node.localName.includes("-")) parts.push(node.localName);
+		if (isComponentElement(node)) parts.push(node.localName);
 		const parent: Element | null = node.parentElement;
 		if (parent) {
 			node = parent;
