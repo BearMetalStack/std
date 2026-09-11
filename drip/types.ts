@@ -33,3 +33,4 @@ export type { CompliantID } from "./css/compliantCSS.ts";
 export type { DiagnosticLevel, DripDiagnostic } from "./css/validate.ts";
 export type { FillRole, SemanticRole, VariantTokenDef, VariantTokenGroup } from "./css/tokens.ts";
 export type { BuildVariantsOptions } from "./css/variants.ts";
+export type { FontDef, FontFace, FontKey } from "./fonts/manifest.ts";
