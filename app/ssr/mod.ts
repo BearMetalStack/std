@@ -21,6 +21,7 @@ import {
 import { hasHeadContributors, headContributions } from "./head.ts";
 import { renderToTree, serializeTree } from "./render.ts";
 import type { RenderContextState } from "./context.ts";
+import { isComponentElement } from "../util/dom.ts";
 
 export { bundleEntrypoints, type BundleOptions, type BundleOutput } from "./bundle.ts";
 export { mirrorStripped, type StripOptions, type StrippedTree } from "./prestrip.ts";
@@ -140,7 +141,7 @@ function warnIfNothingHydrates(root: Element): void {
 export function usedTags(root: Element): Set<string> {
 	const tags = new Set<string>();
 	for (const el of root.querySelectorAll("*")) {
-		if (el.localName.includes("-")) tags.add(el.localName);
+		if (isComponentElement(el)) tags.add(el.localName);
 	}
 	return tags;
 }

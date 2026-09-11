@@ -8,5 +8,7 @@ export * from "./save.ts";
 export * from "./built-ins/mod.ts";
 export { isBrowser } from "./util/environment.ts";
 export { enableHotReplacement, HMR_EVENT } from "./hmr.ts";
+export { isComponentElement } from "./util/dom.ts";
+export { isBMC } from "@bearmetal/jsx";
 
 export type * from "./types.ts";
