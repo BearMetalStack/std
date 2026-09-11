@@ -143,6 +143,10 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 		else el.classList.remove(cs);
 	} else if (key.startsWith("on") && typeof val === "function") {
 		el.addEventListener(key.slice(2).toLowerCase(), val as EventListener);
+	} else if (
+		key === "value" && (el instanceof HTMLInputElement || el instanceof HTMLSelectElement)
+	) {
+		el.value = String(val);
 	} else if (typeof val === "boolean") {
 		if (val) el.setAttribute(key, "");
 		else el.removeAttribute(key);
