@@ -1,4 +1,7 @@
-import type { LexerContext, Node, Token, TokenIdentifier, TreeContext } from "../types.ts";
+import type { AnyRule, LexerContext, Node, Token, TokenIdentifier, TreeContext } from "../types.ts";
+import { Lexer } from "../lexer.ts";
+import { TreeBuilder } from "../tree.ts";
+import { isBlockTag } from "./paragraph.ts";
 
 /**
  * A handful of rules bail out to a literal `core:text` token when a span
@@ -70,4 +73,86 @@ export function consumeRestOfLine(ctx: LexerContext): void {
 	const seg = ctx.toNextSubstring("\n");
 	if (!seg) return;
 	ctx.cursor += seg.length - 2;
+}
+
+/**
+ * Rules whose own `trigger`/`validate` only ever fires at a line start
+ * (headings, blockquotes, lists, tables, footnote definitions, code fences,
+ * hr) don't belong in a rule set used to parse a single-line *span* - link
+ * text or a table cell, where `ctx.cursor === ctx.lineStart` is trivially
+ * true at offset 0 and would otherwise let e.g. a cell that happens to start
+ * with `# ` turn into a heading. `md:hr` is kept regardless: the emphasis
+ * trigger rules' shared `tokenize` (rules/emphasis.ts) can emit an `md:hr`
+ * token on a bare `___` run without going through `hrRule`'s own
+ * trigger/validate at all, and a sub-parse missing a rule for a tag its own
+ * tokens can produce throws in the tree builder rather than degrading.
+ */
+export function inlineOnly(rules: readonly AnyRule[]): AnyRule[] {
+	return rules.filter((rule) => rule.id === "md:hr" || !isBlockTag(rule.id));
+}
+
+/**
+ * Runs `source` - always a single-line span with no block structure of its
+ * own - through the same `Lexer`/`TreeBuilder` pipeline a whole document
+ * gets, and hands back just the inline nodes it produced.
+ *
+ * The lexer always wraps its output in a `core:paragraph` (see lexer.ts's
+ * `tokenize()`), so the paragraph itself is unwrapped here rather than being
+ * a node every caller (link text, a table cell) has to special-case away.
+ * Nothing about `source` can actually start a second paragraph - it has no
+ * blank lines - but every child's own paragraph is still flattened in case
+ * one somehow appears, rather than only ever looking at the first.
+ */
+export function parseInline(source: string, rules: readonly AnyRule[]): Node[] {
+	if (source === "") return [];
+	const pool = rules as AnyRule[];
+	const tokens = new Lexer(source, pool).tokenize();
+	const root = new TreeBuilder(pool).build(tokens);
+	return root.children.flatMap((child) =>
+		child.tag === "core:paragraph" ? child.children : [child]
+	);
+}
+
+/** Plain-text flattening of already-parsed inline nodes - the shape `data.text`/
+ * `data.columns` compatibility fields need for consumers (the docx/odt/text
+ * write profiles) that only ever read flat text off a link or table cell and
+ * were never taught to walk real children. */
+export function flattenInline(nodes: readonly Node[]): string {
+	return nodes.map((node) => {
+		if (node.tag === "core:text") return (node.data as { value: string }).value;
+		const data = node.data as { value?: string; alt?: string };
+		if (typeof data?.value === "string") return data.value;
+		if (typeof data?.alt === "string") return data.alt;
+		return flattenInline(node.children);
+	}).join("");
+}
+
+/**
+ * Scans forward from `ctx.cursor + startOffset` for the position that
+ * balances an already-open bracket, treating `open`/`close` as an
+ * independent nesting counter so a construct that reuses the same
+ * delimiter nested inside (an image's `![alt]` inside a link's `[...]`)
+ * doesn't fool the scan into stopping at the *inner* delimiter - the bug
+ * `ctx.toNextSubstring` alone produces, since it only ever finds the
+ * *nearest* occurrence. Returns the offset of the matching `close`, or
+ * `null` if the input ends first.
+ */
+export function findBalancedClose(
+	ctx: LexerContext,
+	open: string,
+	close: string,
+	startOffset: number,
+): number | null {
+	let depth = 1;
+	let offset = startOffset;
+	for (;;) {
+		const ch = ctx.peek(1, offset);
+		if (ch.length !== 1) return null;
+		if (ch === open) depth++;
+		else if (ch === close) {
+			depth--;
+			if (depth === 0) return offset;
+		}
+		offset++;
+	}
 }

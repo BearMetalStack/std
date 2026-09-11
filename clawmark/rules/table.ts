@@ -1,10 +1,30 @@
 import type { AnyRule, Node, Rule, SerializeContext, Token } from "../types.ts";
 import type { XmlElement } from "../xml/types.ts";
-import { appendLeaf, closeNode, escapeHtml, openNode } from "./helpers.ts";
+import {
+	appendLeaf,
+	closeNode,
+	escapeHtml,
+	flattenInline,
+	inlineOnly,
+	openNode,
+	parseInline,
+} from "./helpers.ts";
 
 type TableData = { columns: number; phase: "open" | "close" };
+/** `columns` is a flattened compatibility fallback for consumers (the
+ * docx/odt/text write profiles) that only ever read flat per-cell text and
+ * were never taught to walk real children - see `md:tablecell` for the real
+ * content. Populated from the cells for a row parsed here; a row built by a
+ * reverse profile that never learned to recurse (docx/odt) still carries only
+ * this field, with no `md:tablecell` children at all. */
 type RowData = { columns: string[] };
+type CellData = { index: number };
 type FormatData = { columns: ("l" | "c" | "r")[] };
+
+/** `tokenize`'s only channel back to `tree()` is `Token.data`, so a cell's
+ * parsed children ride along next to its public `CellData` until `tree()`
+ * splits them back out onto the node proper - same trick as `md:link`. */
+type CellToken = CellData & { children: Node[] };
 
 /**
  * Table rendering needs to know "is this the first row" (head) and the
@@ -16,6 +36,12 @@ type FormatData = { columns: ("l" | "c" | "r")[] };
  */
 
 const DELIMITER: Record<"l" | "c" | "r", string> = { l: ":-", c: ":-:", r: "-:" };
+
+const ALIGN_STYLE: Record<"l" | "c" | "r", string> = {
+	l: "text-align:left",
+	c: "text-align:center",
+	r: "text-align:right",
+};
 
 /**
  * The table owns its whole layout because the delimiter row is not a sibling
@@ -33,24 +59,40 @@ function serializeTable(node: Node, ctx: SerializeContext): string {
 		.slice(0, columns);
 	while (align.length < columns) align.push("l");
 
-	const line = (cells: string[]) => {
-		const padded = [...cells];
-		while (padded.length < columns) padded.push("");
-		// tableRule.tokenize splits on a bare `|` with no escape awareness, so a
-		// pipe inside a cell cannot survive a re-lex. Emit the escape anyway -
-		// it is correct markdown and degrades gracefully elsewhere - and warn.
-		return `|${padded.map((c) => ctx.escape(c.replace(/\n/g, " "), "cell")).join("|")}|`;
+	const cellsOf = (row: Node) => row.children.filter((c) => c.tag === "md:tablecell");
+
+	/**
+	 * A real `md:tablecell` child (every row this package's own parser
+	 * builds) is re-serialized through the normal recursion, so a link or
+	 * image inside it comes back out as real markdown syntax instead of the
+	 * escaped literal text `escapeHtml(cell)` used to produce. A leaf row
+	 * with no such children (docx/odt) falls back to its flat `data.columns`
+	 * string, which - unlike a real child - was never escaped by anything
+	 * yet and so still needs the full inline pass.
+	 */
+	const cellText = (row: Node, index: number): string => {
+		const cells = cellsOf(row);
+		if (cells.length > 0) {
+			const text = cells[index] ? ctx.children(cells[index]) : "";
+			return text.replace(/\n/g, " ").replaceAll("|", "\\|");
+		}
+		const raw = (row.data as RowData).columns[index] ?? "";
+		return ctx.escape(raw.replace(/\n/g, " "), "cell");
 	};
 
-	if (rows.some((r) => (r.data as RowData).columns.some((c) => c.includes("|")))) {
-		ctx.warn("`|` inside a table cell will not survive a re-parse", node);
-	}
+	const line = (row: Node) => {
+		const cells = Array.from({ length: columns }, (_, i) => cellText(row, i));
+		if (cells.some((c) => c.includes("|"))) {
+			ctx.warn("`|` inside a table cell will not survive a re-parse", node);
+		}
+		return `|${cells.join("|")}|`;
+	};
 
 	const [head, ...body] = rows;
 	return [
-		line((head.data as RowData).columns),
+		line(head),
 		`|${align.map((a) => DELIMITER[a]).join("|")}|`,
-		...body.map((r) => line((r.data as RowData).columns)),
+		...body.map((r) => line(r)),
 	].join("\n");
 }
 
@@ -92,7 +134,17 @@ export function createTableRules(): AnyRule[] {
 					},
 				});
 			} else {
-				tokens.push({ tag: "md:tablerow", data: { columns: cells } });
+				// A table cell is single-line by construction (it came from
+				// splitting one line on `|`), so only inline constructs are ever
+				// legal inside it - a link, an image, emphasis, code, but never a
+				// heading or a nested table.
+				const cellRules = inlineOnly(ctx.rules);
+				tokens.push({ tag: "md:tablerow", data: { phase: "open" } });
+				cells.forEach((text, index) => {
+					const children = parseInline(text, cellRules);
+					tokens.push({ tag: "md:tablecell", data: { index, children } });
+				});
+				tokens.push({ tag: "md:tablerow", data: { phase: "close" } });
 			}
 
 			ctx.cursor += cLine.length - 1;
@@ -132,11 +184,25 @@ export function createTableRules(): AnyRule[] {
 					(c): c is XmlElement => c.kind === "element" && (c.name === "td" || c.name === "th"),
 				);
 
-			const nodes: Node[] = rows.map((row) => ({
-				tag: "md:tablerow",
-				data: { columns: cellsOf(row).map((cell) => ctx.text(cell)) },
-				children: [],
-			}));
+			const nodes: Node[] = rows.map((row) => {
+				const cellEls = cellsOf(row);
+				const rowNode: Node = {
+					tag: "md:tablerow",
+					data: { columns: cellEls.map((cell) => ctx.text(cell)) },
+					children: [],
+				};
+				cellEls.forEach((cellEl, index) => {
+					const cellNode: Node = {
+						tag: "md:tablecell",
+						data: { index },
+						children: [],
+						parent: rowNode,
+					};
+					ctx.crawlChildren(cellNode, cellEl);
+					rowNode.children.push(cellNode);
+				});
+				return rowNode;
+			});
 
 			const bodyRow = rows.find((row) => cellsOf(row).some((c) => c.name === "td"));
 			const align = (bodyRow ? cellsOf(bodyRow) : []).map((cell) => alignOf(cell));
@@ -168,7 +234,17 @@ export function createTableRules(): AnyRule[] {
 		trigger: "|",
 		validate: () => false,
 		tokenize: () => ({ tag: "md:tablerow", data: { columns: [] } }),
-		tree: (token, ctx) => appendLeaf(ctx, "md:tablerow", (token as Token<RowData>).data),
+
+		tree(token, ctx) {
+			const phase = (token.data as unknown as { phase: "open" | "close" }).phase;
+			if (phase === "open") {
+				openNode(ctx, "md:tablerow", { columns: [] });
+			} else {
+				const row = ctx.currentNode;
+				(row.data as RowData).columns = row.children.map((cell) => flattenInline(cell.children));
+				closeNode(ctx);
+			}
+		},
 
 		serializeKind: "block",
 		// Emitted by the table, which owns row ordering and the delimiter row.
@@ -176,22 +252,48 @@ export function createTableRules(): AnyRule[] {
 
 		renderOpen(node) {
 			const state = renderState ?? { head: false };
+			const open = state.head ? "<thead><tr>" : "<tr>";
+			const cells = node.children.filter((c) => c.tag === "md:tablecell");
+			if (cells.length > 0) return open;
+			// A row built by a reverse profile that never learned to recurse
+			// (docx/odt) is still a leaf carrying only `data.columns` - there are
+			// no md:tablecell children for the renderer to visit, so render them
+			// here directly, same as before this rule gained real children.
 			const cellTag = state.head ? "th" : "td";
-			// The header row renders before the alignment row (if any) has
-			// been seen, so its alignment isn't known yet - v1
-			// (webbies/lib/md/html.ts) sidesteps that by always centering the
-			// head row instead of leaving it unstyled.
-			const cells = node.data.columns.map((cell, i) => {
+			const legacy = node.data.columns.map((cell, i) => {
 				const align = state.head ? "c" : (state.columnAlign?.[i] ?? "l");
-				const style = align === "c"
-					? "text-align:center"
-					: align === "r"
-					? "text-align:right"
-					: "text-align:left";
-				return `<${cellTag} style="${style}">${escapeHtml(cell)}</${cellTag}>`;
+				return `<${cellTag} style="${ALIGN_STYLE[align]}">${escapeHtml(cell)}</${cellTag}>`;
 			}).join("");
-			const row = `<tr>${cells}</tr>`;
-			return state.head ? `<thead>${row}</thead>` : row;
+			return `${open}${legacy}`;
+		},
+		renderClose(_node) {
+			const state = renderState ?? { head: false };
+			return state.head ? "</tr></thead>" : "</tr>";
+		},
+	};
+
+	const tableCellRule: Rule<CellData> = {
+		id: "md:tablecell",
+		trigger: "|",
+		validate: () => false,
+		tokenize: () => ({ tag: "md:tablecell", data: { index: 0 } }),
+
+		tree(token, ctx) {
+			const { children, ...data } = token.data as unknown as CellToken;
+			const node: Node<CellData> = { tag: "md:tablecell", data, children, parent: ctx.currentNode };
+			for (const child of children) child.parent = node;
+			ctx.currentNode.children.push(node as Node);
+		},
+
+		renderOpen(node) {
+			const state = renderState ?? { head: false };
+			const cellTag = state.head ? "th" : "td";
+			const align = state.head ? "c" : (state.columnAlign?.[node.data.index] ?? "l");
+			return `<${cellTag} style="${ALIGN_STYLE[align]}">`;
+		},
+		renderClose() {
+			const state = renderState ?? { head: false };
+			return state.head ? "</th>" : "</td>";
 		},
 	};
 
@@ -214,5 +316,5 @@ export function createTableRules(): AnyRule[] {
 		},
 	};
 
-	return [tableRule, tableRowRule, tableFormatRule];
+	return [tableRule, tableRowRule, tableCellRule, tableFormatRule];
 }
