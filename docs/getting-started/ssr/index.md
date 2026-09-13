@@ -111,7 +111,8 @@ moving. Markup is only handed back once it has. :::
 
 One bundle, built once, for the whole app — every component in
 [`@components`](../components/component-directory), not the ones this page happened to use.
-`createStack()` builds it at startup and puts two tags in every page's `<head>`:
+`appModule()` (`@bearmetal/app/serve`) builds it at startup and puts two tags in every page's
+`<head>`:
 
 ```html
 <link rel="stylesheet" href="/@bearmetal/components/index.css?v=…" />
@@ -133,6 +134,20 @@ Component stylesheets do not come from the bundle. They are collected on the ser
 component's module is imported, with `:scope` rewritten to the tag, and served as that one
 stylesheet — so the first paint is styled without waiting for any JavaScript.
 
+### Shared modules, and per-route orchestration
+
+Two more directories feed the same one bundle, alongside `@components`:
+
+- [`@app`](../components/app-directory) — shared client modules (stores and anything else a
+  component or a page needs to import). Plain modules, no manifest, no route-scoping — every file
+  here ships unconditionally, so a store can exist ahead of its first consumer.
+- [`@pages`](../components/app-directory) — one file per route, resolved with the same `_id`/`main`
+  fallback [`@components` manifests use](../components/component-directory), that self-registers a
+  client-side init function for that route rather than getting its own bundle entrypoint. `Page()`
+  embeds which route resolved as a `<meta name="bm-page">` tag; the bundle dispatches to the
+  matching registration once, on load. A client-side `<Router>` navigating between pages does not
+  re-run this — only a full page load does.
+
 ### What does not ship
 
 `serverInit` and `stylesheet` bodies are removed from every component _before_ the bundler reads it,
@@ -148,9 +163,10 @@ makes the import unused, and an unused import is one the bundler can drop.
 
 The components directory is mirrored into a temporary copy with the bodies gone, and the bundler is
 pointed at the copy; the server goes on importing the originals, because it needs the halves the
-browser must not have. Anything the copy cannot reach — a component pulled in from another package,
-or through an import-map alias — is still stripped, just from the output, so its body never ships
-even though its imports do.
+browser must not have. A relative import that leaves the directory, or a local alias like `@app/`,
+is rewritten to point straight at the real file — the copy has no `deno.json` of its own for either
+kind to resolve against. A `jsr:`/`npm:` specifier needs none of this: it resolves the same wherever
+the importing file sits.
 
 ::: tip Guarantee it
 

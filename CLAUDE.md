@@ -112,18 +112,49 @@ overrides it. Packages should only set genuinely package-specific `compilerOptio
 `jsxImportSource`, `types`). If you find yourself adding `lib` to a package, you are about to break
 its dependents. Run `deno task workspace:check` after touching any `deno.json`.
 
-## The client bundle (`stack/`, `app/ssr/`)
+## The client bundle (`app/ssr/`, `app/serve/`)
 
-One bundle for the whole app, built once at startup from the components directory (`components/` or
-`src/components/`), served from `/@bearmetal/components/index` with its CSS next to it, and
-_referenced_ from every page's `<head>` rather than inlined. Three rules follow from that and each
-one has bitten:
+One bundle for the whole app, built once at startup from `@components`/`@app`/`@pages`, served from
+`/@bearmetal/components/index` with its CSS next to it, and _referenced_ from every page's `<head>`
+rather than inlined. Three project-level directory conventions feed it, each with a distinct job:
+
+- **`@components/`** (`components/` or `src/components/`) — UI custom elements. A route's components
+  are named by a `main.manifest.ts`/`<segment>.manifest.ts` file (side-effect imports, so `@define`
+  registers without a view ever importing the class); nested manifests fall back to the nearest
+  enclosing `main.manifest.ts` using the same `:id` → `_id` segment convention the
+  `bearmetal
+  generate route` scaffolder uses for filenames (`components/users/_id.manifest.ts` for
+  `/users/:id`, `components/main.manifest.ts` as the root fallback). This resolution is diagnostic
+  only — every manifest found anywhere is unioned into the one bundle regardless of route, because
+  "never bundle per page" (below) still holds. With no manifest anywhere, the whole directory globs
+  in, unchanged from the original zero-config behavior. `main.manifest.ts` is the only recognized
+  fallback filename; the old flat `manifest.ts` (default) / `<subset>.manifest.ts` (arbitrary named
+  extra bundle) system is gone.
+- **`@app/`** (`app/` or `src/app/`) — shared client modules: stores and anything else a component
+  or a `@pages` file needs to import. Plain ES modules, no manifest, no route-scoping — just a
+  stable import alias. Every file here is unconditionally included in the bundle even if nothing
+  imports it yet, so a store can exist ahead of its first consumer.
+- **`@pages/`** (`pages/` or `src/pages/`) — per-route client orchestration, one file per route,
+  resolved via the same `_id`/`main` fallback chain as `@components` manifests
+  (`app/serve/routeResolution.ts`'s `routeCandidates`/`resolveForRoute`). A `@pages/<candidate>.ts`
+  file self-registers an init function at module scope via `registerPage(key, fn)` — mirroring how
+  `@define` self-registers a tag — rather than getting its own bundle entrypoint and `<script src>`.
+  The server resolves the winning candidate for the current route and embeds it as
+  `<meta name="bm-page" content="...">`; the bundle's own `dispatch()` call (from `@bearmetal/app`,
+  the last statement of the synthesized entry) reads that tag and invokes the matching registration.
+  A client-side `<Router>` navigating between pages does **not** re-run a different route's `@pages`
+  dispatch — only a full page load does. `@views/` is unrelated: it's the existing, server-only
+  `Layout`/`Page()` definitions, untouched by any of this.
+
+Four rules follow from all of that and each one has bitten:
 
 - **Never bundle per page.** `Page()` used to collect the custom elements a page rendered and bundle
   their modules. A client-side `<Router>` then navigates to a page whose components were never
-  shipped and finds nothing to upgrade with.
+  shipped and finds nothing to upgrade with. The three conventions above only change _how_ a
+  developer organizes what feeds the bundle — everything still folds into one synthesized entry and
+  one `bundleEntrypoints()` call.
 - **Views name components, they do not import them.** A view is server-only. Importing a component
-  class renders it and does not ship it — only the components directory feeds the bundle.
+  class renders it and does not ship it — only `@components`/`@app`/`@pages` feed the bundle.
 - **The client rebuilds rather than adopts, so `@state` is handed over out of band.** A component's
   first client render replaces its children, discarding nested components that had already hydrated.
   `app/hydration.ts` lifts every snapshot out of the document before that happens and hands it to
@@ -138,14 +169,26 @@ one has bitten:
   reach a browser: it works against a code/not-code mask built in one pass (`scanMask`) because the
   ad-hoc scanner it replaced did not know a regex literal from division, desynced partway through a
   real bundle, and silently stopped stripping. It warns loudly if a definition survives; treat that
-  warning as a leak.
-- **The mirror lives outside the project, so its JSX files need a pragma.** `compilerOptions` come
-  from the config Deno resolved for the program and do not reach a copy in a temp directory —
-  without `@jsxImportSource` the mirror compiles against the default runtime and the bundle ships
-  `React.createElement`. `appJsxImportSource()` reads the app's own setting rather than assuming.
+  warning as a leak. Only `@components` gets this treatment — `@app`/`@pages` have no server-only
+  code convention, so they bundle straight from their real paths.
+- **The mirror lives outside the project, so its JSX files need a pragma, and its imports need
+  rewriting.** `compilerOptions` and `imports` come from the config Deno resolved for the _program_
+  and do not reach a copy in a temp directory — `appJsxImportSource()`/`localImportAliases()`
+  (`app/serve/discovery.ts`) read the app's own settings rather than assuming. Without the pragma,
+  the mirror compiles JSX against the default runtime and the bundle ships `React.createElement`.
+  Without the alias rewrite, a mirrored file importing a local alias (e.g. `@app/stores/users.ts`)
+  fails to resolve — `Deno.bundle` fails the whole entry silently, with zero scripts and no thrown
+  error, so this is invisible until something actually imports through an alias. A `deno.json`
+  placed _inside_ the mirror does **not** fix this (same reason the pragma is a text rewrite and not
+  a `compilerOptions` copy) — `rewriteEscapingImports` (`app/ssr/prestrip.ts`) rewrites a matching
+  bare specifier inline instead, the same treatment already given to a relative import that leaves
+  the tree. `jsr:`/`npm:` specifiers need none of this: those resolve the same everywhere, through
+  the global cache, regardless of where the importing file sits.
 
-`app/ssr` owns rendering and `bundleEntrypoints`; `stack` owns discovery, serving and the
-`contributeHead()` registration. `Page()` injects nothing on its own.
+`app/ssr` owns rendering and `bundleEntrypoints`; `app/serve` owns discovery, bundling, serving, and
+the `contributeHead()`/`contributeRouteHead()` registrations. `Page()` injects nothing on its own —
+see `stack/examples/project/main.ts` for how `appModule()` mounts. `stack` owns none of this; it's
+purely the `deno create jsr:@bearmetal/stack` scaffolding CLI.
 
 The scaffolding templates are **generated from the example apps** (`deno task bm:templates` in
 `stack/`, output `stack/templates/embedded.ts`), so a template is type-checked by `workspace:check`
@@ -155,7 +198,9 @@ like any other code. Edit `stack/examples/project`, then regenerate.
 
 Routes under `/@bearmetal/*` may only be registered by a `TrustedModule` (`router/module.ts`), an
 exported abstract class whose subclass must pass a non-empty name to `super()`. `ForagerModule`
-claims `@bearmetal/forager`; `stack`'s `StackComponentsModule` claims `@bearmetal/components`.
+claims `@bearmetal/forager`; `app`'s `AppModule` (`app/serve/mod.tsx`) claims
+`@bearmetal/components` — the reserved route name is a stable, public contract, so it didn't move
+with the class when discovery/bundling/serving moved out of `stack/` and into `app/serve`.
 
 `TrustedModule` is public on purpose — **this is not a security boundary.** A module you `.use()`
 already runs arbitrary code in your process and can patch `Router.prototype` directly. What the
@@ -202,12 +247,16 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
 - **`app/`** — the component framework: `BMElement` (custom element base class wiring
   signals/effects/refs/context into the Custom Elements lifecycle), the `@define(tag)` decorator
   (one argument — it took `import.meta` while `Page()` bundled per page, and no longer does),
-  `app/signals` (pinned TC39 Signals polyfill), `app/context` (both call-stack-scoped "stack
-  context" for SSR and DOM-tree-walking "DOM context" for components — extend via
-  declaration-merging `ContextMap`), `app/ssr` (`Layout`/`Page` router middleware plus the
-  `renderToTree`/`renderToString` renderer — renders synchronously against Slag, settles every
+  `app/signals` (pinned TC39 Signals polyfill), `app/pages` (`registerPage()`/`dispatch()` — the
+  client-side `@pages` dispatch runtime, exported from the package root), `app/context` (both
+  call-stack-scoped "stack context" for SSR and DOM-tree-walking "DOM context" for components —
+  extend via declaration-merging `ContextMap`), `app/ssr` (`Layout`/`Page` router middleware plus
+  the `renderToTree`/`renderToString` renderer — renders synchronously against Slag, settles every
   `serverInit()` and promise the tree raised, snapshots `@state` into the markup, then appends
-  whatever registered a `contributeHead()` contributor to `<head>`).
+  whatever registered a `contributeHead()`/`contributeRouteHead()` contributor to `<head>`),
+  `app/serve` (`appModule()` — discovers `@components`/`@app`/`@pages`, strips and bundles them in
+  one pass, serves the result at the reserved `/@bearmetal/components` endpoint; see "The client
+  bundle" above).
   - Component lifecycle across the seam: one `template`, rendered by one runtime on both sides.
     `init()` is the browser half and never runs during a server render; `serverInit()` is the server
     half and never ships to the browser (`stripServerCode` empties it). `@state` marks the signals
@@ -228,8 +277,10 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
 - **`auth/`**, **`sockpuppet/`** (WebSocket channels), **`devproxy/`**, **`drip/`**
   (theme/stylesheet generation), **`webbies/`** (UI component library) — feature packages, each a
   router `Module` or standalone toolset following the same conventions.
-- **`stack/`** — the `deno create jsr:@bearmetal/stack` scaffolding CLI/wizard that assembles a new
-  app from the other packages (optional db/auth/dev-proxy modules).
+- **`stack/`** — purely the `deno create jsr:@bearmetal/stack` scaffolding CLI/wizard that assembles
+  a new app from the other packages (optional db/auth/dev-proxy modules). It owns none of the SSR or
+  client-bundling machinery — that's `app/ssr`/`app/serve` — only the wizard itself and its own
+  leftovers (a Google Fonts helper the scaffolded template embeds).
 - **`cli/`**, **`cog/`** — internal CLI/arg-parsing and flow-builder tooling used by `stack`'s
   wizard.
 

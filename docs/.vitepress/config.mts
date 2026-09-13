@@ -43,6 +43,7 @@ export default defineConfig({
 						collapsed: false,
 						items: [
 							{ text: "@components", link: "/component-directory" },
+							{ text: "@app / @pages", link: "/app-directory" },
 							{ text: "Templates", link: "/templates" },
 							{ text: "Lifecycle", link: "/lifecycle" },
 							{ text: "Reactivity", link: "/reactivity" },

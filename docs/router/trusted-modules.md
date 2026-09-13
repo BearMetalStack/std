@@ -65,10 +65,10 @@ ordinary `Module` happened to carry it upward.
 
 Two modules in the stack claim reserved names today:
 
-| Module                  | Claims                  |
-| ----------------------- | ----------------------- |
-| `ForagerModule`         | `@bearmetal/forager`    |
-| `StackComponentsModule` | `@bearmetal/components` |
+| Module          | Claims                  |
+| --------------- | ----------------------- |
+| `ForagerModule` | `@bearmetal/forager`    |
+| `AppModule`     | `@bearmetal/components` |
 
 Unless you are building framework-level tooling that needs a well-known path, you do not need a
 trusted module. Ordinary [modules](./modules) can register anything outside the reserved prefix, and

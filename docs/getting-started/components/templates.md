@@ -1,10 +1,10 @@
 ---
 next:
-    text: "Lifecycle"
-    link: "./lifecycle"
+  text: "Lifecycle"
+  link: "./lifecycle"
 prev:
-    text: 'The `\components` Directory'
-    link: "./component-directory"
+  text: "@app / @pages"
+  link: "./app-directory"
 ---
 
 # Templates
@@ -58,13 +58,11 @@ export class MyComponent extends BMElement {
 </my-component>;
 ```
 
-::: warning
-A shadow root is a browser-side thing. `useShadow()` is called from `init()`, which does
+::: warning A shadow root is a browser-side thing. `useShadow()` is called from `init()`, which does
 not run during a server render, so the server puts the template in the component's light DOM and
 replaces whatever children were passed to it. The slotted content is lost, and the browser
 re-renders into a shadow root on top of the leftovers.
 
 For a component built around `<slot>`, mark it `static client = true`. The server then emits its tag
 and its children untouched, and the browser slots them properly when the element upgrades. See
-[Server-Side Rendering](/getting-started/ssr/rendering#things-to-watch-for).
-:::
+[Server-Side Rendering](/getting-started/ssr/rendering#things-to-watch-for). :::

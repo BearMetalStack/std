@@ -1,7 +1,7 @@
 ---
 next:
-  text: "Templates"
-  link: "./templates"
+  text: "@app / @pages"
+  link: "./app-directory"
 prev:
   text: "Components"
   link: "./index"
@@ -46,47 +46,53 @@ export const home = Page(() => <App />);
 Naming the tag is the whole point of the directory: the component is registered before the first
 request, so the tag resolves, and it is in the bundle, so it upgrades.
 
-## `manifest.ts` and `<subset>.manifest.ts` files
+## `main.manifest.ts` files, and resolving per route
 
-Inside the `@components` directory, you can optionally provide `manifest.ts` files to define which
-components should be included in the bundle. This is useful if you have a large number of components
-and only want to include a subset of them, or if you wish to import components from external
-libraries or from @bearmetal/webbies. When doing so, `@components/manifest.ts` will generate the
-default bundle that will always be included instead of compiling a single bundle that includes _all_
-of the components in `@components`.
+Inside `@components`, you can optionally provide `main.manifest.ts` files to name which components a
+part of your app needs, instead of letting every component in the directory glob into the bundle.
+This is useful if you have a large number of components and only want to name a specific set, or if
+you wish to import components from external libraries or from `@bearmetal/webbies`.
 
 ```ts
-// @components/manifest.ts - automatically included in the served page
+// @components/main.manifest.ts - the root fallback, always included
 import "./component-a.ts";
 import "./component-b.ts";
-import "./component-c.ts";
-import "./component-d.ts";
-import "./component-e.ts";
-import "./component-f.ts";
-import "./component-g.ts";
-import "./component-h.ts";
-import "./component-i.ts";
-import "./component-j.ts";
-import "./component-k.ts";
-import "./component-l.ts";
 import "@bearmetal/webbies/markdown"; // Only include the Webbies markdown components
 ```
 
-### Component Subsets
+The moment any `main.manifest.ts` (or nested `<segment>.manifest.ts`, below) exists anywhere under
+`@components`, the whole-directory glob stops applying — with none at all, every component in the
+directory still ships, unchanged.
 
-Other bundle subsets can be created in `@components/<subset>.manifest.ts` files. These will generate
-unique bundles that can be accessed from the `/@bearmetal/components` endpoint in a script tag.
+### Per-route manifests
+
+A manifest can also be nested to name components a specific route needs, on top of whatever the
+nearest enclosing `main.manifest.ts` already ships. The file is named after the route's last
+segment, using the same `:id` → `_id` convention as the `bearmetal generate route` scaffolder:
 
 ```ts
-// @components/subsetAB.manifest.ts
-import "./component-a.ts";
-import "./component-b.ts";
+// @components/users/_id.manifest.ts - additive, for /users/:id
+import "./profile.tsx";
 ```
 
-```html
-<script type="module" src="/@bearmetal/components/subsetAB"></script>
+```
+@components/
+  main.manifest.ts        # fallback for any route with nothing more specific
+  users/
+    main.manifest.ts      # fallback for /users/* routes
+    _id.manifest.ts       # /users/:id specifically
 ```
 
-Every bundle is built in a single pass with code splitting on, so anything a subset shares with the
-default bundle is hoisted into a shared chunk that each bundle imports. Adding a subset does not
-duplicate the components or the runtime it has in common with the others.
+Resolution walks from the matched route's most specific candidate up to the nearest
+`main.manifest.ts` (`/users/:id` tries `users/_id`, then `users/main`, then `main`) — but this is
+**diagnostic only**: every manifest found anywhere is unioned into the one bundle regardless of
+route, because
+[a client-side `<Router>` navigating to an unvisited page still needs its components
+already shipped](../ssr/#what-ships-to-the-browser). What the resolution actually decides is purely
+informational (and, in dev, whether to warn that a route has no manifest resolving to it at all) —
+it never changes what ships. For that, see [`@pages`](./app-directory), which resolves the same way
+but _does_ have a real per-route effect.
+
+There is no longer a way to build an arbitrary, unrelated named bundle (the old flat `manifest.ts` /
+`<subset>.manifest.ts` system) — every manifest is now either `main.manifest.ts` or scoped to a
+route segment.

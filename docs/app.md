@@ -665,7 +665,9 @@ A terminal route handler that:
    one, with the request URL scoped to the render
 2. Renders it, then settles every `serverInit()` and promise the tree raised
 3. Snapshots each component's `@state` into its markup
-4. Finds `<head>` in the tree and appends everything registered with `contributeHead()`
+4. If a `Layout` is in play, finds `<head>` in the tree (synthesizing one if the layout's own JSX
+   didn't render one — with a once-per-process warning) and appends everything registered with
+   `contributeHead()`, then everything registered with `contributeRouteHead()`
 5. Serializes, with a `<!DOCTYPE>`
 
 ```tsx
@@ -674,13 +676,14 @@ router.route("/dashboard").get(
 );
 ```
 
-`Page()` does not decide what the browser loads. `createStack()` from `@bearmetal/stack` builds one
-bundle for the whole app and registers the `<link>` and `<script>` that reference it; anything else
-that belongs in every page's head can register the same way. A page rendered with no contributor at
-all warns once, because a page full of custom elements and no bundle is always a mistake.
+`Page()` does not decide what the browser loads. `appModule()` from `@bearmetal/app/serve` builds
+one bundle for the whole app and registers the `<link>` and `<script>` that reference it; anything
+else that belongs in every page's head can register the same way. A page rendered with no
+contributor at all warns once, because a page full of custom elements and no bundle is always a
+mistake.
 
-A page with no `<head>` anywhere in it is serialized as a fragment, with no doctype and nothing
-injected.
+A page rendered with no `Layout` at all is serialized as a bare fragment, with no doctype and
+nothing injected — `contributeHead()`/`contributeRouteHead()` only apply once a `Layout` is in play.
 
 `serverInit` and `stylesheet` bodies are removed from the bundle on the way out, so a component's
 server-side dependencies never reach the browser.
@@ -694,6 +697,27 @@ Returns a function that unregisters it.
 ```tsx
 contributeHead(() => <script type="module" src="/analytics.js" />);
 ```
+
+### `contributeRouteHead(fn)`
+
+Like `contributeHead()`, but `fn` is passed the matched route's path template (`ctx.route?.path`,
+e.g. `"/users/:id"`) so it can contribute something specific to the page currently rendering. This
+is how `appModule()` wires up the per-route `@pages` dispatch `<meta name="bm-page">` tag — see
+[the component directory guide](/getting-started/components/component-directory) for the
+`@components`/`@app`/`@pages` conventions this supports.
+
+```tsx
+contributeRouteHead((route) => route ? <meta name="current-route" content={route} /> : null);
+```
+
+### `registerPage(key, init)` / `dispatch()`
+
+The client-side half of `@pages` dispatch, from `@bearmetal/app`. A `@pages/<candidate>.ts` file
+calls `registerPage(key, init)` at module scope to register its init function under its route
+candidate key (mirroring how `@define` self-registers a tag); `dispatch()` — called once, as the
+last statement of the bundle `appModule()` builds — reads the `<meta name="bm-page">` tag the server
+embedded and calls the matching registration, if any. Neither is typically called directly outside
+that generated entry.
 
 ::: warning Props handed to a component from a `Page()` view configure the server render and then
 they are gone — a declared `@prop` is written as a signal, not an attribute, and the view itself is
