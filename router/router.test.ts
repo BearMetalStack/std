@@ -175,6 +175,32 @@ describe("Router", () => {
 		});
 	});
 
+	describe("ctx.route", () => {
+		it("exposes the fully-joined path template through nested mounts", async () => {
+			const apiRouter = new Router();
+			const usersRouter = new Router();
+			usersRouter.route("/:id").get(async (ctx) => new Response(ctx.route?.path));
+			apiRouter.use("/users", usersRouter);
+			router.use("/api", apiRouter);
+
+			const req = new Request("http://localhost/api/users/123", { method: "GET" });
+			const res = await router.handle(req, {} as any);
+			assertEquals(await res.text(), "/api/users/:id");
+		});
+
+		it("is undefined when only middleware matches, not a method handler", async () => {
+			let route: { path: string } | undefined;
+			router.use(async (ctx, next) => {
+				route = ctx.route;
+				return await next();
+			});
+
+			const req = new Request("http://localhost/nonexistent", { method: "GET" });
+			await router.handle(req, {} as any);
+			assertEquals(route, undefined);
+		});
+	});
+
 	describe("Context State", () => {
 		it("should maintain state across middleware chain", async () => {
 			router.use(async (ctx, next) => {

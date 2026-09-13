@@ -63,6 +63,18 @@ export interface RouterContext<
 	): Service<T>;
 	connection: Deno.ServeHandlerInfo<Deno.Addr>;
 	cookies: Map<string, string>;
+	/**
+	 * The path template of the route whose terminal (method) handler is
+	 * running, exactly as passed to `.route()`, fully joined through every
+	 * mounted module back to the root - e.g. `"/users/:id"`.
+	 *
+	 * `undefined` when the request matched no route with a handler for this
+	 * method (a 404 or 405) - there is no terminal template to report.
+	 */
+	route?: {
+		path: string;
+		pattern: URLPattern;
+	};
 }
 
 /**
