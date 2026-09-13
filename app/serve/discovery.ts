@@ -225,7 +225,57 @@ export async function appJsxImportSource(from = "."): Promise<string | undefined
 	return undefined;
 }
 
-type PartialConfig = { compilerOptions?: { jsxImportSource?: unknown } };
+/**
+ * The app's own local import-map aliases (`@components/`, `@app/`, ...),
+ * absolutized to `file://` URLs, for the stripped `@components` mirror.
+ *
+ * `Deno.bundle` resolves a `jsr:`/`npm:` specifier the same wherever the
+ * importing file sits, through the global cache - but a *local* path alias
+ * only resolves through whatever `deno.json` is nearest the file being
+ * resolved, and the mirror lives outside the project entirely. Without this,
+ * a component importing `@app/stores/users.ts` bundles to nothing (silently:
+ * `Deno.bundle` fails the whole entry and `bundleEntrypoints` has no scripts
+ * to show for it) the moment the mirror has no `deno.json` of its own saying
+ * what `@app/` means. Writing one into the mirror root with these aliases
+ * pre-resolved to their real, absolute location fixes that the same way the
+ * JSX pragma fixes `compilerOptions` not reaching a copy outside the project.
+ */
+export async function localImportAliases(from = "."): Promise<Record<string, string> | undefined> {
+	let dir = await Deno.realPath(from).catch(() => null);
+	while (dir) {
+		for (const name of ["deno.json", "deno.jsonc"]) {
+			const config = await readJson(joinPath(dir, name));
+			if (config?.imports) return absolutizeLocalAliases(config.imports, dir);
+		}
+		const parent = directoryOf(dir);
+		if (parent === dir) break;
+		dir = parent;
+	}
+	return undefined;
+}
+
+/** Whether an import map value is a local filesystem path rather than a `jsr:`/`npm:`/URL specifier. */
+function isLocalAliasValue(value: string): boolean {
+	return !/^(?:jsr:|npm:|https?:|file:)/.test(value);
+}
+
+function absolutizeLocalAliases(
+	imports: Record<string, unknown>,
+	configDir: string,
+): Record<string, string> {
+	const result: Record<string, string> = {};
+	for (const [key, value] of Object.entries(imports)) {
+		if (typeof value !== "string" || !isLocalAliasValue(value)) continue;
+		const abs = joinPath(configDir, value);
+		result[key] = key.endsWith("/") ? `file://${abs}/` : `file://${abs}`;
+	}
+	return result;
+}
+
+type PartialConfig = {
+	compilerOptions?: { jsxImportSource?: unknown };
+	imports?: Record<string, unknown>;
+};
 
 async function readJson(path: string): Promise<PartialConfig | null> {
 	try {

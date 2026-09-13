@@ -68,6 +68,37 @@ Deno.test("an import that leaves the tree is pointed back at the original", asyn
 	await Deno.remove(root, { recursive: true });
 });
 
+Deno.test("a local import-map alias is rewritten to its absolutized target", async () => {
+	const root = await tree({
+		"card.tsx":
+			`import { usersStore } from "@app/stores/users.ts";\nexport const x = usersStore;\n`,
+	});
+	const mirror = await mirrorStripped(root, {
+		imports: { "@app/": "file:///abs/project/app/" },
+	});
+	const copied = await Deno.readTextFile(`${mirror.root}/card.tsx`);
+
+	assertStringIncludes(copied, `from "file:///abs/project/app/stores/users.ts"`);
+
+	await mirror.dispose();
+	await Deno.remove(root, { recursive: true });
+});
+
+Deno.test("an unrelated bare specifier is left alone when no alias matches", async () => {
+	const root = await tree({
+		"card.tsx": `import { z } from "@bearmetal/app";\n`,
+	});
+	const mirror = await mirrorStripped(root, {
+		imports: { "@app/": "file:///abs/project/app/" },
+	});
+	const copied = await Deno.readTextFile(`${mirror.root}/card.tsx`);
+
+	assertStringIncludes(copied, `from "@bearmetal/app"`);
+
+	await mirror.dispose();
+	await Deno.remove(root, { recursive: true });
+});
+
 Deno.test("the JSX pragma is added to JSX files only", async () => {
 	const root = await tree({
 		"card.tsx": component,

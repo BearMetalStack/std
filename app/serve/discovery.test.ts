@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { joinPath } from "@bearmetal/miscellanea";
-import { resolveEntrypoints } from "./discovery.ts";
+import { localImportAliases, resolveEntrypoints } from "./discovery.ts";
 
 async function tempTree(files: Record<string, string>): Promise<string> {
 	const root = await Deno.makeTempDir();
@@ -97,4 +97,32 @@ Deno.test("nothing to bundle when no directory has anything in it", async () => 
 	assertEquals(resolved.sideEffects.length, 0);
 	assertEquals(resolved.componentManifestKeys.size, 0);
 	assertEquals(resolved.pageKeys.size, 0);
+});
+
+Deno.test("localImportAliases absolutizes local path aliases and drops jsr/npm/url ones", async () => {
+	const project = await tempTree({
+		"deno.json": JSON.stringify({
+			imports: {
+				"@app/": "./app/",
+				"@bearmetal/app": "jsr:@bearmetal/app",
+				"lodash": "npm:lodash",
+				"react": "https://esm.sh/react",
+			},
+		}),
+	});
+	try {
+		const aliases = await localImportAliases(project);
+		assertEquals(aliases, { "@app/": `file://${project}/app/` });
+	} finally {
+		await cleanup(project);
+	}
+});
+
+Deno.test("localImportAliases returns undefined when no config has an imports map", async () => {
+	const project = await tempTree({ "deno.json": JSON.stringify({}) });
+	try {
+		assertEquals(await localImportAliases(project), undefined);
+	} finally {
+		await cleanup(project);
+	}
 });

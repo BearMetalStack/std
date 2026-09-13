@@ -33,6 +33,7 @@ import {
 	findAppDir,
 	findComponentsDir,
 	findPagesDir,
+	localImportAliases,
 	type Resolved,
 	resolveEntrypoints,
 	serveMap,
@@ -134,7 +135,10 @@ export function appModule(options: AppModuleOptions | ImportFn = {}): Module {
 		// `@app`/`@pages` have no server-only code to strip, so they bundle
 		// straight from their real paths.
 		const stripped = componentsDir
-			? await mirrorStripped(componentsDir, { jsxImportSource: await appJsxImportSource() })
+			? await mirrorStripped(componentsDir, {
+				jsxImportSource: await appJsxImportSource(),
+				imports: await localImportAliases(),
+			})
 			: undefined;
 		let synthesized: string | undefined;
 
