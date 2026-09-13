@@ -20,11 +20,11 @@ network and finishes in milliseconds.
 A real app using `@bearmetal/app` custom elements needs one more thing:
 
 ```ts
-router.use(createStack((s) => import(s)));
+router.use(appModule((s) => import(s)));
 ```
 
 `Page()` inlines its component scripts but leaves their shared chunks to be fetched separately, and
-`createStack` is what serves them. Without it, diecast reports the chunks as failures rather than
-producing a site whose components silently never hydrate — which is the point of the check. Note
-that `createStack` bundles `jsr:` entrypoints, so that build does need network access on its first
-run.
+`appModule()` (from `@bearmetal/app/serve`) is what serves them. Without it, diecast reports the
+chunks as failures rather than producing a site whose components silently never hydrate — which is
+the point of the check. Note that `appModule()` bundles `jsr:` entrypoints, so that build does need
+network access on its first run.

@@ -3,8 +3,8 @@ next:
   text: "Lifecycle"
   link: "./lifecycle"
 prev:
-  text: 'The `\components` Directory'
-  link: "./component-directory"
+  text: "@app / @pages"
+  link: "./app-directory"
 ---
 
 # Templates

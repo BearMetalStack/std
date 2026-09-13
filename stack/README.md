@@ -51,40 +51,47 @@ SSR is currently always enabled, however you are not required to use it. Every g
 includes a layout and a home page implemented as middleware, but neither are required and both can
 be removed.
 
-### Components and the client bundle
+### Components, shared modules, and the client bundle
 
 Everything under `components/` (or `src/components/`) is registered on the server and bundled for
 the browser as one file, served from `/@bearmetal/components/index` and referenced from every page's
-`<head>`. Two consequences worth knowing:
+`<head>` — built and served by `appModule()` from `@bearmetal/app/serve`, not by this package. Two
+consequences worth knowing:
 
 - A view names a component by its tag — `<my-counter />` — and does not import it. That is what the
   directory buys you.
 - The bundle is the whole app, not the page. A page-sized bundle breaks the moment a client-side
   `<Router>` navigates to a page whose components were never shipped.
 
-Drop a `components/manifest.ts` in to take over the list explicitly, and
-`components/<subset>.manifest.ts` to build extra bundles you load yourself. Component stylesheets
-are collected server-side and served alongside as `/@bearmetal/components/index.css`, so the first
-paint is styled without waiting for the bundle.
+Drop a `components/main.manifest.ts` in to name the components explicitly instead of letting the
+whole directory glob in, and nest a `components/<route>/main.manifest.ts` or
+`components/<route>/_id.manifest.ts` to add to it for a specific route. `app/` holds shared client
+modules (stores, mostly) that a component or a page can import directly, and `pages/` holds one file
+per route for client-side setup that should run when that route's page loads — see the
+[component directory](https://docs.bear-metal.dev/getting-started/components/component-directory)
+and [`@app`/`@pages`](https://docs.bear-metal.dev/getting-started/components/app-directory) guides
+for the full resolution rules. Component stylesheets are collected server-side and served alongside
+as `/@bearmetal/components/index.css`, so the first paint is styled without waiting for the bundle.
 
 ### `deno compile`
 
-A compiled binary carries no bundler, so build the components ahead of time with
-`@bearmetal/stack/build` and point the stack at the output:
+A compiled binary carries no bundler, so build the client ahead of time with `@bearmetal/app/build`
+and point `appModule()` at the output:
 
 ```ts
 // scripts/build.ts
-import { buildStack } from "@bearmetal/stack/build";
-await buildStack({ outDir: "dist/components" });
+import { buildApp } from "@bearmetal/app/build";
+await buildApp({ outDir: "dist/client" });
 
 // main.ts
-router.use(createStack({
-	prebuilt: new URL("./dist/components/", import.meta.url),
-	register: () => import("./dist/components/server.ts"),
+router.use(appModule({
+	devServer: appDevServer,
+	prebuilt: new URL("./dist/client/", import.meta.url),
+	register: () => import("./dist/client/server.ts"),
 }));
 ```
 
-`buildStack` writes the bundle, the component CSS, a `manifest.json`, and a `server.ts` that imports
+`buildApp` writes the bundle, the component CSS, a `manifest.json`, and a `server.ts` that imports
 every component. `register` has to be a literal `import()` so `deno compile` follows it and embeds
 the components. Compile with `--include dist`. The prebuilt directory is only used outside dev, so
 `deno task dev` keeps hot replacement.

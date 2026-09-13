@@ -60,9 +60,9 @@ the file lands exactly where the browser will ask for it.
 
 ### The root fallback
 
-`@bearmetal/stack` serves shared chunks from a single-segment `/:script` route, at the site root.
-That works for a page one level deep and breaks for anything deeper — the live server simply has no
-route for `/md/intro/chunk-X.js`.
+`appModule()` (`@bearmetal/app/serve`) serves shared chunks from a single-segment `/:script` route,
+at the site root. That works for a page one level deep and breaks for anything deeper — the live
+server simply has no route for `/md/intro/chunk-X.js`.
 
 The file still belongs at the path the browser asks for. So when an asset fetch fails, diecast
 retries at the site root and writes the result to the original nested path. The static output ends
@@ -83,7 +83,7 @@ if that does not produce a non-HTML response, report it. Writing the HTML would 
 a `.js` path, which the page importing it cannot use and no error would ever mention.
 
 This is also what catches a genuinely missing bundle. If your app renders `@bearmetal/app`
-components but does not mount `createStack` to serve their chunks, the build fails with
+components but does not mount `appModule()` to serve their chunks, the build fails with
 `expected an asset but the route returned HTML` rather than quietly producing a site whose
 components never hydrate.
 
