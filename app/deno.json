@@ -6,6 +6,7 @@
 		"./signals": "./bmsignals.ts",
 		"./context": "./context/mod.ts",
 		"./ssr": "./ssr/mod.ts",
+		"./serve": "./serve/mod.tsx",
 		"./types": "./types.ts"
 	},
 	"tasks": {
