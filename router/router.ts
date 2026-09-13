@@ -299,6 +299,8 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			(a, b) => ({ ...a, ...b.raw }),
 			{},
 		);
+		const terminal = matchingRoutes.find((r) => (r.config.handlers[method]?.length ?? 0) > 0);
+
 		const ctx: RouterContext<StateType, unknown> = {
 			url,
 			params: matchingRoutes.reduce((a, b) => ({ ...a, ...b.params }), {}),
@@ -316,6 +318,7 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			body,
 			connection: info,
 			cookies: new Map<string, string>(),
+			route: terminal ? { path: terminal.path, pattern: terminal.config.pattern } : undefined,
 		};
 
 		const cookies = req.headers.get("cookie");
@@ -367,11 +370,11 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 	}
 
 	private findMatchingRoutes(url: URL) {
-		return this.routes.values().map((route) => {
+		return this.routes.entries().map(([path, route]) => {
 			const result = route.pattern.exec(url);
 			if (result) {
 				const raw = result.pathname.groups;
-				return { config: route, params: decodeGroups(raw), raw };
+				return { path, config: route, params: decodeGroups(raw), raw };
 			}
 		}).filter((r) => !!r).toArray();
 	}
