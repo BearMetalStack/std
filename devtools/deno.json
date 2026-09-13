@@ -1,0 +1,24 @@
+{
+	"name": "@bearmetal/devtools",
+	"version": "0.0.1",
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts"
+	},
+	"tasks": {
+		"dev": "deno test -P=test --watch"
+	},
+	"permissions": {
+		"test": {
+			"env": [
+				"BEARMETAL_ENV"
+			]
+		}
+	},
+	"license": "MIT",
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx",
+		"jsxImportSourceTypes": "@bearmetal/jsx"
+	}
+}
