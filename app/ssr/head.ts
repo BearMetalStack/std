@@ -66,3 +66,46 @@ export function headContributions(): JSX.Element[] {
 	}
 	return nodes;
 }
+
+/**
+ * Like {@linkcode HeadContributor}, but told which route matched so it can
+ * contribute something specific to the page currently rendering (e.g. which
+ * `@pages` module the client should dispatch to). Only runs for renders that
+ * went through a `Layout` — see `Page()` in `./mod.ts`.
+ */
+export type RouteHeadContributor = (
+	route: string | undefined,
+) => JSX.Element | Iterable<JSX.Element> | null | undefined;
+
+const routeContributors = new Set<RouteHeadContributor>();
+
+/**
+ * Registers `contributor` to run for every `Layout`-rendered page from here
+ * on, passed the matched route's path template (`ctx.route?.path`).
+ *
+ * @returns a function that removes it again.
+ */
+export function contributeRouteHead(contributor: RouteHeadContributor): () => void {
+	routeContributors.add(contributor);
+	return () => {
+		routeContributors.delete(contributor);
+	};
+}
+
+/** Every registered route contributor's tags for `route`, in registration order. */
+export function routeHeadContributions(route: string | undefined): JSX.Element[] {
+	const nodes: JSX.Element[] = [];
+	for (const contributor of routeContributors) {
+		let produced: ReturnType<RouteHeadContributor>;
+		try {
+			produced = contributor(route);
+		} catch (error) {
+			console.error("A route <head> contributor threw and was skipped:", error);
+			continue;
+		}
+		if (produced == null) continue;
+		if (Symbol.iterator in produced) nodes.push(...produced);
+		else nodes.push(produced);
+	}
+	return nodes;
+}
