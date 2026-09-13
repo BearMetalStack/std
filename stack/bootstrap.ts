@@ -26,6 +26,7 @@ export async function bootstrap(opts: BootstrapOptions): Promise<void> {
 
 	const basePackages = [
 		"@bearmetal/app",
+		"@bearmetal/dev-server",
 		"@bearmetal/drip",
 		"@bearmetal/jsx",
 		"@bearmetal/miscellanea",

@@ -1,8 +1,10 @@
 import { Router } from "@bearmetal/router";
-import { createStack } from "@bearmetal/stack";
+import { appModule } from "@bearmetal/app/serve";
+import { appDevServer } from "@bearmetal/dev-server";
 // @bearmetal-partial main-ts-imports
 import { page } from "@views/layouts/page.tsx";
 import { home } from "@views/home.tsx";
+import { userProfile } from "@views/users/id.tsx";
 
 const router = new Router();
 
@@ -15,12 +17,15 @@ router
 			return new Response("Internal Server Error", { status: 500 });
 		}
 	})
-	.use(createStack())
+	.use(appModule({ devServer: appDevServer }))
 	// @bearmetal-partial main-ts-middleware
 	.use(page);
 
 router.route("/")
 	.get(home);
+
+router.route("/users/:id")
+	.get(userProfile);
 
 router.serveDirectory("public", "/", { favicon: "bmicon.svg" });
 

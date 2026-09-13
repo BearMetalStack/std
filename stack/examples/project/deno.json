@@ -5,6 +5,8 @@
 	},
 	"imports": {
 		"@components/": "components/",
+		"@app/": "app/",
+		"@pages/": "pages/",
 		"@views/": "views/"
 	},
 	"compilerOptions": {
