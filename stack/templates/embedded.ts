@@ -4,6 +4,25 @@
 /** Every scaffoldable template, as a map of relative path to file contents. */
 export const templates: Record<string, Record<string, string>> = {
 	"default": {
+		"app/stores/users.ts": `// A shared client-side store: plain @app modules like this one are just
+// ordinary imports, so both a @pages file (to populate it) and a @components
+// file (to render it) can pull in the same signal.
+import { createSignal } from "@bearmetal/app";
+
+export interface UserProfile {
+	id: string;
+	name: string;
+}
+
+const profile = createSignal<UserProfile | null>(null);
+
+export const usersStore = {
+	profile,
+	load(id: string) {
+		profile.set({ id, name: \`User \${id}\` });
+	},
+};
+`,
 		"components/counter.tsx": `// /**  @jsxImportSource "@bearmetal/jsx" */
 // /**  @jsxImportSourceTypes "@bearmetal/jsx" */
 
@@ -158,6 +177,13 @@ export class Joke extends BMElement<{ joke: Element }> {
 		);
 	}
 }
+`,
+		"components/main.manifest.ts":
+			`// Root fallback: every component the home page (and anything else with no
+// more specific manifest) needs.
+import "./counter.tsx";
+import "./joke.tsx";
+import "./main.tsx";
 `,
 		"components/main.tsx": `import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
@@ -317,11 +343,49 @@ export class App extends BMElement {
 	}
 }
 `,
+		"components/users/_id.manifest.ts":
+			`// Resolves for /users/:id - only what that route needs, on top of whatever
+// the nearest main.manifest.ts fallback already ships.
+import "./profile.tsx";
+`,
+		"components/users/profile.tsx": `import { BMElement, define } from "@bearmetal/app";
+import { css } from "@bearmetal/miscellanea";
+import { usersStore } from "@app/stores/users.ts";
+
+// A component reading a store from @app - the whole point of splitting
+// shared modules out from per-route orchestration is that this import is
+// perfectly ordinary, no different from importing anything else.
+@define("user-profile")
+export class UserProfile extends BMElement {
+	static get stylesheet() {
+		return css\`
+			:scope {
+				display: block;
+				padding: 1rem 1.5rem;
+				border-radius: var(--radius-md);
+				background: var(--color-surface);
+			}
+		\`;
+	}
+
+	get template() {
+		return (
+			<p>
+				{this.computed(() => {
+					const profile = usersStore.profile.get();
+					return profile ? \`User: \${profile.name} (#\${profile.id})\` : "Loading…";
+				})}
+			</p>
+		);
+	}
+}
+`,
 		"main.ts": `import { Router } from "@bearmetal/router";
-import { createStack } from "@bearmetal/stack";
+import { appModule } from "@bearmetal/app/serve";
 // @bearmetal-partial main-ts-imports
 import { page } from "@views/layouts/page.tsx";
 import { home } from "@views/home.tsx";
+import { userProfile } from "@views/users/id.tsx";
 
 const router = new Router();
 
@@ -334,16 +398,36 @@ router
 			return new Response("Internal Server Error", { status: 500 });
 		}
 	})
-	.use(createStack())
+	.use(appModule())
 	// @bearmetal-partial main-ts-middleware
 	.use(page);
 
 router.route("/")
 	.get(home);
 
+router.route("/users/:id")
+	.get(userProfile);
+
 router.serveDirectory("public", "/", { favicon: "bmicon.svg" });
 
 Deno.serve(router.handle);
+`,
+		"pages/main.ts": `import { registerPage } from "@bearmetal/app";
+
+// The fallback every route resolves to when it has no more specific @pages
+// file of its own - nothing to bootstrap for the home page yet.
+registerPage("main", () => {});
+`,
+		"pages/users/_id.ts": `import { registerPage } from "@bearmetal/app";
+import { usersStore } from "@app/stores/users.ts";
+
+// Resolves for /users/:id - the server already picked this key via the same
+// _id/main fallback @components manifests use, so this is a plain lookup,
+// not a route match, by the time it runs in the browser.
+registerPage("users/_id", () => {
+	const id = location.pathname.split("/").pop() ?? "";
+	usersStore.load(id);
+});
 `,
 		"public/bmicon.svg": `<svg
     id="eoLr3XAUR1z1"
@@ -1353,6 +1437,12 @@ export const page = Layout((props) => (
 		</body>
 	</html>
 ));
+`,
+		"views/users/id.tsx": `import { Page } from "@bearmetal/app/ssr";
+
+// \`user-profile\` lives in @components, registered and bundled via
+// components/users/_id.manifest.ts without this view importing it.
+export const userProfile = Page(() => <user-profile />, "Profile");
 `,
 	},
 };
