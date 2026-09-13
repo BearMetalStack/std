@@ -68,6 +68,56 @@ Deno.test("an import that leaves the tree is pointed back at the original", asyn
 	await Deno.remove(root, { recursive: true });
 });
 
+Deno.test("a local import-map alias is rewritten to its absolutized target", async () => {
+	const root = await tree({
+		"card.tsx":
+			`import { usersStore } from "@app/stores/users.ts";\nexport const x = usersStore;\n`,
+	});
+	const mirror = await mirrorStripped(root, {
+		imports: { "@app/": "file:///abs/project/app/" },
+	});
+	const copied = await Deno.readTextFile(`${mirror.root}/card.tsx`);
+
+	assertStringIncludes(copied, `from "file:///abs/project/app/stores/users.ts"`);
+
+	await mirror.dispose();
+	await Deno.remove(root, { recursive: true });
+});
+
+Deno.test("an alias naming a file inside the tree lands on the stripped copy", async () => {
+	const root = await tree({
+		"cards/card.tsx":
+			`import { Button } from "@components/button.tsx";\nexport const x = Button;\n`,
+		"button.tsx": "export const Button = 1;\n",
+	});
+	const real = await Deno.realPath(root);
+	const mirror = await mirrorStripped(root, {
+		imports: { "@components/": `file://${real}/` },
+	});
+	const copied = await Deno.readTextFile(`${mirror.root}/cards/card.tsx`);
+
+	// The original still has its server half; only the copy beside it is safe to bundle.
+	assertStringIncludes(copied, `from "../button.tsx"`);
+
+	await mirror.dispose();
+	await Deno.remove(root, { recursive: true });
+});
+
+Deno.test("an unrelated bare specifier is left alone when no alias matches", async () => {
+	const root = await tree({
+		"card.tsx": `import { z } from "@bearmetal/app";\n`,
+	});
+	const mirror = await mirrorStripped(root, {
+		imports: { "@app/": "file:///abs/project/app/" },
+	});
+	const copied = await Deno.readTextFile(`${mirror.root}/card.tsx`);
+
+	assertStringIncludes(copied, `from "@bearmetal/app"`);
+
+	await mirror.dispose();
+	await Deno.remove(root, { recursive: true });
+});
+
 Deno.test("the JSX pragma is added to JSX files only", async () => {
 	const root = await tree({
 		"card.tsx": component,

@@ -76,6 +76,16 @@ export interface StripOptions {
 	 * which is undefined in the browser it is sent to.
 	 */
 	jsxImportSource?: string;
+	/**
+	 * Local import-map aliases (e.g. `@app/`), already absolutized to `file://`
+	 * URLs, rewritten inline wherever a mirrored file imports one.
+	 *
+	 * A `jsr:`/`npm:` specifier resolves the same everywhere, through the
+	 * global cache — but a local path alias resolves through the program's
+	 * own `deno.json`, which the mirror is nowhere near. Without this, a
+	 * mirrored file importing a local alias fails to bundle.
+	 */
+	imports?: Record<string, string>;
 }
 
 /** Members that exist only to serve a render, and must not reach a browser. */
@@ -116,22 +126,67 @@ function resolveRelative(specifier: string, fromFile: string): string | null {
 }
 
 /**
+ * `to` as a specifier relative to the file `from`.
+ *
+ * An alias that names a file inside the tree is made relative rather than
+ * absolute, so it lands on the stripped copy and not on the original.
+ */
+function relativeSpecifier(from: string, to: string): string {
+	const fromParts = directoryOf(from).split("/");
+	const toParts = to.split("/");
+	let shared = 0;
+	while (shared < fromParts.length && fromParts[shared] === toParts[shared]) shared++;
+	const up = fromParts.length - shared;
+	const rest = toParts.slice(shared).join("/");
+	return up === 0 ? `./${rest}` : `${"../".repeat(up)}${rest}`;
+}
+
+/**
  * Points imports that leave the tree back at the originals.
  *
- * Everything else is left exactly as written: a specifier inside the tree
- * resolves to the copy beside it, and a bare, `jsr:` or aliased specifier
- * resolves through the program's import map, which is the same wherever the
- * importing file sits.
+ * A specifier inside the tree resolves to the copy beside it, and a bare
+ * `jsr:` specifier resolves through the program's import map the same
+ * wherever the importing file sits, since that's a single global lookup.
+ * `imports` covers the third case — a *local* path alias (`@app/`, ...) —
+ * which does not: `compilerOptions`/`imports` come from whatever `deno.json`
+ * is nearest the *program*, not nearest the file being resolved, and the
+ * mirror is nowhere near it. Rewriting the specifier text itself is what
+ * makes the same fix that already applies to relative imports apply here
+ * too, since a config file placed in the mirror is never consulted (the same
+ * reason the JSX pragma below exists rather than a `compilerOptions` copy).
+ * An alias that names a file inside the tree is made relative instead, so it
+ * reaches the stripped copy rather than the original.
  */
-function rewriteEscapingImports(src: string, sourceFile: string, sourceRoot: string): string {
+function rewriteEscapingImports(
+	src: string,
+	sourceFile: string,
+	sourceRoot: string,
+	imports: Record<string, string> = {},
+): string {
 	const edits: Array<[number, number, string]> = [];
+	const aliases = Object.entries(imports).sort(([a], [b]) => b.length - a.length);
 
 	for (const [start, end] of specifierRanges(src)) {
 		const specifier = src.slice(start, end);
+
 		const resolved = resolveRelative(specifier, sourceFile);
-		if (resolved === null) continue;
-		if (resolved.startsWith(sourceRoot + "/")) continue;
-		edits.push([start, end, `file://${resolved}`]);
+		if (resolved !== null) {
+			if (resolved.startsWith(sourceRoot + "/")) continue;
+			edits.push([start, end, `file://${resolved}`]);
+			continue;
+		}
+
+		const alias = aliases.find(([prefix]) => specifier.startsWith(prefix));
+		if (!alias) continue;
+		const target = alias[1] + specifier.slice(alias[0].length);
+		const targetPath = target.startsWith("file://")
+			? decodeURIComponent(new URL(target).pathname)
+			: null;
+		edits.push([
+			start,
+			end,
+			targetPath?.startsWith(sourceRoot + "/") ? relativeSpecifier(sourceFile, targetPath) : target,
+		]);
 	}
 
 	let result = src;
@@ -189,7 +244,7 @@ export async function mirrorStripped(
 
 			const source = await Deno.readTextFile(path);
 			const stripped = stripServerCode(source, { names, prefixes: options.prefixes });
-			const rewritten = rewriteEscapingImports(stripped, path, root);
+			const rewritten = rewriteEscapingImports(stripped, path, root, options.imports);
 			const needsPragma = JSX_EXTENSIONS.some((ext) => path.endsWith(ext));
 			await write(out, needsPragma ? pragma + rewritten : rewritten);
 		}
