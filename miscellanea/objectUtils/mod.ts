@@ -24,3 +24,10 @@ export function deepMerge<T extends Record<string, unknown>>(base: T, override: 
 	}
 	return result as T;
 }
+
+/**
+ * Ensures value given is a plain object, not null, and not an array
+ */
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}

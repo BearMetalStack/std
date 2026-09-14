@@ -42,3 +42,10 @@ export const js: typeof doc = doc.follow((s) => s.replaceAll(/\\(.)/g, "$1"));
  * @see {@link doc}
  */
 export const jsx: typeof doc = doc;
+
+/**
+ * Provides syntax highlighting in editors
+ * Does NOT escape SQL, should still rely on package parameterization
+ * @see {@link doc}
+ */
+export const sql: typeof doc = doc;

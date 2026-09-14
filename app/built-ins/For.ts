@@ -1,14 +1,17 @@
 import { getCurrentOwner, type JSX, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import { effect } from "../signals.ts";
 import { Signal } from "../signals/wrapper.ts";
+import type { SignalOf } from "../types.ts";
 
 interface ForProps<T> {
-	$: Signal.State<T[]> | Signal.Computed<T[]>;
+	$: SignalOf<T[]>;
 	keyOn: (item: T) => string | number;
 	children: (a: T, i: number) => JSX.Element | Element | null;
 }
 
-export function For<T>({ $, keyOn, children }: ForProps<T>): ReturnType<typeof each<T>> {
+export function For<T>(
+	{ $, keyOn, children }: ForProps<T>,
+): ReturnType<typeof each<T>> {
 	return each($, children, keyOn);
 }
 
@@ -48,7 +51,7 @@ function ownerScope() {
  * `jsx/lib/jsx.ts` for the related marker-range technique.
  */
 export function each<T>(
-	signal: Signal.State<T[] | Set<T>> | Signal.Computed<T[] | Set<T>>,
+	signal: SignalOf<T[] | Set<T>>,
 	render: (item: T, index: number) => Element | JSX.Element | null,
 	key: (item: T) => string | number,
 ): DocumentFragment {
@@ -58,7 +61,12 @@ export function each<T>(
 
 	const owner = getCurrentOwner();
 
-	const stop = reconcile(anchor, signal, render as (i: T, ii: number) => Element, key);
+	const stop = reconcile(
+		anchor,
+		signal,
+		render as (i: T, ii: number) => Element,
+		key,
+	);
 	if (!owner) {
 		console.warn(
 			"each() called without an owner — list cleanup won't be automatic.\n" +
@@ -73,7 +81,7 @@ export function each<T>(
 }
 
 function shallowDiff<T>(
-	signal: Signal.State<T[] | Set<T>> | Signal.Computed<T[] | Set<T>>,
+	signal: SignalOf<T[] | Set<T>>,
 	key: (item: T) => string | number,
 ) {
 	let prev = new Map<string | number, T>();
@@ -109,11 +117,14 @@ function shallowDiff<T>(
 
 function reconcile<T>(
 	anchor: Text,
-	signal: Signal.State<T[] | Set<T>> | Signal.Computed<T[] | Set<T>>,
+	signal: SignalOf<T[] | Set<T>>,
 	render: (item: T, index: number) => Element | null,
 	key: (item: T) => string | number,
 ) {
-	const keyMap = new Map<string | number, { node: Element; cleanup?: () => void }>();
+	const keyMap = new Map<
+		string | number,
+		{ node: Element; cleanup?: () => void }
+	>();
 	const diff = shallowDiff(signal, key);
 
 	const stop = effect(() => {
@@ -149,7 +160,10 @@ function reconcile<T>(
 			using scope = ownerScope();
 			const node = render(item, items.indexOf(item));
 			if (node == null) continue;
-			keyMap.set(k, { node, cleanup: () => scope.cleanups.forEach((fn) => fn()) });
+			keyMap.set(k, {
+				node,
+				cleanup: () => scope.cleanups.forEach((fn) => fn()),
+			});
 		}
 
 		// Reorder in place, walking the sibling chain from `anchor`. Each managed
