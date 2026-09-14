@@ -216,5 +216,7 @@ if (import.meta.main) {
 		console.log(`  ✓ retagged ${tag}`);
 	}
 
-	console.log("\ndone. don't forget to git push --tags");
+	run(["git", "push", "--tags"]);
+
+	console.log("\ndone.");
 }
