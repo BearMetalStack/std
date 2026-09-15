@@ -1,8 +1,8 @@
 # @bearmetal/flux — ROADMAP
 
-Items intentionally deferred out of the current SPEC.md milestone. Each entry
-notes why it was punted and what it depends on, so a future pass has context
-without re-deriving it.
+Items intentionally deferred out of the current milestone (boolean correctness
+checking only — see README.md). Each entry notes why it was punted and what
+it depends on, so a future pass has context without re-deriving it.
 
 ## Loading
 
@@ -79,7 +79,7 @@ without re-deriving it.
 
 - **`COMPOUND*` affix directive support** (`COMPOUNDFLAG`, `COMPOUNDRULE`,
   `COMPOUNDMIN`, `COMPOUNDPERMITFLAG`, etc). Currently recognized-but-inert
-  at parse time (see SPEC.md's unhandled-directive handling). This is a
+  at parse time (see `aff.ts`'s unhandled-directive handling). This is a
   project-sized chunk on its own, not a small addition:
   - Naive recursive substring matching against a flat `Set<string>` is
     unworkable (effectively O(n²)+ per word) and doesn't respect actual
