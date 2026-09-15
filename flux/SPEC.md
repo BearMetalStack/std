@@ -100,12 +100,22 @@ field (e.g. a `DictionaryNotFoundError`, or a parse failure).
 Since compounding is out of scope, hyphenated input gets a simple fallback:
 
 1. Try the full string against the loaded dictionary's lookup set.
-2. On miss, split on `-`.
-3. If any resulting segment is an empty string (leading/trailing/double
-   hyphen), the whole word fails — no filtering of empty segments.
-4. Otherwise, every non-empty segment must individually pass `check()`
-   (recursively, so nested logic like case folding still applies per
-   segment). The word is correct only if all segments are.
+2. On miss, split on `-` and drop any empty segments (leading/trailing/double
+   hyphen). These are formatting noise, not content — failing the whole word
+   over them would be a false positive the caller then has to filter out
+   manually.
+3. Every remaining (non-empty) segment is checked individually, recursively
+   (so nested logic like case folding still applies per segment), and the
+   results are aggregated: the word is correct only if every non-empty
+   segment is. A word that reduces to zero non-empty segments (e.g. `"--"`)
+   has nothing to fail on and is treated as correct.
+
+Internally this aggregation is done by a `SpellCheckResult` (`{ correct:
+boolean; at?: [number, number][] }`) rather than a bare boolean, so the
+failing segments' positions in the original word are known — this is not
+(yet) surfaced through the public `check()` API, which stays a plain
+`boolean` per the Public API section above, but avoids re-deriving position
+info later (e.g. for `checkText`, see ROADMAP.md).
 
 Known limitation, accepted as-is: this will false-positive on hyphenated
 idioms where each part is independently a valid word but the compound isn't

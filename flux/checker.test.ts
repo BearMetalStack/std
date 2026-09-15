@@ -1,10 +1,5 @@
-import {
-	assertEquals,
-	assertRejects,
-	assertStrictEquals,
-	assertThrows,
-} from "@std/assert";
-import { SpellChecker } from "./checker.ts";
+import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
+import { checkAgainstLookup, SpellChecker } from "./checker.ts";
 import {
 	DictionaryNotFoundError,
 	LanguageLoadFailedError,
@@ -75,17 +70,57 @@ Deno.test("check: hyphenated words pass only if every segment does", async () =>
 	}
 });
 
-Deno.test("check: a leading, trailing, or doubled hyphen fails the whole word", async () => {
+Deno.test("check: a leading, trailing, or doubled hyphen doesn't fail the word on its own", async () => {
 	const [paths, cleanup] = await tempDictionary();
 	try {
 		const checker = new SpellChecker();
 		await checker.loadLanguage("en", paths);
-		assertEquals(checker.check("en", "-well"), false);
-		assertEquals(checker.check("en", "well-"), false);
-		assertEquals(checker.check("en", "well--known"), false);
+		// The empty segments these produce are skipped, not treated as failures — flagging them
+		// would be a false positive on ordinary hyphenation noise, not a real misspelling.
+		assertEquals(checker.check("en", "-well"), true);
+		assertEquals(checker.check("en", "well-"), true);
+		assertEquals(checker.check("en", "well--known"), true);
 	} finally {
 		await cleanup();
 	}
+});
+
+// ─── checkAgainstLookup: SpellCheckResult aggregation and position reporting ───
+
+const LOOKUP = new Set(["well", "known"]);
+
+Deno.test("checkAgainstLookup: a correct non-hyphenated word reports no positions", () => {
+	assertEquals(checkAgainstLookup("well", LOOKUP), { correct: true });
+});
+
+Deno.test("checkAgainstLookup: a wrong non-hyphenated word points at the whole word", () => {
+	assertEquals(checkAgainstLookup("wall", LOOKUP), { correct: false, at: [[0, 4]] });
+});
+
+Deno.test("checkAgainstLookup: an offset shifts a whole-word failure's reported range", () => {
+	assertEquals(checkAgainstLookup("wall", LOOKUP, 5), { correct: false, at: [[5, 9]] });
+});
+
+Deno.test("checkAgainstLookup: a bad segment in a hyphenated word is pinpointed", () => {
+	// "well-dog": "dog" starts right after "well-" (5 chars in).
+	assertEquals(checkAgainstLookup("well-dog", LOOKUP), { correct: false, at: [[5, 8]] });
+});
+
+Deno.test("checkAgainstLookup: multiple bad segments all get reported", () => {
+	assertEquals(checkAgainstLookup("foo-well-bar", LOOKUP), {
+		correct: false,
+		at: [[0, 3], [9, 12]],
+	});
+});
+
+Deno.test("checkAgainstLookup: empty segments from stray hyphens are skipped, not reported", () => {
+	assertEquals(checkAgainstLookup("-well", LOOKUP), { correct: true });
+	assertEquals(checkAgainstLookup("well-", LOOKUP), { correct: true });
+	assertEquals(checkAgainstLookup("well--known", LOOKUP), { correct: true });
+});
+
+Deno.test("checkAgainstLookup: a word that's only hyphens has nothing to report", () => {
+	assertEquals(checkAgainstLookup("--", LOOKUP), { correct: true });
 });
 
 Deno.test("forLanguage: sugar delegates to check() for the bound language", async () => {
@@ -109,7 +144,10 @@ Deno.test("loadLanguage: rejects with the raw underlying cause, not a wrapper", 
 
 Deno.test("loadLanguage and langReady share the exact same promise instance", () => {
 	const checker = new SpellChecker();
-	const loadPromise = checker.loadLanguage("en", { aff: "/nonexistent/x.aff", dic: "/nonexistent/x.dic" });
+	const loadPromise = checker.loadLanguage("en", {
+		aff: "/nonexistent/x.aff",
+		dic: "/nonexistent/x.dic",
+	});
 	const readyPromise = checker.langReady("en");
 	assertStrictEquals(loadPromise, readyPromise);
 	// Prevent this deliberate failure from surfacing as an unhandled rejection.

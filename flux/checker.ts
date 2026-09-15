@@ -33,17 +33,44 @@ async function readDictionaryFile(path: string): Promise<string> {
 }
 
 /**
- * Checks a word against a loaded lookup set, falling back to a per-segment hyphenation check on a
- * miss. A hyphenated word is correct only if every non-empty segment independently checks out; a
- * leading/trailing/double hyphen (producing an empty segment) fails the whole word.
+ * The result of checking a word (or a segment of one). `at` names the `[start, end)` substring
+ * ranges — into the original word passed to {@linkcode checkAgainstLookup} — of the segments that
+ * failed, so a caller can point at exactly what's wrong rather than just "whole word bad".
  */
-function checkAgainstLookup(word: string, lookup: Set<string>): boolean {
-	if (lookup.has(word)) return true;
-	if (!word.includes("-")) return false;
+export interface SpellCheckResult {
+	correct: boolean;
+	at?: [number, number][];
+}
+
+/**
+ * Checks a word against a loaded lookup set, falling back to a per-segment hyphenation check on a
+ * miss. A hyphenated word is correct if every *non-empty* segment independently checks out —
+ * leading/trailing/double hyphens produce empty segments, which are skipped rather than failing
+ * the whole word (treating them as failures produced false positives on ordinary formatting noise
+ * the caller would otherwise have to filter out manually). `offset` locates `word` within the
+ * original input for `at` reporting; callers checking a whole word on its own can omit it.
+ */
+export function checkAgainstLookup(
+	word: string,
+	lookup: Set<string>,
+	offset = 0,
+): SpellCheckResult {
+	if (lookup.has(word)) return { correct: true };
+	if (!word.includes("-")) {
+		return { correct: false, at: [[offset, offset + word.length]] };
+	}
 
 	const segments = word.split("-");
-	if (segments.some((segment) => segment.length === 0)) return false;
-	return segments.every((segment) => checkAgainstLookup(segment, lookup));
+	const failures: [number, number][] = [];
+	let cursor = offset;
+	for (const segment of segments) {
+		if (segment.length > 0) {
+			const result = checkAgainstLookup(segment, lookup, cursor);
+			if (result.at) failures.push(...result.at);
+		}
+		cursor += segment.length + 1; // +1 for the hyphen consumed by split()
+	}
+	return failures.length === 0 ? { correct: true } : { correct: false, at: failures };
 }
 
 export class SpellChecker {
@@ -103,7 +130,7 @@ export class SpellChecker {
 		if (entry.status === "failed") {
 			throw entry.loadError!;
 		}
-		return checkAgainstLookup(word, entry.lookup!);
+		return checkAgainstLookup(word, entry.lookup!).correct;
 	}
 
 	forLanguage(lang: string): LanguageChecker {
