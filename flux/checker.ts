@@ -3,7 +3,7 @@
  * `SpellChecker` — boolean correctness checking against loaded Hunspell dictionary pairs.
  */
 
-import { parseAff } from "./aff.ts";
+import { applyIconv, type IconvRule, parseAff } from "./aff.ts";
 import { parseDic } from "./dic.ts";
 import {
 	DictionaryNotFoundError,
@@ -18,6 +18,8 @@ interface LanguageEntry {
 	promise: Promise<void>;
 	status: "pending" | "ready" | "failed";
 	lookup?: Set<string>;
+	/** The `.aff`'s `ICONV` table, applied to a word before it's checked against `lookup`. */
+	iconv?: IconvRule[];
 	loadError?: LanguageLoadFailedError;
 }
 
@@ -43,6 +45,32 @@ export interface SpellCheckResult {
 }
 
 /**
+ * A dictionary word list is built from lowercase stems, so an exact-case lookup alone rejects
+ * every common word the moment it's capitalized (sentence-initial, a heading, ...). Hunspell
+ * handles this by re-checking a lowercased form; this mirrors that for the two cases a flat
+ * `Set<string>` can support without per-word provenance (see ROADMAP.md): a word that's *only*
+ * its first letter capitalized (`Her` → `her`), and a fully capitalized word, which also gets a
+ * titlecase retry (`NASA`-style acronyms aside, `THE` → `the` and `MCDONALD` → `Mcdonald` both
+ * still need a shot). An all-lowercase word was already checked as-is, so it takes neither path.
+ */
+function capitalizationVariantMatches(word: string, lookup: Set<string>): boolean {
+	const first = word.charAt(0);
+	const rest = word.slice(1);
+	const isInitCap = first === first.toUpperCase() && first !== first.toLowerCase() &&
+		rest === rest.toLowerCase();
+	const isAllCap = word === word.toUpperCase() && word !== word.toLowerCase();
+
+	if (!isInitCap && !isAllCap) return false; // all-lowercase, or mixed beyond a plain initial cap
+
+	const lower = word.toLowerCase();
+	if (lookup.has(lower)) return true;
+	if (!isAllCap) return false;
+
+	const title = lower.charAt(0).toUpperCase() + lower.slice(1);
+	return lookup.has(title);
+}
+
+/**
  * Checks a word against a loaded lookup set, falling back to a per-segment hyphenation check on a
  * miss. A hyphenated word is correct if every *non-empty* segment independently checks out —
  * leading/trailing/double hyphens produce empty segments, which are skipped rather than failing
@@ -55,7 +83,7 @@ export function checkAgainstLookup(
 	lookup: Set<string>,
 	offset = 0,
 ): SpellCheckResult {
-	if (lookup.has(word)) return { correct: true };
+	if (lookup.has(word) || capitalizationVariantMatches(word, lookup)) return { correct: true };
 	if (!word.includes("-")) {
 		return { correct: false, at: [[offset, offset + word.length]] };
 	}
@@ -90,9 +118,10 @@ export class SpellChecker {
 		const entry = { status: "pending" } as LanguageEntry;
 
 		const promise = this.#parse(paths)
-			.then((lookup) => {
+			.then(({ lookup, iconv }) => {
 				entry.status = "ready";
 				entry.lookup = lookup;
+				entry.iconv = iconv;
 			})
 			.catch((cause) => {
 				entry.status = "failed";
@@ -130,17 +159,19 @@ export class SpellChecker {
 		if (entry.status === "failed") {
 			throw entry.loadError!;
 		}
-		return checkAgainstLookup(word, entry.lookup!).correct;
+		const converted = applyIconv(word, entry.iconv!);
+		return checkAgainstLookup(converted, entry.lookup!).correct;
 	}
 
 	forLanguage(lang: string): LanguageChecker {
 		return { check: (word: string) => this.check(lang, word) };
 	}
 
-	async #parse(paths: DictionaryPaths): Promise<Set<string>> {
+	async #parse(paths: DictionaryPaths): Promise<{ lookup: Set<string>; iconv: IconvRule[] }> {
 		const affText = await readDictionaryFile(paths.aff);
-		const { suffixes, prefixes, flagMode } = parseAff(affText, { debug: this.#debug });
+		const { suffixes, prefixes, flagMode, iconv } = parseAff(affText, { debug: this.#debug });
 		const dicText = await readDictionaryFile(paths.dic);
-		return parseDic(dicText, { suffixes, prefixes, flagMode });
+		const lookup = parseDic(dicText, { suffixes, prefixes, flagMode });
+		return { lookup, iconv };
 	}
 }

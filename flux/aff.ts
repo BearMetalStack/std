@@ -27,12 +27,44 @@ export type Suffixes = Map<string, AffixTable>;
 /** Prefix affix tables, keyed by normalized flag. */
 export type Prefixes = Map<string, AffixTable>;
 
+/** One `ICONV` input-conversion rule: replace `from` with `to` before dictionary lookup. */
+export interface IconvRule {
+	from: string;
+	to: string;
+}
+
 export interface ParsedAff {
 	flagMode: FlagMode;
 	suffixes: Suffixes;
 	prefixes: Prefixes;
+	/**
+	 * Input-conversion rules (longest `from` first, so a caller applying them greedily
+	 * left-to-right matches the longest available pattern at each position, same as Hunspell).
+	 * Typically used to fold a locale-specific character (a typographic apostrophe, say) to the
+	 * plain form the `.dic` word list and affix conditions are actually written in — a word typed
+	 * with the "wrong" variant would otherwise miss the dictionary entirely.
+	 */
+	iconv: IconvRule[];
 	/** Raw values of simple key-value directives (`SET`, `TRY`, `WORDCHARS`, `LANG`, `IGNORE`). */
 	directives: Map<string, string>;
+}
+
+/** Applies `rules` to `word` left-to-right, matching the longest `from` at each position. */
+export function applyIconv(word: string, rules: IconvRule[]): string {
+	if (rules.length === 0) return word;
+
+	let out = "";
+	for (let i = 0; i < word.length;) {
+		const rule = rules.find((r) => word.startsWith(r.from, i));
+		if (rule) {
+			out += rule.to;
+			i += rule.from.length;
+		} else {
+			out += word[i];
+			i++;
+		}
+	}
+	return out;
 }
 
 export interface ParseAffOptions {
@@ -53,6 +85,7 @@ const HANDLED_DIRECTIVES = new Set([
 	"IGNORE",
 	"SFX",
 	"PFX",
+	"ICONV",
 ]);
 
 /**
@@ -67,7 +100,6 @@ const TABLE_DIRECTIVES = new Set([
 	"BREAK",
 	"AF",
 	"AM",
-	"ICONV",
 	"OCONV",
 	"COMPOUNDRULE",
 	"CHECKCOMPOUNDPATTERN",
@@ -111,6 +143,7 @@ export function parseAff(text: string, options: ParseAffOptions = {}): ParsedAff
 	let flagMode: FlagMode = "default";
 	const suffixes: Suffixes = new Map();
 	const prefixes: Prefixes = new Map();
+	const iconv: IconvRule[] = [];
 	const directives = new Map<string, string>();
 
 	for (let i = 0; i < lines.length; i++) {
@@ -154,6 +187,20 @@ export function parseAff(text: string, options: ParseAffOptions = {}): ParsedAff
 			continue;
 		}
 
+		if (directive === "ICONV") {
+			const count = Number.parseInt(tokens[1], 10) || 0;
+			for (let j = 1; j <= count; j++) {
+				const ruleLine = lines[i + j];
+				if (ruleLine === undefined) break;
+				const ruleTokens = ruleLine.trim().split(/\s+/);
+				const from = ruleTokens[1];
+				const to = ruleTokens[2];
+				if (from) iconv.push({ from, to: to === "0" ? "" : to ?? "" });
+			}
+			i += count;
+			continue;
+		}
+
 		if (TABLE_DIRECTIVES.has(directive)) {
 			const count = Number.parseInt(tokens[1], 10) || 0;
 			warnUnhandled(directive, options.debug);
@@ -169,5 +216,6 @@ export function parseAff(text: string, options: ParseAffOptions = {}): ParsedAff
 		warnUnhandled(directive, options.debug);
 	}
 
-	return { flagMode, suffixes, prefixes, directives };
+	iconv.sort((a, b) => b.from.length - a.from.length);
+	return { flagMode, suffixes, prefixes, iconv, directives };
 }

@@ -1,5 +1,5 @@
 import { assertEquals, assertFalse } from "@std/assert";
-import { compileCondition, parseAff } from "./aff.ts";
+import { applyIconv, compileCondition, parseAff } from "./aff.ts";
 
 // ─── compileCondition ───────────────────────────────────────────────────────
 
@@ -110,6 +110,44 @@ Deno.test("parseAff: a rule line after a block is not swallowed into the block",
 	].join("\n");
 	const { directives } = parseAff(aff);
 	assertEquals(directives.get("SET"), "UTF-8");
+});
+
+// ─── parseAff: ICONV ────────────────────────────────────────────────────────
+
+Deno.test("parseAff: ICONV parses its rule lines into the iconv table", () => {
+	const aff = ["ICONV 1", "ICONV ’ '"].join("\n");
+	const { iconv } = parseAff(aff);
+	assertEquals(iconv, [{ from: "’", to: "'" }]);
+});
+
+Deno.test("parseAff: ICONV rules sort longest-from-first for greedy matching", () => {
+	const aff = ["ICONV 2", "ICONV a x", "ICONV ab y"].join("\n");
+	const { iconv } = parseAff(aff);
+	assertEquals(iconv, [{ from: "ab", to: "y" }, { from: "a", to: "x" }]);
+});
+
+Deno.test("parseAff: an SFX block after ICONV parses correctly", () => {
+	const aff = ["ICONV 1", "ICONV ’ '", "SFX S Y 1", "SFX S 0 s ."].join("\n");
+	const { suffixes } = parseAff(aff);
+	assertEquals(suffixes.get("S")!.rules.length, 1);
+});
+
+// ─── applyIconv ─────────────────────────────────────────────────────────────
+
+Deno.test("applyIconv: replaces every occurrence of a rule's pattern", () => {
+	assertEquals(applyIconv("hadn’t", [{ from: "’", to: "'" }]), "hadn't");
+});
+
+Deno.test("applyIconv: matches the longest pattern available at each position", () => {
+	assertEquals(applyIconv("ab", [{ from: "ab", to: "y" }, { from: "a", to: "x" }]), "y");
+});
+
+Deno.test("applyIconv: a word with no matching pattern is returned unchanged", () => {
+	assertEquals(applyIconv("well", [{ from: "’", to: "'" }]), "well");
+});
+
+Deno.test("applyIconv: an empty rule list is a no-op", () => {
+	assertEquals(applyIconv("well", []), "well");
 });
 
 // ─── parseAff: unimplemented table directives don't misalign parsing ───────
