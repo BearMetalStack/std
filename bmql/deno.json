@@ -1,0 +1,10 @@
+{
+	"name": "@bearmetal/bmql",
+	"description": "A liminal query language for JSON",
+	"version": "0.1.0",
+	"exports": "./mod.ts",
+	"tasks": {
+		"dev": "deno test --watch"
+	},
+	"license": "MIT"
+}
