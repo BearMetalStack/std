@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/flux",
 	"description": "A Deno-native, dependency-free Hunspell-compatible spell checker for BearMetal",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts"
