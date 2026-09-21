@@ -2,7 +2,8 @@ import { joinPath } from "@bearmetal/miscellanea";
 import { walkDir } from "@bearmetal/miscellanea/fs";
 
 function processSVG(svg: string, name: string) {
-	svg = svg.replace(/svg/g, "symbol")
+	svg = svg.replace(/<!--[\s\S]*?-->/g, "")
+		.replace(/svg/g, "symbol")
 		.replace(/xmlns=".*?" ?/, "").replace(
 			"<symbol",
 			`<symbol id="${name}"`,
