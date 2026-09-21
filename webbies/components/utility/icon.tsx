@@ -46,15 +46,36 @@ export class BmIcon extends BMElement {
 			<>
 				<style $raw>
 					{css`
-						.icon {
-							display: contents;
+						:host {
+							display: inline-flex;
+							align-items: center;
+							justify-content: center;
+							width: 1em;
+							height: 1em;
+							overflow: visible; /* Allows the overflowing axis to be visible */
 						}
+
+						.icon,
 						.fallback {
-							display: contents;
+							display: inline-flex;
+							align-items: center;
+							justify-content: center;
+							width: 100%;
+							height: 100%;
+							overflow: visible;
 						}
+
+						svg {
+							width: 100%;
+							height: 100%;
+							fill: currentColor;
+							overflow: visible; /* Prevents the SVG viewport clipping box from hiding overflow */
+						}
+
 						:host([resolved]) .fallback {
 							display: none;
 						}
+
 						:host(:not([resolved])) .icon {
 							display: none;
 						}
@@ -91,7 +112,7 @@ export class BmIcon extends BMElement {
 	) {
 		switch (name) {
 			case "sheet":
-				BmIcon.registerSet({ type: "sheet", url: new URL(newV) });
+				BmIcon.registerSet({ type: "sheet", url: newV });
 				if (this.hasAttribute("icon")) {
 					resolveIcon(newV, this.getAttribute("icon")!).then((i) => this._iconEl = i);
 				}
@@ -142,7 +163,6 @@ async function resolveIcon(
 	if (!symbol) throw new Error(`Icon "${name}" not found in sheet`);
 
 	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-
 	const viewBox = symbol.getAttribute("viewBox");
 	if (viewBox) svg.setAttribute("viewBox", viewBox);
 
