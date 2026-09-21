@@ -77,9 +77,9 @@ interface QueryResult {
 }
 
 function runQuery<T>(
-	data: T[],
-	query: QueryString,
-	limit = Infinity,
+	_data: T[],
+	_query: QueryString,
+	_limit = Infinity,
 ): { first: QueryResult | null; all: QueryResult[] } {
 	throw "Not implemented";
 }
