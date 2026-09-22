@@ -104,4 +104,15 @@ so it is safe to mount unconditionally. It warns once when it disables itself. G
 - `/@bearmetal/dev-server/*` for the event stream, client, vendor build and `src/`, claimed as a
   `TrustedModule` named `@bearmetal/dev-server`. Mount at most one per app.
 
-Requires `--unstable-bundle`.
+## Bundling
+
+Scripts are compiled by running `deno bundle` as a subprocess rather than through `Deno.bundle`, so
+the dev server also works inside a compiled binary (`deno compile`, `deno desktop`), which carries
+no bundler. It needs `--allow-run` for that `deno`: `BMDEV_DENO` if set (and readable), else the
+running executable when it is `deno` itself, else `deno` from the `PATH`. The bundler runs from the
+directory of the nearest `deno.json` above `root`, so bare specifiers resolve through the app's own
+import map.
+
+Import-map aliases that point into `root` (`"@components/": "./src/components/"`) are rewritten to
+relative imports rather than vendored, and a side-effect `import "./x.css"` becomes a module that
+links the stylesheet, so it is swapped in place like any other.

@@ -7,8 +7,9 @@ import {
 	type AliasResolver,
 	buildVendor,
 	type CompiledModule,
-	compileModule,
+	compileModules,
 	CSS_MODULE_QUERY,
+	findConfigDir,
 	isScript,
 	loadLocalAliases,
 	type VendorBuild,
@@ -71,6 +72,7 @@ class DevServerModule extends TrustedModule {
 	#entryPaths: string[] = [];
 	#shell: string | undefined;
 	#aliases: AliasResolver = () => undefined;
+	#cwd = Deno.cwd();
 	#modules = new Map<string, CompiledModule>();
 	#served = new Map<string, Set<string>>();
 	#entries = new Set<string>();
@@ -87,6 +89,7 @@ class DevServerModule extends TrustedModule {
 		this.onStart(async () => {
 			this.#root = await Deno.realPath(await resolve(options.root) ?? ".");
 			this.#aliases = await loadLocalAliases(this.#root);
+			this.#cwd = await findConfigDir(this.#root) ?? Deno.cwd();
 			if (options.shell) this.#shell = joinPath(this.#root, options.shell);
 			else if (await isFile(joinPath(this.#root, "index.html"))) {
 				this.#shell = joinPath(this.#root, "index.html");
@@ -164,9 +167,17 @@ class DevServerModule extends TrustedModule {
 	}
 
 	async #compile(path: string): Promise<CompiledModule> {
-		const compiled = await compileModule(path, this.#aliases);
+		return (await this.#compileAll([path])).get(path)!;
+	}
+
+	/** Compiles `paths` in one bundler run, without caching them. */
+	async #compileAll(paths: string[]): Promise<Map<string, CompiledModule>> {
+		const compiled = await compileModules(paths, this.#cwd, this.#aliases);
 		const transform = this.#options.transform;
-		return transform ? { ...compiled, code: transform(compiled.code) } : compiled;
+		if (transform) {
+			for (const [path, c] of compiled) compiled.set(path, { ...c, code: transform(c.code) });
+		}
+		return compiled;
 	}
 
 	/**
@@ -244,18 +255,31 @@ class DevServerModule extends TrustedModule {
 	}
 
 	/** Every bare specifier reachable from `entries` through local imports. */
+	/**
+	 * Walks the graph a layer at a time, compiling each layer's uncached modules
+	 * in one bundler run — a process per module would dominate startup.
+	 */
 	async #crawl(entries: Set<string>): Promise<Set<string>> {
 		const bare = new Set<string>();
 		const seen = new Set<string>();
-		const queue = [...entries];
-		while (queue.length) {
-			const path = queue.pop()!;
-			if (seen.has(path) || !isScript(path) || !(await isFile(path))) continue;
-			seen.add(path);
-			await this.#module(path);
-			const compiled = this.#modules.get(path)!;
-			compiled.bare.forEach((s) => bare.add(s));
-			queue.push(...compiled.local);
+		let layer = [...entries];
+		while (layer.length) {
+			const paths: string[] = [];
+			for (const path of layer) {
+				if (seen.has(path) || !isScript(path) || !(await isFile(path))) continue;
+				seen.add(path);
+				paths.push(path);
+			}
+			const missing = paths.filter((p) => !this.#modules.has(p));
+			for (const [path, compiled] of await this.#compileAll(missing)) {
+				this.#modules.set(path, compiled);
+			}
+			layer = [];
+			for (const path of paths) {
+				const compiled = this.#modules.get(path)!;
+				compiled.bare.forEach((s) => bare.add(s));
+				layer.push(...compiled.local);
+			}
 		}
 		return bare;
 	}
@@ -268,7 +292,7 @@ class DevServerModule extends TrustedModule {
 			if (!current && needed.size === 0) return undefined;
 			const specs = new Set([...(current?.specifiers ?? []), ...needed]);
 			const start = performance.now();
-			const vendor = await buildVendor(specs, `${BASE}/vendor`);
+			const vendor = await buildVendor(specs, `${BASE}/vendor`, this.#cwd);
 			const transform = this.#options.transform;
 			if (transform) {
 				for (const [name, code] of vendor.files) vendor.files.set(name, transform(code));

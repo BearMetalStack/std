@@ -51,10 +51,69 @@ function isBare(specifier: string): boolean {
 
 /** Thrown when the bundler rejects a module. */
 export class CompileError extends Error {
-	constructor(path: string, messages: Deno.bundle.Message[]) {
-		super(`Could not compile ${path}:\n${messages.map((m) => `  ${m.text}`).join("\n")}`);
+	constructor(what: string, detail: string) {
+		super(`Could not compile ${what}:\n${detail.replace(/^/gm, "  ")}`);
 		this.name = "CompileError";
 	}
+}
+
+/**
+ * The `deno` to bundle with: `BMDEV_DENO` if set, else this process when it is
+ * `deno` itself, else whichever `deno` is on the `PATH`.
+ *
+ * The bundler runs as a subprocess rather than through `Deno.bundle` because
+ * a compiled binary — a `deno compile` or `deno desktop` app — has no bundler
+ * in it, and there `Deno.execPath()` is the app, not `deno`.
+ */
+function denoExecutable(): string {
+	const env = { name: "env", variable: "BMDEV_DENO" } as const;
+	if (Deno.permissions.querySync(env).state === "granted") {
+		const override = Deno.env.get("BMDEV_DENO");
+		if (override) return override;
+	}
+	try {
+		const exec = Deno.execPath();
+		if (/^deno(\.exe)?$/i.test(exec.split(/[\\/]/).pop() ?? "")) return exec;
+	} catch {
+		// No read access to the executable's path.
+	}
+	return "deno";
+}
+
+/**
+ * Runs `deno bundle` from `cwd`, so it finds the same config — and so the same
+ * import map — the app itself runs with. Returns the error output on failure.
+ */
+async function runBundle(args: string[], cwd: string): Promise<string | undefined> {
+	const { success, stderr } = await new Deno.Command(denoExecutable(), {
+		args: ["bundle", "--platform=browser", "--format=esm", "--sourcemap=inline", ...args],
+		cwd,
+		env: { NO_COLOR: "1" },
+		stdin: "null",
+		stdout: "null",
+		stderr: "piped",
+	}).output();
+	if (success) return undefined;
+	return new TextDecoder().decode(stderr).split("\n")
+		.filter((line) => line.trim() && !/is experimental|^error: bundling failed/.test(line))
+		.join("\n");
+}
+
+/** The deepest directory containing every one of `paths`. */
+function commonDirectory(paths: string[]): string {
+	const dirs = paths.map((p) => directoryOf(p).split("/"));
+	let n = 0;
+	while (dirs.every((d) => n < d.length && d[n] === dirs[0][n])) n++;
+	return dirs[0].slice(0, n).join("/") || "/";
+}
+
+async function readTree(dir: string, into = new Map<string, string>(), prefix = "") {
+	for await (const entry of Deno.readDir(joinPath(dir, prefix))) {
+		const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+		if (entry.isDirectory) await readTree(dir, into, rel);
+		else into.set(rel, await Deno.readTextFile(joinPath(dir, rel)));
+	}
+	return into;
 }
 
 /**
@@ -95,22 +154,39 @@ export async function loadLocalAliases(root: string): Promise<AliasResolver> {
 	};
 }
 
-async function findImportMap(
+/**
+ * The directory of the Deno config governing `root` — the nearest
+ * `deno.json`/`deno.jsonc` at or above it — which is where the bundler is run
+ * from. `undefined` when there is none.
+ */
+export async function findConfigDir(root: string): Promise<string | undefined> {
+	return (await findConfig(root))?.dir;
+}
+
+async function findConfig(
 	root: string,
-): Promise<{ imports: Record<string, string>; dir: string } | undefined> {
+): Promise<{ config: Record<string, unknown>; dir: string } | undefined> {
 	for (let dir = root;; dir = directoryOf(dir)) {
 		for (const name of ["deno.json", "deno.jsonc"]) {
 			const config = await readJson(joinPath(dir, name));
-			if (!config) continue;
-			if (typeof config.importMap === "string") {
-				const file = joinPath(dir, config.importMap);
-				const external = await readJson(file);
-				return { imports: asImports(external?.imports), dir: directoryOf(file) };
-			}
-			return { imports: asImports(config.imports), dir };
+			if (config) return { config, dir };
 		}
 		if (dir === "/") return undefined;
 	}
+}
+
+async function findImportMap(
+	root: string,
+): Promise<{ imports: Record<string, string>; dir: string } | undefined> {
+	const found = await findConfig(root);
+	if (!found) return undefined;
+	const { config, dir } = found;
+	if (typeof config.importMap === "string") {
+		const file = joinPath(dir, config.importMap);
+		const external = await readJson(file);
+		return { imports: asImports(external?.imports), dir: directoryOf(file) };
+	}
+	return { imports: asImports(config.imports), dir };
 }
 
 async function readJson(path: string): Promise<Record<string, unknown> | undefined> {
@@ -163,29 +239,70 @@ function relativeSpecifier(from: string, to: string): string {
 export const CSS_MODULE_QUERY = "bmdev=css";
 
 /**
- * Compiles one module without bundling anything into it.
+ * Compiles modules without bundling anything into them, in one `deno bundle`
+ * run, keyed by path.
  *
- * Every specifier it imports is marked external, the JSX runtime included, so
+ * Every specifier they import is marked external, the JSX runtime included, so
  * the browser resolves each one itself: local modules back to this server and
  * packages to the shared vendor build. That is what lets a re-imported module
  * share the page's single copy of every dependency instead of carrying its own.
+ * Pooling every module's specifiers into one external list changes nothing,
+ * since all of them are external anyway.
+ *
+ * If the batch fails, each module is compiled on its own, so the error names
+ * the module that caused it.
+ *
+ * @param cwd where to run the bundler, so it finds the app's config.
  */
-export async function compileModule(
-	path: string,
+export async function compileModules(
+	paths: string[],
+	cwd: string,
 	aliases: AliasResolver = () => undefined,
-): Promise<CompiledModule> {
-	const candidates = specifiers(await Deno.readTextFile(path));
-	const result = await Deno.bundle({
-		entrypoints: [path],
-		write: false,
-		platform: "browser",
-		format: "esm",
-		sourcemap: "inline",
-		external: [...candidates, ...JSX_RUNTIME],
-	});
-	const output = result.outputFiles?.[0]?.text();
-	if (!result.success || output === undefined) throw new CompileError(path, result.errors);
+): Promise<Map<string, CompiledModule>> {
+	const compiled = new Map<string, CompiledModule>();
+	if (!paths.length) return compiled;
 
+	const candidates = new Map<string, Set<string>>();
+	for (const path of paths) candidates.set(path, specifiers(await Deno.readTextFile(path)));
+	const external = new Set([...candidates.values()].flatMap((c) => [...c]));
+	JSX_RUNTIME.forEach((s) => external.add(s));
+
+	const outDir = await Deno.makeTempDir({ prefix: "bmdev-compile-" });
+	try {
+		const error = await runBundle([
+			`--outdir=${outDir}`,
+			...[...external].map((s) => `--external=${s}`),
+			...paths,
+		], cwd);
+		if (error !== undefined) {
+			if (paths.length === 1) throw new CompileError(paths[0], error);
+			for (const path of paths) {
+				const [one] = await compileModules([path], cwd, aliases);
+				compiled.set(...one);
+			}
+			return compiled;
+		}
+
+		// The bundler lays entries out under the deepest directory they share.
+		const base = commonDirectory(paths);
+		for (const path of paths) {
+			const out = joinPath(outDir, path.slice(base.length).replace(SCRIPT, ".js"));
+			const output = await Deno.readTextFile(out);
+			compiled.set(path, finish(path, output, candidates.get(path)!, aliases));
+		}
+		return compiled;
+	} finally {
+		await Deno.remove(outDir, { recursive: true }).catch(() => {});
+	}
+}
+
+/** Resolves a compiled module's imports: aliases made relative, stylesheets made modules. */
+function finish(
+	path: string,
+	output: string,
+	candidates: Set<string>,
+	aliases: AliasResolver,
+): CompiledModule {
 	const body = stripSourceMap(output);
 	const code = rewriteSpecifiers(body, (specifier) => {
 		const aliased = aliases(specifier);
@@ -232,8 +349,15 @@ let nextId = 0;
  * Each specifier gets a small entry that re-exports it, so a package reached
  * through several specifiers (`@bearmetal/app` and `@bearmetal/app/signals`)
  * still evaluates once: the shared part lands in a chunk both entries import.
+ *
+ * @param cwd where to run the bundler, so the entries — which sit in a temp
+ * directory — resolve through the app's import map.
  */
-export async function buildVendor(specs: Set<string>, base: string): Promise<VendorBuild> {
+export async function buildVendor(
+	specs: Set<string>,
+	base: string,
+	cwd: string,
+): Promise<VendorBuild> {
 	workDir ??= Deno.makeTempDir({ prefix: "bmdev-vendor-" });
 	const dir = await workDir;
 	const id = nextId++;
@@ -252,23 +376,21 @@ export async function buildVendor(specs: Set<string>, base: string): Promise<Ven
 		return entry;
 	}));
 
-	const result = await Deno.bundle({
-		entrypoints,
-		outputDir: outDir,
-		write: false,
-		platform: "browser",
-		format: "esm",
-		sourcemap: "inline",
-		codeSplitting: true,
-	});
-	if (!result.success) throw new CompileError("the vendor build", result.errors);
+	let files: Map<string, string>;
+	try {
+		const error = await runBundle(["--code-splitting", `--outdir=${outDir}`, ...entrypoints], cwd);
+		if (error !== undefined) throw new CompileError("the vendor build", error);
+		files = await readTree(outDir);
+	} finally {
+		await Deno.remove(inDir, { recursive: true }).catch(() => {});
+		await Deno.remove(outDir, { recursive: true }).catch(() => {});
+	}
 
-	const files = new Map<string, string>();
 	const sources = new Set<string>();
-	for (const file of result.outputFiles ?? []) {
-		const text = file.text();
-		files.set(file.path.slice(outDir.length + 1), text);
-		for (const source of sourceMapSources(text, directoryOf(file.path))) sources.add(source);
+	for (const [name, text] of files) {
+		for (const source of sourceMapSources(text, directoryOf(joinPath(outDir, name)))) {
+			sources.add(source);
+		}
 	}
 
 	const imports: Record<string, string> = {};

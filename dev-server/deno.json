@@ -6,8 +6,8 @@
 		"./types": "./types.ts"
 	},
 	"tasks": {
-		"dev": "deno run -RWN -E=BEARMETAL_ENV --unstable-bundle --watch mod.ts test --entry=index.tsx",
-		"install": "deno install -fg --name=bmdev --config=deno.json --allow-read --allow-write --allow-net --allow-env --unstable-bundle mod.ts"
+		"dev": "deno run -RWN -E=BEARMETAL_ENV,BMDEV_DENO --allow-run=deno --watch mod.ts test --entry=index.tsx",
+		"install": "deno install -fg --name=bmdev --config=deno.json --allow-read --allow-write --allow-net --allow-env --allow-run mod.ts"
 	},
 	"license": "MIT",
 	"compilerOptions": {
