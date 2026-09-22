@@ -2,6 +2,8 @@ import type { Html } from "@bearmetal/jsx";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal } from "./signals/wrapper.ts";
 
+export type { HmrEventDetail } from "./hmr.ts";
+
 export type SignalOf<T> = Signal.Computed<T> | Signal.State<T> | {
 	get(): T;
 	set(arg: T): void;

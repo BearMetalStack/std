@@ -23,7 +23,13 @@ import { renderToTree, serializeTree } from "./render.ts";
 
 export { bundleEntrypoints, type BundleOutput } from "./bundle.ts";
 export { mirrorStripped, type StripOptions, type StrippedTree } from "./prestrip.ts";
-export { contributeHead, hasHeadContributors, type HeadContributor } from "./head.ts";
+export { stripServerCode } from "./stripServer.ts";
+export {
+	contributeHead,
+	hasHeadContributors,
+	type HeadContributionOptions,
+	type HeadContributor,
+} from "./head.ts";
 export {
 	type RenderedTree,
 	type RenderOptions,
@@ -86,6 +92,10 @@ export function Page<T extends StateType>(
 			const head = tree.root.querySelector("head");
 			if (!head) return HTMLRes(serializeTree(tree.root));
 
+			const charset = head.querySelector(":scope > meta[charset]");
+			const start = headContributions("start") as unknown as Node[];
+			if (charset) charset.after(...start);
+			else head.prepend(...start);
 			for (const node of headContributions()) head.appendChild(node);
 			warnIfNothingHydrates(tree.root);
 

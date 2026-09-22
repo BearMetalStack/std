@@ -1,5 +1,6 @@
 import type { BMC } from "@bearmetal/jsx";
 import { onDomChanged } from "@bearmetal/jsx";
+import { hotStandIn, hotSwap, isHotEnabled } from "./hmr.ts";
 import { isBrowser } from "./util/environment.ts";
 
 type BmElementConstructor = {
@@ -25,9 +26,11 @@ const definitions = new Map<string, BmElementConstructor>();
 function defineAll(): void {
 	if (typeof customElements === "undefined") return;
 	for (const [tag, ctor] of definitions) {
-		if (!customElements.get(tag)) {
-			customElements.define(tag, ctor as unknown as CustomElementConstructor);
-		}
+		if (customElements.get(tag)) continue;
+		const registered = isHotEnabled()
+			? hotStandIn(tag, ctor as unknown as CustomElementConstructor)
+			: ctor as unknown as CustomElementConstructor;
+		customElements.define(tag, registered);
 	}
 }
 
@@ -79,8 +82,10 @@ export function define(
 		// `typeof document`. If no registry exists yet, `defineAll` picks it up
 		// when one does.
 		context.addInitializer(function () {
+			const hot = isHotEnabled() && definitions.has(tag);
 			definitions.set(tag, target);
-			defineAll();
+			if (hot) hotSwap(tag, target as unknown as CustomElementConstructor);
+			else defineAll();
 		});
 
 		// The stylesheet the server inlines for this tag. Recorded unconditionally
@@ -93,7 +98,7 @@ export function define(
 		// meaningful in a browser. Doing it server-side would pile every
 		// component's CSS into one long-lived microdom that no response ever
 		// serializes.
-		if (!isBrowser() || !s) return;
+		if (!isBrowser() || !s || isHotEnabled() && definitions.has(tag)) return;
 
 		if (!document.head.querySelector(`style#${tag}`)) {
 			if (s instanceof CSSStyleSheet) {

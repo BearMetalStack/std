@@ -1,10 +1,13 @@
 {
 	"name": "@bearmetal/dev-server",
 	"version": "0.1.6",
-	"exports": "./mod.ts",
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts"
+	},
 	"tasks": {
-		"dev": "deno run -RWN --watch mod.ts test",
-		"install": "deno install -fg --name=bmdev --config=deno.json --allow-read --allow-write --allow-net=0.0.0.0:8345 --allow-env --unstable-bundle mod.ts"
+		"dev": "deno run -RWN -E=BEARMETAL_ENV --unstable-bundle --watch mod.ts test --entry=index.tsx",
+		"install": "deno install -fg --name=bmdev --config=deno.json --allow-read --allow-write --allow-net --allow-env --unstable-bundle mod.ts"
 	},
 	"license": "MIT",
 	"compilerOptions": {

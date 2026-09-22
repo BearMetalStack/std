@@ -17,7 +17,7 @@
 
 import { bundleEntrypoints, contributeHead, mirrorStripped } from "@bearmetal/app/ssr";
 import { getAllStylesheets } from "@bearmetal/app";
-import { type Module, Script, Style, TrustedModule } from "@bearmetal/router";
+import { type Module, Script, Style } from "@bearmetal/router";
 import { isDev } from "@bearmetal/miscellanea/environment";
 import {
 	appJsxImportSource,
@@ -27,16 +27,20 @@ import {
 	resolveEntrypoints,
 	serveMap,
 } from "./components.ts";
+import { devStack } from "./dev.tsx";
+import {
+	cache,
+	componentHeadTags,
+	componentsEndpoint,
+	fingerprint,
+	StackComponentsModule,
+	stylesheetName,
+} from "./endpoint.tsx";
 
 export * from "./optimization/fonts/google.tsx";
 export type * from "./types.ts";
 export { componentDirs, defaultBundleName } from "./components.ts";
-
-/** URL prefix that every component bundle and shared chunk is served under. */
-export const componentsEndpoint = "/@bearmetal/components";
-
-/** Served name of the stylesheet holding every component's CSS. */
-const stylesheetName = `${defaultBundleName}.css`;
+export { componentsEndpoint } from "./endpoint.tsx";
 
 /** Loads a component module for its `@define` side effects. */
 export type ImportFn = (specifier: string) => Promise<unknown>;
@@ -59,13 +63,6 @@ export interface StackOptions {
 	dir?: string;
 }
 
-/** Serves the client bundle at the reserved `/@bearmetal/components` endpoint. */
-class StackComponentsModule extends TrustedModule {
-	constructor() {
-		super("@bearmetal/components");
-	}
-}
-
 /**
  * Everything an app needs to ship its components to the browser.
  *
@@ -79,12 +76,18 @@ class StackComponentsModule extends TrustedModule {
  * that a tag can be used in a template without the view importing anything —
  * bundles them in one pass, and registers the `<link>` and `<script>` that
  * `Page()` puts in every `<head>`.
+ *
+ * In dev (`isDev()`), the components are served through `@bearmetal/dev-server`
+ * instead of bundled, and a changed component is replaced in the page and on
+ * the server without a reload. Pages reference the same URLs either way. Keep
+ * the components directory out of `deno run --watch`
+ * (`--watch-exclude=components`), or every edit restarts the server first.
  */
 export function createStack(options: StackOptions | ImportFn = {}): Module {
 	const opts: StackOptions = typeof options === "function" ? { import: options } : options;
 	const importModule: ImportFn = opts.import ?? ((specifier) => import(specifier));
+	if (isDev()) return devStack(opts.dir, importModule);
 
-	const bus = new EventTarget();
 	/** Bundles keyed by the name they are served under at the components endpoint. */
 	let compBundle: Map<string, string> = new Map();
 	let compStyles = "";
@@ -115,16 +118,8 @@ export function createStack(options: StackOptions | ImportFn = {}): Module {
 		let entrypoints: Entrypoint[] = [];
 		let synthesized: string | undefined;
 
-		/**
-		 * Re-mirrors, re-resolves and rebuilds, in that order.
-		 *
-		 * All three, every time, because in dev any of them can have changed: a
-		 * component's source, the set of components, or a manifest. The mirror is
-		 * refreshed in place so the entrypoint paths resolved against it stay
-		 * valid.
-		 */
+		/** Resolves the entrypoints, imports the components and bundles them. */
 		const build = async () => {
-			await stripped.refresh();
 			const resolved = await resolveEntrypoints(dir, stripped.root);
 
 			if (synthesized && synthesized !== resolved.tempDir) {
@@ -159,20 +154,17 @@ export function createStack(options: StackOptions | ImportFn = {}): Module {
 			return;
 		}
 
-		contributeHead(() => headTags(entrypoints));
+		contributeHead(() =>
+			componentHeadTags(
+				compStyles,
+				version,
+				entrypoints.some((e) => e.served === defaultBundleName),
+			)
+		);
 
-		if (isDev()) {
-			bus.addEventListener("modify", () => {
-				build()
-					.then(() => bus.dispatchEvent(new Event("reload")))
-					.catch((e) => console.error("failed to rebuild the client bundle:", e));
-			});
-			watch(dir).catch((e) => console.error("stopped watching the components directory:", e));
-		} else {
-			// Nothing rebuilds in production, so neither copy is needed again.
-			await stripped.dispose();
-			if (synthesized) await Deno.remove(synthesized, { recursive: true }).catch(() => {});
-		}
+		// Nothing rebuilds in production, so neither copy is needed again.
+		await stripped.dispose();
+		if (synthesized) await Deno.remove(synthesized, { recursive: true }).catch(() => {});
 	});
 
 	mod.route(`${componentsEndpoint}/:bundle`)
@@ -184,102 +176,5 @@ export function createStack(options: StackOptions | ImportFn = {}): Module {
 			return cache(Script(script));
 		});
 
-	/**
-	 * The default bundle is the only one referenced. Subset bundles are opt-in
-	 * via their own script tag, and shared chunks are pulled in by the entries
-	 * that import them.
-	 */
-	function headTags(entrypoints: Entrypoint[]) {
-		const tags = [];
-		if (compStyles) {
-			tags.push(
-				<link rel="stylesheet" href={`${componentsEndpoint}/${stylesheetName}?v=${version}`} />,
-			);
-		}
-		if (entrypoints.some((e) => e.served === defaultBundleName)) {
-			tags.push(
-				<script
-					type="module"
-					src={`${componentsEndpoint}/${defaultBundleName}?v=${version}`}
-				/>,
-			);
-		}
-		if (isDev()) tags.push(<script $raw>{reloadScript}</script>);
-		return tags;
-	}
-
-	if (isDev()) {
-		mod.route("/__event/reload")
-			.get(() => {
-				let listener: (e: Event) => void;
-				const body = new ReadableStream({
-					start(controller) {
-						listener = () => {
-							const ev = `event: reload\ndata: ${Date.now()}\n\n`;
-							controller.enqueue(new TextEncoder().encode(ev));
-						};
-						bus.addEventListener("reload", listener);
-					},
-					cancel() {
-						bus.removeEventListener("reload", listener);
-					},
-				});
-				return new Response(body, {
-					headers: {
-						"Content-Type": "text/event-stream",
-						"Cache-Control": "no-cache",
-						"Connection": "keep-alive",
-					},
-				});
-			});
-	}
-
-	async function watch(dir: string) {
-		for await (const fEvent of Deno.watchFs(dir, { recursive: true })) {
-			if (fEvent.kind === "modify") {
-				bus.dispatchEvent(new Event("modify"));
-			}
-		}
-	}
-
 	return mod;
 }
-
-/**
- * The bundle URLs carry a content hash, so the answer can be cached forever.
- * In dev it must not be cached at all — the URL is the same across a rebuild
- * whenever the hash happens not to change.
- */
-function cache(res: Response): Response {
-	res.headers.set(
-		"Cache-Control",
-		isDev() ? "no-store" : "public, max-age=31536000, immutable",
-	);
-	return res;
-}
-
-/** Short content hash, enough to bust a cache when the bundle moves. */
-async function fingerprint(...parts: string[]): Promise<string> {
-	const data = new TextEncoder().encode(parts.join(" "));
-	const digest = await crypto.subtle.digest("SHA-256", data);
-	return [...new Uint8Array(digest).slice(0, 6)]
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
-}
-
-/**
- * Reloads the page when the server comes back.
- *
- * The interesting case is not the `reload` event but the error: `deno run
- * --watch` restarts the process on a change, which drops this connection, and
- * the retry succeeding is the signal that the new server is up.
- */
-const reloadScript = `
-const ev = new EventSource("/__event/reload");
-ev.addEventListener("reload", () => location.reload());
-ev.onerror = () => {
-	if (ev.readyState === EventSource.CONNECTING) {
-		setTimeout(() => location.reload(), 100);
-	}
-};
-`;

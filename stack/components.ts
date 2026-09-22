@@ -71,8 +71,16 @@ async function fileUrl(path: string): Promise<string> {
  * `dir` is where the components really are, and is what the server imports.
  * `bundleDir` is the layout-identical tree the bundler reads instead — the
  * stripped mirror. They are the same directory only when nothing was stripped.
+ *
+ * With `synthesizeInBundleDir`, a synthesized entry is written into `bundleDir`
+ * itself with relative imports, rewritten only when its content changes — for
+ * the dev server, which serves `bundleDir` as a tree of separate modules.
  */
-export async function resolveEntrypoints(dir: string, bundleDir: string = dir): Promise<Resolved> {
+export async function resolveEntrypoints(
+	dir: string,
+	bundleDir: string = dir,
+	options: { synthesizeInBundleDir?: boolean } = {},
+): Promise<Resolved> {
 	const subsets: Entrypoint[] = [];
 	let defaultEntry: Entrypoint | undefined;
 
@@ -102,18 +110,40 @@ export async function resolveEntrypoints(dir: string, bundleDir: string = dir): 
 
 	const components: string[] = [];
 	const bundled: string[] = [];
+	const relative: string[] = [];
 	for await (const entry of walkDir(dir)) {
 		if (!entry.isFile) continue;
 		if (manifestRx.test(entry.name)) continue;
 		if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
 		components.push(await fileUrl(entry.path));
-		bundled.push("file://" + joinPath(bundleDir, entry.path.slice(dir.length).replace(/^\//, "")));
+		const rel = entry.path.slice(dir.length).replace(/^\//, "");
+		bundled.push("file://" + joinPath(bundleDir, rel));
+		relative.push(`./${rel}`);
 	}
 
 	if (components.length === 0) {
 		return {
 			entrypoints: subsets,
 			sideEffects: await Promise.all(subsets.map((e) => fileUrl(e.source))),
+		};
+	}
+
+	if (options.synthesizeInBundleDir) {
+		const synthesized = joinPath(bundleDir, "bearmetal-components.ts");
+		const content = relative.map((spec) => `import ${JSON.stringify(spec)};`).join("\n") + "\n";
+		const current = await Deno.readTextFile(synthesized).catch(() => null);
+		if (current !== content) await Deno.writeTextFile(synthesized, content);
+		return {
+			entrypoints: [
+				{
+					path: synthesized,
+					source: synthesized,
+					output: "bearmetal-components.js",
+					served: defaultBundleName,
+				},
+				...subsets,
+			],
+			sideEffects: [...components, ...await Promise.all(subsets.map((e) => fileUrl(e.source)))],
 		};
 	}
 

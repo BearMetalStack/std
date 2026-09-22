@@ -147,6 +147,15 @@ one has bitten:
 `app/ssr` owns rendering and `bundleEntrypoints`; `stack` owns discovery, serving and the
 `contributeHead()` registration. `Page()` injects nothing on its own.
 
+**In dev, nothing is bundled** (`stack/dev.tsx`). `createStack()` mounts `@bearmetal/dev-server`
+over the stripped mirror, which compiles each module on its own against one shared vendor build, and
+`/@bearmetal/components/<name>` answers with a one-line module importing the entry from it, so pages
+reference the same URLs in both modes. The mirror strips only `serverInit` in dev (a `stylesheet`
+change has to reach the browser to be swapped), and `stripServerCode` still runs over everything
+served. `enableHotReplacement()` is on server-side too, and a changed component is re-imported with
+a query string so SSR uses the new class. That only works if the components directory is excluded
+from `deno run --watch` — otherwise the restart gets there first.
+
 The scaffolding templates are **generated from the example apps** (`deno task bm:templates` in
 `stack/`, output `stack/templates/embedded.ts`), so a template is type-checked by `workspace:check`
 like any other code. Edit `stack/examples/project`, then regenerate.

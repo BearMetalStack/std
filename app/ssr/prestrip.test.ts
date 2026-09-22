@@ -124,6 +124,27 @@ Deno.test("refresh picks up an edit and forgets a deleted file", async () => {
 	await Deno.remove(root, { recursive: true });
 });
 
+Deno.test("refresh rewrites only what changed and leaves foreign files alone", async () => {
+	const root = await tree({
+		"a.ts": "export const a = 1;\n",
+		"b.ts": "export const b = 2;\n",
+	});
+	const mirror = await mirrorStripped(root);
+	await Deno.writeTextFile(`${mirror.root}/entry.ts`, `import "./a.ts";\n`);
+	const before = (await Deno.stat(`${mirror.root}/b.ts`)).mtime?.getTime();
+
+	await new Promise((r) => setTimeout(r, 20));
+	await Deno.writeTextFile(`${root}/a.ts`, "export const a = 99;\n");
+	await mirror.refresh();
+
+	assertEquals((await Deno.stat(`${mirror.root}/b.ts`)).mtime?.getTime(), before);
+	assertStringIncludes(await Deno.readTextFile(`${mirror.root}/a.ts`), "99");
+	assertStringIncludes(await Deno.readTextFile(`${mirror.root}/entry.ts`), "./a.ts");
+
+	await mirror.dispose();
+	await Deno.remove(root, { recursive: true });
+});
+
 Deno.test("pathFor maps a source path onto its copy", async () => {
 	const root = await tree({ "ui/card.tsx": component });
 	const mirror = await mirrorStripped(root);

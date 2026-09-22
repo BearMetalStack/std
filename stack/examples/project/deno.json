@@ -1,6 +1,6 @@
 {
 	"tasks": {
-		"dev": "deno run -A --watch main.ts",
+		"dev": "deno run -A --watch --watch-exclude=components main.ts",
 		"prod": "export BEARMETAL_ENV=prod && deno run -A main.ts"
 	},
 	"imports": {

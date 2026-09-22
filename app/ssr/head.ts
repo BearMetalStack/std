@@ -21,7 +21,18 @@ import type { JSX } from "@bearmetal/jsx/jsx-runtime";
  */
 export type HeadContributor = () => JSX.Element | Iterable<JSX.Element> | null | undefined;
 
-const contributors = new Set<HeadContributor>();
+/** Where in `<head>` a contributor's tags go. */
+export interface HeadContributionOptions {
+	/**
+	 * `"end"` (the default) appends after everything the layout rendered.
+	 * `"start"` inserts ahead of it, after a leading `<meta charset>`, for tags
+	 * that must precede the page's own — an import map, which the browser only
+	 * honours before the first module script.
+	 */
+	at?: "start" | "end";
+}
+
+const contributors = new Map<HeadContributor, "start" | "end">();
 
 /**
  * Registers `contributor` to run for every page rendered from here on.
@@ -36,8 +47,11 @@ const contributors = new Set<HeadContributor>();
  * ]);
  * ```
  */
-export function contributeHead(contributor: HeadContributor): () => void {
-	contributors.add(contributor);
+export function contributeHead(
+	contributor: HeadContributor,
+	options: HeadContributionOptions = {},
+): () => void {
+	contributors.set(contributor, options.at ?? "end");
 	return () => {
 		contributors.delete(contributor);
 	};
@@ -48,10 +62,11 @@ export function hasHeadContributors(): boolean {
 	return contributors.size > 0;
 }
 
-/** Every registered contributor's tags, in registration order. */
-export function headContributions(): JSX.Element[] {
+/** Every contributor's tags for one position in `<head>`, in registration order. */
+export function headContributions(at: "start" | "end" = "end"): JSX.Element[] {
 	const nodes: JSX.Element[] = [];
-	for (const contributor of contributors) {
+	for (const [contributor, position] of contributors) {
+		if (position !== at) continue;
 		let produced: ReturnType<HeadContributor>;
 		try {
 			produced = contributor();

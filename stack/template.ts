@@ -73,8 +73,9 @@ export function denoJson(_projectName: string, packages: Set<string>): string {
 				command: "deno run -RW jsr:@bearmetal/drip",
 			},
 			"bm:dev": {
-				description: "Starts the dev server, rebuilding and reloading on a change",
-				command: "deno run -P=dev --watch main.ts",
+				description:
+					"Starts the dev server: components are replaced in place, anything else restarts it",
+				command: "deno run -P=dev --watch --watch-exclude=components main.ts",
 			},
 			"bm:start": {
 				description: "Starts the server in production mode",

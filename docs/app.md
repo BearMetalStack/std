@@ -665,7 +665,7 @@ A terminal route handler that:
    one, with the request URL scoped to the render
 2. Renders it, then settles every `serverInit()` and promise the tree raised
 3. Snapshots each component's `@state` into its markup
-4. Finds `<head>` in the tree and appends everything registered with `contributeHead()`
+4. Finds `<head>` in the tree and adds everything registered with `contributeHead()`
 5. Serializes, with a `<!DOCTYPE>`
 
 ```tsx
@@ -685,15 +685,19 @@ injected.
 `serverInit` and `stylesheet` bodies are removed from the bundle on the way out, so a component's
 server-side dependencies never reach the browser.
 
-### `contributeHead(fn)`
+### `contributeHead(fn, options?)`
 
-Registers a function that returns tags to append to every rendered page's `<head>`. It runs once per
+Registers a function that returns tags to add to every rendered page's `<head>`. It runs once per
 render, after the tree has settled, so it must be synchronous and must build fresh nodes each time.
 Returns a function that unregisters it.
 
 ```tsx
 contributeHead(() => <script type="module" src="/analytics.js" />);
 ```
+
+Tags are appended after everything the layout rendered. Pass `{ at: "start" }` for tags that must
+come before the page's own, such as an import map, which the browser only honours ahead of the first
+module script. Those go right after a leading `<meta charset>`, or first if there is none.
 
 ::: warning Props handed to a component from a `Page()` view configure the server render and then
 they are gone — a declared `@prop` is written as a signal, not an attribute, and the view itself is

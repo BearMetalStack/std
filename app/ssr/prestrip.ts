@@ -51,7 +51,10 @@ export interface StrippedTree {
 	 *
 	 * In place, so that entrypoint paths resolved against `root` stay valid
 	 * across a dev rebuild — a fresh temp directory each time would invalidate
-	 * every one of them.
+	 * every one of them. Only a copy whose content changed is rewritten, and only
+	 * a copy whose source is gone is deleted, so a watcher on `root` sees exactly
+	 * the files that changed. Files placed in `root` by anything else are left
+	 * alone.
 	 */
 	refresh(): Promise<void>;
 	/** Deletes the copy. */
@@ -156,7 +159,21 @@ export async function mirrorStripped(
 		? `/** @jsxRuntime automatic */\n/** @jsxImportSource ${options.jsxImportSource} */\n`
 		: "";
 
+	const written = new Set<string>();
+
+	async function write(out: string, content: string | Uint8Array): Promise<void> {
+		written.add(out);
+		const current = await Deno.readFile(out).catch(() => null);
+		const next = typeof content === "string" ? new TextEncoder().encode(content) : content;
+		if (current && current.length === next.length && current.every((b, i) => b === next[i])) {
+			return;
+		}
+		await Deno.writeFile(out, next);
+	}
+
 	async function mirror(): Promise<void> {
+		const previous = new Set(written);
+		written.clear();
 		for await (const entry of walkDir(root)) {
 			const path = await Deno.realPath(entry.path);
 			if (!(await Deno.stat(path)).isFile) continue;
@@ -166,7 +183,7 @@ export async function mirrorStripped(
 			await Deno.mkdir(directoryOf(out), { recursive: true });
 
 			if (!isScript(path)) {
-				await Deno.copyFile(path, out);
+				await write(out, await Deno.readFile(path));
 				continue;
 			}
 
@@ -174,7 +191,10 @@ export async function mirrorStripped(
 			const stripped = stripServerCode(source, { names, prefixes: options.prefixes });
 			const rewritten = rewriteEscapingImports(stripped, path, root);
 			const needsPragma = JSX_EXTENSIONS.some((ext) => path.endsWith(ext));
-			await Deno.writeTextFile(out, needsPragma ? pragma + rewritten : rewritten);
+			await write(out, needsPragma ? pragma + rewritten : rewritten);
+		}
+		for (const out of previous) {
+			if (!written.has(out)) await Deno.remove(out).catch(() => {});
 		}
 	}
 
@@ -182,14 +202,7 @@ export async function mirrorStripped(
 
 	return {
 		root: target,
-		async refresh() {
-			// Emptied rather than rewritten over, so a component that has been
-			// deleted since the last build does not linger in the copy and go on
-			// being bundled.
-			await Deno.remove(target, { recursive: true });
-			await Deno.mkdir(target, { recursive: true });
-			await mirror();
-		},
+		refresh: mirror,
 		pathFor(sourcePath: string): string {
 			const relative = sourcePath.startsWith(root)
 				? sourcePath.slice(root.length).replace(/^\//, "")
