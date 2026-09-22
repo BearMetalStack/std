@@ -4,10 +4,13 @@ import { contributeHead } from "@bearmetal/app/ssr";
 import { Module, type RouterHandler, TrustedModule } from "@bearmetal/router";
 import { BASE, clientScript, devServerSourceUrl } from "./client.ts";
 import {
+	type AliasResolver,
 	buildVendor,
 	type CompiledModule,
 	compileModule,
+	CSS_MODULE_QUERY,
 	isScript,
+	loadLocalAliases,
 	type VendorBuild,
 } from "./graph.ts";
 import { headTags, importMapJson } from "./head.tsx";
@@ -67,6 +70,7 @@ class DevServerModule extends TrustedModule {
 	#root = "";
 	#entryPaths: string[] = [];
 	#shell: string | undefined;
+	#aliases: AliasResolver = () => undefined;
 	#modules = new Map<string, CompiledModule>();
 	#served = new Map<string, Set<string>>();
 	#entries = new Set<string>();
@@ -82,6 +86,7 @@ class DevServerModule extends TrustedModule {
 
 		this.onStart(async () => {
 			this.#root = await Deno.realPath(await resolve(options.root) ?? ".");
+			this.#aliases = await loadLocalAliases(this.#root);
 			if (options.shell) this.#shell = joinPath(this.#root, options.shell);
 			else if (await isFile(joinPath(this.#root, "index.html"))) {
 				this.#shell = joinPath(this.#root, "index.html");
@@ -141,6 +146,9 @@ class DevServerModule extends TrustedModule {
 			if (!(await isFile(path))) return notFound();
 			this.#track(path, url.pathname);
 			if (isScript(path)) return respond(await this.#module(path), "text/javascript");
+			if (mimeType(path) === "text/css" && url.search === `?${CSS_MODULE_QUERY}`) {
+				return respond(cssModule(url.pathname), "text/javascript");
+			}
 			if (mimeType(path) === "text/html") {
 				return respond(await this.#page(await Deno.readTextFile(path), url, base), "text/html");
 			}
@@ -156,7 +164,7 @@ class DevServerModule extends TrustedModule {
 	}
 
 	async #compile(path: string): Promise<CompiledModule> {
-		const compiled = await compileModule(path);
+		const compiled = await compileModule(path, this.#aliases);
 		const transform = this.#options.transform;
 		return transform ? { ...compiled, code: transform(compiled.code) } : compiled;
 	}
@@ -396,6 +404,21 @@ class DevServerModule extends TrustedModule {
 	}
 
 	// #endregion
+}
+
+/**
+ * What a module's `import "./x.css"` is answered with: a module that links the
+ * stylesheet, once, so it is swapped in place like any other linked one.
+ */
+function cssModule(pathname: string): string {
+	const href = JSON.stringify(pathname);
+	return `if (![...document.querySelectorAll('link[rel="stylesheet"]')].some((l) => new URL(l.href).pathname === ${href})) {
+	const link = document.createElement("link");
+	link.rel = "stylesheet";
+	link.href = ${href};
+	document.head.append(link);
+}
+`;
 }
 
 function respond(body: BodyInit, type: string): Response {

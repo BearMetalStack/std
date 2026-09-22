@@ -31,6 +31,15 @@ function specifiers(code: string): Set<string> {
 	return found;
 }
 
+/** Replaces every import specifier in `code` with what `map` returns for it. */
+function rewriteSpecifiers(code: string, map: (specifier: string) => string): string {
+	return code.replace(SPECIFIER, (match, from?: string, dynamic?: string) => {
+		const specifier = from ?? dynamic!;
+		const next = map(specifier);
+		return next === specifier ? match : match.replace(specifier, next);
+	});
+}
+
 function isRelative(specifier: string): boolean {
 	return specifier.startsWith("./") || specifier.startsWith("../");
 }
@@ -49,6 +58,111 @@ export class CompileError extends Error {
 }
 
 /**
+ * Maps an import-map alias to the local file it names, or `undefined` when it
+ * names anything else. See {@linkcode loadLocalAliases}.
+ */
+export type AliasResolver = (specifier: string) => string | undefined;
+
+/**
+ * Reads the import map of the Deno config governing `root` — the nearest
+ * `deno.json`/`deno.jsonc` at or above it, or the file its `importMap` names —
+ * and returns a resolver for the aliases that point at files under `root`.
+ *
+ * Those aliases (`"@components/": "./src/components/"`) look bare, but they
+ * name the app's own modules. Vendoring them would bundle the app into the
+ * vendor build, where nothing hot-replaces and a module also reached by a
+ * relative path loads twice. They are rewritten to relative imports instead.
+ */
+export async function loadLocalAliases(root: string): Promise<AliasResolver> {
+	const map = await findImportMap(root);
+	if (!map) return () => undefined;
+	const entries = Object.entries(map.imports)
+		.map(([key, value]) => [key, localTarget(value, map.dir)] as const)
+		.filter((e): e is readonly [string, string] => e[1] !== undefined);
+	const exact = new Map(entries.filter(([k]) => !k.endsWith("/")));
+	const prefixes = entries.filter(([k, v]) => k.endsWith("/") && v.endsWith("/"))
+		.sort(([a], [b]) => b.length - a.length);
+
+	return (specifier) => {
+		let target = exact.get(specifier);
+		if (target === undefined) {
+			const prefix = prefixes.find(([k]) => specifier.startsWith(k));
+			if (prefix) target = prefix[1] + specifier.slice(prefix[0].length);
+		}
+		if (target === undefined) return undefined;
+		target = joinPath(target);
+		return target.startsWith(`${root}/`) ? target : undefined;
+	};
+}
+
+async function findImportMap(
+	root: string,
+): Promise<{ imports: Record<string, string>; dir: string } | undefined> {
+	for (let dir = root;; dir = directoryOf(dir)) {
+		for (const name of ["deno.json", "deno.jsonc"]) {
+			const config = await readJson(joinPath(dir, name));
+			if (!config) continue;
+			if (typeof config.importMap === "string") {
+				const file = joinPath(dir, config.importMap);
+				const external = await readJson(file);
+				return { imports: asImports(external?.imports), dir: directoryOf(file) };
+			}
+			return { imports: asImports(config.imports), dir };
+		}
+		if (dir === "/") return undefined;
+	}
+}
+
+async function readJson(path: string): Promise<Record<string, unknown> | undefined> {
+	let text: string;
+	try {
+		text = await Deno.readTextFile(path);
+	} catch {
+		return undefined;
+	}
+	try {
+		return JSON.parse(text);
+	} catch {
+		// jsonc: drop comments and trailing commas, leaving strings alone.
+		return JSON.parse(
+			text.replace(/("(?:\\.|[^"\\])*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g, (_, str) => str ?? "")
+				.replace(/,(\s*[}\]])/g, "$1"),
+		);
+	}
+}
+
+function asImports(value: unknown): Record<string, string> {
+	if (!value || typeof value !== "object") return {};
+	return Object.fromEntries(
+		Object.entries(value).filter((e): e is [string, string] => typeof e[1] === "string"),
+	);
+}
+
+/** The absolute path an import-map value names, if it names a local path. */
+function localTarget(value: string, dir: string): string | undefined {
+	if (value.startsWith("file://")) return decodeURIComponent(new URL(value).pathname);
+	if (value.startsWith("/")) return value;
+	if (isRelative(value)) return joinPath(dir, value) + (value.endsWith("/") ? "/" : "");
+	return undefined;
+}
+
+/** A relative import specifier from the module at `from` to the file at `to`. */
+function relativeSpecifier(from: string, to: string): string {
+	const a = directoryOf(from).split("/").filter(Boolean);
+	const b = to.split("/").filter(Boolean);
+	let i = 0;
+	while (i < a.length && i < b.length - 1 && a[i] === b[i]) i++;
+	const up = a.length - i;
+	return (up ? "../".repeat(up) : "./") + b.slice(i).join("/");
+}
+
+/**
+ * The query a stylesheet import is rewritten to carry, so the server answers it
+ * with a module that links the stylesheet instead of the stylesheet itself.
+ */
+export const CSS_MODULE_QUERY = "bmdev=css";
+
+/**
  * Compiles one module without bundling anything into it.
  *
  * Every specifier it imports is marked external, the JSX runtime included, so
@@ -56,7 +170,10 @@ export class CompileError extends Error {
  * packages to the shared vendor build. That is what lets a re-imported module
  * share the page's single copy of every dependency instead of carrying its own.
  */
-export async function compileModule(path: string): Promise<CompiledModule> {
+export async function compileModule(
+	path: string,
+	aliases: AliasResolver = () => undefined,
+): Promise<CompiledModule> {
 	const candidates = specifiers(await Deno.readTextFile(path));
 	const result = await Deno.bundle({
 		entrypoints: [path],
@@ -66,12 +183,26 @@ export async function compileModule(path: string): Promise<CompiledModule> {
 		sourcemap: "inline",
 		external: [...candidates, ...JSX_RUNTIME],
 	});
-	const code = result.outputFiles?.[0]?.text();
-	if (!result.success || code === undefined) throw new CompileError(path, result.errors);
+	const output = result.outputFiles?.[0]?.text();
+	if (!result.success || output === undefined) throw new CompileError(path, result.errors);
+
+	const body = stripSourceMap(output);
+	const code = rewriteSpecifiers(body, (specifier) => {
+		const aliased = aliases(specifier);
+		if (aliased) specifier = relativeSpecifier(path, aliased);
+		if (isRelative(specifier) && /\.css$/i.test(specifier)) {
+			return `${specifier}?${CSS_MODULE_QUERY}`;
+		}
+		return specifier;
+	}) + output.slice(body.length);
 
 	const local: string[] = [];
 	const bare: string[] = [];
 	for (const specifier of specifiers(stripSourceMap(code))) {
+		if (specifier.endsWith(`?${CSS_MODULE_QUERY}`)) {
+			local.push(joinPath(directoryOf(path), specifier.slice(0, -CSS_MODULE_QUERY.length - 1)));
+			continue;
+		}
 		if (isRelative(specifier)) local.push(joinPath(directoryOf(path), specifier));
 		else if (
 			isBare(specifier) && (candidates.has(specifier) || /\/jsx-(dev-)?runtime$/.test(specifier))
