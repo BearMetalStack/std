@@ -79,6 +79,13 @@ export class BmIcon extends BMElement {
 						:host(:not([resolved])) .icon {
 							display: none;
 						}
+
+						:host([mode=stroke]) svg {
+							fill: transparent;
+							stroke: currentColor;
+							stroke-width: 2;
+							stroke-linecap: round;
+						}
 					`}
 				</style>
 				<span class="fallback">
