@@ -33,6 +33,18 @@ export interface IconvRule {
 	to: string;
 }
 
+/**
+ * One `REP` rule: a common misspelling (`from`) and its correction (`to`). `^`/`$` on `from` anchor
+ * it to the start/end of the word; `_` in `to` stands for a space, so a rule can split one word into
+ * two.
+ */
+export interface RepRule {
+	from: string;
+	to: string;
+	anchorStart: boolean;
+	anchorEnd: boolean;
+}
+
 export interface ParsedAff {
 	flagMode: FlagMode;
 	suffixes: Suffixes;
@@ -45,6 +57,8 @@ export interface ParsedAff {
 	 * with the "wrong" variant would otherwise miss the dictionary entirely.
 	 */
 	iconv: IconvRule[];
+	/** Replacement table consulted by suggestions before plain edit-distance candidates. */
+	rep: RepRule[];
 	/** Raw values of simple key-value directives (`SET`, `TRY`, `WORDCHARS`, `LANG`, `IGNORE`). */
 	directives: Map<string, string>;
 }
@@ -86,6 +100,7 @@ const HANDLED_DIRECTIVES = new Set([
 	"SFX",
 	"PFX",
 	"ICONV",
+	"REP",
 ]);
 
 /**
@@ -94,7 +109,6 @@ const HANDLED_DIRECTIVES = new Set([
  * parsing doesn't misalign on their table rows.
  */
 const TABLE_DIRECTIVES = new Set([
-	"REP",
 	"MAP",
 	"PHONE",
 	"BREAK",
@@ -144,6 +158,7 @@ export function parseAff(text: string, options: ParseAffOptions = {}): ParsedAff
 	const suffixes: Suffixes = new Map();
 	const prefixes: Prefixes = new Map();
 	const iconv: IconvRule[] = [];
+	const rep: RepRule[] = [];
 	const directives = new Map<string, string>();
 
 	for (let i = 0; i < lines.length; i++) {
@@ -201,6 +216,22 @@ export function parseAff(text: string, options: ParseAffOptions = {}): ParsedAff
 			continue;
 		}
 
+		if (directive === "REP") {
+			const count = Number.parseInt(tokens[1], 10) || 0;
+			for (let j = 1; j <= count; j++) {
+				const ruleLine = lines[i + j];
+				if (ruleLine === undefined) break;
+				const [, fromRaw, toRaw] = ruleLine.trim().split(/\s+/);
+				if (!fromRaw || toRaw === undefined) continue;
+				const anchorStart = fromRaw.startsWith("^");
+				const anchorEnd = fromRaw.length > 1 && fromRaw.endsWith("$");
+				const from = fromRaw.slice(anchorStart ? 1 : 0, anchorEnd ? -1 : undefined);
+				if (from) rep.push({ from, to: toRaw.replaceAll("_", " "), anchorStart, anchorEnd });
+			}
+			i += count;
+			continue;
+		}
+
 		if (TABLE_DIRECTIVES.has(directive)) {
 			const count = Number.parseInt(tokens[1], 10) || 0;
 			warnUnhandled(directive, options.debug);
@@ -217,5 +248,5 @@ export function parseAff(text: string, options: ParseAffOptions = {}): ParsedAff
 	}
 
 	iconv.sort((a, b) => b.from.length - a.from.length);
-	return { flagMode, suffixes, prefixes, iconv, directives };
+	return { flagMode, suffixes, prefixes, iconv, rep, directives };
 }

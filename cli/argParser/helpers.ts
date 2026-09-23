@@ -146,8 +146,7 @@ export function suggestName(name: string, known: Iterable<string>): string | und
 		}
 	}
 	// Two edits on a short name is already a different word. Two on anything longer usually is
-	// not — and a transposition, the most common typo of all, costs two in plain Levenshtein
-	// (`nmae` → `name`), so a limit of one would miss exactly the case worth catching.
+	// not — a transposition plus a missing letter (`nmame` → `name`) is still clearly a typo.
 	const limit = name.length >= 4 ? 2 : 1;
 	return best !== undefined && bestScore <= limit ? best : undefined;
 }

@@ -150,18 +150,36 @@ Deno.test("applyIconv: an empty rule list is a no-op", () => {
 	assertEquals(applyIconv("well", []), "well");
 });
 
+// ─── parseAff: REP ─────────────────────────────────────────────────────────
+
+Deno.test("parseAff: REP parses its rule lines, with _ standing for a space", () => {
+	const { rep } = parseAff(["REP 2", "REP f ph", "REP alot a_lot", "SET UTF-8"].join("\n"));
+	assertEquals(rep, [
+		{ from: "f", to: "ph", anchorStart: false, anchorEnd: false },
+		{ from: "alot", to: "a lot", anchorStart: false, anchorEnd: false },
+	]);
+});
+
+Deno.test("parseAff: REP ^ and $ anchor a rule to the word's start or end", () => {
+	const { rep } = parseAff(["REP 2", "REP ^alot$ a_lot", "REP shun$ tion"].join("\n"));
+	assertEquals(rep, [
+		{ from: "alot", to: "a lot", anchorStart: true, anchorEnd: true },
+		{ from: "shun", to: "tion", anchorStart: false, anchorEnd: true },
+	]);
+});
+
 // ─── parseAff: unimplemented table directives don't misalign parsing ───────
 
 Deno.test("parseAff: skips a table directive's N lines and resumes correctly after", () => {
 	const aff = [
-		"REP 2",
-		"REP a b",
-		"REP c d",
+		"MAP 2",
+		"MAP aàâ",
+		"MAP cç",
 		"SET UTF-8",
 	].join("\n");
 	const { directives } = parseAff(aff);
 	assertEquals(directives.get("SET"), "UTF-8");
-	assertFalse(directives.has("REP"));
+	assertFalse(directives.has("MAP"));
 });
 
 Deno.test("parseAff: an SFX block after a skipped table directive parses correctly", () => {
