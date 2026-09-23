@@ -5,8 +5,15 @@
 import { installGlobals } from "@bearmetal/slag";
 installGlobals();
 
-import { assert, assertEquals, assertStrictEquals } from "@std/assert";
-import { Fragment, jsx, setEffectImpl, setUntrackImpl } from "../jsx-runtime.ts";
+import { assert, assertEquals, assertStrictEquals, assertThrows } from "@std/assert";
+import {
+	Fragment,
+	jsx,
+	registerPropHandler,
+	setCurrentOwner,
+	setEffectImpl,
+	setUntrackImpl,
+} from "../jsx-runtime.ts";
 import { BMC } from "./bmc.ts";
 import { Html } from "./html.ts";
 import { beginRenderScope, collectInto, endRenderScope } from "./pending.ts";
@@ -16,9 +23,20 @@ import { beginRenderScope, collectInto, endRenderScope } from "./pending.ts";
 // keeping the jsx package's runtime dependencies at zero.
 const runners = new Set<() => void>();
 setEffectImpl((fn) => {
-	fn();
-	runners.add(fn as () => void);
-	return () => runners.delete(fn as () => void);
+	// Cleanup handling mirrors `@bearmetal/app`'s `effect()`: the previous run's
+	// cleanup fires before each re-run, and once more when the effect is
+	// disposed. Prop handlers rely on that, so the harness has to honour it.
+	let cleanup: (() => void) | void;
+	const run = () => {
+		if (typeof cleanup === "function") cleanup();
+		cleanup = fn();
+	};
+	run();
+	runners.add(run);
+	return () => {
+		runners.delete(run);
+		if (typeof cleanup === "function") cleanup();
+	};
 });
 function tick() {
 	for (const r of [...runners]) r();
@@ -263,4 +281,105 @@ Deno.test("jsx() constructs a BMC element and applies its props inside the regis
 	);
 
 	setUntrackImpl((fn) => fn());
+});
+
+Deno.test("a registered prop handler takes the prop over from the runtime", () => {
+	const seen: Array<[string, unknown, string]> = [];
+	const unregister = registerPropHandler("contextMenu", (el, value, key) => {
+		seen.push([(el as unknown as { tagName: string }).tagName, value, key]);
+	});
+
+	const menu = { items: ["open"] };
+	const el = jsx("div", { contextMenu: menu, id: "x" }) as unknown as {
+		getAttribute(name: string): string | null;
+	};
+
+	assertEquals(seen.length, 1);
+	assertEquals(seen[0][2], "contextMenu", "the handler is told which prop it was called for");
+	assertStrictEquals(seen[0][1], menu, "the value reaches the handler untouched");
+	assertEquals(el.getAttribute("contextMenu"), null, "the runtime sets no attribute of its own");
+	assertEquals(el.getAttribute("id"), "x", "other props are unaffected");
+
+	unregister();
+	const plain = jsx("div", { contextMenu: "menu-id" }) as unknown as {
+		getAttribute(name: string): string | null;
+	};
+	assertEquals(seen.length, 1, "an unregistered handler stops being called");
+	assertEquals(plain.getAttribute("contextMenu"), "menu-id", "default handling comes back");
+});
+
+Deno.test("a handled prop tracks a signal value, and its cleanup runs between updates", () => {
+	const values: unknown[] = [];
+	const cleanups: unknown[] = [];
+	const unregister = registerPropHandler("contextMenu", (_el, value) => {
+		values.push(value);
+		return () => cleanups.push(value);
+	});
+
+	const menu = signal("a");
+	jsx("div", { contextMenu: menu });
+
+	assertEquals(values, ["a"], "the signal is unwrapped for the handler");
+	menu.set("b");
+	assertEquals(values, ["a", "b"], "a change re-runs the handler");
+	assertEquals(cleanups, ["a"], "the previous run is cleaned up first");
+
+	unregister();
+});
+
+Deno.test("a raw prop handler receives the signal itself", () => {
+	const seen: unknown[] = [];
+	const unregister = registerPropHandler("$menu", (_el, value) => {
+		seen.push(value);
+	}, { raw: true });
+
+	const menu = signal("a");
+	jsx("div", { $menu: menu });
+	menu.set("b");
+
+	assertEquals(seen.length, 1, "nothing is tracked on the handler's behalf");
+	assertStrictEquals(seen[0], menu, "the handler gets the signal to subscribe to itself");
+
+	unregister();
+});
+
+Deno.test("a handler's cleanup is registered with the owning component", () => {
+	const cleanups: Array<() => void> = [];
+	setCurrentOwner({ registerCleanup: (fn) => cleanups.push(fn) });
+
+	let disposed = false;
+	const unregister = registerPropHandler("contextMenu", () => {
+		return () => {
+			disposed = true;
+		};
+	});
+
+	jsx("div", { contextMenu: { items: [] } });
+	assertEquals(cleanups.length, 1, "the returned function is handed to the owner");
+	cleanups[0]();
+	assert(disposed, "disposing the owner tears the handler's work down");
+
+	unregister();
+	setCurrentOwner(null);
+});
+
+Deno.test("claiming a prop twice is an error, and re-registering the same handler is not", () => {
+	const handler = () => {};
+	const unregister = registerPropHandler("contextMenu", handler);
+
+	registerPropHandler("contextMenu", handler); // a module evaluated twice
+
+	assertThrows(
+		() => registerPropHandler("contextMenu", () => {}),
+		Error,
+		"already registered",
+	);
+	assertThrows(
+		() => registerPropHandler("ref", () => {}),
+		Error,
+		"reserved",
+	);
+
+	unregister();
+	registerPropHandler("contextMenu", () => {})();
 });

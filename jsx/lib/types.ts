@@ -1,4 +1,5 @@
 import type { Html } from "@bearmetal/jsx";
+import type { CustomProps } from "../types.ts";
 
 type SignalLike<T = unknown> = { get(): T };
 export type WritableSignalLike<T = unknown> = SignalLike<T> & { set(value: T): void };
@@ -23,7 +24,7 @@ export type MakeChild<Extra = never> =
 
 export type MakeChildren<Extra = never> = MakeChild<Extra> | MakeChild<Extra>[];
 
-export interface MakeCommonProps<Extra = never> {
+export interface MakeCommonProps<Extra = never> extends CustomProps {
 	class?: string | Extra;
 	id?: string | Extra;
 	style?: string | Partial<CSSStyleDeclaration> | Extra;

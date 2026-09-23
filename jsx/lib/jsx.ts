@@ -224,6 +224,108 @@ function applyBind(
 	});
 }
 
+// -- prop handlers --
+
+/**
+ * Applies one prop to the element the runtime just built.
+ *
+ * Returning a function registers it as cleanup with the owning component, so a
+ * handler that attaches a listener or allocates something can let go of it when
+ * the component is disposed. Under a signal value the handler runs inside an
+ * effect instead, and the returned cleanup runs before each re-run.
+ */
+export type PropHandler = (
+	el: Element,
+	value: unknown,
+	key: string,
+) => CleanupFn | void;
+
+/** Options for {@linkcode registerPropHandler}. */
+export interface PropHandlerOptions {
+	/**
+	 * Hand the handler the value exactly as written, signals included, instead
+	 * of unwrapping it in an effect.
+	 *
+	 * For a handler that wants to own the subscription — or to write back, the
+	 * way `$bind` does.
+	 */
+	raw?: boolean;
+}
+
+type PropHandlerEntry = { handler: PropHandler; raw: boolean };
+
+const _propHandlers = new Map<string, PropHandlerEntry>();
+
+/**
+ * Props the runtime's own structure depends on. A handler cannot take these
+ * over: `children` and `$raw` are consumed before props are applied at all,
+ * `ref` belongs to the owning component, and `$bind`/`$type` are destructured
+ * out of the prop bag.
+ */
+const RESERVED_PROPS = ["children", "ref", "$raw", "$bind", "$type"];
+
+/**
+ * Claims a prop name, on every element, for `handler`.
+ *
+ * The runtime's default handling of that prop — attribute, property, event
+ * listener — is skipped entirely; the handler is the whole behaviour. This is
+ * the supported way for a library to add a prop of its own:
+ *
+ * ```ts
+ * registerPropHandler("contextMenu", (el, value) => registerContextMenu(el, value));
+ * ```
+ *
+ * with the matching type declared by merging into
+ * {@linkcode CustomProps}. Names are matched exactly as written in the JSX, so
+ * `contextMenu` and `contextmenu` are two different props.
+ *
+ * Registering is global and process-wide, so two libraries claiming the same
+ * name is a conflict rather than a last-one-wins race: it throws, naming the
+ * prop. Re-registering the identical function is a no-op, so a module that is
+ * evaluated twice is fine.
+ *
+ * @returns a function that unregisters this handler.
+ */
+export function registerPropHandler(
+	key: string,
+	handler: PropHandler,
+	options: PropHandlerOptions = {},
+): () => void {
+	if (RESERVED_PROPS.includes(key)) {
+		throw new Error(`"${key}" is reserved by the JSX runtime and cannot have a prop handler`);
+	}
+	const existing = _propHandlers.get(key);
+	if (existing && existing.handler !== handler) {
+		throw new Error(
+			`A prop handler for "${key}" is already registered. Two libraries cannot claim the ` +
+				`same prop; unregister the first one, or pick another name.`,
+		);
+	}
+	_propHandlers.set(key, { handler, raw: Boolean(options.raw) });
+	return () => {
+		if (_propHandlers.get(key)?.handler === handler) _propHandlers.delete(key);
+	};
+}
+
+/** The handler claiming `key`, if any. */
+export function getPropHandler(key: string): PropHandler | undefined {
+	return _propHandlers.get(key)?.handler;
+}
+
+function applyHandledProp(
+	entry: PropHandlerEntry,
+	el: HTMLElement,
+	key: string,
+	val: unknown,
+) {
+	if (!entry.raw && isSignal(val)) {
+		reactiveEffect(() => entry.handler(el, val.get(), key));
+		return;
+	}
+	const cleanup = entry.handler(el, val, key);
+	if (typeof cleanup === "function") _currentOwner?.registerCleanup(cleanup);
+}
+
 function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 	const { $bind, $type, ...attrs } = props;
 	if (el.tagName === "BUTTON" && !("type" in props)) {
@@ -233,6 +335,11 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 		if (key === "children") continue;
 		if (key === "ref" && typeof val === "string" && _currentOwner?.registerRef) {
 			_currentOwner.registerRef(val, el);
+			continue;
+		}
+		const handler = _propHandlers.get(key);
+		if (handler) {
+			applyHandledProp(handler, el, key, val);
 			continue;
 		}
 		// deno-lint-ignore no-explicit-any

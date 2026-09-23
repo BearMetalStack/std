@@ -104,6 +104,7 @@ parser and keeps it verbatim, which is all a server needs from it.
 | `style={obj}` and objects | Assigned as a property, not an attribute.                                                                                                     |
 | `width={40}`              | `width` and `height` take a number and get `px`.                                                                                              |
 | `ref="name"`              | Sets the owning component's `this.refs.name` signal to the element. See [Referencing DOM Elements](./getting-started/components/dom-refs.md). |
+| A registered prop         | Handed to the handler `registerPropHandler()` claimed it with — see below.                                                                    |
 | Anything else             | `setAttribute(key, String(value))`                                                                                                            |
 
 A `<button>` with no `type` gets `type="button"`, because a stray submit inside a form is never what
@@ -126,6 +127,64 @@ attribute, and so never appears in server-rendered markup; see
 
 `number` and `range` cast to a number, `checkbox` and `radio` to a boolean, everything else stays a
 string.
+
+### Props of your own
+
+`registerPropHandler(name, handler)` claims a prop name, on every element, for a handler of yours.
+The runtime's own handling of it — attribute, property, listener — is skipped; the handler is the
+whole behaviour. This is how a library adds a prop without patching the runtime:
+
+```ts
+import { registerPropHandler } from "@bearmetal/jsx";
+
+registerPropHandler("contextMenu", (el, value) => {
+	const menu = attachContextMenu(el, value as MenuSpec);
+	return () => menu.destroy();
+});
+```
+
+```tsx
+<div contextMenu={{ items: [{ label: "Open" }] }}>…</div>;
+```
+
+- **The handler is called with `(el, value, key)`** while the element is being built, before it is
+  in a document.
+- **Returning a function registers it as cleanup** with the component that owns the render, so
+  anything the handler attached is let go of when that component is disposed.
+- **A signal value is unwrapped in an effect**, so the handler re-runs on change, with the previous
+  run's cleanup firing first. Pass `{ raw: true }` to receive the signal itself instead and own the
+  subscription — what a `$bind`-style prop wants.
+- **Names match exactly as written in the JSX**: `contextMenu` and `contextmenu` are two props.
+- **Claiming a name twice throws**, naming the prop, rather than letting the second library win
+  silently. Re-registering the identical function is a no-op, so a module evaluated twice is fine.
+  The returned function unregisters.
+- `children`, `ref`, `$raw`, `$bind` and `$type` are reserved and cannot be claimed.
+
+The type comes from merging into `CustomProps`, which every element's props are built from:
+
+```ts
+declare module "@bearmetal/jsx/types" {
+	interface CustomProps {
+		contextMenu?: MenuSpec;
+	}
+}
+```
+
+Keep the members optional — they are being added to tags that know nothing about them — and widen
+the type yourself if the handler accepts a signal (`contextMenu?: MenuSpec | SignalLike<MenuSpec>`).
+
+A tag of your own is typed the same way. Unknown tags are already allowed (`JSX.IntrinsicElements`
+has a string index signature), so this is about giving one real props rather than about permission:
+
+```ts
+declare module "@bearmetal/jsx/types" {
+	namespace JSX {
+		interface IntrinsicElements {
+			"my-widget": JSX.BaseProps & { label: string };
+		}
+	}
+}
+```
 
 ## Tags
 
@@ -183,6 +242,10 @@ not awaited in the JSX call graph; it is registered here and patched into the tr
 the same way a signal is.
 
 ### Owner and effect seams
+
+`registerPropHandler(name, handler, options?)` and `getPropHandler(name)` are the prop seam
+described under [Props of your own](#props-of-your-own) — a library's supported way in, rather than
+a seam only a renderer would touch.
 
 `setEffectImpl(fn)` gives the runtime its reactivity — it carries none of its own, which is what
 keeps it a rendering library rather than a framework. `@bearmetal/app` registers the signals-based

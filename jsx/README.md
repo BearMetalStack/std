@@ -72,6 +72,33 @@ A child may also be:
 - a **promise** — the slot stays empty until it resolves. During a server render the renderer waits
   for it before serializing, so an `async` component's output lands in the response.
 
+## Props of your own
+
+`registerPropHandler()` claims a prop name, on every element, for a handler of yours — the supported
+way for a library to add a prop the runtime knows nothing about:
+
+```ts
+import { registerPropHandler } from "@bearmetal/jsx";
+
+registerPropHandler("contextMenu", (el, value) => {
+	const menu = attachContextMenu(el, value as MenuSpec);
+	return () => menu.destroy(); // cleanup, run when the owning component is disposed
+});
+```
+
+A signal value is unwrapped in an effect so the handler re-runs on change; `{ raw: true }` hands the
+signal over instead. Claiming a name twice throws rather than letting the second library win.
+
+Its type comes from merging into `CustomProps`, which every element's props are built from:
+
+```ts
+declare module "@bearmetal/jsx/types" {
+	interface CustomProps {
+		contextMenu?: MenuSpec;
+	}
+}
+```
+
 ## Exports
 
 ```ts
