@@ -31,7 +31,7 @@ export interface MakeCommonProps<Extra = never> extends CustomProps {
 	title?: string | Extra;
 	tabindex?: number | Extra;
 	hidden?: boolean | Extra;
-	popover?: boolean | Extra;
+	popover?: boolean | "manual" | "hint" | "auto" | Extra;
 	draggable?: boolean | "true" | "false" | Extra;
 	children?: MakeChildren<Extra>;
 	$raw?: boolean;
