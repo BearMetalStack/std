@@ -150,9 +150,9 @@ its contents. `useShadow()` called from `init()` never happens on a server, so s
 template lands in its light DOM there, replaces its light children, and is left behind as stray
 markup once the browser attaches a root.
 
-**Props are not markup.** Setting a declared `@prop` writes the child's signal, not an attribute, so
-values handed to a component from a `Page()` view do not reach the browser. Use `serverInit()` and
-`@state`; see [Loading data](./data-loading#state-is-not-prop).
+**Only scalar props are markup.** A string, number or boolean handed to a declared `@prop` is
+mirrored onto its attribute and reaches the browser. An object handed to a component from a `Page()`
+view does not. Use `serverInit()` and `@state`; see [Loading data](./data-loading#state-is-not-prop).
 
 **`@state` has to survive `JSON.stringify`.** A `Map`, a `Date` or a class instance does not. Derive
 those in `init()` from something that does.

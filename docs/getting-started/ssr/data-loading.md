@@ -106,11 +106,12 @@ They are independent, and a signal can carry both decorators when it needs to.
 | ---------- | --------------------------------------- | ---------------------------------------- |
 | Means      | an input, from whoever used the tag     | what the component worked out for itself |
 | Written by | the parent, as an attribute or a signal | the component, usually in `serverInit()` |
-| Serialized | no — see below                          | yes, into `data-bm-state`                |
+| Serialized | scalars, as attributes — see below      | yes, into `data-bm-state`                |
 
-::: warning A prop does not cross to the browser on its own. Setting a declared `@prop` writes the
-child's signal directly rather than an attribute. That is what makes a signal prop a live binding
-rather than a string round-trip. Thus, it leaves no trace in the markup.
+::: warning Only a scalar prop crosses to the browser. A string, number or boolean passed to a
+declared `@prop` is mirrored onto its attribute, lands in the markup, and is read back on upgrade.
+An object is set as a property and a signal is bound to the child's own, and neither leaves a trace
+in the markup.
 
 Inside a page that is entirely components this is invisible: the parent's `template` runs again in
 the browser and hands the child the same props it did on the server. It matters at the boundary,
@@ -122,11 +123,10 @@ router
 	.get(Page((ctx) => <dashboard-page user={ctx.state.user} />));
 ```
 
-That `user` configures the server render and then it is gone. The view is not a component and does
-not run again in the browser. Load it in the component's `serverInit()` and mark it `@state`
-instead, and it will be there on both sides. An undeclared attribute (`data-…`, or any name the
-component has no accessor for) does serialize, which is enough for small scalars a component can
-read back itself. :::
+That `user` object configures the server render and then it is gone. The view is not a component and
+does not run again in the browser. Load it in the component's `serverInit()` and mark it `@state`
+instead, and it will be there on both sides. A scalar prop does serialize, which is enough to pass
+an id the component can load from. :::
 
 ## The other half: `init()`
 

@@ -156,6 +156,20 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 	}
 }
 
+/**
+ * Mirrors a scalar written to a declared prop onto its attribute.
+ *
+ * Setting the prop's signal is what the component reads, but a signal leaves
+ * nothing in the markup — so without the attribute a server render drops the
+ * prop, and `[open]`-style selectors never match. The attribute goes first:
+ * `attributeChangedCallback` coerces it back into the signal, and the direct
+ * `set()` after it leaves the exact value rather than the coerced one.
+ */
+function reflectProp(el: Element, key: string, val: unknown): void {
+	if (typeof val === "boolean") el.toggleAttribute(key, val);
+	else if (typeof val === "string" || typeof val === "number") el.setAttribute(key, String(val));
+}
+
 function isPixelable(key: string, val: unknown): boolean {
 	const pixelables = ["width", "height"];
 	return typeof val === "number" && pixelables.includes(key);
@@ -379,6 +393,7 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 		if (isSignal(val)) {
 			reactiveEffect(() => applyProp(el, key, val.get()));
 		} else if (isWritableSignal(existing)) {
+			reflectProp(el, key, val);
 			existing.set(val);
 		} else {
 			applyProp(el, key, val);

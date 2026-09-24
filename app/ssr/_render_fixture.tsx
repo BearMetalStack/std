@@ -72,6 +72,20 @@ export class PlainThing extends BMElement {
 	}
 }
 
+@define("probe-counter")
+export class ProbeCounter extends BMElement {
+	@prop()
+	accessor label = this.signal("Count");
+	@prop()
+	accessor open = this.signal(false);
+	@prop()
+	accessor count = this.signal(0);
+
+	override get template() {
+		return <p>{this.label}: {this.count}</p>;
+	}
+}
+
 @define("shadow-card")
 export class ShadowCard extends BMElement {
 	static override shadow = "open" as const;
@@ -101,6 +115,10 @@ export const ClientOnly = () => <client-only-widget data-x="1" />;
 export const Plain = () => <plain-thing />;
 
 export const AsyncChild = () => <section>{sleep(5).then(() => <b>late</b>)}</section>;
+
+export const Props = () => <probe-counter label="Total" open count={5} data-x="1" />;
+
+export const ClosedProps = () => <probe-counter open={false} />;
 
 export const Shadowed = () => (
 	<shadow-card>

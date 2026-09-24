@@ -232,10 +232,11 @@ parallel. Only `@state`-marked signals cross to the browser, and only values tha
 
 ---
 
-## A prop does not survive a server render
+## An object prop does not survive a server render
 
-Setting a declared `@prop` writes the child's signal directly rather than an attribute — that is
-what makes a signal prop a live binding — so nothing about it appears in the markup.
+A declared `@prop` given a string, number or boolean is mirrored onto its attribute, so it
+serializes and is read back on upgrade. An object prop is set as a property, and a signal passed to
+a prop replaces the child's signal — neither appears in the markup.
 
 Between components this never shows: the parent's `template` runs again in the browser and hands the
 child the same props. It shows at the page boundary, where a `Page()` view is not a component and
@@ -251,8 +252,8 @@ router.route("/dashboard").get(Page((ctx) => <dashboard-page user={ctx.state.use
 router.route("/dashboard").get(Page(() => <dashboard-page />));
 ```
 
-An undeclared attribute (`data-…`, or any name the component has no accessor for) does serialize, if
-all you need across is a scalar the component can read back itself.
+If all you need across is a scalar, pass it as one (`<dashboard-page user-id={ctx.state.user.id} />`
+with a declared `@prop`) and it will be there on both sides.
 
 ---
 
