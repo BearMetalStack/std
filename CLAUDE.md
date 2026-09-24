@@ -283,7 +283,8 @@ bugs, not type errors:
   don't mutate it, unless the field itself is a signal.
 - **`useShadow()` must be called synchronously inside `init()`**, ideally as the first line —
   `this.root` (used when the template fragment is appended) resolves to `shadowRoot ?? this` at the
-  point `init()` returns, not later.
+  point `init()` returns, not later. `init()` never runs on a server, so a server-rendered component
+  declares `static shadow = "open"` instead, which attaches the root on both sides.
 - Don't read `this.children` synchronously in `connectedCallback` — light-DOM children aren't parsed
   yet at that point. Use `<slot>` or a `MutationObserver`.
 - `::slotted()` only reaches the top-level slotted element, not its descendants — pierce with CSS
