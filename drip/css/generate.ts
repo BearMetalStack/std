@@ -1,7 +1,12 @@
 import { isDev } from "@bearmetal/miscellanea/environment";
 import { buildVariantsCss, getThemeVariants, variantDefinedProperties } from "./variants.ts";
 import { emitCalcCSS, isCalcNode } from "./calc.ts";
-import { reportDiagnostics, validateVariants } from "./validate.ts";
+import {
+	type DripDiagnostic,
+	reportDiagnostics,
+	validateThemeRamps,
+	validateVariants,
+} from "./validate.ts";
 import type { PropertyType, SectionedTokens, Theme } from "../types.ts";
 import { boxIn, justify } from "@bearmetal/miscellanea/string";
 
@@ -65,10 +70,7 @@ export function cssFromJson(
 	const kvs = collectThemeTokens(theme);
 
 	if (options.validate !== false) {
-		reportDiagnostics(
-			validateVariants(getThemeVariants(theme), definedProperties(theme, kvs)),
-			options.name ?? "theme",
-		);
+		reportDiagnostics(diagnoseTheme(theme, kvs), options.name ?? "theme");
 	}
 
 	const properties = fullFat
@@ -99,8 +101,55 @@ export function cssFromJson(
 			return `\t${pair[0]}: ${emitValue(pair[1])};`;
 		}).join(joiner),
 		`${joiner}}${joiner}`,
+		derivedTokenBlock(kvs, scope, joiner),
 		fullFat ? buildVariantsCss(theme, { selector: scope, joiner }) : "",
 	].join(joiner);
+}
+
+/**
+ * Re-declares every token whose value is a `var()` reference on `[data-theme]`,
+ * so a variant applied to an element below the root reaches the tokens derived
+ * from it.
+ *
+ * A custom property's `var()` is resolved on the element that declares it and
+ * inherited as the result. Declared only on `:root`, `--btn-primary-bg:
+ * var(--color-interactive)` reaches a `data-theme="dark"` sidebar already
+ * resolved against the root's variant, so the sidebar's buttons keep the
+ * page's colours. Literal tokens resolve the same everywhere and are left out.
+ *
+ * Only a `:root` scope needs this: that is the one case in which the variant
+ * blocks also match a bare `[data-theme]` anywhere in the document. Under any
+ * other scope a variant only targets an element that already has the scope's
+ * token block.
+ */
+function derivedTokenBlock(kvs: SectionedTokens, scope: string, joiner: string): string {
+	if (scope !== ":root") return "";
+	const derived = kvs
+		.filter((pair): pair is [string, string, PropertyType] => typeof pair === "object")
+		.map(([key, value]) => [key, emitValue(value)])
+		.filter(([, value]) => value.includes("var("))
+		.map(([key, value]) => `\t${key}: ${value};`);
+	if (!derived.length) return "";
+	return `[data-theme] {${joiner}${derived.join(joiner)}${joiner}}${joiner}`;
+}
+
+/**
+ * Every generate-time finding for a theme — missing ramps, incomplete or
+ * conflicting variants, dangling `var()` references — without printing or
+ * throwing. {@linkcode cssFromJson} reports the same list; this is for callers
+ * that want to assert on it instead.
+ *
+ * Pass the theme as it will be generated (usually through `withDefaultTokens`),
+ * since the defaults layer defines properties the variants may reference.
+ */
+export function diagnoseTheme(
+	theme: Theme,
+	kvs: SectionedTokens = collectThemeTokens(theme),
+): DripDiagnostic[] {
+	return [
+		...validateThemeRamps(theme),
+		...validateVariants(getThemeVariants(theme), definedProperties(theme, kvs)),
+	];
 }
 
 /**
@@ -109,14 +158,16 @@ export function cssFromJson(
  */
 export function themeCSS(theme: Theme, selector: string): string {
 	const joiner = "\n";
-	const props = collectThemeTokens(theme)
+	const kvs = collectThemeTokens(theme);
+	const props = kvs
 		.filter((pair): pair is [string, string, PropertyType] => typeof pair === "object")
 		.map(([key, value]) => `\t${key}: ${emitValue(value)};`)
 		.join(joiner);
 
 	const varBlock = `${selector} {${joiner}${props}${joiner}}`;
+	const derivedBlock = derivedTokenBlock(kvs, selector, joiner).trimEnd();
 	const variantBlock = buildVariantsCss(theme, { selector, joiner });
-	return [varBlock, variantBlock].filter(Boolean).join("\n\n");
+	return [varBlock, derivedBlock, variantBlock].filter(Boolean).join("\n\n");
 }
 
 function emitValue(value: string): string {

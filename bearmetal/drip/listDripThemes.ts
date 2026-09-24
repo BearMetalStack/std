@@ -1,11 +1,15 @@
 import { colorize } from "@bearmetal/cli/style";
-import { listCustomThemeNames, readDripConfig } from "@bearmetal/drip";
+import { listBuiltinThemes, listCustomThemeNames, readDripConfig } from "@bearmetal/drip";
 
 export async function listDripThemes() {
 	const dripConfig = await readDripConfig();
 	const defaultTheme = dripConfig.defaultTheme ?? "bearmetal";
-	const themes = await listCustomThemeNames();
-	if (!dripConfig.disableBearmetal) themes.push("bearmetal");
+	const themes = [
+		...new Set([
+			...await listCustomThemeNames(),
+			...listBuiltinThemes().filter((name) => name !== "bearmetal" || !dripConfig.disableBearmetal),
+		]),
+	];
 	console.log(
 		themes.sort((a, b) => {
 			if (a === defaultTheme) return -1;

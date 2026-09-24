@@ -39,32 +39,32 @@ injectStyle(
 			--bar-color: var(--toast-border);
 
 			&[danger] {
-				border-color: var(--color-danger-vibrant);
-				--h-color: var(--color-danger-light);
+				border-color: var(--color-red-400);
+				--h-color: var(--color-red-100);
 				background-color: var(--color-danger-bg);
 				color: var(--color-danger-text);
-				--bar-color: var(--color-danger-vibrant);
+				--bar-color: var(--color-red-400);
 			}
 			&[warn] {
-				border-color: var(--color-warning-vibrant);
-				--h-color: var(--color-warning-light);
+				border-color: var(--color-orange-400);
+				--h-color: var(--color-orange-100);
 				background-color: var(--color-warning-bg);
 				color: var(--color-warning-text);
-				--bar-color: var(--color-warning-vibrant);
+				--bar-color: var(--color-orange-400);
 			}
 			&[info] {
-				border-color: var(--color-info-vibrant);
-				--h-color: var(--color-info-light);
+				border-color: var(--color-blue-400);
+				--h-color: var(--color-blue-100);
 				background-color: var(--color-info-bg);
 				color: var(--color-info-text);
-				--bar-color: var(--color-info-vibrant);
+				--bar-color: var(--color-blue-400);
 			}
 			&[success] {
-				border-color: var(--color-success-vibrant);
-				--h-color: var(--color-success-light);
+				border-color: var(--color-green-400);
+				--h-color: var(--color-green-100);
 				background-color: var(--color-success-bg);
 				color: var(--color-success-text);
-				--bar-color: var(--color-success-vibrant);
+				--bar-color: var(--color-green-400);
 			}
 
 			h1,

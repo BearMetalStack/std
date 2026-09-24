@@ -467,8 +467,12 @@ export function completeVariantRules<T>(
  * defined, or a literal fallback. Emits a `var()` reference rather than the
  * resolved colour so the relationship stays visible in the output and keeps
  * tracking the source token if it is overridden further down the cascade.
+ *
+ * Exported so a wizard can show the same derived value as a suggestion
+ * *before* committing to it, rather than only applying it silently at
+ * generate time.
  */
-function deriveValue(
+export function deriveValue(
 	token: VariantTokenDef,
 	rules: Record<string, unknown>,
 	seen: Set<string> = new Set(),

@@ -1,5 +1,6 @@
 export * from "./css/generate.ts";
 export * from "./css/tokens.ts";
+export * from "./css/ramps.ts";
 export * from "./css/variants.ts";
 export * from "./css/validate.ts";
 export * from "./types.ts";

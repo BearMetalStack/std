@@ -1,10 +1,24 @@
 import { bgColorize, cliPrompt, selectMenuInteractive } from "@bearmetal/cli";
 import { Chain, toSentenceCase, toSnakeCase } from "@bearmetal/miscellanea";
 import { colorize } from "@bearmetal/cli/style";
-import { type Theme, ThemeUtils } from "@bearmetal/drip";
+import {
+	DEFAULT_NEUTRAL_SEED,
+	REQUIRED_BASE_RAMPS,
+	SEMANTIC_ROLES,
+	type Theme,
+	ThemeUtils,
+	validateRamps,
+} from "@bearmetal/drip";
 import { dotBearmetalFile } from "@bearmetal/miscellanea/fs";
 import { namespaces } from "@bearmetal/drip/namespaces";
-import { doAColor, generateSteps } from "./doAColor.ts";
+import {
+	doAColor,
+	generateSteps,
+	pickSemanticHue,
+	promptRequiredRamp,
+	writeAliasRamp,
+} from "./doAColor.ts";
+import { promptAdditionalVariants, promptDefaultVariant } from "./doAVariant.ts";
 import type { Resolved } from "../run.ts";
 
 export async function generateDripTheme(
@@ -18,8 +32,23 @@ export async function generateDripTheme(
 	themeName = toSnakeCase(themeName);
 	console.log(`Theme name: ${colorize(themeName, "green")}`);
 	const theme: Theme = {};
+
+	console.log(
+		`\nFirst, the required ramps every theme needs: ${
+			REQUIRED_BASE_RAMPS.map((r) => colorize(r, "green")).join(", ")
+		}.`,
+	);
+	for (const ramp of REQUIRED_BASE_RAMPS) {
+		await promptRequiredRamp(
+			theme,
+			ramp,
+			ramp === "neutral" ? { defaultHex: DEFAULT_NEUTRAL_SEED } : {},
+		);
+	}
+
+	console.log("\nAny other colors your theme needs? Add as many as you like.");
 	const q = "What would you like to do next?";
-	const a = [["Add a color", "color"], ["Generate the theme file", "gen"]] as [string, string][];
+	const a = [["Add a color", "color"], ["Continue", "gen"]] as [string, string][];
 	for (
 		let answer = await selectMenuInteractive(q, a);
 		answer !== "gen";
@@ -31,7 +60,18 @@ export async function generateDripTheme(
 				break;
 		}
 	}
-	console.log("Alrighty, lets look at your theme real quick.");
+
+	console.log(
+		`\nNow the semantic colors — ${
+			SEMANTIC_ROLES.map((r) => colorize(r, "green")).join(", ")
+		}. Each one is backed by one of the required ramps above.`,
+	);
+	for (const role of SEMANTIC_ROLES) {
+		const hue = await pickSemanticHue(role);
+		writeAliasRamp(theme, role, hue);
+	}
+
+	console.log("\nAlrighty, lets look at your theme real quick.");
 	const themeUtil = new ThemeUtils(theme);
 	console.log("Colors:");
 	const colors = (await Chain.fromAsync(themeUtil.eachColor({ skipReferences: true }))).groupBy((
@@ -59,6 +99,11 @@ export async function generateDripTheme(
 			console.log(`${key}: ${value}`);
 		}
 	}
+
+	const defaultVariant = await promptDefaultVariant(theme);
+	const additionalVariants = await promptAdditionalVariants(theme, defaultVariant);
+	theme.variants = [defaultVariant, ...additionalVariants];
+
 	await cliPrompt("Press enter to generate the theme file.");
 	const themeFile = await dotBearmetalFile(namespaces.themes, themeName + ".theme.json");
 	await themeFile.writeJson(theme);
@@ -76,5 +121,19 @@ async function generateNonInteractively(resolved: { command: "drip" } & Resolved
 	for (const color of resolved.color) {
 		generateSteps(theme, color);
 	}
-	return themeFile.writeJson(theme);
+	await themeFile.writeJson(theme);
+
+	const missing = validateRamps(theme);
+	if (missing.length) {
+		console.log(
+			colorize(
+				`\nHeads up: this theme is still missing ${missing.length} required ramp${
+					missing.length === 1 ? "" : "s"
+				} (${
+					missing.map((m) => m.ramp).join(", ")
+				}). Components that assume them will lose their color until you add --color entries for each.`,
+				"yellow",
+			),
+		);
+	}
 }

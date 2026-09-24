@@ -138,7 +138,7 @@ injectStyle(
 		}
 
 		span.highlight {
-			background-color: var(--color-bearmetal-400);
+			background-color: var(--color-highlight-bg);
 			color: var(--color-text-subtle);
 			display: inline-block;
 			padding: 0 var(--space-0-5);
@@ -341,7 +341,7 @@ injectStyle(
 			padding: var(--btn-padding) var(--btn-padding-x);
 
 			--btn-hover-color: var(--btn-primary-bg-hover);
-			--btn-active-border: var(--color-bearmetal-100);
+			--btn-active-border: var(--color-brand-100);
 
 			&.full {
 				width: 100%;
@@ -470,24 +470,24 @@ injectStyle(
 				var(--b-gradient) border-box;
 
 			&.border-ember {
-				--b-gradient-from: var(--color-bearmetal-600);
-				--b-gradient-to: var(--color-bearmetal-orange-400);
+				--b-gradient-from: var(--color-brand-600);
+				--b-gradient-to: var(--color-orange-400);
 			}
 			&.border-nightshade {
-				--b-gradient-from: var(--color-bearmetal-600);
-				--b-gradient-to: var(--color-bearmetal-danger-500);
+				--b-gradient-from: var(--color-brand-600);
+				--b-gradient-to: var(--color-red-500);
 			}
 			&.border-abyss {
-				--b-gradient-from: var(--color-bearmetal-success-500);
-				--b-gradient-to: var(--color-bearmetal-info-500);
+				--b-gradient-from: var(--color-green-500);
+				--b-gradient-to: var(--color-blue-500);
 			}
 			&.border-harvest {
-				--b-gradient-from: var(--color-bearmetal-warning-300);
-				--b-gradient-to: var(--color-bearmetal-orange-400);
+				--b-gradient-from: var(--color-orange-300);
+				--b-gradient-to: var(--color-orange-400);
 			}
 			&.border-witchwood {
-				--b-gradient-from: var(--color-bearmetal-500);
-				--b-gradient-to: var(--color-bearmetal-success-500);
+				--b-gradient-from: var(--color-brand-500);
+				--b-gradient-to: var(--color-green-500);
 			}
 		}
 
@@ -505,24 +505,24 @@ injectStyle(
 			}
 
 			&.ember {
-				--gradient-from: var(--color-bearmetal-600);
-				--gradient-to: var(--color-bearmetal-orange-400);
+				--gradient-from: var(--color-brand-600);
+				--gradient-to: var(--color-orange-400);
 			}
 			&.nightshade {
-				--gradient-from: var(--color-bearmetal-600);
-				--gradient-to: var(--color-bearmetal-danger-500);
+				--gradient-from: var(--color-brand-600);
+				--gradient-to: var(--color-red-500);
 			}
 			&.abyss {
-				--gradient-from: var(--color-bearmetal-success-500);
-				--gradient-to: var(--color-bearmetal-info-500);
+				--gradient-from: var(--color-green-500);
+				--gradient-to: var(--color-blue-500);
 			}
 			&.harvest {
-				--gradient-from: var(--color-bearmetal-warning-300);
-				--gradient-to: var(--color-bearmetal-orange-400);
+				--gradient-from: var(--color-orange-300);
+				--gradient-to: var(--color-orange-400);
 			}
 			&.witchwood {
-				--gradient-from: var(--color-bearmetal-500);
-				--gradient-to: var(--color-bearmetal-success-500);
+				--gradient-from: var(--color-brand-500);
+				--gradient-to: var(--color-green-500);
 			}
 		}
 

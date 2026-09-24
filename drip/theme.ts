@@ -146,6 +146,19 @@ export async function listCustomThemes(): Promise<string[]> {
 	return await listCustomThemeNames();
 }
 
+/**
+ * Themes that ship with Drip under `themes/`. Kept as a list rather than read
+ * from disk, because a published package is fetched over HTTP and has no
+ * directory to list.
+ */
+export const BUILTIN_THEMES: readonly string[] = Object.freeze([
+	"bearmetal",
+	"pride",
+	"foxfire",
+	"hazelthorn",
+]);
+
+/** Names of every theme bundled with Drip. */
 export function listBuiltinThemes(): string[] {
-	return ["bearmetal"];
+	return [...BUILTIN_THEMES];
 }

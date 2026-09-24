@@ -31,7 +31,7 @@ injectStyle(
 			tr:not(:last-child),
 			thead,
 			tbody:not(:last-child) {
-				border-bottom: var(--color-bearmetal-200) 1px solid;
+				border-bottom: var(--color-border-subtle) 1px solid;
 			}
 
 			thead,

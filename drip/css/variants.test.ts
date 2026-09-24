@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { buildVariantsCss, getThemeVariants } from "./variants.ts";
 import { normalizeMediaQuery, validateVariants } from "./validate.ts";
+import { VARIANT_TOKENS } from "./tokens.ts";
 import type { Theme } from "../types.ts";
 
 function theme(): Theme {
@@ -135,4 +136,30 @@ Deno.test("missing required tokens are reported by name", () => {
 	const missing = diagnostics.filter((d) => d.message.includes("required token"));
 	assertEquals(missing.length, 1);
 	assertStringIncludes(missing[0].message, "btnSuccessFg");
+});
+
+Deno.test("a non-default variant is only held to the required subset", () => {
+	const rules: Record<string, string> = {};
+	for (const t of VARIANT_TOKENS.filter((t) => t.required)) rules[t.property] = "#123456";
+	const diagnostics = validateVariants([{ name: "dark", rules }], new Set());
+	assertEquals(diagnostics.filter((d) => d.where === 'variant "dark"'), []);
+});
+
+Deno.test("the default variant is held to every token, not just the required subset", () => {
+	const rules: Record<string, string> = {};
+	for (const t of VARIANT_TOKENS.filter((t) => t.required)) rules[t.property] = "#123456";
+	const diagnostics = validateVariants([{ name: "light", default: true, rules }], new Set());
+	const missing = diagnostics.filter((d) => d.message.includes("token"));
+	assertEquals(missing.length, 1);
+	assertStringIncludes(missing[0].message, "does not define");
+	// every non-required token is still outstanding
+	const optionalCount = VARIANT_TOKENS.filter((t) => !t.required).length;
+	assertStringIncludes(missing[0].message, `${optionalCount} token`);
+});
+
+Deno.test("a default variant that sets every token has no missing-token diagnostic", () => {
+	const rules: Record<string, string> = {};
+	for (const t of VARIANT_TOKENS) rules[t.property] = "#123456";
+	const diagnostics = validateVariants([{ name: "light", default: true, rules }], new Set());
+	assertEquals(diagnostics.filter((d) => d.message.includes("does not define")), []);
 });

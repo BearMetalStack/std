@@ -1,4 +1,4 @@
-import { BaseStyle, ComponentStyle, ThemeStyle } from "../ssr.tsx";
+import { BaseStyle, ComponentStyle, Fonts, ThemeStyle } from "../ssr.tsx";
 import { ThemeUtils } from "./ThemeUtils.ts";
 import { getDefaultTheme } from "@bearmetal/drip";
 import { Html, Router } from "@bearmetal/router";
@@ -72,7 +72,8 @@ function buildGradient(
 
 router.get("/", async (ctx) => {
 	const themeName = ctx.url.searchParams.get("theme");
-	const u = new ThemeUtils(themeName ? await loadTheme(themeName) : await getDefaultTheme());
+	const theme = themeName ? await loadTheme(themeName) : await getDefaultTheme();
+	const u = new ThemeUtils(theme);
 	const colors = (await Chain.fromAsync(u.eachColor({ skipReferences: true }))).groupBy((
 		[k],
 	) => !/[1-9][05](0)?$/.test(k) ? "Identities" : k.split("-").slice(1, -1).join("-")).groups.sort((
@@ -96,13 +97,23 @@ router.get("/", async (ctx) => {
 		? dirParam as Direction
 		: "right";
 
+	// The same sheets BMDripBase gives an app, and only the selected theme's, so
+	// the page is what that theme looks like in use. The async ones are awaited
+	// here: this page is serialized straight from the tree rather than through a
+	// renderer that settles pending work, so a component left pending would
+	// still be an empty placeholder when the markup is sent.
+	const [themeStyle, fonts] = await Promise.all([
+		ThemeStyle({ theme: themeName }),
+		Fonts({ theme: themeName }),
+	]);
+
 	const page = (
 		<html>
 			<head>
 				<title>BearMetal Drip - Palette</title>
 				<link rel="icon" href="https://cdn.bear-metal.dev/resources/images/dripicon.svg" />
-				<ThemeStyle />
-				<ThemeStyle theme={themeName} />
+				{themeStyle}
+				{fonts}
 				<BaseStyle />
 				<ComponentStyle root=".theme-previews" />
 				<style $raw>
@@ -115,7 +126,7 @@ router.get("/", async (ctx) => {
 							box-sizing: border-box;
 
 							scrollbar-width: thin;
-							scrollbar-color: var(--color-bearmetal-600) transparent;
+							scrollbar-color: var(--color-brand-600) transparent;
 						}
 
 						body {
@@ -228,7 +239,7 @@ router.get("/", async (ctx) => {
 							border: none;
 							padding: 0;
 							margin-left: .5rem;
-							color: var(--color-bearmetal-danger-300);
+							color: var(--color-danger-300);
 						}
 
 						.gradient-grid {

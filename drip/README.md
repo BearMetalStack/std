@@ -24,8 +24,45 @@ A generated stylesheet has three layers, in cascade order:
    in any theme. It is merged underneath every theme, so a theme only has to supply color.
 3. **Variant blocks** — one per theme variant, holding the semantic color tokens.
 
+`data-theme` works on any element, not only the root. Every token defined as a `var()` reference
+(the component tokens above, mostly) is re-declared on `[data-theme]`, because a custom property's
+`var()` is resolved where it is declared: declared only on `:root`, a `data-theme="dark"` sidebar
+would inherit `--btn-primary-bg` already resolved against the page's variant.
+
 A theme that defines nothing but ramps and variants still produces a stylesheet that drives all of
 `base.css` and `components.css`.
+
+## Required color ramps
+
+Every theme needs the same eleven base ramps — `brand`, `accent`, `neutral`, and the eight hues
+`red`, `orange`, `yellow`, `green`, `blue`, `magenta`, `cyan`, `pink` — plus four semantic ramps —
+`success`, `danger`, `warning`, `info`. The names are structural, not decorative: components
+reference `--color-neutral-100` or `--color-red-500` directly in places a variant token doesn't
+cover, so a theme that names its neutral ramp something else silently loses those colors the moment
+it's swapped in. `REQUIRED_BASE_RAMPS` and `SEMANTIC_ROLES` in `css/ramps.ts` (`@bearmetal/drip`)
+are the canonical list; `validateRamps` checks a theme against it at generate time.
+
+A semantic ramp is never seeded independently — it's a full **alias** into one of the eight hues, so
+state colors never compete with the brand for attention and a theme can't accidentally make "danger"
+the same hue as its own brand color. Every stop is a `$color.<hue>.<stop>` accessor, and `base` is
+`$color.<hue>` (the hue's bare identity, not `$color.<hue>.base` — a ramp's identity is emitted at
+its bare `--color-<hue>` property):
+
+```jsonc
+"danger": {
+	"50": "$color.red.50", "100": "$color.red.100", /* … */ "950": "$color.red.950",
+	"base": "$color.red"
+}
+```
+
+The typical mapping is `danger`→`red`, `warning`→`orange`, `success`→`green`, `info`→`blue`; a theme
+can alias a different hue instead (a theme where blue already carries the brand might make `info`
+alias `cyan`), but every theme must alias _something_ — a bespoke, independently-seeded semantic
+ramp defeats the point of having a fixed set of hues to draw from.
+
+Both the `bearmetal` CLI's interactive wizard and the MCP `create_theme` tool (via its `alias`
+field) walk you through this: required ramps first, then any freeform extras, then the four semantic
+roles.
 
 ## Variant tokens
 
@@ -39,7 +76,7 @@ Each token has an authoring key (`btnSuccessFg`) and the CSS custom property it 
 (`--btn-success-color`). **The mapping is data, not a prefix match** — don't infer one from the
 other.
 
-### Required vs derived
+### Required vs derived, and the default variant
 
 A little over twenty tokens are required: the grounds, the inks, and the fills whose contrast only
 the author can judge. Everything else derives from one of those if a variant leaves it out, emitted
@@ -59,6 +96,17 @@ token keeps tracking its source if that source is overridden further down the ca
 Omitting a _required_ token is reported at generate time. It still gets a last-resort value so the
 stylesheet stays valid, but that value is a guess, not a choice.
 
+The **default** variant is held to a stricter rule than the rest: it must set _every_ token in
+`VARIANT_TOKENS`, required or not, not just the required subset. This isn't arbitrary — the default
+variant's rules are emitted against a bare `:root` selector in addition to its own `[data-theme]`
+block (see `buildVariantsCss`), so any token another variant leaves unset falls through to whatever
+the default variant set for it, via ordinary CSS specificity. A default variant with gaps means
+those gaps propagate silently into every other variant too. A non-default variant (dark mode, high
+contrast, …) only needs to state what actually _changes_ for it — that's the whole point of having a
+complete default to fall back to. Both the CLI wizard and the MCP `add_theme_variant` tool enforce
+this: a default variant missing a token is a hard error, a non-default one missing an optional token
+is just a note.
+
 ### The `btn*Fg` tokens
 
 Every filled control has both a fill (`btn<Role>Bg`) and an ink (`btn<Role>Fg`). Pick the ink
@@ -75,8 +123,10 @@ light-mode fill.
   theme silently has no dark mode);
 - `var()` references that nothing defines (a warning — the theme may be loaded alongside a
   stylesheet that supplies them);
-- required variant tokens a variant left out, duplicate variant names, more than one default
-  variant, and a theme with no default variant at all.
+- required variant tokens a variant left out (every token, for the default variant), duplicate
+  variant names, more than one default variant, and a theme with no default variant at all;
+- a required base or semantic ramp that's missing, or that exists but isn't shaped like a color
+  scale (`validateRamps`, `css/ramps.ts`).
 
 Set `BEARMETAL_DRIP_STRICT=1` to promote warnings to errors and fail generation instead.
 
@@ -98,15 +148,27 @@ one makes the declaration invalid at computed-value time, so the token silently 
 consumer of it breaks too. The author experiences both as "the same typo", so the generator catches
 the reference instead of letting the browser decide which flavour of wrong to serve.
 
+## Bundled themes
+
+`bearmetal`, `pride`, `foxfire`, and `hazelthorn` ship in `themes/` and resolve by name anywhere a
+theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the
+same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag
+(`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
+`progress`) alongside `light` and `dark`; select one with `data-theme`.
+
+Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
+holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the
+list, since a published package has no directory to read it from — add a new file there too.
+
 ## Theme file shape
 
 ```jsonc
 {
 	"color": {
-		"primary": { "50": "#…", "500": "#…", "950": "#…", "base": "#…" }
+		"brand": { "50": "#…", "500": "#…", "950": "#…", "base": "#…" }
 	},
 	"variants": [
-		{ "name": "light", "default": true, "rules": { "--color-bg": "var(--color-primary-50)" } },
+		{ "name": "light", "default": true, "rules": { "--color-bg": "var(--color-neutral-50)" } },
 		{ "name": "dark", "media": "(prefers-color-scheme: dark)", "rules": { "…": "…" } }
 	]
 }

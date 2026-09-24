@@ -10,8 +10,9 @@
  * @module
  */
 
-import type { Variant } from "../types.ts";
+import type { Theme, Variant } from "../types.ts";
 import { VARIANT_TOKENS } from "./tokens.ts";
+import { validateRamps } from "./ramps.ts";
 
 /** Severity of a generate-time finding. */
 export type DiagnosticLevel = "error" | "warning";
@@ -153,12 +154,18 @@ function validateVariant(variant: Variant, defined: ReadonlySet<string>): DripDi
 	}
 
 	const rules = variant.rules ?? {};
-	const missing = VARIANT_TOKENS.filter((t) => t.required && !rules[t.property]);
+	// The default variant is the one every other variant's unset tokens fall
+	// through to via the cascade (its rules are emitted against a bare
+	// `:root` in addition to its own `[data-theme]` block), so it has to be
+	// complete — a non-default variant only has to state what changes.
+	const missing = variant.default
+		? VARIANT_TOKENS.filter((t) => !rules[t.property])
+		: VARIANT_TOKENS.filter((t) => t.required && !rules[t.property]);
 	if (missing.length) {
 		diagnostics.push({
 			level: "warning",
 			where: `variant "${variant.name}"`,
-			message: `does not define ${missing.length} required token${
+			message: `does not define ${missing.length} ${variant.default ? "" : "required "}token${
 				missing.length === 1 ? "" : "s"
 			} (${
 				missing.map((t) => t.key).join(", ")
@@ -180,6 +187,24 @@ function validateVariant(variant: Variant, defined: ReadonlySet<string>): DripDi
 	}
 
 	return diagnostics;
+}
+
+/**
+ * Ramp-level diagnostics, in the same shape `validateVariants` produces, so a
+ * caller can merge the two into one report. Kept separate from
+ * `validateVariants` (rather than folded into a `validateTheme(theme, ...)`)
+ * because `ramps.ts` only needs the theme's `color` tree, and pulling
+ * `getThemeVariants` in here would import `variants.ts`, which itself imports
+ * `normalizeMediaQuery` from this module.
+ */
+export function validateThemeRamps(theme: Theme): DripDiagnostic[] {
+	return validateRamps(theme).map(({ ramp, problem }) => ({
+		level: "warning",
+		where: `color.${ramp}`,
+		message: problem === "missing"
+			? "required ramp is not defined — components that assume it (badges, fills, semantic colors) will silently lose their color on this theme"
+			: "exists but isn't shaped like a color scale (no numeric stops) — expected a ramp with 50-950 stops",
+	}));
 }
 
 /**

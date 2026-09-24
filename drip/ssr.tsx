@@ -164,7 +164,7 @@ export function BaseStyle(): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
 				}
 
 				span.highlight {
-					background-color: var(--color-bearmetal-400);
+					background-color: var(--color-brand-400);
 					color: var(--color-text-subtle);
 					display: inline-block;
 					padding: 0 var(--space-0-5);
