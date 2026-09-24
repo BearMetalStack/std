@@ -19,6 +19,15 @@ export class SlagShadowRoot extends SlagDocumentFragment {
 	readonly host: SlagElement;
 	readonly mode: ShadowRootMode;
 	adoptedStyleSheets: SlagCSSStyleSheet[] = [];
+	/**
+	 * Whether the parser built this root from `<template shadowrootmode>`.
+	 *
+	 * The spec's internal flag, exposed because Slag has no parser to set it:
+	 * `attachShadow()` over a declarative root of the same mode empties it and
+	 * hands it back instead of throwing. See `declarativeShadowRoot()` in
+	 * `@bearmetal/slag/testing`.
+	 */
+	declarative = false;
 
 	constructor(host: SlagElement, mode: ShadowRootMode = "open") {
 		super();

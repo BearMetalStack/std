@@ -86,6 +86,19 @@ export class ProbeCounter extends BMElement {
 	}
 }
 
+@define("shadow-card")
+export class ShadowCard extends BMElement {
+	static override shadow = "open" as const;
+
+	override get template() {
+		return (
+			<div class="card">
+				<slot></slot>
+			</div>
+		);
+	}
+}
+
 export const Greeting = () => <load-greeting who="you" />;
 
 export const Two = () => (
@@ -106,3 +119,9 @@ export const AsyncChild = () => <section>{sleep(5).then(() => <b>late</b>)}</sec
 export const Props = () => <probe-counter label="Total" open count={5} data-x="1" />;
 
 export const ClosedProps = () => <probe-counter open={false} />;
+
+export const Shadowed = () => (
+	<shadow-card>
+		<span>light</span>
+	</shadow-card>
+);

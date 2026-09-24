@@ -13,7 +13,7 @@ import { inject, injectOrThrow, provide } from "./context/mod.ts";
 import { effect } from "./signals.ts";
 import { coerceProp, declaredProps } from "./prop.ts";
 import { declaredState } from "./state.ts";
-import { STATE_ATTRIBUTE, takeServerState } from "./hydration.ts";
+import { primeServerState, STATE_ATTRIBUTE, takeServerState } from "./hydration.ts";
 import { each } from "./built-ins/For.ts";
 import type { BMTemplate, RefSignals } from "./types.ts";
 
@@ -51,6 +51,29 @@ export abstract class BMElement<
 		customElements.define(this.tag, this as unknown as CustomElementConstructor);
 		return this;
 	}
+
+	/**
+	 * Renders the template into a shadow root of this mode, on the server and
+	 * in the browser alike.
+	 *
+	 * A server render serializes it as declarative shadow DOM, with the light
+	 * children the component was given left in place for its `<slot>`s. The
+	 * browser rebuilds that root on parse, and the first client render replaces
+	 * its contents. `useShadow()` called from `init()` is client-only, because
+	 * `init()` never runs on a server.
+	 *
+	 * @example
+	 * ```tsx
+	 * @define("my-card")
+	 * class MyCard extends BMElement {
+	 *   static override shadow = "open" as const;
+	 *   override get template() {
+	 *     return <div class="card"><slot></slot></div>;
+	 *   }
+	 * }
+	 * ```
+	 */
+	static shadow: ShadowRootMode | undefined = undefined;
 
 	static get stylesheet(): string | CSSStyleSheet | undefined {
 		return undefined;
@@ -127,6 +150,9 @@ export abstract class BMElement<
 		if (onServer && (this.constructor as typeof BMElement).client) return;
 
 		if (!onServer) this.#hydrateState();
+
+		const { shadow } = this.constructor as typeof BMElement;
+		if (shadow) this.useShadow(shadow);
 
 		const prevOwner = getCurrentOwner();
 		setCurrentOwner(this);
@@ -395,6 +421,9 @@ export abstract class BMElement<
 
 	protected useShadow(mode: ShadowRootMode = "open"): ShadowRoot {
 		if (this.#shadowRootRef) return this.#shadowRootRef;
+		// Attaching over a declarative shadow root empties it, taking the
+		// snapshots of any components the server rendered inside with it.
+		if (!isServerRendering()) primeServerState();
 		this.#shadowRootRef = this.attachShadow({ mode });
 		return this.#shadowRootRef!;
 	}
