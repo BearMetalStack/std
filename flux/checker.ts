@@ -3,7 +3,7 @@
  * `SpellChecker` — boolean correctness checking against loaded Hunspell dictionary pairs.
  */
 
-import { applyIconv, type IconvRule, parseAff } from "./aff.ts";
+import { applyIconv, type IconvRule, parseAff, type RepRule } from "./aff.ts";
 import { parseDic } from "./dic.ts";
 import {
 	DictionaryNotFoundError,
@@ -11,7 +11,14 @@ import {
 	LanguagePendingError,
 	UnknownLanguageError,
 } from "./errors.ts";
-import type { DictionaryPaths, LanguageChecker, SpellCheckerOptions } from "./types.ts";
+import { suggestFromLookup, suggestionAlphabet, type SuggestionSource } from "./suggest.ts";
+import type {
+	CheckAndSuggestResult,
+	DictionaryPaths,
+	LanguageChecker,
+	SpellCheckerOptions,
+	SuggestOptions,
+} from "./types.ts";
 
 interface LanguageEntry {
 	/** Rejects with the raw underlying cause, never a `LanguageLoadFailedError`. */
@@ -20,7 +27,18 @@ interface LanguageEntry {
 	lookup?: Set<string>;
 	/** The `.aff`'s `ICONV` table, applied to a word before it's checked against `lookup`. */
 	iconv?: IconvRule[];
+	rep?: RepRule[];
+	/** The `.aff`'s `TRY` directive, turned into a suggestion alphabet the first time it's needed. */
+	tryChars?: string;
+	suggestions?: SuggestionSource;
 	loadError?: LanguageLoadFailedError;
+}
+
+interface ReadyLanguageEntry extends LanguageEntry {
+	status: "ready";
+	lookup: Set<string>;
+	iconv: IconvRule[];
+	rep: RepRule[];
 }
 
 async function readDictionaryFile(path: string): Promise<string> {
@@ -118,10 +136,12 @@ export class SpellChecker {
 		const entry = { status: "pending" } as LanguageEntry;
 
 		const promise = this.#parse(paths)
-			.then(({ lookup, iconv }) => {
+			.then(({ lookup, iconv, rep, tryChars }) => {
 				entry.status = "ready";
 				entry.lookup = lookup;
 				entry.iconv = iconv;
+				entry.rep = rep;
+				entry.tryChars = tryChars;
 			})
 			.catch((cause) => {
 				entry.status = "failed";
@@ -146,7 +166,42 @@ export class SpellChecker {
 		return entry.promise;
 	}
 
+	/** Whether `word` is spelled correctly in `lang`. */
 	check(lang: string, word: string): boolean {
+		const entry = this.#readyEntry(lang);
+		return checkAgainstLookup(applyIconv(word, entry.iconv), entry.lookup).correct;
+	}
+
+	/**
+	 * Suggested spellings for `word` in `lang`, best first. `word` doesn't have to be misspelled —
+	 * a correct word gets its nearest neighbours — and is never among its own suggestions. Throws
+	 * in the same states {@linkcode check} does.
+	 */
+	suggest(lang: string, word: string, options?: SuggestOptions): string[] {
+		const entry = this.#readyEntry(lang);
+		return suggestFromLookup(applyIconv(word, entry.iconv), this.#suggestionSource(entry), options);
+	}
+
+	/** {@linkcode check}, followed by {@linkcode suggest} only when the word is misspelled. */
+	checkAndSuggest(lang: string, word: string, options?: SuggestOptions): CheckAndSuggestResult {
+		const entry = this.#readyEntry(lang);
+		const converted = applyIconv(word, entry.iconv);
+		if (checkAgainstLookup(converted, entry.lookup).correct) {
+			return { correct: true, suggestions: [] };
+		}
+		const suggestions = suggestFromLookup(converted, this.#suggestionSource(entry), options);
+		return { correct: false, suggestions };
+	}
+
+	forLanguage(lang: string): LanguageChecker {
+		return {
+			check: (word) => this.check(lang, word),
+			suggest: (word, options) => this.suggest(lang, word, options),
+			checkAndSuggest: (word, options) => this.checkAndSuggest(lang, word, options),
+		};
+	}
+
+	#readyEntry(lang: string): ReadyLanguageEntry {
 		const entry = this.#languages.get(lang);
 		if (!entry) {
 			throw new UnknownLanguageError(`"${lang}" was never registered via loadLanguage.`);
@@ -159,19 +214,25 @@ export class SpellChecker {
 		if (entry.status === "failed") {
 			throw entry.loadError!;
 		}
-		const converted = applyIconv(word, entry.iconv!);
-		return checkAgainstLookup(converted, entry.lookup!).correct;
+		return entry as ReadyLanguageEntry;
 	}
 
-	forLanguage(lang: string): LanguageChecker {
-		return { check: (word: string) => this.check(lang, word) };
+	#suggestionSource(entry: ReadyLanguageEntry): SuggestionSource {
+		return entry.suggestions ??= {
+			lookup: entry.lookup,
+			alphabet: suggestionAlphabet(entry.tryChars, entry.lookup),
+			rep: entry.rep,
+			isCorrect: (word) => checkAgainstLookup(word, entry.lookup).correct,
+		};
 	}
 
-	async #parse(paths: DictionaryPaths): Promise<{ lookup: Set<string>; iconv: IconvRule[] }> {
+	async #parse(paths: DictionaryPaths) {
 		const affText = await readDictionaryFile(paths.aff);
-		const { suffixes, prefixes, flagMode, iconv } = parseAff(affText, { debug: this.#debug });
+		const { suffixes, prefixes, flagMode, iconv, rep, directives } = parseAff(affText, {
+			debug: this.#debug,
+		});
 		const dicText = await readDictionaryFile(paths.dic);
 		const lookup = parseDic(dicText, { suffixes, prefixes, flagMode });
-		return { lookup, iconv };
+		return { lookup, iconv, rep, tryChars: directives.get("TRY") };
 	}
 }

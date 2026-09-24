@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/miscellanea",
-	"version": "0.0.15",
+	"version": "0.0.17",
 	"exports": {
 		".": "./mod.ts",
 		"./path": "./path/mod.ts",

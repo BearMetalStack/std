@@ -44,3 +44,21 @@ export type DotBearmetalNamespaceManifest = {
 	primary: string;
 	[key: string]: string[] | string;
 };
+
+/**
+ * A string to compare, or a pre-split sequence of units. Strings are compared by code point, so a
+ * surrogate pair (most emoji, astral-plane scripts) counts as one character rather than two. Pass an
+ * array to pick a different unit — e.g. grapheme clusters from `Intl.Segmenter`, which is what it
+ * takes for `e` + a combining accent to count as one character.
+ */
+export type EditDistanceInput = string | readonly string[];
+
+/** Options for {@linkcode levenshteinDistance} and {@linkcode damerauLevenshteinDistance}. */
+export interface EditDistanceOptions {
+	/**
+	 * Stop as soon as the distance is known to exceed this and return `maxDistance + 1`. Callers
+	 * that only care whether two strings are "close enough" skip most of the work on the ones that
+	 * aren't.
+	 */
+	maxDistance?: number;
+}

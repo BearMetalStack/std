@@ -255,3 +255,112 @@ Deno.test("ready: re-arms to track a language loaded after a prior ready resolve
 		await cleanupB();
 	}
 });
+
+// ─── suggest / checkAndSuggest ─────────────────────────────────────────────
+
+const SUGGEST_AFF = [
+	AFF,
+	"TRY esianrtolcdugmphbyfvkwzESIANRTOLCDUGMPHBYFVKWZ'",
+	"REP 1",
+	"REP ^alot$ a_lot",
+]
+	.join("\n");
+const SUGGEST_DIC = ["6", "well", "known", "cat/S", "a", "lot", "hadn't"].join("\n");
+
+Deno.test("suggest: offers corrections for a misspelled word, best first", async () => {
+	const [paths, cleanup] = await tempDictionary(SUGGEST_AFF, SUGGEST_DIC);
+	try {
+		const checker = new SpellChecker();
+		await checker.loadLanguage("en", paths);
+		assertEquals(checker.suggest("en", "knwon")[0], "known");
+		assertEquals(checker.suggest("en", "Cta")[0], "Cat");
+		assertEquals(checker.suggest("en", "catss")[0], "cats");
+		assertEquals(checker.suggest("en", "alot")[0], "a lot");
+	} finally {
+		await cleanup();
+	}
+});
+
+Deno.test("suggest: answers for a correct word too, never with the word itself", async () => {
+	const [paths, cleanup] = await tempDictionary(SUGGEST_AFF, SUGGEST_DIC);
+	try {
+		const checker = new SpellChecker();
+		await checker.loadLanguage("en", paths);
+		assertEquals(checker.suggest("en", "cat"), ["cats"]);
+	} finally {
+		await cleanup();
+	}
+});
+
+Deno.test("suggest: applies ICONV to the word first", async () => {
+	const [paths, cleanup] = await tempDictionary(ICONV_AFF, ICONV_DIC);
+	try {
+		const checker = new SpellChecker();
+		await checker.loadLanguage("en", paths);
+		assertEquals(checker.suggest("en", "hadn’", { maxDistance: 1 }), ["hadn't"]);
+	} finally {
+		await cleanup();
+	}
+});
+
+Deno.test("checkAndSuggest: a correct word carries no suggestions", async () => {
+	const [paths, cleanup] = await tempDictionary(SUGGEST_AFF, SUGGEST_DIC);
+	try {
+		const checker = new SpellChecker();
+		await checker.loadLanguage("en", paths);
+		assertEquals(checker.checkAndSuggest("en", "cats"), { correct: true, suggestions: [] });
+		assertEquals(checker.checkAndSuggest("en", "Well"), { correct: true, suggestions: [] });
+	} finally {
+		await cleanup();
+	}
+});
+
+Deno.test("checkAndSuggest: a misspelled word carries its suggestions", async () => {
+	const [paths, cleanup] = await tempDictionary(SUGGEST_AFF, SUGGEST_DIC);
+	try {
+		const checker = new SpellChecker();
+		await checker.loadLanguage("en", paths);
+		const result = checker.checkAndSuggest("en", "well-knwon", { limit: 1 });
+		assertEquals(result, { correct: false, suggestions: ["well-known"] });
+	} finally {
+		await cleanup();
+	}
+});
+
+Deno.test("suggest and checkAndSuggest throw in the same states check does", async () => {
+	const checker = new SpellChecker();
+	assertThrows(() => checker.suggest("en", "cat"), UnknownLanguageError);
+	assertThrows(() => checker.checkAndSuggest("en", "cat"), UnknownLanguageError);
+
+	const [paths, cleanup] = await tempDictionary();
+	try {
+		const promise = checker.loadLanguage("en", paths);
+		assertThrows(() => checker.suggest("en", "cat"), LanguagePendingError);
+		assertThrows(() => checker.checkAndSuggest("en", "cat"), LanguagePendingError);
+		await promise;
+	} finally {
+		await cleanup();
+	}
+
+	const failing = checker.loadLanguage("bad", {
+		aff: "/nonexistent/x.aff",
+		dic: "/nonexistent/x.dic",
+	});
+	await checker.ready;
+	assertThrows(() => checker.suggest("bad", "cat"), LanguageLoadFailedError);
+	assertThrows(() => checker.checkAndSuggest("bad", "cat"), LanguageLoadFailedError);
+	await failing.catch(() => {});
+});
+
+Deno.test("forLanguage: sugar delegates suggest and checkAndSuggest too", async () => {
+	const [paths, cleanup] = await tempDictionary(SUGGEST_AFF, SUGGEST_DIC);
+	try {
+		const checker = new SpellChecker();
+		await checker.loadLanguage("en", paths);
+		const en = checker.forLanguage("en");
+		assertEquals(en.suggest("knwon"), checker.suggest("en", "knwon"));
+		assertEquals(en.checkAndSuggest("knwon"), checker.checkAndSuggest("en", "knwon"));
+	} finally {
+		await cleanup();
+	}
+});
