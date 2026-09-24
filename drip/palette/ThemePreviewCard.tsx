@@ -23,11 +23,11 @@ export const ThemePreviewCardStyles = css`
 		--text-xs: .64em;
 		--text-sm: .8em;
 		--text-md: 1.25em;
-		--text-lg: 1.563em;
-		--text-xl: 1.953em;
-		--text-2xl: 2.441em;
-		--text-3xl: 3.052em;
-		--text-4xl: 3.815em;
+		--text-lg: 1.44em;
+		--text-xl: 1.66em;
+		--text-2xl: 1.91em;
+		--text-3xl: 2.2em;
+		--text-4xl: 2.53em;
 
 		.header {
 			grid-area: h;
