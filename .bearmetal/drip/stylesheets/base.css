@@ -8,13 +8,14 @@
 	box-sizing: border-box;
 	margin: 0;
 	padding: 0;
+	corner-shape: var(--corner-shape);
 }
 
 html {
 	font-size: 16px;
 	-webkit-text-size-adjust: 100%;
 	tab-size: 2;
-	scroll-behavior: smooth;
+	scroll-behavior: var(--motion-scroll);
 }
 
 body {
@@ -122,12 +123,12 @@ pre {
 	padding: var(--space-4);
 	background: var(--color-bg-muted);
 	border-radius: var(--radius-lg);
-	border: var(--border-1) solid var(--color-border);
+	border: var(--border-rule) solid var(--color-border);
 }
 
 ol,
 ul {
-	list-style: none;
+	padding-left: 1rem;
 }
 
 span.highlight {
@@ -139,8 +140,8 @@ span.highlight {
 }
 
 :focus-visible {
-	outline: var(--border-2) solid var(--color-border-focus);
-	outline-offset: 2px;
+	outline: var(--state-focus-width) var(--state-focus-style) var(--state-focus-color);
+	outline-offset: var(--state-focus-offset);
 	border-radius: var(--radius-base);
 }
 
@@ -150,8 +151,8 @@ span.highlight {
 
 [disabled],
 [aria-disabled="true"] {
-	cursor: not-allowed;
-	opacity: 0.5;
+	cursor: var(--state-disabled-cursor);
+	opacity: var(--state-disabled-opacity);
 	pointer-events: none;
 }
 
@@ -167,8 +168,8 @@ span.highlight {
 }
 
 /* ============================================================
-				   UTILITY HELPERS
-				   ============================================================ */
+   UTILITY HELPERS
+   ============================================================ */
 
 .container {
 	width: 100%;
@@ -222,7 +223,7 @@ span.highlight {
 		var(--skeleton-bg) 75%
 	);
 	background-size: 200% 100%;
-	animation: bm-shimmer var(--skeleton-duration) linear infinite;
+	animation: var(--skeleton-animation);
 }
 
 @keyframes bm-spin {
@@ -238,18 +239,22 @@ span.highlight {
 	border: var(--spinner-thickness) solid var(--spinner-track-color);
 	border-top-color: var(--spinner-color);
 	border-radius: var(--radius-full);
-	animation: bm-spin 0.7s linear infinite;
+	corner-shape: var(--corner-pill);
+	animation: bm-spin var(--spinner-duration) linear infinite;
 }
 
-.spinner-sm {
+.spinner-sm,
+.spinner--sm {
 	width: var(--spinner-size-sm);
 	height: var(--spinner-size-sm);
 }
-.spinner-lg {
+.spinner-lg,
+.spinner--lg {
 	width: var(--spinner-size-lg);
 	height: var(--spinner-size-lg);
 }
-.spinner-xl {
+.spinner-xl,
+.spinner--xl {
 	width: var(--spinner-size-xl);
 	height: var(--spinner-size-xl);
 }

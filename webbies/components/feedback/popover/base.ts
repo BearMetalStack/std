@@ -25,9 +25,10 @@ export class PopoverBase extends BMElement {
 				min-width: max-content;
 
 				background: var(--popover-bg);
-				border: var(--popover-border);
+				border: var(--border-1) solid var(--popover-border);
 				color: var(--color-text);
 				border-radius: var(--popover-radius);
+				corner-shape: var(--corner-shape);
 				box-shadow: var(--popover-shadow);
 				padding: var(--popover-padding);
 

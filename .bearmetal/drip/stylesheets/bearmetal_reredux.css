@@ -3,7 +3,7 @@
 @property --font-sans {
 	syntax: "<*>";
 	inherits: true;
-	initial-value: "Urbanist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji";
+	initial-value: "Comfortaa", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji";
 }
 @property --font-serif {
 	syntax: "<*>";
@@ -13,7 +13,7 @@
 @property --font-mono {
 	syntax: "<*>";
 	inherits: true;
-	initial-value: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "Courier New", monospace;
+	initial-value: "Monofur", ui-monospace, "JetBrains Mono", "Fira Code", "Cascadia Code", "Courier New", monospace;
 }
 @property --text-xs {
 	syntax: "<*>";
@@ -38,27 +38,27 @@
 @property --text-lg {
 	syntax: "<*>";
 	inherits: true;
-	initial-value: 1.563rem;
+	initial-value: 1.44rem;
 }
 @property --text-xl {
 	syntax: "<*>";
 	inherits: true;
-	initial-value: 1.953rem;
+	initial-value: 1.66rem;
 }
 @property --text-2xl {
 	syntax: "<*>";
 	inherits: true;
-	initial-value: 2.441rem;
+	initial-value: 1.91rem;
 }
 @property --text-3xl {
 	syntax: "<*>";
 	inherits: true;
-	initial-value: 3.052rem;
+	initial-value: 2.2rem;
 }
 @property --text-4xl {
 	syntax: "<*>";
 	inherits: true;
-	initial-value: 3.815rem;
+	initial-value: 2.53rem;
 }
 @property --leading-none {
 	syntax: "<*>";
@@ -190,6 +190,41 @@
 	inherits: true;
 	initial-value: 9999px;
 }
+@property --radius-scale-sm {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.5;
+}
+@property --radius-scale-md {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 1.5;
+}
+@property --radius-scale-lg {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 2;
+}
+@property --radius-scale-xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 3;
+}
+@property --radius-scale-2xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 4;
+}
+@property --radius-scale-3xl {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 6;
+}
+@property --corner-shape {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: round;
+}
 @property --border-0 {
 	syntax: "<*>";
 	inherits: true;
@@ -219,6 +254,71 @@
 	syntax: "<*>";
 	inherits: true;
 	initial-value: 8px;
+}
+@property --state-hover-decoration {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: none;
+}
+@property --state-selected-indicator {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: none;
+}
+@property --state-pressed-indicator {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: none;
+}
+@property --state-pressed-overlay {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: rgb(0 0 0 / 0.19);
+}
+@property --state-pressed-translate {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: none;
+}
+@property --state-disabled-opacity {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.5;
+}
+@property --state-disabled-cursor {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: not-allowed;
+}
+@property --state-disabled-pattern {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: none;
+}
+@property --state-disabled-border-style {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: solid;
+}
+@property --state-focus-style {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: solid;
+}
+@property --state-focus-offset {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 2px;
+}
+@property --state-invalid-border-style {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: solid;
+}
+@property --motion-scroll {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: smooth;
 }
 @property --shadow-none {
 	syntax: "<*>";
@@ -515,6 +615,21 @@
 	inherits: true;
 	initial-value: 64rem;
 }
+@property --modal-backdrop-blur {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0px;
+}
+@property --drawer-max-height {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 85vh;
+}
+@property --drawer-max-width {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 32rem;
+}
 @property --toast-max-width {
 	syntax: "<*>";
 	inherits: true;
@@ -529,6 +644,16 @@
 	syntax: "<*>";
 	inherits: true;
 	initial-value: transparent;
+}
+@property --nav-item-bg-active {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: transparent;
+}
+@property --nav-item-decoration-active {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: underline;
 }
 @property --sidebar-width {
 	syntax: "<*>";
@@ -550,10 +675,50 @@
 	inherits: true;
 	initial-value: 2px;
 }
+@property --spinner-duration {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: 0.7s;
+}
 @property --skeleton-duration {
 	syntax: "<*>";
 	inherits: true;
 	initial-value: 1.5s;
+}
+@property --skeleton-animation {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: bm-shimmer var(--skeleton-duration) linear infinite;
+}
+@property --alert-info-border-style {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: solid;
+}
+@property --alert-success-border-style {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: solid;
+}
+@property --alert-warning-border-style {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: solid;
+}
+@property --alert-danger-border-style {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: solid;
+}
+@property --tab-item-bg-hover {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: transparent;
+}
+@property --tab-item-bg-active {
+	syntax: "<*>";
+	inherits: true;
+	initial-value: transparent;
 }
 @property --tab-indicator-height {
 	syntax: "<*>";
@@ -2450,9 +2615,9 @@
 :root {
 
 /* #region FONT tokens */
-	--font-sans: "Urbanist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji";
+	--font-sans: "Comfortaa", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji";
 	--font-serif: "Georgia", "Times New Roman", Times, serif;
-	--font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "Courier New", monospace;
+	--font-mono: "Monofur", ui-monospace, "JetBrains Mono", "Fira Code", "Cascadia Code", "Courier New", monospace;
 	--font-display: var(--font-sans);
 	--font-body: var(--font-sans);
 
@@ -2463,11 +2628,11 @@
 	--text-sm: 0.8rem;
 	--text-base: 1rem;
 	--text-md: 1.25rem;
-	--text-lg: 1.563rem;
-	--text-xl: 1.953rem;
-	--text-2xl: 2.441rem;
-	--text-3xl: 3.052rem;
-	--text-4xl: 3.815rem;
+	--text-lg: 1.44rem;
+	--text-xl: 1.66rem;
+	--text-2xl: 1.91rem;
+	--text-3xl: 2.2rem;
+	--text-4xl: 2.53rem;
 
 /* #endregion */
 
@@ -2536,14 +2701,26 @@
 
 /* #region RADIUS tokens */
 	--radius-none: 0;
-	--radius-sm: calc(var(--radius-base) * 0.5);
+	--radius-sm: calc(var(--radius-base) * var(--radius-scale-sm));
 	--radius-base: 0.25rem;
-	--radius-md: calc(var(--radius-base) * 1.5);
-	--radius-lg: calc(var(--radius-base) * 2);
-	--radius-xl: calc(var(--radius-base) * 3);
-	--radius-2xl: calc(var(--radius-base) * 4);
-	--radius-3xl: calc(var(--radius-base) * 6);
+	--radius-md: calc(var(--radius-base) * var(--radius-scale-md));
+	--radius-lg: calc(var(--radius-base) * var(--radius-scale-lg));
+	--radius-xl: calc(var(--radius-base) * var(--radius-scale-xl));
+	--radius-2xl: calc(var(--radius-base) * var(--radius-scale-2xl));
+	--radius-3xl: calc(var(--radius-base) * var(--radius-scale-3xl));
 	--radius-full: 9999px;
+	--radius-scale-sm: 0.5;
+	--radius-scale-md: 1.5;
+	--radius-scale-lg: 2;
+	--radius-scale-xl: 3;
+	--radius-scale-2xl: 4;
+	--radius-scale-3xl: 6;
+
+/* #endregion */
+
+/* #region CORNER tokens */
+	--corner-shape: round;
+	--corner-pill: var(--corner-shape);
 
 /* #endregion */
 
@@ -2555,6 +2732,35 @@
 	--border-2: 2px;
 	--border-4: 4px;
 	--border-8: 8px;
+	--border-rule: var(--border-1);
+
+/* #endregion */
+
+/* #region STATE tokens */
+	--state-hover-bg: var(--color-bg-muted);
+	--state-hover-decoration: none;
+	--state-selected-bg: var(--color-interactive-subtle);
+	--state-selected-color: var(--color-interactive);
+	--state-selected-weight: var(--weight-semibold);
+	--state-selected-indicator: none;
+	--state-pressed-indicator: none;
+	--state-pressed-overlay: rgb(0 0 0 / 0.19);
+	--state-pressed-translate: none;
+	--state-disabled-opacity: 0.5;
+	--state-disabled-cursor: not-allowed;
+	--state-disabled-pattern: none;
+	--state-disabled-border-style: solid;
+	--state-focus-width: var(--border-2);
+	--state-focus-style: solid;
+	--state-focus-offset: 2px;
+	--state-focus-color: var(--color-border-focus);
+	--state-invalid-border-style: solid;
+	--state-invalid-border-width: var(--input-border-width);
+
+/* #endregion */
+
+/* #region MOTION tokens */
+	--motion-scroll: smooth;
 
 /* #endregion */
 
@@ -2665,6 +2871,9 @@
 	--btn-radius-base: var(--radius-md);
 	--btn-radius-lg: var(--radius-lg);
 	--btn-active-border: var(--color-border-strong);
+	--btn-decoration-hover: var(--state-hover-decoration);
+	--btn-pressed-indicator: var(--state-pressed-indicator);
+	--btn-pressed-translate: var(--state-pressed-translate);
 	--btn-primary-bg: var(--color-interactive);
 	--btn-primary-bg-hover: var(--color-interactive-hover);
 	--btn-primary-bg-active: var(--color-interactive-active);
@@ -2672,12 +2881,12 @@
 	--btn-primary-border: transparent;
 	--btn-primary-shadow: var(--shadow-xs);
 	--btn-secondary-bg: var(--color-surface);
-	--btn-secondary-bg-hover: var(--color-bg-muted);
+	--btn-secondary-bg-hover: var(--state-hover-bg);
 	--btn-secondary-color: var(--color-text);
 	--btn-secondary-border: var(--color-border-strong);
 	--btn-secondary-shadow: var(--shadow-xs);
 	--btn-ghost-bg: transparent;
-	--btn-ghost-bg-hover: var(--color-bg-muted);
+	--btn-ghost-bg-hover: var(--state-hover-bg);
 	--btn-ghost-color: var(--color-text-subtle);
 	--btn-ghost-border: transparent;
 	--btn-ghost-shadow: none;
@@ -2697,7 +2906,7 @@
 	--input-border-hover: var(--color-interactive);
 	--input-border-focus: var(--color-border-focus);
 	--input-border-error: var(--color-danger-text);
-	--input-border-width: var(--border-1);
+	--input-border-width: var(--border-rule);
 	--input-radius: var(--radius-md);
 	--input-padding-y: var(--space-2);
 	--input-padding-x: var(--space-3);
@@ -2710,7 +2919,7 @@
 /* #region CARD tokens */
 	--card-bg: var(--color-surface);
 	--card-border: var(--color-border);
-	--card-border-width: var(--border-1);
+	--card-border-width: var(--border-rule);
 	--card-radius: var(--radius-base);
 	--card-shadow: var(--shadow-sm);
 	--card-padding: var(--space-6);
@@ -2735,6 +2944,7 @@
 /* #region MODAL tokens */
 	--modal-bg: var(--color-surface-overlay);
 	--modal-border: var(--color-border);
+	--modal-border-width: var(--border-rule);
 	--modal-radius: var(--radius-2xl);
 	--modal-shadow: var(--shadow-xl);
 	--modal-padding: var(--space-8);
@@ -2742,11 +2952,38 @@
 	--modal-max-width-base: 32rem;
 	--modal-max-width-lg: 48rem;
 	--modal-max-width-xl: 64rem;
+	--modal-backdrop-blur: 0px;
+
+/* #endregion */
+
+/* #region DRAWER tokens */
+	--drawer-bg: var(--color-surface-overlay);
+	--drawer-border: var(--color-border);
+	--drawer-border-width: var(--border-rule);
+	--drawer-radius: var(--radius-2xl);
+	--drawer-shadow: var(--shadow-xl);
+	--drawer-padding: var(--space-4);
+	--drawer-max-height: 85vh;
+	--drawer-max-width: 32rem;
+	--drawer-handle-color: var(--color-border-strong);
+	--drawer-backdrop: var(--modal-backdrop);
+	--drawer-backdrop-blur: var(--modal-backdrop-blur);
+
+/* #endregion */
+
+/* #region POPOVER tokens */
+	--popover-bg: var(--color-surface-overlay);
+	--popover-border: var(--color-border);
+	--popover-border-width: var(--border-rule);
+	--popover-radius: var(--radius-lg);
+	--popover-shadow: var(--shadow-md);
+	--popover-padding: var(--space-3);
 
 /* #endregion */
 
 /* #region TOAST tokens */
 	--toast-border-radius: var(--radius-lg);
+	--toast-border-width: var(--border-2);
 	--toast-shadow: var(--shadow-lg);
 	--toast-padding-y: var(--space-3);
 	--toast-padding-x: var(--space-4);
@@ -2767,12 +3004,14 @@
 
 /* #region TABLE tokens */
 	--table-bg: transparent;
+	--table-radius: var(--radius-lg);
 	--table-header-bg: var(--color-bg-subtle);
 	--table-header-font-weight: var(--weight-semibold);
 	--table-header-color: var(--color-text-subtle);
 	--table-row-bg-alt: var(--color-bg-subtle);
-	--table-row-bg-hover: var(--color-bg-muted);
+	--table-row-bg-hover: var(--state-hover-bg);
 	--table-border: var(--color-border);
+	--table-border-width: var(--border-rule);
 	--table-cell-padding-y: var(--space-3);
 	--table-cell-padding-x: var(--space-4);
 	--table-font-size: var(--text-sm);
@@ -2782,12 +3021,17 @@
 /* #region NAV tokens */
 	--nav-bg: var(--color-surface);
 	--nav-border: var(--color-border);
+	--nav-border-width: var(--border-rule);
 	--nav-height: var(--space-16);
 	--nav-shadow: var(--shadow-xs);
 	--nav-item-color: var(--color-text-subtle);
 	--nav-item-color-hover: var(--color-text);
-	--nav-item-color-active: var(--color-interactive);
-	--nav-item-bg-hover: var(--color-bg-muted);
+	--nav-item-color-active: var(--state-selected-color);
+	--nav-item-bg-hover: var(--state-hover-bg);
+	--nav-item-bg-active: transparent;
+	--nav-item-weight-active: var(--state-selected-weight);
+	--nav-item-decoration-active: underline;
+	--nav-item-indicator-active: var(--state-selected-indicator);
 	--nav-item-font-weight: var(--weight-medium);
 	--nav-item-font-size: var(--text-sm);
 	--nav-item-radius: var(--radius-md);
@@ -2799,8 +3043,12 @@
 /* #region SIDEBAR tokens */
 	--sidebar-bg: var(--color-bg-subtle);
 	--sidebar-border: var(--color-border);
+	--sidebar-border-width: var(--border-rule);
 	--sidebar-width: 16rem;
 	--sidebar-width-collapsed: 4rem;
+	--sidebar-item-bg-hover: var(--nav-item-bg-hover);
+	--sidebar-item-bg-active: var(--state-selected-bg);
+	--sidebar-item-indicator-active: var(--nav-item-indicator-active);
 	--sidebar-padding: var(--space-4);
 
 /* #endregion */
@@ -2836,6 +3084,7 @@
 	--spinner-size-lg: var(--space-8);
 	--spinner-size-xl: var(--space-10);
 	--spinner-thickness: 2px;
+	--spinner-duration: 0.7s;
 
 /* #endregion */
 
@@ -2844,6 +3093,7 @@
 	--skeleton-shine: var(--color-bg-muted);
 	--skeleton-radius: var(--radius-base);
 	--skeleton-duration: 1.5s;
+	--skeleton-animation: bm-shimmer var(--skeleton-duration) linear infinite;
 
 /* #endregion */
 
@@ -2851,37 +3101,45 @@
 	--alert-padding-y: var(--space-3);
 	--alert-padding-x: var(--space-4);
 	--alert-radius: var(--radius-lg);
-	--alert-border-width: var(--border-1);
+	--alert-border-width: var(--border-rule);
 	--alert-font-size: var(--text-sm);
 	--alert-info-bg: var(--color-info-bg);
 	--alert-info-border: var(--color-info-border);
+	--alert-info-border-style: solid;
 	--alert-info-color: var(--color-info-text);
 	--alert-success-bg: var(--color-success-bg);
 	--alert-success-border: var(--color-success-border);
+	--alert-success-border-style: solid;
 	--alert-success-color: var(--color-success-text);
 	--alert-warning-bg: var(--color-warning-bg);
 	--alert-warning-border: var(--color-warning-border);
+	--alert-warning-border-style: solid;
 	--alert-warning-color: var(--color-warning-text);
 	--alert-danger-bg: var(--color-danger-bg);
 	--alert-danger-border: var(--color-danger-border);
+	--alert-danger-border-style: solid;
 	--alert-danger-color: var(--color-danger-text);
 
 /* #endregion */
 
 /* #region DIVIDER tokens */
 	--divider-color: var(--color-border);
-	--divider-width: var(--border-1);
+	--divider-width: var(--border-rule);
 
 /* #endregion */
 
 /* #region TAB tokens */
-	--tab-bar-border: var(--color-border);
 	--tab-item-color: var(--color-text-subtle);
 	--tab-item-color-hover: var(--color-text);
-	--tab-item-color-active: var(--color-interactive);
+	--tab-item-color-active: var(--state-selected-color);
+	--tab-item-bg-hover: transparent;
+	--tab-item-bg-active: transparent;
+	--tab-item-weight-active: var(--weight-medium);
 	--tab-item-font-weight: var(--weight-medium);
 	--tab-item-font-size: var(--text-sm);
-	--tab-indicator-color: var(--color-interactive);
+	--tab-bar-border: var(--color-border);
+	--tab-bar-border-width: var(--border-rule);
+	--tab-indicator-color: var(--state-selected-color);
 	--tab-indicator-height: 2px;
 	--tab-padding-y: var(--space-3);
 	--tab-padding-x: var(--space-4);
@@ -2922,6 +3180,7 @@
 /* #region DROPDOWN tokens */
 	--dropdown-bg: var(--color-surface-overlay);
 	--dropdown-border: var(--color-border);
+	--dropdown-border-width: var(--border-rule);
 	--dropdown-radius: var(--radius-lg);
 	--dropdown-shadow: var(--shadow-md);
 	--dropdown-padding-y: var(--space-1);
@@ -2930,9 +3189,12 @@
 	--dropdown-item-font-size: var(--text-sm);
 	--dropdown-item-color: var(--color-text);
 	--dropdown-item-color-hover: var(--color-text);
-	--dropdown-item-color-active: var(--color-interactive);
-	--dropdown-item-bg-hover: var(--color-bg-muted);
-	--dropdown-item-bg-active: var(--color-interactive-subtle);
+	--dropdown-item-color-active: var(--state-selected-color);
+	--dropdown-item-bg-hover: var(--state-hover-bg);
+	--dropdown-item-bg-active: var(--state-selected-bg);
+	--dropdown-item-decoration-hover: var(--state-hover-decoration);
+	--dropdown-item-weight-active: var(--state-selected-weight);
+	--dropdown-item-indicator-active: var(--state-selected-indicator);
 
 /* #endregion */
 
@@ -2948,7 +3210,7 @@
 	--pagination-item-size: var(--space-8);
 	--pagination-item-radius: var(--radius-md);
 	--pagination-item-bg: transparent;
-	--pagination-item-bg-hover: var(--color-bg-muted);
+	--pagination-item-bg-hover: var(--state-hover-bg);
 	--pagination-item-bg-active: var(--color-interactive);
 	--pagination-item-color: var(--color-text-subtle);
 	--pagination-item-color-hover: var(--color-text);
@@ -3476,5 +3738,304 @@
 
 /* #endregion */
 
+}
+
+[data-theme] {
+	--font-display: var(--font-sans);
+	--font-body: var(--font-sans);
+	--space-0-5: calc(var(--space-unit) * 0.5);
+	--space-1: calc(var(--space-unit) * 1);
+	--space-1-5: calc(var(--space-unit) * 1.5);
+	--space-2: calc(var(--space-unit) * 2);
+	--space-2-5: calc(var(--space-unit) * 2.5);
+	--space-3: calc(var(--space-unit) * 3);
+	--space-4: calc(var(--space-unit) * 4);
+	--space-5: calc(var(--space-unit) * 5);
+	--space-6: calc(var(--space-unit) * 6);
+	--space-7: calc(var(--space-unit) * 7);
+	--space-8: calc(var(--space-unit) * 8);
+	--space-10: calc(var(--space-unit) * 10);
+	--space-12: calc(var(--space-unit) * 12);
+	--space-14: calc(var(--space-unit) * 14);
+	--space-16: calc(var(--space-unit) * 16);
+	--space-20: calc(var(--space-unit) * 20);
+	--space-24: calc(var(--space-unit) * 24);
+	--space-32: calc(var(--space-unit) * 32);
+	--space-40: calc(var(--space-unit) * 40);
+	--space-48: calc(var(--space-unit) * 48);
+	--space-64: calc(var(--space-unit) * 64);
+	--radius-sm: calc(var(--radius-base) * var(--radius-scale-sm));
+	--radius-md: calc(var(--radius-base) * var(--radius-scale-md));
+	--radius-lg: calc(var(--radius-base) * var(--radius-scale-lg));
+	--radius-xl: calc(var(--radius-base) * var(--radius-scale-xl));
+	--radius-2xl: calc(var(--radius-base) * var(--radius-scale-2xl));
+	--radius-3xl: calc(var(--radius-base) * var(--radius-scale-3xl));
+	--corner-pill: var(--corner-shape);
+	--border-rule: var(--border-1);
+	--state-hover-bg: var(--color-bg-muted);
+	--state-selected-bg: var(--color-interactive-subtle);
+	--state-selected-color: var(--color-interactive);
+	--state-selected-weight: var(--weight-semibold);
+	--state-focus-width: var(--border-2);
+	--state-focus-color: var(--color-border-focus);
+	--state-invalid-border-width: var(--input-border-width);
+	--shadow-focus: 0 0 0 3px rgb(from var(--color-border-focus) r g b / 0.35);
+	--transition-colors: color var(--duration-base) var(--ease-in-out), background-color var(--duration-base) var(--ease-in-out), border-color var(--duration-base) var(--ease-in-out), text-decoration-color var(--duration-base) var(--ease-in-out), fill var(--duration-base) var(--ease-in-out), stroke var(--duration-base) var(--ease-in-out);
+	--transition-opacity: opacity var(--duration-base) var(--ease-in-out);
+	--transition-shadow: box-shadow var(--duration-base) var(--ease-in-out);
+	--transition-transform: transform var(--duration-base) var(--ease-in-out);
+	--transition-all: all var(--duration-base) var(--ease-in-out);
+	--grid-gap: var(--space-6);
+	--btn-font-family: var(--font-body);
+	--btn-font-weight: var(--weight-semibold);
+	--btn-font-size-xs: var(--text-xs);
+	--btn-font-size-sm: var(--text-sm);
+	--btn-font-size-base: var(--text-base);
+	--btn-font-size-lg: var(--text-md);
+	--btn-letter-spacing: var(--tracking-wide);
+	--btn-border-width: var(--border-2);
+	--btn-transition: var(--transition-colors);
+	--btn-padding-y-xs: var(--space-1);
+	--btn-padding-y-sm: var(--space-1-5);
+	--btn-padding-y-base: var(--space-2);
+	--btn-padding-y-lg: var(--space-3);
+	--btn-padding-x-xs: var(--space-2);
+	--btn-padding-x-sm: var(--space-3);
+	--btn-padding-x-base: var(--space-4);
+	--btn-padding-x-lg: var(--space-6);
+	--btn-radius-xs: var(--radius-base);
+	--btn-radius-sm: var(--radius-md);
+	--btn-radius-base: var(--radius-md);
+	--btn-radius-lg: var(--radius-lg);
+	--btn-active-border: var(--color-border-strong);
+	--btn-decoration-hover: var(--state-hover-decoration);
+	--btn-pressed-indicator: var(--state-pressed-indicator);
+	--btn-pressed-translate: var(--state-pressed-translate);
+	--btn-primary-bg: var(--color-interactive);
+	--btn-primary-bg-hover: var(--color-interactive-hover);
+	--btn-primary-bg-active: var(--color-interactive-active);
+	--btn-primary-color: var(--color-text-on-brand);
+	--btn-primary-shadow: var(--shadow-xs);
+	--btn-secondary-bg: var(--color-surface);
+	--btn-secondary-bg-hover: var(--state-hover-bg);
+	--btn-secondary-color: var(--color-text);
+	--btn-secondary-border: var(--color-border-strong);
+	--btn-secondary-shadow: var(--shadow-xs);
+	--btn-ghost-bg-hover: var(--state-hover-bg);
+	--btn-ghost-color: var(--color-text-subtle);
+	--input-font-family: var(--font-body);
+	--input-font-size: var(--text-base);
+	--input-font-size-sm: var(--text-sm);
+	--input-font-size-lg: var(--text-md);
+	--input-bg: var(--color-surface);
+	--input-bg-disabled: var(--color-bg-muted);
+	--input-color: var(--color-text);
+	--input-color-placeholder: var(--color-text-muted);
+	--input-border: var(--color-border-strong);
+	--input-border-hover: var(--color-interactive);
+	--input-border-focus: var(--color-border-focus);
+	--input-border-error: var(--color-danger-text);
+	--input-border-width: var(--border-rule);
+	--input-radius: var(--radius-md);
+	--input-padding-y: var(--space-2);
+	--input-padding-x: var(--space-3);
+	--input-shadow: var(--shadow-xs);
+	--input-shadow-focus: var(--shadow-focus);
+	--input-transition: var(--transition-colors);
+	--card-bg: var(--color-surface);
+	--card-border: var(--color-border);
+	--card-border-width: var(--border-rule);
+	--card-radius: var(--radius-base);
+	--card-shadow: var(--shadow-sm);
+	--card-padding: var(--space-6);
+	--card-padding-sm: var(--space-4);
+	--card-padding-lg: var(--space-8);
+	--badge-font-size: var(--text-xs);
+	--badge-font-weight: var(--weight-semibold);
+	--badge-bg: var(--color-bg-muted);
+	--badge-color: var(--color-text-subtle);
+	--badge-border: var(--color-border);
+	--badge-padding-y: var(--space-0-5);
+	--badge-padding-x: var(--space-2);
+	--badge-radius: var(--radius-full);
+	--badge-letter-spacing: var(--tracking-wide);
+	--modal-bg: var(--color-surface-overlay);
+	--modal-border: var(--color-border);
+	--modal-border-width: var(--border-rule);
+	--modal-radius: var(--radius-2xl);
+	--modal-shadow: var(--shadow-xl);
+	--modal-padding: var(--space-8);
+	--drawer-bg: var(--color-surface-overlay);
+	--drawer-border: var(--color-border);
+	--drawer-border-width: var(--border-rule);
+	--drawer-radius: var(--radius-2xl);
+	--drawer-shadow: var(--shadow-xl);
+	--drawer-padding: var(--space-4);
+	--drawer-handle-color: var(--color-border-strong);
+	--drawer-backdrop: var(--modal-backdrop);
+	--drawer-backdrop-blur: var(--modal-backdrop-blur);
+	--popover-bg: var(--color-surface-overlay);
+	--popover-border: var(--color-border);
+	--popover-border-width: var(--border-rule);
+	--popover-radius: var(--radius-lg);
+	--popover-shadow: var(--shadow-md);
+	--popover-padding: var(--space-3);
+	--toast-border-radius: var(--radius-lg);
+	--toast-border-width: var(--border-2);
+	--toast-shadow: var(--shadow-lg);
+	--toast-padding-y: var(--space-3);
+	--toast-padding-x: var(--space-4);
+	--toast-font-size: var(--text-sm);
+	--tooltip-font-size: var(--text-xs);
+	--tooltip-padding-y: var(--space-1);
+	--tooltip-padding-x: var(--space-2);
+	--tooltip-radius: var(--radius-base);
+	--tooltip-shadow: var(--shadow-md);
+	--table-radius: var(--radius-lg);
+	--table-header-bg: var(--color-bg-subtle);
+	--table-header-font-weight: var(--weight-semibold);
+	--table-header-color: var(--color-text-subtle);
+	--table-row-bg-alt: var(--color-bg-subtle);
+	--table-row-bg-hover: var(--state-hover-bg);
+	--table-border: var(--color-border);
+	--table-border-width: var(--border-rule);
+	--table-cell-padding-y: var(--space-3);
+	--table-cell-padding-x: var(--space-4);
+	--table-font-size: var(--text-sm);
+	--nav-bg: var(--color-surface);
+	--nav-border: var(--color-border);
+	--nav-border-width: var(--border-rule);
+	--nav-height: var(--space-16);
+	--nav-shadow: var(--shadow-xs);
+	--nav-item-color: var(--color-text-subtle);
+	--nav-item-color-hover: var(--color-text);
+	--nav-item-color-active: var(--state-selected-color);
+	--nav-item-bg-hover: var(--state-hover-bg);
+	--nav-item-weight-active: var(--state-selected-weight);
+	--nav-item-indicator-active: var(--state-selected-indicator);
+	--nav-item-font-weight: var(--weight-medium);
+	--nav-item-font-size: var(--text-sm);
+	--nav-item-radius: var(--radius-md);
+	--nav-item-padding-y: var(--space-2);
+	--nav-item-padding-x: var(--space-3);
+	--sidebar-bg: var(--color-bg-subtle);
+	--sidebar-border: var(--color-border);
+	--sidebar-border-width: var(--border-rule);
+	--sidebar-item-bg-hover: var(--nav-item-bg-hover);
+	--sidebar-item-bg-active: var(--state-selected-bg);
+	--sidebar-item-indicator-active: var(--nav-item-indicator-active);
+	--sidebar-padding: var(--space-4);
+	--avatar-size-xs: var(--space-6);
+	--avatar-size-sm: var(--space-8);
+	--avatar-size-base: var(--space-10);
+	--avatar-size-lg: var(--space-14);
+	--avatar-size-xl: var(--space-16);
+	--avatar-radius: var(--radius-full);
+	--avatar-border: var(--color-surface);
+	--avatar-bg: var(--color-interactive-subtle);
+	--avatar-color: var(--color-text);
+	--avatar-font-weight: var(--weight-semibold);
+	--progress-bg: var(--color-bg-emphasis);
+	--progress-fill: var(--color-interactive);
+	--progress-height: var(--space-2);
+	--progress-radius: var(--radius-full);
+	--spinner-color: var(--color-interactive);
+	--spinner-track-color: var(--color-bg-emphasis);
+	--spinner-size-sm: var(--space-4);
+	--spinner-size-base: var(--space-6);
+	--spinner-size-lg: var(--space-8);
+	--spinner-size-xl: var(--space-10);
+	--skeleton-bg: var(--color-bg-emphasis);
+	--skeleton-shine: var(--color-bg-muted);
+	--skeleton-radius: var(--radius-base);
+	--skeleton-animation: bm-shimmer var(--skeleton-duration) linear infinite;
+	--alert-padding-y: var(--space-3);
+	--alert-padding-x: var(--space-4);
+	--alert-radius: var(--radius-lg);
+	--alert-border-width: var(--border-rule);
+	--alert-font-size: var(--text-sm);
+	--alert-info-bg: var(--color-info-bg);
+	--alert-info-border: var(--color-info-border);
+	--alert-info-color: var(--color-info-text);
+	--alert-success-bg: var(--color-success-bg);
+	--alert-success-border: var(--color-success-border);
+	--alert-success-color: var(--color-success-text);
+	--alert-warning-bg: var(--color-warning-bg);
+	--alert-warning-border: var(--color-warning-border);
+	--alert-warning-color: var(--color-warning-text);
+	--alert-danger-bg: var(--color-danger-bg);
+	--alert-danger-border: var(--color-danger-border);
+	--alert-danger-color: var(--color-danger-text);
+	--divider-color: var(--color-border);
+	--divider-width: var(--border-rule);
+	--tab-item-color: var(--color-text-subtle);
+	--tab-item-color-hover: var(--color-text);
+	--tab-item-color-active: var(--state-selected-color);
+	--tab-item-weight-active: var(--weight-medium);
+	--tab-item-font-weight: var(--weight-medium);
+	--tab-item-font-size: var(--text-sm);
+	--tab-bar-border: var(--color-border);
+	--tab-bar-border-width: var(--border-rule);
+	--tab-indicator-color: var(--state-selected-color);
+	--tab-padding-y: var(--space-3);
+	--tab-padding-x: var(--space-4);
+	--toggle-bg-off: var(--color-bg-emphasis);
+	--toggle-bg-on: var(--color-interactive);
+	--toggle-thumb-bg: var(--color-surface);
+	--toggle-thumb-shadow: var(--shadow-sm);
+	--toggle-radius: var(--radius-full);
+	--toggle-transition: var(--transition-colors);
+	--check-border: var(--color-border-strong);
+	--check-border-hover: var(--color-interactive);
+	--check-border-checked: var(--color-interactive);
+	--check-bg: var(--color-surface);
+	--check-bg-checked: var(--color-interactive);
+	--check-color: var(--color-text-on-brand);
+	--check-radius: var(--radius-base);
+	--check-transition: var(--transition-colors);
+	--radio-radius: var(--radius-full);
+	--dropdown-bg: var(--color-surface-overlay);
+	--dropdown-border: var(--color-border);
+	--dropdown-border-width: var(--border-rule);
+	--dropdown-radius: var(--radius-lg);
+	--dropdown-shadow: var(--shadow-md);
+	--dropdown-padding-y: var(--space-1);
+	--dropdown-item-padding-y: var(--space-2);
+	--dropdown-item-padding-x: var(--space-3);
+	--dropdown-item-font-size: var(--text-sm);
+	--dropdown-item-color: var(--color-text);
+	--dropdown-item-color-hover: var(--color-text);
+	--dropdown-item-color-active: var(--state-selected-color);
+	--dropdown-item-bg-hover: var(--state-hover-bg);
+	--dropdown-item-bg-active: var(--state-selected-bg);
+	--dropdown-item-decoration-hover: var(--state-hover-decoration);
+	--dropdown-item-weight-active: var(--state-selected-weight);
+	--dropdown-item-indicator-active: var(--state-selected-indicator);
+	--breadcrumb-font-size: var(--text-sm);
+	--breadcrumb-color: var(--color-text-subtle);
+	--breadcrumb-color-active: var(--color-text);
+	--breadcrumb-separator-color: var(--color-text-muted);
+	--pagination-item-size: var(--space-8);
+	--pagination-item-radius: var(--radius-md);
+	--pagination-item-bg-hover: var(--state-hover-bg);
+	--pagination-item-bg-active: var(--color-interactive);
+	--pagination-item-color: var(--color-text-subtle);
+	--pagination-item-color-hover: var(--color-text);
+	--pagination-item-color-active: var(--color-text-on-brand);
+	--pagination-item-font-size: var(--text-sm);
+	--pagination-item-font-weight: var(--weight-medium);
+	--field-label-font-size: var(--text-sm);
+	--field-label-font-weight: var(--weight-medium);
+	--field-label-color: var(--color-text);
+	--field-label-gap: var(--space-1-5);
+	--field-hint-font-size: var(--text-xs);
+	--field-hint-color: var(--color-text-subtle);
+	--field-error-font-size: var(--text-xs);
+	--field-error-color: var(--color-danger-text);
+	--field-gap: var(--space-4);
+	--empty-icon-color: var(--color-text-muted);
+	--empty-title-color: var(--color-text);
+	--empty-body-color: var(--color-text-subtle);
+	--empty-padding: var(--space-12);
 }
 

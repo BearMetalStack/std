@@ -1,75 +1,6 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css, html } from "@bearmetal/miscellanea";
-import { injectStyle } from "@bearmetal/drip";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
-
-injectStyle(
-	"bm-table",
-	css`
-		table {
-			border-radius: var(--radius-lg);
-			background-color: var(--color-bg-subtle);
-			overflow: clip;
-			border: 0;
-			border-collapse: collapse;
-
-			td,
-			th {
-				color: var(--color-text);
-				padding: var(--space-2);
-				border: 0;
-				text-align: left;
-
-				&.center {
-					text-align: center;
-				}
-				&.right {
-					text-align: right;
-				}
-			}
-
-			tr:not(:last-child),
-			thead,
-			tbody:not(:last-child) {
-				border-bottom: var(--color-border-subtle) 1px solid;
-			}
-
-			thead,
-			tfoot {
-				background-color: #00000030;
-				td,
-				th {
-					color: var(--color-text-subtle);
-				}
-			}
-
-			th > .sorting {
-				opacity: 0;
-				transition:
-					var(--transition-transform),
-					var(--transition-opacity);
-				transform: rotate(0);
-			}
-
-			th {
-				cursor: pointer;
-				&[data-sorting] > .sorting {
-					opacity: 1;
-				}
-				&[data-order="desc"] > .sorting {
-					transform: rotate(-180deg);
-				}
-			}
-
-			.pager {
-				display: flex;
-				justify-content: end;
-				align-items: center;
-				gap: 1rem;
-			}
-		}
-	`,
-);
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -259,6 +190,73 @@ function updateFoot(
 
 @define("bm-table")
 export class Table extends BMElement {
+	static override get stylesheet(): string {
+		return css`
+			bm-table table {
+				border-radius: var(--table-radius);
+				background-color: var(--color-bg-subtle);
+				overflow: clip;
+				border: 0;
+				border-collapse: collapse;
+
+				td,
+				th {
+					color: var(--color-text);
+					padding: var(--space-2);
+					border: 0;
+					text-align: left;
+
+					&.center {
+						text-align: center;
+					}
+					&.right {
+						text-align: right;
+					}
+				}
+
+				tr:not(:last-child),
+				thead,
+				tbody:not(:last-child) {
+					border-bottom: var(--table-border-width) solid var(--color-border-subtle);
+				}
+
+				thead,
+				tfoot {
+					background-color: var(--color-bg-muted);
+					td,
+					th {
+						color: var(--color-text-subtle);
+					}
+				}
+
+				th > .sorting {
+					opacity: 0;
+					transition:
+						var(--transition-transform),
+						var(--transition-opacity);
+					transform: rotate(0);
+				}
+
+				th {
+					cursor: pointer;
+					&[data-sorting] > .sorting {
+						opacity: 1;
+					}
+					&[data-order="desc"] > .sorting {
+						transform: rotate(-180deg);
+					}
+				}
+
+				.pager {
+					display: flex;
+					justify-content: end;
+					align-items: center;
+					gap: 1rem;
+				}
+			}
+		`;
+	}
+
 	static observedAttributes = OBSERVED;
 
 	// --- State ----------------------------------------------------------------

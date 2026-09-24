@@ -156,6 +156,7 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"pride",
 	"foxfire",
 	"hazelthorn",
+	"monochrome",
 ]);
 
 /** Names of every theme bundled with Drip. */

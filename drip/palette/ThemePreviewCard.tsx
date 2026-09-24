@@ -32,7 +32,7 @@ export const ThemePreviewCardStyles = css`
 		.header {
 			grid-area: h;
 			background: var(--color-bg-emphasis);
-			border-bottom: var(--border-1) solid var(--color-border);
+			border-bottom: var(--border-rule) solid var(--color-border);
 			padding: 1em 1.5em;
 			display: flex;
 			align-items: center;
@@ -76,22 +76,25 @@ export const ThemePreviewCardStyles = css`
 
 		.sidebar {
 			grid-area: s;
-			background: var(--color-surface);
-			border-right: var(--border-1) solid var(--color-border);
+			background: var(--sidebar-bg);
+			border-right: var(--sidebar-border-width) solid var(--sidebar-border);
 			padding: 2em 1.5em;
 
-			ul {
+			nav {
+				display: flex;
+				flex-direction: column;
 				font-size: var(--text-lg);
-				list-style: none;
 			}
-			li {
+			nav a {
 				padding: .2em .6em;
-				border-radius: var(--radius-base);
-				color: var(--color-text-subtle);
+				border-radius: var(--nav-item-radius);
+				color: var(--nav-item-color);
+				text-decoration: none;
 			}
-			li[aria-current] {
-				background: var(--color-interactive-subtle);
-				color: var(--color-interactive);
+			nav a[aria-current] {
+				background: var(--sidebar-item-bg-active);
+				box-shadow: var(--sidebar-item-indicator-active);
+				text-decoration: none;
 			}
 		}
 		.body {
@@ -120,7 +123,7 @@ export const ThemePreviewCardStyles = css`
 			max-height: 70%;
 			overflow: hidden;
 			background: var(--color-surface-overlay);
-			border: var(--border-1) solid var(--color-border-strong);
+			border: var(--modal-border-width) solid var(--modal-border);
 			box-shadow: var(--shadow-lg);
 			border-radius: var(--radius-lg);
 			display: flex;
@@ -139,7 +142,110 @@ export const ThemePreviewCardStyles = css`
 			padding: .5em 1em;
 		}
 	}
+
+	section[data-theme] {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+		gap: 1rem;
+		padding: 1rem;
+		margin-top: .5rem;
+		border: 5px solid black;
+		border-radius: var(--radius-lg);
+		background: var(--color-bg);
+		color: var(--color-text);
+		font-size: .75rem;
+
+		> div {
+			display: flex;
+			flex-direction: column;
+			gap: .5rem;
+		}
+		> div > div:has(> button) {
+			display: flex;
+			flex-wrap: wrap;
+			gap: .5rem;
+		}
+		nav {
+			display: flex;
+			gap: 1rem;
+		}
+	}
+	/* the palette's own controls stretch to fill; the previews should not */
+	.theme-previews section[data-theme] :is(button, input) {
+		min-width: auto;
+		width: auto;
+	}
 `;
+
+/** Every state treatment a theme controls, rendered against the compliant sheets. */
+function StatesPreview({ variant }: { variant: string }) {
+	return (
+		<section data-theme={variant}>
+			<div>
+				<div role="tablist">
+					<button type="button" role="tab" aria-selected="true">Overview</button>
+					<button type="button" role="tab" aria-selected="false">Activity</button>
+					<button type="button" role="tab" aria-selected="false">Settings</button>
+				</div>
+				<nav>
+					<a href="#">Home</a>
+					<a href="#" aria-current="page">Docs</a>
+					<a href="#">Blog</a>
+				</nav>
+			</div>
+			<div>
+				<div>
+					<button type="button">Primary</button>
+					<button type="button" class="secondary">Secondary</button>
+					<button type="button" class="secondary" aria-pressed="true">Pressed</button>
+				</div>
+				<div>
+					<button type="button" disabled>Disabled</button>
+					<button type="button" class="secondary" disabled>Disabled</button>
+					<button type="button" class="danger">Delete</button>
+				</div>
+			</div>
+			<div>
+				<input placeholder="Plain input" />
+				<input aria-invalid="true" placeholder="Invalid" />
+				<input disabled placeholder="Disabled" />
+			</div>
+			<div>
+				<div class="alert">Info alert</div>
+				<div class="alert success">Success alert</div>
+				<div class="alert warning">Warning alert</div>
+				<div class="alert danger">Danger alert</div>
+			</div>
+			<div>
+				<div role="listbox">
+					<div role="option">Option one</div>
+					<div role="option" aria-selected="true">Option two</div>
+					<div role="option">Option three</div>
+				</div>
+			</div>
+			<div>
+				<table>
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>State</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Alpha</td>
+							<td>Live</td>
+						</tr>
+						<tr>
+							<td>Beta</td>
+							<td>Draft</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+	);
+}
 
 export function ThemePreviewCard({ variant }: { variant: string }) {
 	return (
@@ -157,13 +263,13 @@ export function ThemePreviewCard({ variant }: { variant: string }) {
 				</div>
 				<div class="sidebar">
 					<h1>Site Name</h1>
-					<ul>
-						<li>Home</li>
-						<li aria-current="page">Documents</li>
-						<li>Users</li>
-						<li>Spaces</li>
-						<li>Settings</li>
-					</ul>
+					<nav>
+						<a href="#">Home</a>
+						<a href="#" aria-current="page">Documents</a>
+						<a href="#">Users</a>
+						<a href="#">Spaces</a>
+						<a href="#">Settings</a>
+					</nav>
 				</div>
 				<div class="body">
 					<p>
@@ -211,6 +317,7 @@ export function ThemePreviewCard({ variant }: { variant: string }) {
 					</div>
 				</div>
 			</div>
+			<StatesPreview variant={variant} />
 		</div>
 	);
 }

@@ -1,36 +1,5 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css, html } from "@bearmetal/miscellanea";
-import { injectStyle } from "@bearmetal/drip";
-
-injectStyle(
-	"bm-breadcrumb",
-	css`
-		bm-breadcrumb {
-			display: flex;
-			align-items: center;
-			text-transform: capitalize;
-			font-size: var(--breadcrumb-font-size);
-			padding: var(--space-1);
-
-			a {
-				color: var(--breadcrumb-color);
-				text-decoration: none;
-				display: flex;
-				align-items: center;
-				line-height: 1em;
-				&:not(:first-child)::before {
-					content: '/';
-					margin: 0 var(--space-2);
-					color: var(--breadcrumb-separator-color);
-				}
-				&:hover,
-				&.active {
-					color: var(--breadcrumb-color-active);
-				}
-			}
-		}
-	`,
-);
 
 function buildBreadCrumbs(base: string) {
 	const subs = location.pathname.replace(base, "").split("/").filter(
@@ -50,6 +19,35 @@ function buildBreadCrumbs(base: string) {
 
 @define("bm-breadcrumb")
 export class Breadcrumb extends BMElement {
+	static override get stylesheet(): string {
+		return css`
+			bm-breadcrumb {
+				display: flex;
+				align-items: center;
+				text-transform: capitalize;
+				font-size: var(--breadcrumb-font-size);
+				padding: var(--space-1);
+
+				a {
+					color: var(--breadcrumb-color);
+					text-decoration: none;
+					display: flex;
+					align-items: center;
+					line-height: 1em;
+					&:not(:first-child)::before {
+						content: '/';
+						margin: 0 var(--space-2);
+						color: var(--breadcrumb-separator-color);
+					}
+					&:hover,
+					&.active {
+						color: var(--breadcrumb-color-active);
+					}
+				}
+			}
+		`;
+	}
+
 	#onRouteChange = () => this.#build();
 
 	init() {

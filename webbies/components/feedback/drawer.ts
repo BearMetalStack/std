@@ -1,44 +1,7 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
-import { injectStyle } from "@bearmetal/drip";
 
 const DURATION = 200;
-injectStyle(
-	"bm-drawer",
-	css`
-		.backdrop {
-			display: none;
-			position: fixed;
-			inset: 0;
-			background: var(--drawer-backdrop);
-			backdrop-filter: blur(var(--drawer-backdrop-blur));
-			opacity: 0;
-			transition: display ${DURATION}ms allow-discrete, opacity ${DURATION}ms var(--ease-in);
-		}
-
-		.backdrop.is-open {
-			display: block;
-			opacity: 1;
-			transition: opacity ${DURATION}ms var(--ease-out);
-			@starting-style {
-				opacity: 0;
-			}
-		}
-
-		:root {
-			--handle-height: 4px;
-			--handle-row-height: calc(var(--space-3) + var(--handle-height) + var(--space-3));
-		}
-
-		body[data-top-drawer] {
-			margin-top: var(--handle-row-height);
-		}
-		body[data-bottom-drawer] {
-			margin-bottom: var(--handle-row-height);
-		}
-	`,
-);
-
 const shadowStyles = css`
 	:host {
 		display: flex;
@@ -124,6 +87,7 @@ const shadowStyles = css`
 		width: 2.5rem;
 		height: var(--handle-height);
 		border-radius: var(--radius-full);
+		corner-shape: var(--corner-pill);
 		background: var(--drawer-handle-color);
 	}
 
@@ -150,6 +114,41 @@ const shadowStyles = css`
 
 @define("bm-drawer")
 export class Drawer extends BMElement {
+	static override get stylesheet(): string {
+		return css`
+			.backdrop {
+				display: none;
+				position: fixed;
+				inset: 0;
+				background: var(--drawer-backdrop);
+				backdrop-filter: blur(var(--drawer-backdrop-blur));
+				opacity: 0;
+				transition: display ${DURATION}ms allow-discrete, opacity ${DURATION}ms var(--ease-in);
+			}
+
+			.backdrop.is-open {
+				display: block;
+				opacity: 1;
+				transition: opacity ${DURATION}ms var(--ease-out);
+				@starting-style {
+					opacity: 0;
+				}
+			}
+
+			:root {
+				--handle-height: 4px;
+				--handle-row-height: calc(var(--space-3) + var(--handle-height) + var(--space-3));
+			}
+
+			body[data-top-drawer] {
+				margin-top: var(--handle-row-height);
+			}
+			body[data-bottom-drawer] {
+				margin-bottom: var(--handle-row-height);
+			}
+		`;
+	}
+
 	#backdrop!: HTMLDivElement;
 	#handleRow!: HTMLDivElement;
 	#container!: HTMLDivElement;

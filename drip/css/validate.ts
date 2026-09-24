@@ -11,7 +11,7 @@
  */
 
 import type { Theme, Variant } from "../types.ts";
-import { VARIANT_TOKENS } from "./tokens.ts";
+import { VARIANT_TOKENS, VARIANT_TOKENS_BY_PROPERTY } from "./tokens.ts";
 import { validateRamps } from "./ramps.ts";
 
 /** Severity of a generate-time finding. */
@@ -85,10 +85,15 @@ export function findVarReferences(value: string): string[] {
  * @param variants The theme's variants, already unwrapped from the theme file.
  * @param defined Custom properties the generated stylesheet defines, including
  *   the ones the variants themselves introduce.
+ * @param tokens Custom properties the theme's token tree defines. When given, a
+ *   variant rule outside the variant-token manifest must name one of these — a
+ *   variant may restate a structural token (`--border-rule` for high contrast),
+ *   but a property nothing else reads is almost always a typo.
  */
 export function validateVariants(
 	variants: readonly Variant[],
 	defined: ReadonlySet<string>,
+	tokens?: ReadonlySet<string>,
 ): DripDiagnostic[] {
 	const diagnostics: DripDiagnostic[] = [];
 
@@ -132,13 +137,17 @@ export function validateVariants(
 			});
 		}
 		seen.add(variant.name);
-		diagnostics.push(...validateVariant(variant, defined));
+		diagnostics.push(...validateVariant(variant, defined, tokens));
 	}
 
 	return diagnostics;
 }
 
-function validateVariant(variant: Variant, defined: ReadonlySet<string>): DripDiagnostic[] {
+function validateVariant(
+	variant: Variant,
+	defined: ReadonlySet<string>,
+	tokens?: ReadonlySet<string>,
+): DripDiagnostic[] {
 	const diagnostics: DripDiagnostic[] = [];
 
 	if (variant.media !== undefined) {
@@ -174,6 +183,14 @@ function validateVariant(variant: Variant, defined: ReadonlySet<string>): DripDi
 	}
 
 	for (const [property, value] of Object.entries(rules)) {
+		if (tokens && !VARIANT_TOKENS_BY_PROPERTY.has(property) && !tokens.has(property)) {
+			diagnostics.push({
+				level: "warning",
+				where: `variant "${variant.name}" → ${property}`,
+				message:
+					"is neither a variant token nor a token the theme defines, so nothing reads it — check the name",
+			});
+		}
 		if (typeof value !== "string") continue;
 		for (const reference of findVarReferences(value)) {
 			if (defined.has(reference)) continue;

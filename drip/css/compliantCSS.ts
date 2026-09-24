@@ -1,34 +1,26 @@
-// import BaseCSS from "./base.css" with { type: "css" };
-// import ComponentsCSS from "./components.css" with { type: "css" };
-// import AnimationsCSS from "./animations.css" with { type: "css" };
-
 import { dotBearmetalFile } from "@bearmetal/miscellanea/fs";
 import { namespaces } from "../namespaces.ts";
-
-// const base = Array.from(BaseCSS.cssRules).map((rule) => rule.cssText).join("\n");
-// const components = Array.from(ComponentsCSS.cssRules).map((rule) => rule.cssText).join("\n");
-// const animations = Array.from(AnimationsCSS.cssRules).map((rule) => rule.cssText).join("\n");
+import { compliantSheets } from "./embedded.ts";
 
 const COMPLIANT_IDS = ["base", "components", "animations"] as const;
+/** Id of one of Drip's compliant stylesheets. */
 export type CompliantID = typeof COMPLIANT_IDS[number];
 
-export default async function compliantCSS(compliantId: CompliantID): Promise<string> {
-	const url = new URL(`./${compliantId}.css`, import.meta.url);
-	return await fetch(url).then((res) => res.text());
-	// switch (compliantId) {
-	// 	case "base":
-	// 		return base;
-	// 	case "components":
-	// 		return components;
-	// 	case "animations":
-	// 		return animations;
-	// }
+/**
+ * One of Drip's compliant stylesheets: the element and component rules written
+ * against the theme tokens, so they follow whichever theme is loaded. The
+ * source is `css/<id>.css`, shipped through `css/embedded.ts`.
+ */
+export function compliantCSS(compliantId: CompliantID): string {
+	return compliantSheets[compliantId];
 }
 
-export async function storeStylesheets() {
+/** Writes every compliant stylesheet to `.bearmetal/drip/stylesheets/<id>.css`. */
+export async function storeStylesheets(): Promise<void> {
 	for (const id of COMPLIANT_IDS) {
-		const stylesheet = await compliantCSS(id);
 		const file = await dotBearmetalFile(namespaces.stylesheets, `${id}.css`);
-		file.write(stylesheet);
+		await file.write(compliantCSS(id));
 	}
 }
+
+export default compliantCSS;

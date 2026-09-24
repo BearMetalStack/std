@@ -32,6 +32,72 @@ would inherit `--btn-primary-bg` already resolved against the page's variant.
 A theme that defines nothing but ramps and variants still produces a stylesheet that drives all of
 `base.css` and `components.css`.
 
+Because the defaults layer is merged _underneath_ a theme, key by key, a theme can override any of
+it, not just color: `"radius": { "base": "0" }` squares every corner, `"duration"` set to `0ms`
+turns off motion. The sections below describe the pieces that exist specifically so a theme can
+change the _look_ of the stack, not only its palette.
+
+## The compliant stylesheets
+
+`css/base.css`, `css/components.css` and `css/animations.css` are the element and component rules
+written against the tokens. They are the only copy: `deno task bm:css` embeds them into
+`css/embedded.ts`, which is what `drip/ssr` (`BaseStyle`, `ComponentStyle`, `BMDripBase`),
+`compliantCSS()` and webbies read, and a test fails if the two disagree. Edit the `.css` files, then
+run the task.
+
+A test also fails if any `var()` in them names a property the generated stylesheet doesn't define.
+`var(--x, fallback)` is the exception: it marks an optional hook a theme may leave out.
+
+## Corner shape and radius
+
+- `corner.shape` → `--corner-shape` is applied to every element (`round`, `bevel`, `notch`, `scoop`,
+  `square`, `squircle`, `superellipse(…)`). Browsers without `corner-shape` keep round corners.
+- `corner.pill` → `--corner-pill` is used by the fully rounded things (badges, spinners, handles).
+  It follows `corner.shape` by default; set it separately so a bevelled theme doesn't turn every
+  pill into a hexagon.
+- Every `radius.<step>` is `radius.base` times `radius.scale.<step>`. Override `radius.base` to
+  scale the whole set, or `radius.scale.*` to flatten or steepen the curve.
+
+Shadow-root styles don't match the document's `*` rule, so a component with a shadow root sets
+`corner-shape` on its own surfaces.
+
+## Treatment tokens
+
+Variant tokens say what color a state is. Treatment tokens say how it is _drawn_, which is what a
+theme for grayscale or e-ink displays needs to change. They live in the defaults layer (and so at
+the theme's top level, not in a variant), and every default reproduces the stack's original look.
+
+| Group            | Tokens                                                                                                | Drawn as                             |
+| ---------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `state.hover`    | `bg`, `decoration`                                                                                    | fill, `text-decoration`              |
+| `state.selected` | `bg`, `color`, `weight`, `indicator`                                                                  | fill, ink, `font-weight`, box-shadow |
+| `state.pressed`  | `indicator`, `overlay`, `translate`                                                                   | box-shadow, overlay fill, nudge      |
+| `state.disabled` | `opacity`, `cursor`, `pattern`, `border.style`                                                        | `background-image` for `pattern`     |
+| `state.focus`    | `width`, `style`, `offset`, `color`                                                                   | the `:focus-visible` outline         |
+| `state.invalid`  | `border.style`, `border.width`                                                                        | the control's border                 |
+| others           | `border.rule`, `motion.scroll`, `spinner.duration`, `skeleton.animation`, `alert.<role>.border.style` |                                      |
+
+- An **indicator** is a `box-shadow`, so one channel covers an underline
+  (`inset 0 -2px 0 0
+  currentColor`), a side bar (`inset 3px 0 0 0 currentColor`) or an inset
+  outline.
+- `border.rule` is the width of every line that separates surfaces: cards, modals, menus, tables,
+  dividers, inputs.
+- Component state tokens (`nav.item.*`, `tab.item.*`, `dropdown.item.*`, `table.row.*`,
+  `btn.decoration.hover`, …) reference `state.*`, so one override restyles every selected thing at
+  once. Override the component token to change just one.
+- `btn.disabled.{bg,color,border}` are optional hooks. A theme that leaves them out keeps each
+  button variant's own colors when it is disabled.
+
+`components.css` applies these by ARIA state, so markup from anywhere picks them up:
+`[role=tablist]`/`[role=tab][aria-selected]`, the current page in a `nav` (`aria-current` or
+`data-active`, which router `Link` sets; only the state treatment, not the layout), menus and
+listboxes (`aria-selected`, `aria-checked`), `aria-pressed`, `aria-invalid`, `aria-disabled`,
+tables, and `.alert`.
+
+A value in a theme file can't contain `.`: the generator turns dots into `-`, so write `0.5` as
+`0__5`.
+
 ## Required color ramps
 
 Every theme needs the same eleven base ramps — `brand`, `accent`, `neutral`, and the eight hues
@@ -107,6 +173,13 @@ complete default to fall back to. Both the CLI wizard and the MCP `add_theme_var
 this: a default variant missing a token is a hard error, a non-default one missing an optional token
 is just a note.
 
+### Structural tokens in a variant
+
+A variant may also restate a token from the defaults layer, not only the color slots. A
+high-contrast variant can set `--border-rule: 2px` or `--state-focus-width: 4px`, and the rule
+reaches everything built on it, including under a scoped `data-theme`. A variant rule that is
+neither a variant token nor a token the theme defines is reported as a likely typo.
+
 ### The `btn*Fg` tokens
 
 Every filled control has both a fill (`btn<Role>Bg`) and an ink (`btn<Role>Fg`). Pick the ink
@@ -125,6 +198,8 @@ light-mode fill.
   stylesheet that supplies them);
 - required variant tokens a variant left out (every token, for the default variant), duplicate
   variant names, more than one default variant, and a theme with no default variant at all;
+- a variant rule naming a property that is neither a variant token nor one the theme defines (a
+  warning — almost always a typo);
 - a required base or semantic ramp that's missing, or that exists but isn't shaped like a color
   scale (`validateRamps`, `css/ramps.ts`).
 
@@ -150,11 +225,27 @@ the reference instead of letting the browser decide which flavour of wrong to se
 
 ## Bundled themes
 
-`bearmetal`, `pride`, `foxfire`, and `hazelthorn` ship in `themes/` and resolve by name anywhere a
-theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the
-same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag
-(`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
+`bearmetal`, `pride`, `foxfire`, `hazelthorn`, and `monochrome` ship in `themes/` and resolve by
+name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project
+theme with the same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant
+per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
 `progress`) alongside `light` and `dark`; select one with `data-theme`.
+
+`monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
+Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
+one solid fill. The semantic hues are kept and outlined, so a grayscale conversion still has
+something to work with. Every state reads without color:
+
+- selected is bold with an inset bar;
+- hover underlines;
+- pressed insets;
+- disabled is dashed and hatched;
+- invalid is a double rule;
+- each alert role has its own border style.
+
+Soft shadows become hard offsets and motion is off. Its variants are `light` (default), `dark`, and
+`high-contrast` (`(prefers-contrast: more) and (prefers-color-scheme: light)`), which also thickens
+rules and the focus ring.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the

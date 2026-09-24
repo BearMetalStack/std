@@ -148,7 +148,11 @@ export function diagnoseTheme(
 ): DripDiagnostic[] {
 	return [
 		...validateThemeRamps(theme),
-		...validateVariants(getThemeVariants(theme), definedProperties(theme, kvs)),
+		...validateVariants(
+			getThemeVariants(theme),
+			definedProperties(theme, kvs),
+			treeProperties(kvs),
+		),
 	];
 }
 
@@ -192,14 +196,25 @@ function collectThemeTokens(theme: Theme): SectionedTokens {
 
 /**
  * Every custom property the generated stylesheet defines — the flattened token
- * tree plus whatever the variant blocks introduce.
+ * tree plus whatever the variant blocks introduce. Pass the theme as it will be
+ * generated (usually through `withDefaultTokens`).
  */
-function definedProperties(theme: Theme, kvs: SectionedTokens): Set<string> {
+export function definedProperties(
+	theme: Theme,
+	kvs: SectionedTokens = collectThemeTokens(theme),
+): Set<string> {
 	const defined = variantDefinedProperties(theme);
 	for (const pair of kvs) {
 		if (typeof pair === "object" && pair) defined.add(pair[0]);
 	}
 	return defined;
+}
+
+/** Custom properties the flattened token tree defines, variants aside. */
+function treeProperties(kvs: SectionedTokens): Set<string> {
+	const tree = new Set<string>();
+	for (const pair of kvs) if (typeof pair === "object" && pair) tree.add(pair[0]);
+	return tree;
 }
 
 const skipKeys = ["$calc"];

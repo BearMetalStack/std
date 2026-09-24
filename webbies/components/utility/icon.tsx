@@ -1,42 +1,40 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
-import { injectStyle } from "@bearmetal/drip";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
-
-injectStyle(
-	"bm-icon",
-	css`
-		p,
-		h1,
-		h2,
-		h3,
-		h4,
-		h5,
-		h6,
-		th,
-		td,
-		button,
-		input,
-		a {
-			bm-icon {
-				fill: currentColor;
-				height: 1em;
-				width: 1em;
-			}
-		}
-
-		bm-icon {
-			display: inline-flex;
-			justify-content: center;
-			align-items: center;
-		}
-	`,
-);
 
 const Observed = ["sheet", "icon"] as const;
 
 @define("bm-icon")
 export class BmIcon extends BMElement {
+	static override get stylesheet(): string {
+		return css`
+			p,
+			h1,
+			h2,
+			h3,
+			h4,
+			h5,
+			h6,
+			th,
+			td,
+			button,
+			input,
+			a {
+				bm-icon {
+					fill: currentColor;
+					height: 1em;
+					width: 1em;
+				}
+			}
+
+			bm-icon {
+				display: inline-flex;
+				justify-content: center;
+				align-items: center;
+			}
+		`;
+	}
+
 	static get observedAttributes(): typeof Observed {
 		return Observed;
 	}

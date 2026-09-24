@@ -1,15 +1,5 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css, html } from "@bearmetal/miscellanea";
-import { injectStyle } from "@bearmetal/drip";
-
-injectStyle(
-	"bm-modal",
-	css`
-		bm-modal {
-			display: contents;
-		}
-	`,
-);
 
 const shadowStyles = css`
 	dialog {
@@ -17,6 +7,7 @@ const shadowStyles = css`
 		color: var(--color-text);
 		border: var(--border-1) solid var(--modal-border);
 		border-radius: var(--modal-radius);
+		corner-shape: var(--corner-shape);
 		box-shadow: var(--modal-shadow);
 		padding: var(--modal-padding);
 		max-width: var(--modal-max-width-base);
@@ -48,6 +39,14 @@ const shadowStyles = css`
 
 @define("bm-modal")
 export class Modal extends BMElement {
+	static override get stylesheet(): string {
+		return css`
+			bm-modal {
+				display: contents;
+			}
+		`;
+	}
+
 	#dialog!: HTMLDialogElement;
 	#resolvers: Array<(returnValue: string) => void> = [];
 

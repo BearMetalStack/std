@@ -3,6 +3,7 @@ import { BMElement, define } from "@bearmetal/app";
 @define("bm-tab")
 export class BmTab extends BMElement {
 	init() {
+		this.setAttribute("role", "tabpanel");
 		if (!this.hasAttribute("active")) this.style.display = "none";
 	}
 
@@ -31,17 +32,23 @@ export class BmTabs extends BMElement {
 
 		const bar = document.createElement("div");
 		bar.className = "tab-bar";
+		bar.setAttribute("role", "tablist");
 
 		const buttons: HTMLButtonElement[] = [];
 
 		const activate = (index: number) => {
 			tabs.forEach((t, i) => (i === index ? t.activate() : t.deactivate()));
-			buttons.forEach((b, i) => b.toggleAttribute("active", i === index));
+			buttons.forEach((b, i) => {
+				b.toggleAttribute("active", i === index);
+				b.setAttribute("aria-selected", String(i === index));
+			});
 		};
 
 		for (let i = 0; i < tabs.length; i++) {
 			const tab = tabs[i];
 			const btn = document.createElement("button");
+			btn.type = "button";
+			btn.setAttribute("role", "tab");
 
 			const icon = tab.getAttribute("icon");
 			if (icon) {

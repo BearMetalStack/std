@@ -29,6 +29,7 @@ export interface MakeCommonProps<Extra = never> extends CustomProps {
 	id?: string | Extra;
 	style?: string | Partial<CSSStyleDeclaration> | Extra;
 	title?: string | Extra;
+	role?: string | Extra;
 	tabindex?: number | Extra;
 	hidden?: boolean | Extra;
 	popover?: boolean | "manual" | "hint" | "auto" | Extra;

@@ -110,6 +110,26 @@ Deno.test("a resolvable reference is not reported", () => {
 	assertEquals(diagnostics.filter((d) => d.message.includes("--color-gold-300")).length, 0);
 });
 
+Deno.test("a variant may restate a structural token the theme defines", () => {
+	const diagnostics = validateVariants(
+		[{ name: "contrast", rules: { "--border-rule": "3px" } }],
+		new Set(["--border-rule"]),
+		new Set(["--border-rule"]),
+	);
+	assertEquals(diagnostics.filter((d) => d.where.endsWith("--border-rule")), []);
+});
+
+Deno.test("a variant rule nothing defines is reported as a likely typo", () => {
+	const diagnostics = validateVariants(
+		[{ name: "contrast", rules: { "--border-rulez": "3px" } }],
+		new Set(["--border-rule", "--border-rulez"]),
+		new Set(["--border-rule"]),
+	);
+	const typo = diagnostics.filter((d) => d.where.endsWith("--border-rulez"));
+	assertEquals(typo.length, 1);
+	assertEquals(typo[0].level, "warning");
+});
+
 Deno.test("an invalid media query is an error, not a warning", () => {
 	const diagnostics = validateVariants(
 		[{ name: "dark", media: "(prefers-color-scheme: dark", rules: {} }],

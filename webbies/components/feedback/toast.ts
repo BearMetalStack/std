@@ -1,167 +1,169 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css, html, type TimeString, timeStringToMillis } from "@bearmetal/miscellanea";
-import { injectStyle } from "@bearmetal/drip";
-
-injectStyle(
-	"bm-toast",
-	css`
-		bm-toast {
-			display: block;
-			background-color: var(--toast-bg);
-			color: var(--toast-color);
-			border-radius: var(--toast-border-radius);
-			border: var(--toast-border) solid var(--border-2);
-			padding: var(--toast-padding-y) var(--toast-padding-x);
-			max-width: var(--toast-max-width);
-			font-size: var(--toast-font-size);
-			box-shadow: var(--toast-shadow);
-			opacity: 0;
-			margin-bottom: var(--space-2);
-			overflow: clip;
-			height: auto;
-
-			--shrink-anim: shrink-height;
-			--slide-anim: slide-in-left;
-			animation:
-				var(--slide-anim) 200ms ease-out normal both,
-				fade-in 200ms ease-out normal both;
-
-			&[fading] {
-				animation:
-					fade-out 200ms ease-out normal both,
-					var(--shrink-anim) 200ms 190ms ease-in-out normal;
-				button {
-					display: none;
-				}
-			}
-
-			--h-color: var(--toast-color);
-			--bar-color: var(--toast-border);
-
-			&[danger] {
-				border-color: var(--color-red-400);
-				--h-color: var(--color-red-100);
-				background-color: var(--color-danger-bg);
-				color: var(--color-danger-text);
-				--bar-color: var(--color-red-400);
-			}
-			&[warn] {
-				border-color: var(--color-orange-400);
-				--h-color: var(--color-orange-100);
-				background-color: var(--color-warning-bg);
-				color: var(--color-warning-text);
-				--bar-color: var(--color-orange-400);
-			}
-			&[info] {
-				border-color: var(--color-blue-400);
-				--h-color: var(--color-blue-100);
-				background-color: var(--color-info-bg);
-				color: var(--color-info-text);
-				--bar-color: var(--color-blue-400);
-			}
-			&[success] {
-				border-color: var(--color-green-400);
-				--h-color: var(--color-green-100);
-				background-color: var(--color-success-bg);
-				color: var(--color-success-text);
-				--bar-color: var(--color-green-400);
-			}
-
-			h1,
-			h2,
-			h3,
-			h4,
-			h5,
-			h6 {
-				font-weight: var(--weight-bold);
-				font-size: var(--toast-font-size);
-				color: currentColor;
-			}
-
-			button[data-dismiss].ghost {
-				position: absolute;
-				top: var(--space-1);
-				right: var(--space-1);
-				color: currentColor;
-				--btn-hover-color: #00000050;
-				svg {
-					fill: currentColor;
-				}
-			}
-
-			bm-progress {
-				color: var(--bar-color);
-			}
-		}
-
-		bm-toast-host {
-			z-index: var(--z-toast);
-			position: fixed;
-			top: var(--space-2);
-			right: var(--space-2);
-			display: flex;
-			flex-direction: column;
-
-			&[position="bottom"] {
-				inset: unset;
-				bottom: var(--space-2);
-				left: 50%;
-				translate: -50%;
-				flex-direction: column-reverse;
-			}
-			&[position="bottom-right"] {
-				inset: unset;
-				bottom: var(--space-2);
-				right: var(--space-2);
-				flex-direction: column-reverse;
-			}
-			&[position="bottom-left"] {
-				inset: unset;
-				bottom: var(--space-2);
-				right: var(--space-2);
-				flex-direction: column-reverse;
-			}
-			&[position="top"] {
-				inset: unset;
-				top: var(--space-2);
-				left: 50%;
-				translate: 0 -50%;
-			}
-			&[position="top-left"] {
-				inset: unset;
-				top: var(--space-2);
-				right: var(--space-2);
-			}
-
-			&[direction="left"] {
-				flex-direction: row;
-				bm-toast {
-					margin-right: var(--space-2);
-				}
-			}
-			&[direction="right"] {
-				flex-direction: row-reverse;
-				bm-toast {
-					margin-left: var(--space-2);
-				}
-			}
-			&[direction="left"],
-			&[direction="right"] {
-				bm-toast {
-					--shrink-anim: shrink-width;
-					max-width: calc(var(--toast-max-width) / 2);
-					margin-bottom: 0;
-				}
-			}
-		}
-	`,
-);
 
 const OBSERVED = ["fade", "dismissible"] as const;
 type Attribute = typeof OBSERVED[number];
 
 @define("bm-toast")
 export class Toast extends BMElement {
+	static override get stylesheet(): string {
+		return css`
+			bm-toast {
+				display: block;
+				background-color: var(--toast-bg);
+				color: var(--toast-color);
+				border-radius: var(--toast-border-radius);
+				border: var(--toast-border-width) solid var(--toast-border);
+				padding: var(--toast-padding-y) var(--toast-padding-x);
+				max-width: var(--toast-max-width);
+				font-size: var(--toast-font-size);
+				box-shadow: var(--toast-shadow);
+				opacity: 0;
+				margin-bottom: var(--space-2);
+				overflow: clip;
+				height: auto;
+
+				--shrink-anim: shrink-height;
+				--slide-anim: slide-in-left;
+				animation:
+					var(--slide-anim) 200ms ease-out normal both,
+					fade-in 200ms ease-out normal both;
+
+				&[fading] {
+					animation:
+						fade-out 200ms ease-out normal both,
+						var(--shrink-anim) 200ms 190ms ease-in-out normal;
+					button {
+						display: none;
+					}
+				}
+
+				--h-color: var(--toast-color);
+				--bar-color: var(--toast-border);
+
+				&[danger] {
+					border-color: var(--color-red-400);
+					border-style: var(--alert-danger-border-style);
+					--h-color: var(--color-red-100);
+					background-color: var(--color-danger-bg);
+					color: var(--color-danger-text);
+					--bar-color: var(--color-red-400);
+				}
+				&[warn] {
+					border-color: var(--color-orange-400);
+					border-style: var(--alert-warning-border-style);
+					--h-color: var(--color-orange-100);
+					background-color: var(--color-warning-bg);
+					color: var(--color-warning-text);
+					--bar-color: var(--color-orange-400);
+				}
+				&[info] {
+					border-color: var(--color-blue-400);
+					border-style: var(--alert-info-border-style);
+					--h-color: var(--color-blue-100);
+					background-color: var(--color-info-bg);
+					color: var(--color-info-text);
+					--bar-color: var(--color-blue-400);
+				}
+				&[success] {
+					border-color: var(--color-green-400);
+					border-style: var(--alert-success-border-style);
+					--h-color: var(--color-green-100);
+					background-color: var(--color-success-bg);
+					color: var(--color-success-text);
+					--bar-color: var(--color-green-400);
+				}
+
+				h1,
+				h2,
+				h3,
+				h4,
+				h5,
+				h6 {
+					font-weight: var(--weight-bold);
+					font-size: var(--toast-font-size);
+					color: currentColor;
+				}
+
+				button[data-dismiss].ghost {
+					position: absolute;
+					top: var(--space-1);
+					right: var(--space-1);
+					color: currentColor;
+					--btn-hover-color: var(--state-hover-bg);
+					svg {
+						fill: currentColor;
+					}
+				}
+
+				bm-progress {
+					color: var(--bar-color);
+				}
+			}
+
+			bm-toast-host {
+				z-index: var(--z-toast);
+				position: fixed;
+				top: var(--space-2);
+				right: var(--space-2);
+				display: flex;
+				flex-direction: column;
+
+				&[position="bottom"] {
+					inset: unset;
+					bottom: var(--space-2);
+					left: 50%;
+					translate: -50%;
+					flex-direction: column-reverse;
+				}
+				&[position="bottom-right"] {
+					inset: unset;
+					bottom: var(--space-2);
+					right: var(--space-2);
+					flex-direction: column-reverse;
+				}
+				&[position="bottom-left"] {
+					inset: unset;
+					bottom: var(--space-2);
+					right: var(--space-2);
+					flex-direction: column-reverse;
+				}
+				&[position="top"] {
+					inset: unset;
+					top: var(--space-2);
+					left: 50%;
+					translate: 0 -50%;
+				}
+				&[position="top-left"] {
+					inset: unset;
+					top: var(--space-2);
+					right: var(--space-2);
+				}
+
+				&[direction="left"] {
+					flex-direction: row;
+					bm-toast {
+						margin-right: var(--space-2);
+					}
+				}
+				&[direction="right"] {
+					flex-direction: row-reverse;
+					bm-toast {
+						margin-left: var(--space-2);
+					}
+				}
+				&[direction="left"],
+				&[direction="right"] {
+					bm-toast {
+						--shrink-anim: shrink-width;
+						max-width: calc(var(--toast-max-width) / 2);
+						margin-bottom: 0;
+					}
+				}
+			}
+		`;
+	}
+
 	static observedAttributes = OBSERVED;
 
 	private _host!: ToastHost;

@@ -1,44 +1,42 @@
 import { BMElement, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
-import { injectStyle } from "@bearmetal/drip";
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
-
-injectStyle(
-	"bm-card",
-	css`
-		bm-card {
-			background-color: var(--card-bg);
-			border: var(--card-border) solid var(--card-border-width);
-			border-radius: var(--card-radius);
-			box-shadow: var(--card-shadow);
-			overflow: clip;
-			height: max-content;
-
-			> img {
-				margin: var(--space-4) 0;
-				&:nth-child(2) {
-					margin-top: 0;
-				}
-				&:last-child {
-					margin-bottom: 0;
-				}
-			}
-
-			> *:not(img) {
-				padding: 0 var(--card-padding);
-				&:first-child {
-					padding-top: var(--card-padding-sm);
-				}
-				&:last-child {
-					padding-bottom: var(--card-padding-sm);
-				}
-			}
-		}
-	`,
-);
 
 @define("bm-card")
 export class Card extends BMElement {
+	static override get stylesheet(): string {
+		return css`
+			bm-card {
+				background-color: var(--card-bg);
+				border: var(--card-border-width) solid var(--card-border);
+				border-radius: var(--card-radius);
+				box-shadow: var(--card-shadow);
+				overflow: clip;
+				height: max-content;
+
+				> img {
+					margin: var(--space-4) 0;
+					&:nth-child(2) {
+						margin-top: 0;
+					}
+					&:last-child {
+						margin-bottom: 0;
+					}
+				}
+
+				> *:not(img) {
+					padding: 0 var(--card-padding);
+					&:first-child {
+						padding-top: var(--card-padding-sm);
+					}
+					&:last-child {
+						padding-bottom: var(--card-padding-sm);
+					}
+				}
+			}
+		`;
+	}
+
 	get template(): JSX.Element {
 		return (
 			<>
