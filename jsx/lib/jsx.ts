@@ -143,10 +143,8 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 		else el.classList.remove(cs);
 	} else if (key.startsWith("on") && typeof val === "function") {
 		el.addEventListener(key.slice(2).toLowerCase(), val as EventListener);
-	} else if (
-		key === "value" && (el instanceof HTMLInputElement || el instanceof HTMLSelectElement)
-	) {
-		el.value = String(val);
+	} else if (key === "value" && isFormControl(el)) {
+		setControlValue(el, val);
 	} else if (typeof val === "boolean") {
 		if (val) el.setAttribute(key, "");
 		else el.removeAttribute(key);
@@ -161,6 +159,34 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 function isPixelable(key: string, val: unknown): boolean {
 	const pixelables = ["width", "height"];
 	return typeof val === "number" && pixelables.includes(key);
+}
+
+function isFormControl(el: Element): boolean {
+	return el.localName === "input" || el.localName === "select" || el.localName === "textarea";
+}
+
+/**
+ * Writes a form control's value both where serialization reads it and where a
+ * live control shows it.
+ *
+ * The property alone updates a control the user has already edited, but never
+ * reaches markup — and a server render is nothing but markup. So the value also
+ * lands where HTML carries it: the `value` attribute of an `<input>`, the text
+ * of a `<textarea>`, the `selected` flag of the matching `<option>`.
+ */
+function setControlValue(el: Element, val: unknown): void {
+	const value = val == null ? "" : String(val);
+	if (el.localName === "input") {
+		el.setAttribute("value", value);
+	} else if (el.localName === "textarea") {
+		el.textContent = value;
+	} else if (el.localName === "select") {
+		for (const option of el.querySelectorAll("option")) {
+			const optionValue = option.getAttribute("value") ?? option.textContent?.trim();
+			option.toggleAttribute("selected", optionValue === value);
+		}
+	}
+	(el as HTMLInputElement).value = value;
 }
 
 function isCheckable(type: unknown): boolean {
@@ -214,9 +240,10 @@ function applyBind(
 	reactiveEffect(() => {
 		const value = signal.get();
 		if (isCheckable(type)) {
+			el.toggleAttribute("checked", Boolean(value));
 			(el as HTMLInputElement).checked = Boolean(value);
 		} else {
-			el.value = value == null ? "" : String(value);
+			setControlValue(el, value);
 		}
 	});
 	el.addEventListener("input", () => {
@@ -553,6 +580,12 @@ export function jsx(
 	}
 
 	const el = document.createElement(tag);
+	if (tag === "select") {
+		// A select's value picks one of its options, so they have to exist first.
+		appendFlatChildren(el, flat, raw);
+		applyProps(el, rest);
+		return el;
+	}
 	applyProps(el, rest);
 	appendFlatChildren(el, flat, raw);
 	return el;

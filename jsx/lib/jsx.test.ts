@@ -383,3 +383,52 @@ Deno.test("claiming a prop twice is an error, and re-registering the same handle
 	unregister();
 	registerPropHandler("contextMenu", () => {})();
 });
+
+// -- form control values --
+
+function html(node: unknown): string {
+	return (node as { outerHTML: string }).outerHTML;
+}
+
+Deno.test("value on an input serializes as its value attribute", () => {
+	const input = jsx("input", { value: "Invalid" });
+	assertEquals(html(input), '<input value="Invalid">');
+	assertEquals((input as unknown as HTMLInputElement).value, "Invalid");
+});
+
+Deno.test("value on a select marks the matching option selected", () => {
+	const select = jsx("select", {
+		value: "b",
+		children: [
+			jsx("option", { value: "a", children: "A" }),
+			jsx("option", { value: "b", children: "B" }),
+			jsx("option", { children: "c" }),
+		],
+	});
+	assertEquals(
+		html(select),
+		'<select><option value="a">A</option><option value="b" selected>B</option><option>c</option></select>',
+	);
+});
+
+Deno.test("value on a textarea serializes as its text", () => {
+	assertEquals(html(jsx("textarea", { value: "a < b" })), "<textarea>a &lt; b</textarea>");
+});
+
+Deno.test("a signal value keeps the attribute in step", () => {
+	const value = signal("one");
+	const input = jsx("input", { value });
+	value.set("two");
+	assertEquals(html(input), '<input value="two">');
+});
+
+Deno.test("$bind serializes the bound value and checkedness", () => {
+	const text = signal("hello");
+	const on = signal(true);
+	const input = jsx("input", { $bind: text });
+	const box = jsx("input", { type: "checkbox", $bind: on });
+	assertEquals(html(input), '<input value="hello">');
+	assertEquals(html(box), '<input type="checkbox" checked>');
+	on.set(false);
+	assertEquals(html(box), '<input type="checkbox">');
+});
