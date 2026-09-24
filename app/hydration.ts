@@ -86,7 +86,7 @@ function collect(): Map<string, string[]> {
 	// needs, and without one there is nothing to collect.
 	if (typeof document === "undefined") return collected;
 
-	for (const el of document.querySelectorAll(`[${STATE_ATTRIBUTE}]`)) {
+	for (const el of stateElements(document)) {
 		const raw = el.getAttribute(STATE_ATTRIBUTE);
 		if (raw == null) continue;
 		const key = path(el);
@@ -104,6 +104,27 @@ function collect(): Map<string, string[]> {
 	}, 0);
 
 	return collected;
+}
+
+/**
+ * Every element carrying a snapshot, descending into open shadow roots, which
+ * `querySelectorAll` alone does not.
+ */
+function* stateElements(root: ParentNode): Generator<Element> {
+	for (const el of root.querySelectorAll("*")) {
+		if (el.hasAttribute(STATE_ATTRIBUTE)) yield el;
+		if (el.shadowRoot) yield* stateElements(el.shadowRoot);
+	}
+}
+
+/**
+ * Lifts the snapshots out of the document now, if that has not happened yet.
+ *
+ * For a component about to discard server-rendered markup before anything has
+ * asked for a snapshot — attaching over a declarative shadow root is one.
+ */
+export function primeServerState(): void {
+	if (booting) queues ??= collect();
 }
 
 /**

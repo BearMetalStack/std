@@ -143,12 +143,12 @@ for the whole of a render including the gaps where it is awaiting work.
 **`init()` does not run.** No listeners, no timers, no subscriptions. Anything the markup depends on
 belongs in [`serverInit()`](./data-loading).
 
-**Shadow DOM does not survive the trip.** `useShadow()` is called from `init()`, so a server render
-never attaches one: the component's template lands in its light DOM, and light children handed to it
-in JSX are replaced by that template rather than slotted. In the browser the element then attaches
-its shadow root and renders into it, leaving the server's markup behind as stray light children. For
-a component built around `<slot>`, mark it `static client = true`. The server emits its tag and its
-children untouched, and the browser slots them properly on upgrade.
+**Shadow DOM has to be declared.** A component with `static shadow = "open"` renders into a shadow
+root on the server too, serialized as `<template shadowrootmode="open">` with its light children left
+in place for its slots. The browser rebuilds the root on parse and the first client render replaces
+its contents. `useShadow()` called from `init()` never happens on a server, so such a component's
+template lands in its light DOM there, replaces its light children, and is left behind as stray
+markup once the browser attaches a root.
 
 **Props are not markup.** Setting a declared `@prop` writes the child's signal, not an attribute, so
 values handed to a component from a `Page()` view do not reach the browser. Use `serverInit()` and

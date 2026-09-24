@@ -26,16 +26,14 @@ export class MyComponent extends BMElement {
 
 ## The Shadow DOM
 
-In order to leverage shadow DOM functionality, `BMElement` exposes `this.useShadow()`. This enables
+To render a component into a shadow root, declare `static shadow` with the root's mode. This enables
 the use of DOM slots in the JSX of other components as well as giving access to the other benefits
 of the shadow DOM.
 
 ```tsx
 @define("my-component")
 export class MyComponent extends BMElement {
-	init() {
-		this.useShadow();
-	}
+	static override shadow = "open" as const;
 
 	get template() {
 		return (
@@ -58,13 +56,16 @@ export class MyComponent extends BMElement {
 </my-component>;
 ```
 
-::: warning
-A shadow root is a browser-side thing. `useShadow()` is called from `init()`, which does
-not run during a server render, so the server puts the template in the component's light DOM and
-replaces whatever children were passed to it. The slotted content is lost, and the browser
-re-renders into a shadow root on top of the leftovers.
+The declaration is read on both sides. A server render attaches the root and serializes it as
+declarative shadow DOM (`<template shadowrootmode="open">`), with the children passed to the
+component left in place for its slots. The browser rebuilds that root as it parses the page, and the
+component's first client render replaces its contents.
 
-For a component built around `<slot>`, mark it `static client = true`. The server then emits its tag
-and its children untouched, and the browser slots them properly when the element upgrades. See
+::: warning
+`this.useShadow()` still exists, but called from `init()` it is browser-only, because `init()` does
+not run during a server render. The server then puts the template in the component's light DOM and
+replaces whatever children were passed to it. Use `static shadow` for any component that is
+server-rendered. Prefer `"open"`: the `@state` of components nested inside a closed root cannot be
+recovered during hydration. See
 [Server-Side Rendering](/getting-started/ssr/rendering#things-to-watch-for).
 :::

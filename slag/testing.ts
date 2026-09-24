@@ -10,6 +10,7 @@
 import { SlagDocument } from "./lib/document.ts";
 import type { SlagElement } from "./lib/element.ts";
 import { resetCustomElements } from "./lib/custom_elements.ts";
+import type { SlagShadowRoot } from "./lib/shadow.ts";
 
 /**
  * A fresh, connected mount point.
@@ -43,3 +44,20 @@ export async function flushMicrotasks(times = 3): Promise<void> {
 }
 
 export { resetCustomElements };
+
+/**
+ * Gives `host` the shadow root a browser's parser would have built from
+ * `<template shadowrootmode>` in server-rendered markup.
+ *
+ * Slag has no parser, so this is how a test sets up the page a browser sees
+ * before hydrating: a later `attachShadow()` of the same mode empties this root
+ * and returns it, as it does for a real declarative one.
+ */
+export function declarativeShadowRoot(
+	host: SlagElement,
+	mode: "open" | "closed" = "open",
+): SlagShadowRoot {
+	const root = host.attachShadow({ mode });
+	root.declarative = true;
+	return root;
+}

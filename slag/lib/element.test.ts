@@ -86,6 +86,22 @@ Deno.test("attachShadow returns a root once, and hides a closed one", () => {
 	assertEquals(closed.shadowRoot, null);
 });
 
+Deno.test("attachShadow over a declarative root of the same mode empties and returns it", () => {
+	const document = new SlagDocument();
+	const host = document.createElement("div");
+	const declared = host.attachShadow({ mode: "open" });
+	declared.declarative = true;
+	declared.appendChild(document.createElement("p"));
+
+	assertStrictEquals(host.attachShadow({ mode: "open" }), declared);
+	assertEquals(declared.childNodes.length, 0);
+	assertThrows(() => host.attachShadow({ mode: "open" }), Error, "cannot be created twice");
+
+	const other = document.createElement("div");
+	other.attachShadow({ mode: "open" }).declarative = true;
+	assertThrows(() => other.attachShadow({ mode: "closed" }), Error, "cannot be created twice");
+});
+
 Deno.test("adoptedStyleSheets holds constructed stylesheets", () => {
 	const document = new SlagDocument();
 	const host = document.createElement("div");

@@ -5,6 +5,7 @@ installGlobals();
 import { assert, assertEquals } from "@std/assert";
 import { BMElement, STATE_ATTRIBUTE } from "./BMElement.ts";
 import { resetHydration } from "./hydration.ts";
+import { declarativeShadowRoot } from "@bearmetal/slag/testing";
 import { state } from "./state.ts";
 
 let nextTag = 0;
@@ -203,4 +204,45 @@ Deno.test("nothing is claimed once the boot phase is over", async () => {
 	const late = el(leafTag);
 	parent.appendChild(late as unknown as Node);
 	assertEquals((late as unknown as Stateful).payload.get(), "");
+});
+
+Deno.test("a shadow component hydrates over its declarative root, and state inside it survives", () => {
+	reset();
+	const Leaf = stateful();
+	const leafTag = register(Leaf);
+
+	class Card extends BMElement {
+		static override shadow = "open" as const;
+		@state()
+		accessor heading = this.signal("");
+		override get template() {
+			const wrap = el("div");
+			wrap.append(el(leafTag), el("slot"));
+			return wrap;
+		}
+	}
+	const cardTag = register(Card);
+
+	// What a browser's parser leaves from the server's `<template shadowrootmode>`.
+	// The host has a snapshot of its own, so nothing else asks for the rest
+	// before its shadow root is emptied.
+	const card = el(cardTag, { heading: "card" });
+	const declared = declarativeShadowRoot(card as never);
+	const serverWrap = el("div");
+	serverWrap.append(el(leafTag, { payload: "from the server" }), el("slot"));
+	declared.appendChild(serverWrap as never);
+	card.appendChild(el("span"));
+	(document.body as unknown as Element).appendChild(card as unknown as Node);
+
+	const root = card.shadowRoot!;
+	assertEquals(
+		root.childNodes.length,
+		1,
+		"the server's shadow content is replaced, not duplicated",
+	);
+	assertEquals(card.childNodes.length, 1, "light children stay put for the slot");
+	assertEquals(card.firstElementChild?.localName, "span");
+	const leaf = root.querySelector(leafTag) as unknown as Stateful;
+	assertEquals(leaf.payload.get(), "from the server");
+	assertEquals((card as unknown as Card).heading.get(), "card");
 });

@@ -72,6 +72,19 @@ export class PlainThing extends BMElement {
 	}
 }
 
+@define("shadow-card")
+export class ShadowCard extends BMElement {
+	static override shadow = "open" as const;
+
+	override get template() {
+		return (
+			<div class="card">
+				<slot></slot>
+			</div>
+		);
+	}
+}
+
 export const Greeting = () => <load-greeting who="you" />;
 
 export const Two = () => (
@@ -88,3 +101,9 @@ export const ClientOnly = () => <client-only-widget data-x="1" />;
 export const Plain = () => <plain-thing />;
 
 export const AsyncChild = () => <section>{sleep(5).then(() => <b>late</b>)}</section>;
+
+export const Shadowed = () => (
+	<shadow-card>
+		<span>light</span>
+	</shadow-card>
+);

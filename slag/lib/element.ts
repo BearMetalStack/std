@@ -247,7 +247,13 @@ export class SlagElement extends SlagNode {
 	// -- shadow dom --
 
 	attachShadow(init: { mode?: ShadowRootMode } = {}): SlagShadowRoot {
-		if (this.#shadowRoot) {
+		const existing = this.#shadowRoot;
+		if (existing?.declarative && existing.mode === (init.mode ?? "open")) {
+			existing.declarative = false;
+			existing.replaceChildren();
+			return existing;
+		}
+		if (existing) {
 			throw new Error("Failed to execute 'attachShadow': shadow root cannot be created twice.");
 		}
 		this.#shadowRoot = new SlagShadowRoot(this, init.mode ?? "open");

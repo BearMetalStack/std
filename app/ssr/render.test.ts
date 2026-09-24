@@ -105,3 +105,11 @@ Deno.test("renders are independent when several are in flight", async () => {
 	assertStringIncludes(a, "<p>hello, you</p>");
 	assertStringIncludes(b, "<p>hello, you</p>");
 });
+
+Deno.test("a shadow component renders declarative shadow DOM and keeps its light children", async () => {
+	assertEquals(
+		await renderToString(fixture.Shadowed),
+		'<shadow-card><template shadowrootmode="open"><div class="card"><slot></slot></div></template>' +
+			"<span>light</span></shadow-card>",
+	);
+});
