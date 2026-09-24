@@ -105,3 +105,17 @@ Deno.test("renders are independent when several are in flight", async () => {
 	assertStringIncludes(a, "<p>hello, you</p>");
 	assertStringIncludes(b, "<p>hello, you</p>");
 });
+
+Deno.test("a declared prop given a scalar reaches the markup as an attribute", async () => {
+	assertEquals(
+		await renderToString(fixture.Props),
+		'<probe-counter label="Total" open count="5" data-x="1"><p>Total: 5</p></probe-counter>',
+	);
+});
+
+Deno.test("a false boolean prop leaves no attribute", async () => {
+	assertEquals(
+		await renderToString(fixture.ClosedProps),
+		"<probe-counter><p>Count: 0</p></probe-counter>",
+	);
+});

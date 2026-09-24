@@ -1,10 +1,10 @@
 ---
 prev:
-    text: "List Rendering"
-    link: "./lists"
+  text: "List Rendering"
+  link: "./lists"
 next:
-    text: "Server-Side Rendering"
-    link: "/getting-started/ssr/"
+  text: "Server-Side Rendering"
+  link: "/getting-started/ssr/"
 ---
 
 # Props
@@ -33,7 +33,7 @@ export class MyCounter extends BMElement {
 ```
 
 ```tsx
-<my-counter count={5} label="Total" />
+<my-counter count={5} label="Total" />;
 ```
 
 `this.count` is a `Signal.State<number>`, the same as any other signal in the framework: read it
@@ -43,9 +43,10 @@ reactive child. It's usable anywhere a bare signal is: `each()`, effects, `Show`
 ## Reactivity
 
 Declaring a prop adds its name to the element's `observedAttributes`, so an attribute set on the
-element—in hand-written HTML, or by anything reaching for `setAttribute`—is coerced to the
-declared type and written into the prop's signal. From JSX the runtime skips that round-trip
-entirely: it sees the accessor already holds a signal and sets it directly.
+element—in hand-written HTML, or by anything reaching for `setAttribute`—is coerced to the declared
+type and written into the prop's signal. From JSX the runtime sets the signal directly, so the
+component gets the exact value rather than a coerced string, and mirrors a string, number or boolean
+onto the attribute as well, so it shows up in server-rendered markup and in selectors.
 
 Passing a signal is different again and this is the common case for anything that needs to change
 after the initial render.
@@ -125,26 +126,24 @@ Pass the type explicitly when the initial value can't carry it:
 
 A boolean prop follows attribute semantics: present is `true`, absent is `false`. So `open` and
 `open=""` both read back as `true`, and removing the attribute makes it `false`. This is why
-booleans need to be declared. Without a type there is no way to tell an absent boolean from an
-empty string.
+booleans need to be declared. Without a type there is no way to tell an absent boolean from an empty
+string.
 
 ```tsx
-<my-counter label="Total" open />
+<my-counter label="Total" open />;
 ```
 
-Note that this describes how an attribute is _read_. A declared prop set from JSX never lands in the
-DOM as an attribute, so `my-counter[open]` will not match one. For a styling hook, use a name the
-component has not declared:
-
-```tsx
-<my-counter label="Total" data-open={this.#open} />
-```
+A scalar set from JSX is mirrored onto the attribute too, so `true` adds a bare `open` and `false`
+removes it, and `my-counter[open]` works as a styling hook:
 
 ```css
-my-counter[data-open] {
+my-counter[open] {
 	border-color: red;
 }
 ```
+
+A signal passed to a declared prop is bound rather than mirrored (see above), so it leaves no
+attribute behind.
 
 ### Objects
 
@@ -152,7 +151,7 @@ Objects and functions are set as properties on the element rather than as attrib
 attribute for `observedAttributes` to watch.
 
 ```tsx
-<my-list items={["a", "b"]} />
+<my-list items={["a", "b"]} />;
 ```
 
 A signal is also an object, but it's handled by the binding behavior described above, not this one.
@@ -196,13 +195,11 @@ prop is an input from the parent, state is what the component worked out for its
 `init()` is the browser half of the lifecycle and does not run during a server render. Listeners,
 timers and subscriptions go there; loading goes in `serverInit()`.
 
-::: warning
-A prop does not cross to the browser on its own. Setting a declared prop writes the
-child's signal rather than an attribute. That is what makes a signal prop a live binding. Therefore it
-leaves nothing in the markup. Between components that does not show, because the parent's `template`
-runs again in the browser and hands the child the same props. It shows at the boundary, where a
-`Page()` view passes server data into a component: that value is consumed by the render and gone.
-Load it in `serverInit()` and mark it `@state`.
-:::
+::: warning Only scalar props cross to the browser. A string, number or boolean is mirrored onto its
+attribute, lands in the markup, and is read back on upgrade. An object, or a signal bound to the
+prop, leaves nothing in the markup. Between components that does not show, because the parent's
+`template` runs again in the browser and hands the child the same props. It shows at the boundary,
+where a `Page()` view passes server data into a component: an object passed there is consumed by the
+render and gone. Load it in `serverInit()` and mark it `@state`. :::
 
 The whole handoff, and the renderer behind it, is in [Server-Side Rendering](/getting-started/ssr/).
