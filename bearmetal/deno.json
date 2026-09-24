@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/bearmetal",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"license": "MIT",
 	"tasks": {
 		"dev": "deno run -A --watch main.ts",

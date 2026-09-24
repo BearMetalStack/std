@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/stack",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"license": "MIT",
 	"exports": {
 		".": "./mod.tsx",
@@ -19,7 +19,9 @@
 	},
 	"lint": {
 		"rules": {
-			"exclude": ["no-explicit-any"]
+			"exclude": [
+				"no-explicit-any"
+			]
 		}
 	},
 	"compilerOptions": {

@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/app",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"exports": {
 		".": "./mod.ts",
 		"./signals": "./bmsignals.ts",
@@ -39,7 +39,9 @@
 	},
 	"lint": {
 		"rules": {
-			"exclude": ["no-explicit-any"]
+			"exclude": [
+				"no-explicit-any"
+			]
 		}
 	},
 	"fmt": {
