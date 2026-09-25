@@ -85,7 +85,7 @@ export interface MakeInputProps<Extra = never> extends MakeBaseProps<Extra> {
 	accept?: string | Extra;
 	popovertarget?: string | Extra;
 	popovertargetaction?: "hide" | "show" | "toggle" | Extra;
-	autocomplete?: "off" | "on" | Extra;
+	autocomplete?: "off" | "on" | string | Extra;
 	maxlength?: number | Extra;
 	minlength?: number | Extra;
 	$bind?: Extra extends never ? never : WritableSignalLike;
