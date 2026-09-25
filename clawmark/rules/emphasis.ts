@@ -122,12 +122,31 @@ export const boldRule: Rule<EmphasisData> = {
 	},
 };
 
+/**
+ * A three-character run is not always a bold-italic. The run-length estimate
+ * can't tell `***x***` from a bold closing straight into an italic opening
+ * (`**a***b*`, `**a**_b_`) or an italic closing into a bold (`*a***b**`), so
+ * the tree step decides: with a bold or an italic already open, the run
+ * closes that one and toggles the other. Treated as one bold-italic instead,
+ * the closer opened a third mark and nothing after it ever closed - the rest
+ * of the document was swallowed into it.
+ */
+function toggleTriple(ctx: TreeContext) {
+	const current = ctx.currentNode.tag;
+	if (current === "md:bold" || current === "md:italic") {
+		closeNode(ctx);
+		toggle(current === "md:bold" ? "md:italic" : "md:bold", ctx);
+		return;
+	}
+	toggle("md:bolditalic", ctx);
+}
+
 export const boldItalicRule: Rule<EmphasisData> = {
 	id: "md:bolditalic",
 	trigger: "*",
 	validate: () => false,
 	tokenize: () => ({ tag: "md:bolditalic", data: {} }),
-	tree: (_token, ctx) => toggle("md:bolditalic", ctx),
+	tree: (_token, ctx) => toggleTriple(ctx),
 	renderOpen: () => "<strong><em>",
 	renderClose: () => "</em></strong>",
 
