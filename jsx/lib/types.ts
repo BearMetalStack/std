@@ -85,6 +85,9 @@ export interface MakeInputProps<Extra = never> extends MakeBaseProps<Extra> {
 	accept?: string | Extra;
 	popovertarget?: string | Extra;
 	popovertargetaction?: "hide" | "show" | "toggle" | Extra;
+	autocomplete?: "off" | "on" | Extra;
+	maxlength?: number | Extra;
+	minlength?: number | Extra;
 	$bind?: Extra extends never ? never : WritableSignalLike;
 	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
@@ -97,6 +100,9 @@ export interface MakeTextareaProps<Extra = never> extends MakeBaseProps<Extra> {
 	cols?: number | Extra;
 	readonly?: boolean | Extra;
 	name?: string | Extra;
+	autocomplete?: "off" | "on" | Extra;
+	maxlength?: number | Extra;
+	minlength?: number | Extra;
 	$bind?: Extra extends never ? never : WritableSignalLike;
 	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
@@ -107,6 +113,7 @@ export interface MakeSelectProps<Extra = never> extends MakeBaseProps<Extra> {
 	multiple?: boolean | Extra;
 	name?: string | Extra;
 	value?: string | Extra;
+	autocomplete?: "off" | "on" | Extra;
 	$bind?: Extra extends never ? never : WritableSignalLike;
 	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
@@ -122,6 +129,7 @@ export interface MakeFormProps<Extra = never> extends MakeBaseProps<Extra> {
 	method?: string | Extra;
 	enctype?: string | Extra;
 	novalidate?: boolean | Extra;
+	autocomplete?: "off" | "on" | Extra;
 }
 
 export interface MakeImgProps<Extra = never> extends MakeBaseProps<Extra> {
