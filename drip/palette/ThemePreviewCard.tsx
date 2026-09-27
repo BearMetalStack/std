@@ -217,6 +217,44 @@ function StatesPreview({ variant }: { variant: string }) {
 				<div class="alert danger">Danger alert</div>
 			</div>
 			<div>
+				<div>
+					<span class="tag">Accent</span>
+					<span class="tag brand">Brand</span>
+					<span class="tag neutral">Neutral</span>
+					<span class="tag success">Success</span>
+					<span class="tag warning">Warning</span>
+					<span class="tag danger">Danger</span>
+					<span class="tag info">Info</span>
+				</div>
+				<div>
+					<span class="tag solid">Accent</span>
+					<span class="tag solid brand">Brand</span>
+					<span class="tag outline neutral">Outline</span>
+					<span class="tag" style="--tone: #1e90ff">Any colour</span>
+					<span class="tag solid" style="--tone: #ffd700">Any colour</span>
+				</div>
+				<div>
+					<span class="tag red">Red</span>
+					<span class="tag orange">Orange</span>
+					<span class="tag yellow">Yellow</span>
+					<span class="tag green">Green</span>
+					<span class="tag blue">Blue</span>
+					<span class="tag magenta">Magenta</span>
+					<span class="tag cyan">Cyan</span>
+					<span class="tag pink">Pink</span>
+				</div>
+				<div>
+					<span class="tag solid red">Red</span>
+					<span class="tag solid orange">Orange</span>
+					<span class="tag solid yellow">Yellow</span>
+					<span class="tag solid green">Green</span>
+					<span class="tag solid blue">Blue</span>
+					<span class="tag solid magenta">Magenta</span>
+					<span class="tag solid cyan">Cyan</span>
+					<span class="tag solid pink">Pink</span>
+				</div>
+			</div>
+			<div>
 				<div role="listbox">
 					<div role="option">Option one</div>
 					<div role="option" aria-selected="true">Option two</div>

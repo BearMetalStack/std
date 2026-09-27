@@ -1,0 +1,123 @@
+/* ============================================================
+   tones — one colour in, a readable set out
+   ============================================================ */
+
+:root,
+[data-theme] {
+	--tone: var(--legible-tone);
+}
+
+:root,
+[data-theme],
+.tone,
+.tag {
+	--tone-ink: oklch(
+		from color-mix(in oklch, var(--tone) 30%, oklch(from var(--color-bg) l 0 none))
+		clamp(var(--legible-ink-dark), (var(--legible-flip) - l) * 999, var(--legible-ink-light))
+		min(c / 0.3, var(--legible-chroma))
+		h
+	);
+	--tone-rule: var(--tone-ink);
+	--tone-ground: color-mix(in oklab, var(--tone) var(--legible-tint), var(--color-surface));
+	--tone-wash: color-mix(in oklab, var(--tone) var(--legible-wash), var(--color-surface));
+	--tone-fill: var(--tone);
+	--tone-on-fill: oklch(
+		from var(--tone)
+		clamp(var(--legible-solid-dark), (var(--legible-flip) - l) * 999, var(--legible-solid-light))
+		min(c, 0.03)
+		h
+	);
+}
+
+:is(.tone, .tag) {
+	&.accent {
+		--tone: var(--color-accent);
+	}
+	&.brand {
+		--tone: var(--color-interactive);
+	}
+	&.neutral {
+		--tone: var(--color-text);
+	}
+	&.success {
+		--tone: var(--color-success-text);
+	}
+	&.warning,
+	&.warn {
+		--tone: var(--color-warning-text);
+	}
+	&.danger {
+		--tone: var(--color-danger-text);
+	}
+	&.info {
+		--tone: var(--color-info-text);
+	}
+
+	/* the eight required hues; the ink sets its own lightness, so any stop only lends its hue */
+	&.red {
+		--tone: var(--color-red-500);
+	}
+	&.orange {
+		--tone: var(--color-orange-500);
+	}
+	&.yellow {
+		--tone: var(--color-yellow-500);
+	}
+	&.green {
+		--tone: var(--color-green-500);
+	}
+	&.blue {
+		--tone: var(--color-blue-500);
+	}
+	&.magenta {
+		--tone: var(--color-magenta-500);
+	}
+	&.cyan {
+		--tone: var(--color-cyan-500);
+	}
+	&.pink {
+		--tone: var(--color-pink-500);
+	}
+}
+
+/* ============================================================
+   tags
+   ============================================================ */
+
+.tag {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--tag-font-size);
+	font-weight: var(--tag-font-weight);
+	line-height: var(--leading-tight);
+	padding: var(--tag-padding-y) var(--tag-padding-x);
+	border-radius: var(--tag-radius);
+	border: var(--tag-border-width) var(--tag-border-style)
+		color-mix(in oklab, var(--tone-rule) var(--tag-border-mix), transparent);
+	background-color: var(--tone-ground);
+	color: var(--tone-ink);
+	white-space: nowrap;
+	text-decoration: none;
+
+	&.outline {
+		background-color: transparent;
+		border-color: var(--tone-rule);
+	}
+	&.solid {
+		background-color: var(--tone-fill);
+		border-color: var(--tone-fill);
+		color: var(--tone-on-fill);
+	}
+
+	&:is(a, button, [role="button"]) {
+		cursor: pointer;
+		&:hover {
+			background-color: var(--tone-wash);
+			text-decoration: var(--state-hover-decoration);
+		}
+		&.solid:hover {
+			background-color: var(--tone-fill);
+		}
+	}
+}

@@ -2,7 +2,7 @@ import { dotBearmetalFile } from "@bearmetal/miscellanea/fs";
 import { namespaces } from "../namespaces.ts";
 import { compliantSheets } from "./embedded.ts";
 
-const COMPLIANT_IDS = ["base", "components", "animations"] as const;
+const COMPLIANT_IDS = ["base", "components", "animations", "legible"] as const;
 /** Id of one of Drip's compliant stylesheets. */
 export type CompliantID = typeof COMPLIANT_IDS[number];
 

@@ -39,14 +39,56 @@ change the _look_ of the stack, not only its palette.
 
 ## The compliant stylesheets
 
-`css/base.css`, `css/components.css` and `css/animations.css` are the element and component rules
-written against the tokens. They are the only copy: `deno task bm:css` embeds them into
-`css/embedded.ts`, which is what `drip/ssr` (`BaseStyle`, `ComponentStyle`, `BMDripBase`),
+`css/base.css`, `css/components.css`, `css/animations.css` and `css/legible.css` are the element and
+component rules written against the tokens. They are the only copy: `deno task bm:css` embeds them
+into `css/embedded.ts`, which is what `drip/ssr` (`BaseStyle`, `ComponentStyle`, `BMDripBase`),
 `compliantCSS()` and webbies read, and a test fails if the two disagree. Edit the `.css` files, then
 run the task.
 
 A test also fails if any `var()` in them names a property the generated stylesheet doesn't define.
 `var(--x, fallback)` is the exception: it marks an optional hook a theme may leave out.
+
+## The legible layer
+
+`css/legible.css` (`LegibleStyle` in `drip/ssr`, included in `BMDripBase`) turns one colour,
+`--tone`, into a set that reads on any theme and variant — including `monochrome`, where every ramp
+is grey:
+
+| Token            | Use                                                      |
+| ---------------- | -------------------------------------------------------- |
+| `--tone-ink`     | tone-coloured text, on the page or on a tone ground      |
+| `--tone-rule`    | tone-coloured lines: borders, indicator bars, underlines |
+| `--tone-ground`  | a faint tone tint for a tag or a highlighted run         |
+| `--tone-wash`    | a stronger tint; body text stays readable on it          |
+| `--tone-fill`    | the tone itself, as a solid fill                         |
+| `--tone-on-fill` | ink on `--tone-fill`                                     |
+
+The ink keeps the tone's hue but takes its lightness from the page: `legible.ink.dark` on a light
+`--color-bg`, `legible.ink.light` on a dark one, switching at `legible.flip`. The on-fill ink does
+the same against the tone. So the lightness contrast is fixed no matter what colour goes in, a pale
+lavender on a white page included.
+
+Soft ink measures at least 5.2:1 across every bundled theme and variant. A solid fill is the weak
+case: black or white on a mid-tone fill tops out around 4.5:1, and less for a saturated green or
+orange, whose perceived lightness and WCAG luminance disagree. Prefer the soft tag for small text on
+an arbitrary tone.
+
+`--tone` defaults to `legible.tone` (`--color-accent`). The set is recomputed on `:root`,
+`[data-theme]`, `.tone` and `.tag`, and a `var()` resolves where it is declared, so setting `--tone`
+on any other element does nothing to the ink below it. Put the colour on an element that carries
+`.tone`:
+
+```html
+<section class="tone" style="--tone: var(--color-interactive)">…</section>
+<span class="tag" style="--tone: #1e90ff">custom</span>
+```
+
+`.tone` and `.tag` take the modifiers `accent`, `brand` (`--color-interactive`), `neutral`, the
+semantic roles `success`, `warning`/`warn`, `danger` and `info`, and the eight required hues `red`,
+`orange`, `yellow`, `green`, `blue`, `magenta`, `cyan` and `pink` (each from its `500` stop — the
+ink sets its own lightness, so the stop only lends the hue). A `.tag` with no modifier uses the tone
+it inherits. A tag is soft by default (`--tone-ground` behind `--tone-ink`), and `.solid` or
+`.outline` changes that. `tag.*` in the defaults layer holds its size, padding, radius and border.
 
 ## Corner shape and radius
 

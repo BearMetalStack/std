@@ -320,6 +320,24 @@
 		"radius": { "$ref": "$radius.full" },
 		"letter": { "spacing": { "$ref": "$tracking.wide" } }
 	},
+	"legible": {
+		"tone": { "$ref": "$color.accent" },
+		"flip": "0__57",
+		"ink": { "dark": "0__36", "light": "0__87" },
+		"solid": { "dark": "0", "light": "1" },
+		"tint": "16%",
+		"wash": "24%",
+		"chroma": "0__16"
+	},
+	"tag": {
+		"font": {
+			"size": { "$ref": "$text.xs" },
+			"weight": { "$ref": "$weight.semibold" }
+		},
+		"padding": { "y": { "$ref": "$space.0.5" }, "x": { "$ref": "$space.2" } },
+		"radius": { "$ref": "$radius.md" },
+		"border": { "width": { "$ref": "$border.rule" }, "style": "solid", "mix": "40%" }
+	},
 	"modal": {
 		"bg": { "$ref": "$color.surface.overlay" },
 		"border": { "$ref": "$color.border", "width": { "$ref": "$border.rule" } },

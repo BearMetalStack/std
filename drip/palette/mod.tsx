@@ -1,4 +1,4 @@
-import { BaseStyle, ComponentStyle, Fonts, ThemeStyle } from "../ssr.tsx";
+import { BaseStyle, ComponentStyle, Fonts, LegibleStyle, ThemeStyle } from "../ssr.tsx";
 import { ThemeUtils } from "./ThemeUtils.ts";
 import { getDefaultTheme } from "@bearmetal/drip";
 import { Html, Router } from "@bearmetal/router";
@@ -116,6 +116,7 @@ router.get("/", async (ctx) => {
 				{fonts}
 				<BaseStyle />
 				<ComponentStyle root=".theme-previews" />
+				<LegibleStyle />
 				<style $raw>
 					{css`
 						@view-transition {

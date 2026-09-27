@@ -43,6 +43,15 @@ export function ComponentStyle(
 	return <style $raw>{root ? `${root} {${style}}` : style}</style>;
 }
 
+/**
+ * Drip's legible layer (`css/legible.css`): the `--tone-*` set derived from one
+ * colour so it reads on any theme and variant, and the `.tag` classes built on
+ * it. Included in {@linkcode BMDripBase}.
+ */
+export function LegibleStyle(): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
+	return <style $raw>{compliantCSS("legible")}</style>;
+}
+
 /** Drip's shared keyframes (`css/animations.css`). */
 export function Animations(): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
 	return <style $raw>{compliantCSS("animations")}</style>;
@@ -57,6 +66,7 @@ export function BMDripBase(
 			<Fonts theme={theme} />
 			<BaseStyle />
 			<ComponentStyle />
+			<LegibleStyle />
 		</>
 	);
 }
