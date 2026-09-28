@@ -26,12 +26,31 @@ import { Fonts } from "@bearmetal/drip/ssr";
 <Fonts theme={theme} fonts={["monofur"]} />  // ...plus Monofur regardless
 ```
 
-`dripModule()` also serves the same sheet at `/@bearmetal/fonts` (all of the theme's fonts) and
-`/@bearmetal/fonts/:name` (one family), for apps that would rather link a cached stylesheet than
-inline it.
+### Linked instead of inlined
 
-The pure helpers — `fontFaceCSS`, `themeFontKeys`, `selfHostedFonts`, `fontManifest` — are on
-`@bearmetal/drip/fonts`.
+Inlined, every page carries every face (~150 KB of base64) in its `<head>`, and none of it paints
+until all of it has arrived. For a site where first paint matters, pass `href` to point each face at
+a served `woff2` instead: the browser fetches only the faces a page actually uses, caches them
+across pages, and shows fallback text meanwhile (`font-display: swap`).
+
+```tsx
+<Fonts theme={theme} href="/@bearmetal/font-files/" preload={["comfortaa"]} />
+<BMDripBase theme={theme} fontHref="/@bearmetal/font-files/" preloadFonts={["comfortaa"]} />
+```
+
+`href` is a base path (a face's manifest `file` is appended) or a function from that `file` to a
+URL. `preload` emits `<link rel="preload">` for the families that paint above the fold — usually
+just the body font; preloading one a page never uses wastes the bandwidth it was meant to save.
+
+`dripModule()` serves the files at `/@bearmetal/font-files/:family/:file`. Without it, serve
+`fontFile(file)` from any route; `fontFiles(keys)` lists the files a sheet references, e.g. for a
+static build to write out.
+
+`dripModule()` also serves the sheet itself at `/@bearmetal/fonts` (all of the theme's fonts) and
+`/@bearmetal/fonts/:name` (one family).
+
+The pure helpers — `fontFaceCSS`, `fontFile`, `fontFiles`, `themeFontKeys`, `selfHostedFonts`,
+`fontManifest` — are on `@bearmetal/drip/fonts`.
 
 ## Regenerating
 
@@ -40,6 +59,6 @@ The pure helpers — `fontFaceCSS`, `themeFontKeys`, `selfHostedFonts`, `fontMan
 ```bash
 # re-subset from upstream .ttf builds (needs pyftsubset + woff2)
 MONOFUR_DIR=... COMFORTAA_VF=... ./fonts/tools/subset.sh
-# re-inline the woff2 into embedded.ts
+# re-embed the woff2 into embedded.ts
 deno task bm:fonts
 ```

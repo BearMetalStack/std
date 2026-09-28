@@ -4,7 +4,7 @@ import { getDefaultTheme, loadTheme } from "@bearmetal/drip";
 import { themeCSS } from "./css/generate.ts";
 import type { CompliantID } from "./css/compliantCSS.ts";
 import { loadStylesheet } from "./theme.ts";
-import { fontFaceCSS, themeFontFaceCSS } from "./fonts/mod.ts";
+import { fontFaceCSS, fontFile, themeFontFaceCSS } from "./fonts/mod.ts";
 
 class DripModule extends TrustedModule {
 	#themes: Promise<Theme[]> = Promise.resolve([]);
@@ -37,6 +37,17 @@ class DripModule extends TrustedModule {
 			const name = ctx.params.name ?? "";
 			const sheet = fontFaceCSS([name]);
 			return sheet ? Style(sheet) : NotFound(`Drip does not self-host a font named "${name}"`);
+		});
+		this.route("/@bearmetal/font-files/:family/:file").get((ctx) => {
+			const file = `${ctx.params.family}/${ctx.params.file}`;
+			const bytes = fontFile(file);
+			if (!bytes) return NotFound(`Drip does not ship a font file "${file}"`);
+			return new Response(bytes, {
+				headers: {
+					"Content-Type": "font/woff2",
+					"Cache-Control": "public, max-age=604800",
+				},
+			});
 		});
 	}
 

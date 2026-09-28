@@ -2,6 +2,9 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import type { Theme } from "../types.ts";
 import {
 	fontFaceCSS,
+	fontFile,
+	fontFiles,
+	fontHref,
 	isSelfHosted,
 	selfHostedFonts,
 	themeFontFaceCSS,
@@ -61,4 +64,59 @@ Deno.test("themeFontKeys is empty for a theme naming no bundled font", () => {
 	assertEquals(themeFontKeys(theme), []);
 	assertEquals(themeFontFaceCSS(theme), "");
 	assertStringIncludes(themeFontFaceCSS(theme, ["monofur"]), 'font-family:"Monofur"');
+});
+
+Deno.test("fontFaceCSS links faces when given an href", () => {
+	const css = fontFaceCSS(["monofur"], { href: "/fonts/" });
+	assertEquals(css.match(/@font-face/g)?.length, 3);
+	assert(!css.includes("data:"));
+	assertStringIncludes(css, 'src:url("/fonts/monofur/Monofur-Regular.woff2") format("woff2")');
+	assertStringIncludes(css, "font-display:swap");
+	assertStringIncludes(css, "font-style:italic");
+});
+
+Deno.test("fontHref joins a base path and takes a function", () => {
+	assertEquals(fontHref("/fonts", "a/b.woff2"), "/fonts/a/b.woff2");
+	assertEquals(fontHref("/fonts/", "a/b.woff2"), "/fonts/a/b.woff2");
+	assertEquals(
+		fontHref((f) => `https://cdn.example/${f}?v=2`, "a/b.woff2"),
+		"https://cdn.example/a/b.woff2?v=2",
+	);
+	assertStringIncludes(
+		fontFaceCSS(["comfortaa"], { href: (f) => `/x/${f}` }),
+		'url("/x/comfortaa/Comfortaa.woff2")',
+	);
+});
+
+Deno.test("linked and inlined sheets declare the same faces", () => {
+	const strip = (css: string) => css.replace(/src:url\("[^"]*"\)/g, "src");
+	const keys = ["comfortaa", "monofur"];
+	assertEquals(strip(fontFaceCSS(keys, { href: "/f/" })), strip(fontFaceCSS(keys)));
+});
+
+Deno.test("fontFiles lists every face of the hosted families, in manifest order", () => {
+	assertEquals(fontFiles(["monofur", "Helvetica", "comfortaa"]), [
+		"comfortaa/Comfortaa.woff2",
+		"monofur/Monofur-Regular.woff2",
+		"monofur/Monofur-Bold.woff2",
+		"monofur/Monofur-Italic.woff2",
+	]);
+	assertEquals(fontFiles([]), []);
+});
+
+Deno.test("fontFile returns the woff2 bytes a linked sheet points to", () => {
+	for (const file of fontFiles(selfHostedFonts)) {
+		const bytes = fontFile(file);
+		assert(bytes, file);
+		assertEquals(new TextDecoder().decode(bytes.subarray(0, 4)), "wOF2");
+	}
+	assertEquals(fontFile("comfortaa/Nope.woff2"), undefined);
+	assertEquals(fontFile("toString"), undefined);
+});
+
+Deno.test("fontFile matches the inlined data URI", () => {
+	const css = fontFaceCSS(["comfortaa"]);
+	const b64 = css.match(/base64,([^"]+)/)![1];
+	const bytes = fontFile("comfortaa/Comfortaa.woff2")!;
+	assertEquals(bytes.length, atob(b64).length);
 });
