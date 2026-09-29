@@ -62,3 +62,11 @@ export interface EditDistanceOptions {
 	 */
 	maxDistance?: number;
 }
+
+export type MayPromise<T> = Promise<T> | T;
+
+/** Projects an item (and its position in the chain) to a value. */
+export type Selector<T, R = unknown> = (item: T, index: number) => R;
+
+/** Negative when `a` sorts first, positive when `b` does, zero when they tie. */
+export type Comparer<T> = (a: T, b: T) => number;

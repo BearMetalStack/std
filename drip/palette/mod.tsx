@@ -74,16 +74,12 @@ router.get("/", async (ctx) => {
 	const themeName = ctx.url.searchParams.get("theme");
 	const theme = themeName ? await loadTheme(themeName) : await getDefaultTheme();
 	const u = new ThemeUtils(theme);
-	const colors = (await Chain.fromAsync(u.eachColor({ skipReferences: true }))).groupBy((
-		[k],
-	) => !/[1-9][05](0)?$/.test(k) ? "Identities" : k.split("-").slice(1, -1).join("-")).groups.sort((
-		a,
-		b,
-	) => {
-		if (a.__group === "Identities") return -1;
-		if (b.__group === "Identities") return 1;
-		return 0;
-	});
+	const colors = (await Chain.fromAsync(u.eachColor({ skipReferences: true })))
+		.groupBy(([k]) =>
+			!/[1-9][05](0)?$/.test(k) ? "Identities" : k.split("-").slice(1, -1).join("-")
+		)
+		.orderBy((g) => g.key === "Identities" ? 0 : 1)
+		.toArray();
 
 	const stopsParam = ctx.url.searchParams.get("stops");
 	const stops = stopsParam ? stopsParam.split(",").filter(Boolean) : [];
@@ -302,9 +298,9 @@ router.get("/", async (ctx) => {
 				<div class="main">
 					{colors.map((g) => (
 						<div class="group">
-							<h3>{titleCase(g.__group ?? "")}</h3>
-							<div class="flex" data-group={g.__group}>
-								{g.map(([k, c]) => (
+							<h3>{titleCase(g.key)}</h3>
+							<div class="flex" data-group={g.key}>
+								{g.select(([k, c]) => (
 									<button
 										type="button"
 										data-color={c}
@@ -313,12 +309,12 @@ router.get("/", async (ctx) => {
 										style={`--backgroundColor: ${c}`}
 									>
 										<p>
-											{g.__group === "Identities"
+											{g.key === "Identities"
 												? k.split("-").slice(1).join("-")
 												: k.split("-").pop()}
 										</p>
 									</button>
-								))}
+								)).toArray()}
 							</div>
 						</div>
 					))}

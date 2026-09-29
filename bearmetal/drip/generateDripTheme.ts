@@ -74,19 +74,17 @@ export async function generateDripTheme(
 	console.log("\nAlrighty, lets look at your theme real quick.");
 	const themeUtil = new ThemeUtils(theme);
 	console.log("Colors:");
-	const colors = (await Chain.fromAsync(themeUtil.eachColor({ skipReferences: true }))).groupBy((
-		[k],
-		groups,
-	) =>
-		groups[k.split("-").slice(1).join("-")]
-			? k.split("-").slice(1).join("-")
-			: k.split("-").slice(1, -1).join("-")
-	);
-	for (const colorGroup of colors.groups) {
-		console.log("  " + colorGroup.__group + ":");
+	const entries = (await Chain.fromAsync(themeUtil.eachColor({ skipReferences: true }))).toArray();
+	const ramps = new Set(entries.map(([k]) => k.split("-").slice(1, -1).join("-")));
+	const colors = Chain.from(entries).groupBy(([k]) => {
+		const base = k.split("-").slice(1).join("-");
+		return ramps.has(base) ? base : k.split("-").slice(1, -1).join("-");
+	});
+	for (const colorGroup of colors) {
+		console.log("  " + colorGroup.key + ":");
 		for (const color of colorGroup) {
 			let colorName = color[0].split("-").at(-1)?.padEnd(3);
-			if (color[0].endsWith(colorGroup.__group!)) colorName = "__$";
+			if (color[0].endsWith(colorGroup.key)) colorName = "__$";
 			console.log(
 				`    ${colorName}: ${color[1]} ${bgColorize("  ", color[1])}`,
 			);
