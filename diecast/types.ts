@@ -129,11 +129,23 @@ export type SitemapOptions = {
 	origin: string;
 	/** Path relative to `outDir`. Default `sitemap.xml`. */
 	file?: string;
-	/** Leave a page out. Receives the path it is served at, e.g. `/about/`. */
+	/**
+	 * Whether a directory index is listed with its trailing slash: `/about/`
+	 * (the default) or `/about`. Set it to `false` when the host serves
+	 * `about/index.html` at `/about` and redirects `/about/` there - Cloudflare's
+	 * `html_handling: "drop-trailing-slash"`, say - so the sitemap lists the URL
+	 * that answers rather than a redirect. The root is always `/`.
+	 */
+	trailingSlash?: boolean;
+	/**
+	 * Leave a page out. Receives the path it is served at, e.g. `/about/`, or
+	 * `/about` with `trailingSlash: false`.
+	 */
 	exclude?: (path: string) => boolean;
 	/**
 	 * When a page last changed, for pages the manifest cannot date - static
-	 * routes and followed links. Receives the served path and the page, whose
+	 * routes and followed links. Receives the served path (in the same form
+	 * `exclude` does) and the page, whose
 	 * `lastmod` holds the manifest's value if it set one; returning a value
 	 * overrides it, returning `undefined` keeps it. A page left undated gets no
 	 * `<lastmod>`.

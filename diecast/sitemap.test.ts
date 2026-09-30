@@ -42,6 +42,54 @@ Deno.test("resolves against an origin with a base path", async () => {
 	assertEquals(urls, ["https://example.com/docs/", "https://example.com/docs/about/"]);
 });
 
+Deno.test("trailingSlash: false lists directory indexes without the slash", async () => {
+	const urls = await locs(
+		[
+			page("index.html"),
+			page("about/index.html"),
+			page("blog/post/index.html"),
+			page("contact.html"),
+		],
+		{ origin: "https://example.com", trailingSlash: false },
+	);
+	assertEquals(urls, [
+		"https://example.com/",
+		"https://example.com/about",
+		"https://example.com/blog/post",
+		"https://example.com/contact.html",
+	]);
+});
+
+Deno.test("trailingSlash: false keeps the root of a base path", async () => {
+	const urls = await locs([page("index.html"), page("about/index.html")], {
+		origin: "https://example.com/docs",
+		trailingSlash: false,
+	});
+	assertEquals(urls, ["https://example.com/docs/", "https://example.com/docs/about"]);
+});
+
+Deno.test("exclude and lastmod see the path in the form it is listed", async () => {
+	const seen: string[] = [];
+	const entries = await sitemapEntries([
+		page("index.html"),
+		page("about/index.html"),
+		page("404/index.html"),
+	], {
+		origin: "https://example.com",
+		trailingSlash: false,
+		exclude: (path) => path === "/404",
+		lastmod: (path) => {
+			seen.push(path);
+			return path === "/about" ? "2026-01-01" : undefined;
+		},
+	});
+	assertEquals(seen.sort(), ["/", "/about"]);
+	assertEquals(entries, [
+		{ loc: "https://example.com/" },
+		{ loc: "https://example.com/about", lastmod: "2026-01-01" },
+	]);
+});
+
 Deno.test("exclude drops pages by served path", async () => {
 	const urls = await locs([page("index.html"), page("404/index.html")], {
 		origin: "https://example.com",

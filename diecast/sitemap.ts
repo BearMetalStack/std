@@ -36,11 +36,21 @@ function formatLastmod(value: Date | string | undefined): string | undefined {
 }
 
 /**
+ * The path a written file is served at. A directory index keeps its trailing
+ * slash unless `trailingSlash` is false; the root is `/` either way.
+ */
+function servedPath(file: string, trailingSlash: boolean): string {
+	const href = hrefFor(file);
+	return !trailingSlash && href.length > 1 && href.endsWith("/") ? href.slice(0, -1) : href;
+}
+
+/**
  * The entries a sitemap lists for a set of written pages, sorted by URL.
  *
  * Only real HTML pages are listed - assets and redirect shims are left out.
  * Each URL is where the page's file is served from (`about/index.html` is
- * `/about/`), resolved against `origin`, which may carry a base path.
+ * `/about/`, or `/about` with `trailingSlash: false`), resolved against
+ * `origin`, which may carry a base path.
  *
  * `lastmod` comes from the options' callback, falling back to the page's own
  * from the manifest. A page with neither gets none.
@@ -53,7 +63,7 @@ export async function sitemapEntries(
 	const entries = new Map<string, SitemapEntry>();
 	for (const page of pages) {
 		if (!isHtml(page.contentType) || page.status < 200 || page.status >= 300) continue;
-		const href = hrefFor(page.file);
+		const href = servedPath(page.file, options.trailingSlash ?? true);
 		if (options.exclude?.(href)) continue;
 		const loc = new URL(href.slice(1), base).href;
 		if (entries.has(loc)) continue;

@@ -59,6 +59,11 @@ written alongside it:
 defineSite({ router, manifest, outDir: "dist", sitemap: { origin: "https://bearmetal.dev" } });
 ```
 
+A directory index is listed as `/about/`. If the host serves `about/index.html` at `/about` and
+redirects the slash form (Cloudflare's `html_handling: "drop-trailing-slash"`), pass
+`trailingSlash: false` so every URL in the sitemap is one that answers rather than a redirect.
+`exclude` and `lastmod` receive paths in the same form.
+
 ## Why there is no global binary
 
 A binary would have to reach your app by dynamic import, and would resolve it against _diecast's_
