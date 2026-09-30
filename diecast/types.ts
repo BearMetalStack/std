@@ -25,6 +25,11 @@ export type Permutation<P extends string = string> = {
 	 * and a derived slug would be silently unstable across builds.
 	 */
 	out?: string;
+	/**
+	 * When this page's content last changed, for the sitemap's `<lastmod>`.
+	 * Left out, the page gets none - the build date is never assumed.
+	 */
+	lastmod?: Date | string;
 };
 
 /** How one route's pages are produced. */
@@ -110,6 +115,33 @@ export type DiecastConfig = {
 	 * a fallback for routers that serve files some other way.
 	 */
 	staticDirs?: { dir: string | URL; root: string }[];
+	/** Write a `sitemap.xml` listing every generated page. Off unless set. */
+	sitemap?: SitemapOptions;
+};
+
+/** How the sitemap is written. */
+export type SitemapOptions = {
+	/**
+	 * The public origin the site is deployed at, e.g. `https://bearmetal.dev`.
+	 * Sitemap URLs must be absolute, and the build's own `origin` is only a
+	 * placeholder for synthetic requests. May include a base path.
+	 */
+	origin: string;
+	/** Path relative to `outDir`. Default `sitemap.xml`. */
+	file?: string;
+	/** Leave a page out. Receives the path it is served at, e.g. `/about/`. */
+	exclude?: (path: string) => boolean;
+	/**
+	 * When a page last changed, for pages the manifest cannot date - static
+	 * routes and followed links. Receives the served path and the page, whose
+	 * `lastmod` holds the manifest's value if it set one; returning a value
+	 * overrides it, returning `undefined` keeps it. A page left undated gets no
+	 * `<lastmod>`.
+	 */
+	lastmod?: (
+		path: string,
+		page: GeneratedPage,
+	) => Date | string | undefined | Promise<Date | string | undefined>;
 };
 
 /** A site, ready to build. Produced by `defineSite`. */
@@ -124,6 +156,8 @@ export type GeneratedPage = {
 	status: number;
 	contentType: string | null;
 	bytes: number;
+	/** The manifest permutation's `lastmod`, when it set one. */
+	lastmod?: Date | string;
 };
 
 /** One page that could not be written. */
@@ -149,6 +183,8 @@ export type GenerationReport = {
 	problems: ManifestProblem[];
 	/** Directories copied wholesale, as `root` prefixes. */
 	copiedDirs: string[];
+	/** The sitemap written, relative to `outDir`, when one was requested. */
+	sitemap?: string;
 	/** Wall-clock duration in milliseconds. */
 	duration: number;
 	get ok(): boolean;

@@ -117,6 +117,11 @@ string, as above. When a literal route has a manifest entry, its permutations _r
 render rather than adding to it. Give it a bare `{ params: {} }` permutation if you want the
 unqueried page as well.
 
+## Dating a page
+
+A permutation's `lastmod` becomes that page's `<lastmod>` when the site
+[writes a sitemap](./output#lastmod). Omit it and the page is left undated.
+
 ## Skipping
 
 `skip: true` opts a route out and suppresses the `uncovered-route` report:

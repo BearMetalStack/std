@@ -50,6 +50,15 @@ deno task diecast suggest   # what generates, what needs a manifest, what is ski
 deno task diecast build     # render the site into dist/
 ```
 
+## Sitemap
+
+Opt in by giving the site its public origin, and a `sitemap.xml` listing every generated page is
+written alongside it:
+
+```ts
+defineSite({ router, manifest, outDir: "dist", sitemap: { origin: "https://bearmetal.dev" } });
+```
+
 ## Why there is no global binary
 
 A binary would have to reach your app by dynamic import, and would resolve it against _diecast's_

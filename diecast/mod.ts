@@ -31,6 +31,8 @@ export {
 	withQuery,
 } from "./manifest.ts";
 export { defineSite, printReport, printSuggestions, runDiecast } from "./site.ts";
+export { renderSitemap, sitemapEntries, writeSitemap } from "./sitemap.ts";
+export type { SitemapEntry } from "./sitemap.ts";
 export { diecastModule } from "./module.ts";
 export type { DiecastModuleOptions } from "./module.ts";
 export {

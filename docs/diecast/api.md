@@ -30,6 +30,7 @@ than exiting.
 | `concurrency` | `number`            | `8`                  | pages rendered in parallel                                 |
 | `discover`    | `DiscoveryOptions`  | all on               | [what else to generate](./discovery)                       |
 | `staticDirs`  | `{ dir, root }[]`   | `[]`                 | directories to copy that `serveDirectory` did not register |
+| `sitemap`     | `SitemapOptions`    | off                  | [write a `sitemap.xml`](./output#sitemap)                  |
 
 ### `GenerationReport`
 
@@ -39,6 +40,7 @@ type GenerationReport = {
 	failures: GenerationFailure[]; // { url, status?, error?, message }
 	problems: ManifestProblem[]; // { kind, path, message }
 	copiedDirs: string[]; // serveDirectory mounts copied, as root prefixes
+	sitemap?: string; // sitemap written, relative to outDir
 	duration: number; // ms
 	get ok(): boolean; // no failures and no problems
 };
@@ -93,6 +95,7 @@ type Permutation<P extends string> = {
 	params: PathParams<P>;
 	query?: Record<string, string | string[]>;
 	out?: string; // required when `query` is set
+	lastmod?: Date | string; // the sitemap's <lastmod> for this page
 };
 
 type RouteManifestEntry<P extends string> = {
@@ -156,6 +159,30 @@ function normalizeContentType(contentType: string | null): string;
 
 `WriteOptions` is `{ outDir, outputStyle?, out? }`. `writeResponse` consumes the body, so pass a
 `clone()` if you still need it. A path that would escape `outDir` throws.
+
+## Sitemap
+
+```ts
+type SitemapOptions = {
+	origin: string; // public origin, may carry a base path
+	file?: string; // relative to outDir, default "sitemap.xml"
+	exclude?: (path: string) => boolean; // receives the served path, e.g. "/about/"
+	lastmod?: (
+		path: string,
+		page: GeneratedPage,
+	) => Date | string | undefined | Promise<Date | string | undefined>;
+};
+
+type SitemapEntry = { loc: string; lastmod?: string };
+
+function sitemapEntries(pages: GeneratedPage[], options: SitemapOptions): Promise<SitemapEntry[]>;
+function renderSitemap(pages: GeneratedPage[], options: SitemapOptions): Promise<string>;
+function writeSitemap(
+	outDir: string,
+	pages: GeneratedPage[],
+	options: SitemapOptions,
+): Promise<string>;
+```
 
 ## Discovery
 

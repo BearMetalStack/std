@@ -50,6 +50,7 @@ Options
   --no-links         Do not follow <a href> to further pages
   --no-assets        Do not fetch referenced assets (breaks hydration)
   --no-dirs          Do not copy directories served with serveDirectory
+  --no-sitemap       Do not write the sitemap, even if the site configures one
   -h, --help         Show this message
 `;
 
@@ -66,6 +67,7 @@ function applyFlags(site: SiteDefinition, args: string[]): SiteDefinition {
 		strict: flag("strict") || site.strict,
 		outputStyle: flag("flat") ? "flat" : site.outputStyle,
 		concurrency: concurrency ? Number(concurrency) : site.concurrency,
+		sitemap: flag("no-sitemap") ? undefined : site.sitemap,
 		discover: {
 			assets: flag("no-assets") ? false : site.discover?.assets,
 			links: flag("no-links") ? false : site.discover?.links,
@@ -87,9 +89,8 @@ export function printReport(report: GenerationReport): number {
 
 	const summary = [
 		`${report.pages.length} page${report.pages.length === 1 ? "" : "s"}`,
-		report.copiedDirs.length > 0
-			? `${report.copiedDirs.length} directories copied`
-			: null,
+		report.copiedDirs.length > 0 ? `${report.copiedDirs.length} directories copied` : null,
+		report.sitemap ? `sitemap at ${report.sitemap}` : null,
 		`${Math.round(report.duration)}ms`,
 	].filter(Boolean).join(", ");
 

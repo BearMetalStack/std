@@ -78,6 +78,7 @@ Renders the site into `outDir` and exits `0` on success, `1` on any failure or m
 | `--no-links`      | do not follow `<a href>`                                                |
 | `--no-assets`     | do not fetch referenced assets — [breaks hydration](./discovery#assets) |
 | `--no-dirs`       | do not copy `serveDirectory` mounts                                     |
+| `--no-sitemap`    | do not write the sitemap, even if the site configures one               |
 
 Flags override what `defineSite` declared.
 

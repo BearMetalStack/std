@@ -498,3 +498,62 @@ Deno.test("a followed link with a query becomes its own page", async () => {
 		assertStringIncludes(pages[1], "<h1>bees</h1>");
 	});
 });
+
+Deno.test("writes a sitemap of generated pages when asked", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() => Html('<a href="/about">about</a>'));
+		router.route("/about").get(() => Html("<h1>about</h1>"));
+
+		const report = await diecast(router, {
+			outDir,
+			sitemap: { origin: "https://example.com" },
+		});
+
+		assertEquals(report.sitemap, "sitemap.xml");
+		const xml = await read(outDir, "sitemap.xml");
+		assertStringIncludes(xml, "<loc>https://example.com/</loc>");
+		assertStringIncludes(xml, "<loc>https://example.com/about/</loc>");
+	});
+});
+
+Deno.test("writes no sitemap unless asked", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() => Html("<h1>home</h1>"));
+
+		const report = await diecast(router, { outDir, discover: { links: false } });
+
+		assertEquals(report.sitemap, undefined);
+		assertEquals(await exists(joinPath(outDir, "sitemap.xml")), false);
+	});
+});
+
+Deno.test("carries a permutation's lastmod into the sitemap", async () => {
+	await withTempDir(async (outDir) => {
+		const router = new Router();
+		router.route("/").get(() => Html("<h1>home</h1>"));
+		router.route("/md/:file").get((ctx) => Html(`<h1>${ctx.params.file}</h1>`));
+
+		const manifest = defineManifest({
+			"/md/:file": {
+				permutations: [{ params: { file: "intro" }, lastmod: "2026-02-03" }],
+			},
+		});
+
+		const report = await diecast(router, {
+			outDir,
+			manifest,
+			discover: { links: false },
+			sitemap: { origin: "https://example.com" },
+		});
+
+		assertEquals(report.pages.find((p) => p.url === "/md/intro")?.lastmod, "2026-02-03");
+		const xml = await read(outDir, "sitemap.xml");
+		assertStringIncludes(
+			xml,
+			"<loc>https://example.com/md/intro/</loc>\n\t\t<lastmod>2026-02-03</lastmod>",
+		);
+		assertStringIncludes(xml, "<loc>https://example.com/</loc>\n\t</url>");
+	});
+});

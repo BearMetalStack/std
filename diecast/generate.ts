@@ -28,6 +28,7 @@ import {
 	scriptImports,
 } from "./discover.ts";
 import { hrefFor, isHtml, isScript, redirectShim, writeResponse } from "./write.ts";
+import { writeSitemap } from "./sitemap.ts";
 import type {
 	DiecastConfig,
 	GeneratedPage,
@@ -41,6 +42,8 @@ type Job = {
 	url: URL;
 	/** Explicit output path from a manifest permutation, when there was one. */
 	out?: string;
+	/** From the manifest permutation, carried through to the sitemap. */
+	lastmod?: Date | string;
 	/** Assets are not scanned for links, and may fall back to the site root. */
 	kind: "page" | "asset";
 };
@@ -138,6 +141,7 @@ export async function diecast(
 			enqueue({
 				url: new URL(withQuery(pathname, permutation.query), origin),
 				out: permutation.out,
+				lastmod: permutation.lastmod,
 				kind: "page",
 			});
 		}
@@ -240,6 +244,7 @@ export async function diecast(
 			status: res.status,
 			contentType,
 			bytes: written.bytes,
+			...(job.lastmod !== undefined && { lastmod: job.lastmod }),
 		});
 
 		if (!job.out) {
@@ -276,7 +281,11 @@ export async function diecast(
 
 	const copiedDirs = discover.directories ? await copyStaticDirs(router, config) : [];
 
-	return report(pages, failures, problems, copiedDirs, started);
+	const sitemap = config.sitemap
+		? await writeSitemap(config.outDir, pages, config.sitemap)
+		: undefined;
+
+	return report(pages, failures, problems, copiedDirs, started, sitemap);
 }
 
 /**
@@ -401,12 +410,14 @@ function report(
 	problems: ManifestProblem[],
 	copiedDirs: string[],
 	started: number,
+	sitemap?: string,
 ): GenerationReport {
 	return {
 		pages,
 		failures,
 		problems,
 		copiedDirs,
+		sitemap,
 		duration: performance.now() - started,
 		get ok(): boolean {
 			return failures.length === 0 && problems.length === 0;

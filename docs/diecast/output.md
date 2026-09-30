@@ -122,11 +122,74 @@ report.pages; // { url, file, status, contentType, bytes }[]
 report.failures; // { url, status?, error?, message }[]
 report.problems; // manifest problems, before anything rendered
 report.copiedDirs; // serveDirectory mounts copied, as root prefixes
+report.sitemap; // sitemap written, relative to outDir, when requested
 report.duration; // ms
 report.ok; // no failures and no problems
 ```
 
 `runDiecast` is a thin wrapper that prints this and exits with the right code.
+
+## Sitemap
+
+Off by default. Give the site the public origin it deploys to and diecast writes a `sitemap.xml`
+into the output once every page has rendered:
+
+```ts
+defineSite({
+	router,
+	manifest,
+	outDir: "dist",
+	sitemap: { origin: "https://bearmetal.dev" },
+});
+```
+
+The sitemap lists what was written, not what the router declares: every HTML page the build produced
+— static routes, manifest permutations, and pages found by following links — at the URL a static
+host serves its file from (`about/index.html` is `https://bearmetal.dev/about/`). Assets and
+redirect shims are left out.
+
+`origin` is required because sitemap URLs must be absolute and the build's own `origin` is only a
+placeholder for synthetic requests. It may carry a base path. `file` moves the output (default
+`sitemap.xml`), and `exclude` drops pages by served path:
+
+```ts
+sitemap: {
+	origin: "https://bearmetal.dev",
+	exclude: (path) => path.startsWith("/drafts/"),
+},
+```
+
+`--no-sitemap` skips it for one build.
+
+### `lastmod`
+
+A page gets a `<lastmod>` only when something says when it changed — the build date is never
+assumed, because stamping every page on every build teaches crawlers to ignore the field. There are
+two sources.
+
+A manifest permutation can carry one, which suits routes backed by files the permutations already
+read:
+
+```ts
+"/md/:file": {
+	permutations: async () =>
+		(await listMarkdown()).map((f) => ({ params: { file: f.slug }, lastmod: f.mtime })),
+},
+```
+
+For pages no permutation describes — static routes and followed links — `sitemap.lastmod` is called
+with each page's served path and its `GeneratedPage`. It may be async. A value it returns wins;
+`undefined` keeps whatever the manifest set (`page.lastmod`):
+
+```ts
+sitemap: {
+	origin: "https://bearmetal.dev",
+	lastmod: (path, page) => page.lastmod ?? gitLastModified(path),
+},
+```
+
+A `Date` is written in W3C datetime form; a string is written as given, so `"2026-03-01"` works. A
+page with neither source gets no `<lastmod>`.
 
 ## Concurrency
 
