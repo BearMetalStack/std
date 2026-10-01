@@ -80,34 +80,60 @@ Deno.test("effect restores the ambient owner after a late run — no global leak
 	stop();
 });
 
-Deno.test("a signal written from inside an effect does not notify its readers", async () => {
-	// Not a wish — a constraint, recorded so it is discovered here rather than as
-	// a component that silently renders stale content. `effect()` is a
-	// `Signal.Computed` driven by a Watcher, so its body runs as a computation,
-	// and the graph will not propagate a write made during one.
-	//
-	// Anything deriving state from a signal must therefore push from a plain
-	// callback (a DOM event, a history hook) rather than from an effect. The
-	// router's `subscribeToUrl` exists for exactly this reason.
+Deno.test("a signal written from inside an effect notifies its readers on the next pass", async () => {
+	// This used to be pinned as a constraint: the Watcher stays notified for the
+	// whole pass, so the write marked the reader dirty without notifying anyone,
+	// and the reader was stranded until some unrelated write came along.
 	const source = createSignal("a");
 	const relayed = createSignal("");
-	let reads = 0;
+	const seen: string[] = [];
 
 	const stopWriter = effect(() => relayed.set(source.get()));
 	const stopReader = effect(() => {
-		relayed.get();
-		reads++;
+		seen.push(relayed.get());
 	});
 
-	assertEquals(reads, 1);
+	assertEquals(seen, ["a"]);
 	source.set("b");
-	await new Promise((r) => setTimeout(r, 0));
-
-	assertEquals(relayed.get(), "b", "the value does change");
-	assertEquals(reads, 1, "but nothing reading it re-runs");
+	await flush();
+	assertEquals(seen, ["a", "b"]);
+	source.set("c");
+	await flush();
+	assertEquals(seen, ["a", "b", "c"]);
 
 	stopWriter();
 	stopReader();
+});
+
+Deno.test("effects feeding each other stop after the cycle limit instead of spinning", async () => {
+	const a = createSignal(0);
+	const b = createSignal(0);
+	const warn = console.warn;
+	const warnings: unknown[] = [];
+	console.warn = (...args: unknown[]) => warnings.push(args[0]);
+	try {
+		const stopA = effect(() => b.set(a.get() + 1));
+		const stopB = effect(() => a.set(b.get() + 1));
+		await flush();
+		assertEquals(warnings.length, 1);
+		const settled = a.get();
+		await flush();
+		assertEquals(a.get(), settled, "nothing keeps running after the warning");
+		stopA();
+		stopB();
+
+		const other = createSignal(0);
+		const seen: number[] = [];
+		const stopOther = effect(() => {
+			seen.push(other.get());
+		});
+		other.set(1);
+		await flush();
+		assertEquals(seen, [0, 1], "an outside write still flushes after a give-up");
+		stopOther();
+	} finally {
+		console.warn = warn;
+	}
 });
 
 Deno.test("creating an effect nested inside another effect's run does not wire the inner effect as the outer's dependency", () => {

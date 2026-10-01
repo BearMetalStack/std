@@ -99,17 +99,15 @@ export class LazySignal<T> extends Signal.State<T> {
 
 /**
  * A `Signal.Computed` that's also writable, via a callback rather than
- * mutable backing state - the safe way to hand `$bind` something derived
+ * mutable backing state - the clean way to hand `$bind` something derived
  * from other signals.
  *
- * `$bind`'s DOM-push is its own independent effect, so a plain
- * `Signal.State` kept in sync by *your* effect never reaches it: a signal
- * written from inside an effect doesn't notify its readers (see
- * `signals.test.ts`). `WritableComputed` sidesteps that by not needing an
- * effect at all - `get()` reads the source signals directly, and `set()`
- * forwards to whatever action should actually own the write (or is a
- * no-op, if this field is read-only and committed some other way, e.g. on
- * blur).
+ * A plain `Signal.State` kept in sync by your own effect also works, but the
+ * mirrored value reaches `$bind` one effect pass later, and the copy is one
+ * more thing to keep consistent. `WritableComputed` needs no effect at all -
+ * `get()` reads the source signals directly, and `set()` forwards to whatever
+ * action should actually own the write (or is a no-op, if this field is
+ * read-only and committed some other way, e.g. on blur).
  */
 export class WritableComputed<T> extends Signal.Computed<T> {
 	constructor(get: () => T, set: (val: T) => void) {
