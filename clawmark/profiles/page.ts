@@ -20,6 +20,7 @@ export interface ResolvedPage {
 	size?: { width: number; height: number; landscape: boolean };
 	margins?: { top?: number; right?: number; bottom?: number; left?: number };
 	font?: { family?: string; size?: number };
+	pageNumbers?: "left" | "center" | "right";
 }
 
 const pt = (value: string | undefined) => toPoints(parseLength(value), 12);
@@ -76,6 +77,8 @@ export function resolvePage(page: PageSetup | undefined, warn: (m: string) => vo
 			else out.font.size = size;
 		}
 	}
+
+	if (page.pageNumbers) out.pageNumbers = page.pageNumbers === true ? "center" : page.pageNumbers;
 
 	return out;
 }

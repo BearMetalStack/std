@@ -42,14 +42,17 @@ import { append, XML_DECL } from "../../xml/build.ts";
 import { serializeXml } from "../../xml/serialize.ts";
 import { createResourceSink } from "../../write.ts";
 import { hasBlockChildren, wrapsSoleBlock } from "../../rules/paragraph.ts";
-import { breakKind } from "../../rules/extra/mod.ts";
+import { breakKind, collectHeadings, TOC_TAG, type TocData } from "../../rules/extra/mod.ts";
 import { DOCX_NS, REL_NS, WML_NS } from "./styles.ts";
 import {
 	contentTypes,
 	documentRels,
+	FOOTER_REL_ID,
 	type NumberingInstance,
 	numberingPart,
 	packageRels,
+	pageNumberFooterPart,
+	settingsPart,
 	stylesPart,
 } from "./parts.ts";
 
@@ -340,6 +343,8 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 			return { kind: "nodes", nodes: [p] };
 		}),
 
+		out(TOC_TAG).to((node, ctx) => ({ kind: "nodes", nodes: tableOfContents(node, ctx, opts) })),
+
 		out("md:blockquote").style({ blockRole: "quote" }),
 
 		out("md:lineitem").to((_node, ctx) => ({
@@ -482,6 +487,8 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 
 			const pageWarnings: string[] = [];
 			const page = resolvePage(options.page, (m) => pageWarnings.push(`docx: ${m}`));
+			const hasToc = ctx.state.get(HAS_TOC) === true;
+			const footer = page.pageNumbers !== undefined;
 			const document = ctx.el("w:document");
 			const bodyEl = ctx.el("w:body", {}, body as XmlElement[]);
 			append(bodyEl, sectionProperties(ctx, page));
@@ -491,14 +498,23 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 			}
 
 			const parts: Record<string, string> = {
-				"[Content_Types].xml": contentTypes({ footnotes: notes.size > 0 }),
+				"[Content_Types].xml": contentTypes({
+					footnotes: notes.size > 0,
+					settings: hasToc,
+					footer: footer,
+				}),
 				"_rels/.rels": packageRels(),
 				"word/document.xml": ctx.serialize(document),
-				"word/_rels/document.xml.rels": documentRels(resources.entries, notes.size > 0),
+				"word/_rels/document.xml.rels": documentRels(resources.entries, notes.size > 0, {
+					settings: hasToc,
+					footer,
+				}),
 				"word/styles.xml": stylesPart({ monoFont: opts.monoFont, styles, font: page.font }),
 				"word/numbering.xml": numberingPart(nums),
 			};
 			if (notes.size > 0) parts["word/footnotes.xml"] = footnotesPart(notes);
+			if (hasToc) parts["word/settings.xml"] = settingsPart({ updateFields: true });
+			if (page.pageNumbers) parts["word/footer1.xml"] = pageNumberFooterPart(page.pageNumbers);
 
 			return {
 				parts,
@@ -513,6 +529,67 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 
 // ---- builders -------------------------------------------------------------
 
+const HAS_TOC = "docx:toc";
+
+/** A field-code run: `<w:fldChar>` of the given type. */
+function fieldChar(ctx: EmitContext, type: "begin" | "separate" | "end"): XmlElement {
+	return ctx.el("w:r", {}, [
+		ctx.el(
+			"w:fldChar",
+			type === "begin" ? { "w:fldCharType": type, "w:dirty": "true" } : {
+				"w:fldCharType": type,
+			},
+		),
+	]);
+}
+
+/**
+ * A `TOC` field over the document's headings.
+ *
+ * The field's cached result is filled with the entries (without page numbers -
+ * clawmark does not lay out pages), so the contents read correctly in a
+ * reader that never updates fields. Word updates it on open: the field is
+ * marked dirty and `settings.xml` asks for it.
+ */
+function tableOfContents(node: Node, ctx: EmitContext, opts: RunOptions): XmlElement[] {
+	ctx.state.set(HAS_TOC, true);
+	const data = node.data as TocData;
+	const levels = Math.min(Math.max(data.levels ?? 3, 1), 9);
+	const entries = collectHeadings(ctx.ancestors[0] ?? node, data);
+	const nodes: XmlElement[] = [];
+
+	if (data.title) {
+		const title = paragraph(ctx, { styleId: "TOCHeading" });
+		append(title, textRun(data.title, ctx, opts, {}));
+		nodes.push(title);
+	}
+
+	const begin = [
+		fieldChar(ctx, "begin"),
+		ctx.el("w:r", {}, [
+			ctx.el("w:instrText", { "xml:space": "preserve" }, [
+				ctx.txt(` TOC \\o "1-${levels}" \\h \\z \\u `),
+			]),
+		]),
+		fieldChar(ctx, "separate"),
+	];
+
+	if (entries.length === 0) {
+		const p = paragraph(ctx);
+		append(p, ...begin, textRun("No headings yet.", ctx, opts, {}), fieldChar(ctx, "end"));
+		return [...nodes, p];
+	}
+
+	entries.forEach((entry, i) => {
+		const p = paragraph(ctx, { styleId: `TOC${Math.min(entry.level, 6)}` });
+		if (i === 0) append(p, ...begin);
+		append(p, textRun(entry.text, ctx, opts, {}));
+		if (i === entries.length - 1) append(p, fieldChar(ctx, "end"));
+		nodes.push(p);
+	});
+	return nodes;
+}
+
 const twips = (points: number) => Math.round(points * 20);
 
 /**
@@ -522,6 +599,9 @@ const twips = (points: number) => Math.round(points * 20);
  */
 function sectionProperties(ctx: AssembleContext, page: ResolvedPage): XmlElement {
 	const children: XmlElement[] = [];
+	if (page.pageNumbers) {
+		children.push(ctx.el("w:footerReference", { "w:type": "default", "r:id": FOOTER_REL_ID }));
+	}
 	if (page.size) {
 		const attrs: Record<string, string | number> = {
 			"w:w": twips(page.size.width),

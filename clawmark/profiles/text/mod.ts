@@ -37,6 +37,7 @@ import type { AnyEmitter, EmitContext, Node, WriteProfile, WriteResult } from ".
 import { append } from "../../xml/build.ts";
 import { out } from "../../dsl.ts";
 import { wrapsSoleBlock } from "../../rules/paragraph.ts";
+import { collectHeadings, TOC_TAG, type TocData } from "../../rules/extra/mod.ts";
 
 export interface TextWriteOptions {
 	/**
@@ -96,6 +97,13 @@ export function textWriter(options: TextWriteOptions = {}): WriteProfile {
 		out("core:paragraph").to(block),
 
 		out("md:heading").to(block),
+		out(TOC_TAG).to((node, ctx) => {
+			const data = node.data as TocData;
+			const lines = collectHeadings(ctx.ancestors[0] ?? node, data)
+				.map((entry) => `${"  ".repeat(entry.level - 1)}${entry.text}`);
+			if (data.title) lines.unshift(data.title);
+			return { kind: "nodes", nodes: [ctx.txt(lines.join("\n") + sep)] };
+		}),
 		out("md:lineitem").to(block),
 		out(["md:listitem", "md:checkitem"]).to(listItem),
 		out("md:footnotedef").to(block),

@@ -39,13 +39,13 @@ import type {
 } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
 import type { PageSetup } from "../../types.ts";
-import { type ResolvedPage, resolvePage } from "../page.ts";
+import { resolvePage } from "../page.ts";
 import { out, outAny } from "../../dsl.ts";
 import { append } from "../../xml/build.ts";
 import { createStyleSink } from "../../style.ts";
 import { serializeXml } from "../../xml/serialize.ts";
 import { hasBlockChildren, wrapsSoleBlock } from "../../rules/paragraph.ts";
-import { breakKind } from "../../rules/extra/mod.ts";
+import { breakKind, collectHeadings, TOC_TAG, type TocData } from "../../rules/extra/mod.ts";
 import {
 	listStyle,
 	manifest,
@@ -260,6 +260,8 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 				"text:style-name": paragraphStyleName(ctx, { ...ctx.style, blockRole: "quote" }),
 			}),
 		})),
+
+		out(TOC_TAG).to((node, ctx) => ({ kind: "nodes", nodes: [tableOfContents(node, ctx)] })),
 
 		out("md:pagebreak").to((node, ctx) => ({
 			kind: "nodes",
@@ -515,4 +517,61 @@ function headerRows(table: XmlElement, ctx: EmitContext): XmlElement {
 	const header = ctx.el("table:table-header-rows");
 	append(table, header);
 	return header;
+}
+
+/**
+ * A `text:table-of-content` over the document's headings. The index body is
+ * filled with the entries (page numbers are the word processor's to fill in
+ * when it updates the index), so it reads correctly as written.
+ */
+function tableOfContents(node: Node, ctx: EmitContext): XmlElement {
+	const data = node.data as TocData;
+	const levels = Math.min(Math.max(data.levels ?? 3, 1), 10);
+	const entries = collectHeadings(ctx.ancestors[0] ?? node, data);
+
+	const source = ctx.el("text:table-of-content-source", { "text:outline-level": levels });
+	if (data.title) {
+		append(
+			source,
+			ctx.el("text:index-title-template", { "text:style-name": "Contents_20_Heading" }, [
+				ctx.txt(data.title),
+			]),
+		);
+	}
+	for (let level = 1; level <= levels; level++) {
+		append(
+			source,
+			ctx.el("text:table-of-content-entry-template", {
+				"text:outline-level": level,
+				"text:style-name": `Contents_20_${Math.min(level, 6)}`,
+			}, [
+				ctx.el("text:index-entry-text"),
+				ctx.el("text:index-entry-tab-stop", { "style:type": "right", "style:leader-char": "." }),
+				ctx.el("text:index-entry-page-number"),
+			]),
+		);
+	}
+
+	const body = ctx.el("text:index-body");
+	if (data.title) {
+		append(
+			body,
+			ctx.el("text:index-title", { "text:name": "Table of Contents1_Head" }, [
+				ctx.el("text:p", { "text:style-name": "Contents_20_Heading" }, [ctx.txt(data.title)]),
+			]),
+		);
+	}
+	for (const entry of entries) {
+		append(
+			body,
+			ctx.el("text:p", { "text:style-name": `Contents_20_${Math.min(entry.level, 6)}` }, [
+				ctx.txt(entry.text),
+			]),
+		);
+	}
+
+	return ctx.el("text:table-of-content", {
+		"text:name": "Table of Contents1",
+		"text:protected": "true",
+	}, [source, body]);
 }

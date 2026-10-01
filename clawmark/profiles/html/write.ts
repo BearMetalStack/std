@@ -42,7 +42,7 @@ import { append, el, txt } from "../../xml/build.ts";
 import { serializeXml } from "../../xml/serialize.ts";
 import { XmlParser } from "../../xml/parser.ts";
 import { hasBlockChildren, wrapsSoleBlock } from "../../rules/paragraph.ts";
-import { breakKind } from "../../rules/extra/mod.ts";
+import { breakKind, collectHeadings, TOC_TAG, type TocData } from "../../rules/extra/mod.ts";
 import { toCss } from "../../css.ts";
 import { dedented } from "@bearmetal/miscellanea/string";
 
@@ -202,6 +202,19 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 			kind: "nodes",
 			nodes: [ctx.el("hr", attrs(node))],
 		})),
+
+		out(TOC_TAG).to((node, ctx) => {
+			const data = node.data as TocData;
+			const list = ctx.el(
+				"ol",
+				{},
+				collectHeadings(ctx.ancestors[0] ?? node, data).map((entry) =>
+					ctx.el("li", { class: `toc-${entry.level}` }, [ctx.txt(entry.text)])
+				),
+			);
+			const children = data.title ? [ctx.el("h2", {}, [ctx.txt(data.title)]), list] : [list];
+			return { kind: "nodes", nodes: [ctx.el("nav", attrs(node, { class: "toc" }), children)] };
+		}),
 
 		out("md:pagebreak").to((node, ctx) => ({
 			kind: "nodes",

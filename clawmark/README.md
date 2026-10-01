@@ -120,6 +120,15 @@ docxWriter({
 });
 ```
 
+`pageNumbers: true` (or `"left"`/`"right"`) adds a page number to every page's footer — a `PAGE`
+field in docx, a `text:page-number` on the master page in odt.
+
+A table of contents is an `md:toc` node: `tocRule()` (from `rules/extra`) turns a `[TOC]` line into
+one, and `tocNode()` builds one for a tree assembled by hand. docx gets a `TOC` field whose cached
+result already lists the headings, marked dirty with `updateFields` on so Word fills the page
+numbers in on open; odt gets a `text:table-of-content` with the entries in its index body; HTML a
+`<nav class="toc">` list.
+
 It becomes `<w:pgSz>`/`<w:pgMar>` and `<w:docDefaults>` in docx, and a page layout on the `Standard`
 master page plus a paragraph `<style:default-style>` in odt.
 

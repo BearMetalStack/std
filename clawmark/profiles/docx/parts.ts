@@ -51,7 +51,12 @@ export const REL_TYPE = {
 	footnotes: `${REL_BASE}/footnotes`,
 	hyperlink: `${REL_BASE}/hyperlink`,
 	image: `${REL_BASE}/image`,
+	settings: `${REL_BASE}/settings`,
+	footer: `${REL_BASE}/footer`,
 } as const;
+
+/** Relationship id of the page-number footer, when there is one. */
+export const FOOTER_REL_ID = "rIdFooter1";
 
 function escapeAttr(value: string): string {
 	return value
@@ -61,10 +66,21 @@ function escapeAttr(value: string): string {
 		.replaceAll('"', "&quot;");
 }
 
-export function contentTypes(options: { footnotes: boolean }): string {
-	const footnotes = options.footnotes
-		? `\n\t<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>`
-		: "";
+export function contentTypes(
+	options: { footnotes: boolean; settings?: boolean; footer?: boolean },
+): string {
+	const WML = "application/vnd.openxmlformats-officedocument.wordprocessingml";
+	const footnotes = [
+		options.footnotes
+			? `\n\t<Override PartName="/word/footnotes.xml" ContentType="${WML}.footnotes+xml"/>`
+			: "",
+		options.settings
+			? `\n\t<Override PartName="/word/settings.xml" ContentType="${WML}.settings+xml"/>`
+			: "",
+		options.footer
+			? `\n\t<Override PartName="/word/footer1.xml" ContentType="${WML}.footer+xml"/>`
+			: "",
+	].join("");
 	return `${XML_DECL}<Types xmlns="${PKG_BASE}/content-types">
 \t<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 \t<Default Extension="xml" ContentType="application/xml"/>
@@ -89,7 +105,11 @@ export function packageRels(): string {
  * a hyperlink's `r:id` in the body always matches its entry here - the sink
  * numbers from `rId1` during the emit pass, and this runs afterwards.
  */
-export function documentRels(entries: readonly ResourceEntry[], footnotes: boolean): string {
+export function documentRels(
+	entries: readonly ResourceEntry[],
+	footnotes: boolean,
+	extra: { settings?: boolean; footer?: boolean } = {},
+): string {
 	const lines: string[] = [];
 	for (const entry of entries) {
 		const type = entry.type === "image" ? REL_TYPE.image : REL_TYPE.hyperlink;
@@ -110,9 +130,38 @@ export function documentRels(entries: readonly ResourceEntry[], footnotes: boole
 			`\t<Relationship Id="rId${next++}" Type="${REL_TYPE.footnotes}" Target="footnotes.xml"/>`,
 		);
 	}
+	if (extra.settings) {
+		lines.push(
+			`\t<Relationship Id="rIdSettings" Type="${REL_TYPE.settings}" Target="settings.xml"/>`,
+		);
+	}
+	if (extra.footer) {
+		lines.push(
+			`\t<Relationship Id="${FOOTER_REL_ID}" Type="${REL_TYPE.footer}" Target="footer1.xml"/>`,
+		);
+	}
 	return `${XML_DECL}<Relationships xmlns="${PKG_BASE}/relationships">
 ${lines.join("\n")}
 </Relationships>
+`;
+}
+
+/**
+ * `word/settings.xml`, written only to ask Word to update fields on open - which
+ * is what fills a table of contents' page numbers in.
+ */
+export function settingsPart(options: { updateFields: boolean }): string {
+	return `${XML_DECL}<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+${options.updateFields ? '\t<w:updateFields w:val="true"/>\n' : ""}</w:settings>
+`;
+}
+
+/** `word/footer1.xml`: one paragraph holding a `PAGE` field. */
+export function pageNumberFooterPart(align: "left" | "center" | "right"): string {
+	const jc = align === "left" ? "left" : align === "right" ? "right" : "center";
+	return `${XML_DECL}<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+\t<w:p><w:pPr><w:pStyle w:val="Footer"/><w:jc w:val="${jc}"/></w:pPr><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
+</w:ftr>
 `;
 }
 
@@ -163,6 +212,32 @@ function builtins(monoFont: string): Map<string, string> {
 \t\t<w:basedOn w:val="Normal"/>
 \t\t<w:pPr><w:spacing w:after="0"/></w:pPr>
 \t\t<w:rPr><w:rFonts w:ascii="${escapeAttr(monoFont)}" w:hAnsi="${escapeAttr(monoFont)}"/></w:rPr>
+\t</w:style>`,
+	);
+	out.set(
+		"TOCHeading",
+		`\t<w:style w:type="paragraph" w:styleId="TOCHeading">
+\t\t<w:name w:val="TOC Heading"/>
+\t\t<w:basedOn w:val="Heading1"/>
+\t\t<w:next w:val="Normal"/>
+\t</w:style>`,
+	);
+	for (const level of [1, 2, 3, 4, 5, 6]) {
+		out.set(
+			`TOC${level}`,
+			`\t<w:style w:type="paragraph" w:styleId="TOC${level}">
+\t\t<w:name w:val="toc ${level}"/>
+\t\t<w:basedOn w:val="Normal"/>
+\t\t<w:next w:val="Normal"/>
+\t\t<w:pPr><w:spacing w:after="100"/><w:ind w:left="${(level - 1) * 220}"/></w:pPr>
+\t</w:style>`,
+		);
+	}
+	out.set(
+		"Footer",
+		`\t<w:style w:type="paragraph" w:styleId="Footer">
+\t\t<w:name w:val="footer"/>
+\t\t<w:basedOn w:val="Normal"/>
 \t</w:style>`,
 	);
 	out.set(

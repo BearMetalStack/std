@@ -17,7 +17,7 @@
  * free, plus HTML rendering and markdown round-tripping.
  */
 
-import type { AnyRule, BreakKind, Rule, TokenIdentifier } from "../../types.ts";
+import type { AnyRule, BreakKind, Node, Rule, TokenIdentifier } from "../../types.ts";
 import { appendLeaf, consumeRestOfLine } from "../helpers.ts";
 import { addBlockTags } from "../paragraph.ts";
 
@@ -127,4 +127,93 @@ export function pageBreakRules(options: PageBreakOptions = {}): AnyRule[] {
 		};
 		return rule as AnyRule;
 	});
+}
+
+// ---- table of contents ----------------------------------------------------
+
+/** The node tag a table of contents is, in every writer. */
+export const TOC_TAG: TokenIdentifier = "md:toc";
+
+/** `data` on an `md:toc` node. */
+export interface TocData {
+	/** Heading above the entries. Omitted: no heading. */
+	title?: string;
+	/** Deepest heading level listed. Default 3. */
+	levels?: number;
+}
+
+/** One entry of a table of contents. */
+export interface TocEntry {
+	level: number;
+	text: string;
+	/** The heading node the entry stands for. */
+	node: Node;
+}
+
+/** The headings under `root` a table of contents with `data` lists, in document order. */
+export function collectHeadings(root: Node, data: TocData = {}): TocEntry[] {
+	const levels = data.levels ?? 3;
+	const out: TocEntry[] = [];
+	const walk = (node: Node) => {
+		if (node.tag === "md:heading") {
+			const level = Number((node.data as { level?: number }).level ?? 1);
+			if (level <= levels) out.push({ level, text: plainText(node).trim(), node });
+			return;
+		}
+		for (const child of node.children) walk(child);
+	};
+	walk(root);
+	return out;
+}
+
+function plainText(node: Node): string {
+	if (node.tag === "core:text") return String((node.data as { value?: unknown }).value ?? "");
+	return node.children.map(plainText).join("");
+}
+
+/** A `md:toc` node, for a caller assembling a tree (front matter, say) by hand. */
+export function tocNode(data: TocData = {}): Node<TocData> {
+	addBlockTags(TOC_TAG);
+	return { tag: TOC_TAG, data, children: [] };
+}
+
+export interface TocOptions extends TocData {
+	/** The line that means "contents here". Default `"[TOC]"`. */
+	marker?: string;
+}
+
+/**
+ * A rule for a table-of-contents marker on a line of its own (`[TOC]` by
+ * default). The writers fill it in: a `TOC` field in docx (cached entries
+ * included, so it reads correctly before Word updates it), a
+ * `text:table-of-content` in odt, a `<nav class="toc">` list in HTML.
+ *
+ * Takes a priority above the link rule's, which shares the `[` trigger.
+ */
+export function tocRule(options: TocOptions = {}): AnyRule {
+	const marker = options.marker ?? "[TOC]";
+	if (!marker) throw new Error("tocRule: the marker must not be empty");
+	const data: TocData = { title: options.title, levels: options.levels };
+	addBlockTags(TOC_TAG);
+
+	const rule: Rule<TocData> = {
+		id: TOC_TAG,
+		trigger: marker[0],
+		priority: 1,
+		validate: (ctx) => ctx.cursor === ctx.lineStart && ctx.currentLine.trim() === marker,
+		tokenize(ctx) {
+			consumeRestOfLine(ctx);
+			return { tag: TOC_TAG, data };
+		},
+		tree: (token, ctx) => appendLeaf(ctx, TOC_TAG, token.data),
+		renderOpen: () => `<nav class="toc"></nav>`,
+		matchTag: "nav",
+		match: (el) =>
+			(el.attrs.get("class") ?? "").split(/\s+/).includes("toc")
+				? { kind: "leaf", tag: TOC_TAG, data: { ...data } as Record<string, unknown> }
+				: null,
+		serializeKind: "block",
+		serialize: () => marker,
+	};
+	return rule as AnyRule;
 }

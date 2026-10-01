@@ -110,7 +110,7 @@ function defaultStyle(font: ResolvedPage["font"]): string | undefined {
 function pageStyles(
 	page: ResolvedPage | undefined,
 ): { automatic: string; master: string } | undefined {
-	if (!page?.size && !page?.margins) return undefined;
+	if (!page?.size && !page?.margins && !page?.pageNumbers) return undefined;
 	const attrs: string[] = [];
 	if (page.size) {
 		attrs.push(`fo:page-width="${odfPt(page.size.width)}"`);
@@ -124,10 +124,21 @@ function pageStyles(
 	return {
 		automatic: `\t<office:automatic-styles>
 \t\t<style:page-layout style:name="clawmark_page">
-\t\t\t<style:page-layout-properties ${attrs.join(" ")}/>
+\t\t\t<style:page-layout-properties ${attrs.join(" ")}/>${
+			page.pageNumbers
+				? `
+\t\t\t<style:footer-style><style:header-footer-properties fo:min-height="0.6cm" fo:margin-top="0.3cm"/></style:footer-style>`
+				: ""
+		}
 \t\t</style:page-layout>
 \t</office:automatic-styles>`,
-		master: `\t<office:master-styles>
+		master: page.pageNumbers
+			? `\t<office:master-styles>
+\t\t<style:master-page style:name="Standard" style:page-layout-name="clawmark_page">
+\t\t\t<style:footer><text:p text:style-name="Footer"><text:page-number text:select-page="current">1</text:page-number></text:p></style:footer>
+\t\t</style:master-page>
+\t</office:master-styles>`
+			: `\t<office:master-styles>
 \t\t<style:master-page style:name="Standard" style:page-layout-name="clawmark_page"/>
 \t</office:master-styles>`,
 	};
@@ -207,6 +218,31 @@ export function stylesPart(options: StylesPartOptions | string): string {
 		"Horizontal_20_Line",
 		`\t\t<style:style style:name="Horizontal_20_Line" style:display-name="Horizontal Line" style:family="paragraph" style:parent-style-name="Standard">
 \t\t\t<style:paragraph-properties fo:border-bottom="0.06pt solid #000000" fo:padding-bottom="0.04cm" fo:margin-bottom="${HR_MARGIN_BOTTOM}"/>
+\t\t</style:style>`,
+	);
+
+	defs.set(
+		"Contents_20_Heading",
+		`\t\t<style:style style:name="Contents_20_Heading" style:display-name="Contents Heading" style:family="paragraph" style:parent-style-name="Heading_20_1"/>`,
+	);
+	HEADING_SIZES.forEach((_, index) => {
+		const level = index + 1;
+		defs.set(
+			`Contents_20_${level}`,
+			`\t\t<style:style style:name="Contents_20_${level}" style:display-name="Contents ${level}" style:family="paragraph" style:parent-style-name="Standard">
+\t\t\t<style:paragraph-properties fo:margin-left="${roundPt(index * 11)}pt"/>
+\t\t</style:style>`,
+		);
+	});
+	const footerAlign = opts.page?.pageNumbers === "left"
+		? "start"
+		: opts.page?.pageNumbers === "right"
+		? "end"
+		: "center";
+	defs.set(
+		"Footer",
+		`\t\t<style:style style:name="Footer" style:family="paragraph" style:parent-style-name="Standard">
+\t\t\t<style:paragraph-properties fo:text-align="${footerAlign}"/>
 \t\t</style:style>`,
 	);
 

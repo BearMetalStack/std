@@ -535,6 +535,8 @@ export interface PageSetup {
 	};
 	/** The body text default: family name and size (`"12pt"`). */
 	font?: { family?: string; size?: CssLength };
+	/** A page number in the footer of every page; `true` centres it. */
+	pageNumbers?: boolean | "left" | "center" | "right";
 }
 
 export interface DocumentStylesOptions {
