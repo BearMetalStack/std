@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/den",
 	"description": "OS-correct application directories for Deno, with buffered file handles",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts",
