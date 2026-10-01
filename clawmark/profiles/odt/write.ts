@@ -38,6 +38,8 @@ import type {
 	WriteResult,
 } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
+import type { PageSetup } from "../../types.ts";
+import { type ResolvedPage, resolvePage } from "../page.ts";
 import { out, outAny } from "../../dsl.ts";
 import { append } from "../../xml/build.ts";
 import { createStyleSink } from "../../style.ts";
@@ -73,6 +75,8 @@ export interface OdtWriteOptions {
 	 * name rather than interning an automatic style for it.
 	 */
 	styles?: DocumentStyles;
+	/** Page size, orientation, margins and the default body font. */
+	page?: PageSetup;
 	/** Extra emitters, consulted before the built-ins. */
 	emitters?: AnyEmitter[];
 }
@@ -418,6 +422,7 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 			].join("\n");
 
 			const text = body.map((node) => serializeXml(node)).join("");
+			const pageWarnings: string[] = [];
 			const content = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <office:document-content ${nsAttrs()} office:version="${ODF_VERSION}">
 \t<office:automatic-styles>
@@ -432,13 +437,17 @@ ${automatic}
 					"mimetype": MIMETYPE,
 					"META-INF/manifest.xml": manifest(),
 					"content.xml": content,
-					"styles.xml": stylesPart({ monoFont, styles: documentStyles }),
+					"styles.xml": stylesPart({
+						monoFont,
+						styles: documentStyles,
+						page: resolvePage(options.page, (m) => pageWarnings.push(`odt: ${m}`)),
+					}),
 					"meta.xml": meta(generator),
 				},
 				primary: "content.xml",
 				extension: "odt",
 				mediaType: MIMETYPE,
-				warnings: [...ctx.warnings],
+				warnings: [...ctx.warnings, ...pageWarnings],
 			} satisfies WriteResult;
 		},
 	};

@@ -193,6 +193,25 @@ export interface StylesPartOptions {
 	monoFont: string;
 	/** Caller-defined styles, emitted alongside (or over) the built-ins. */
 	styles?: DocumentStyles;
+	/** The document's default run font: family name and size in points. */
+	font?: { family?: string; size?: number };
+}
+
+/** `<w:docDefaults>` for a default font, or nothing. Comes first in `w:styles`. */
+function docDefaults(font: StylesPartOptions["font"]): string | undefined {
+	if (!font?.family && font?.size === undefined) return undefined;
+	const props: string[] = [];
+	if (font.family) {
+		const f = escapeAttr(font.family);
+		props.push(`<w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:eastAsia="${f}" w:cs="${f}"/>`);
+	}
+	if (font.size !== undefined) {
+		const half = Math.round(font.size * 2);
+		props.push(`<w:sz w:val="${half}"/><w:szCs w:val="${half}"/>`);
+	}
+	return `\t<w:docDefaults><w:rPrDefault><w:rPr>${
+		props.join("")
+	}</w:rPr></w:rPrDefault></w:docDefaults>`;
 }
 
 /**
@@ -215,8 +234,9 @@ export function stylesPart(options: StylesPartOptions | string): string {
 		defs.set(opts.styles!.idFor(name), docxStyle(name, opts.styles!));
 	}
 
+	const defaults = docDefaults(opts.font);
 	return `${XML_DECL}<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-${[...defs.values()].join("\n")}
+${[...(defaults ? [defaults] : []), ...defs.values()].join("\n")}
 </w:styles>
 `;
 }

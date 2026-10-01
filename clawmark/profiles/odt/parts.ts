@@ -14,6 +14,11 @@ import { el, XML_DECL } from "../../xml/build.ts";
 import { serializeXml } from "../../xml/serialize.ts";
 import type { AttrMap, XmlElement } from "../../xml/types.ts";
 import { basePoints, isBoldWeight, parseLength, toOdfLength } from "../../format.ts";
+import { type ResolvedPage, roundPt } from "../page.ts";
+
+function escapeOdfAttr(value: string): string {
+	return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
 
 export const MIMETYPE = "application/vnd.oasis.opendocument.text";
 export const ODF_VERSION = "1.3";
@@ -76,6 +81,56 @@ export interface StylesPartOptions {
 	monoFont: string;
 	/** Caller-defined styles, emitted alongside (or over) the built-ins. */
 	styles?: DocumentStyles;
+	/** Page geometry and default font, resolved to points. */
+	page?: ResolvedPage;
+}
+
+const odfPt = (points: number) => `${roundPt(points)}pt`;
+
+/** `fo:font-family` wants a name with spaces quoted. */
+function fontFamily(name: string): string {
+	return /\s/.test(name) ? `'${name.replace(/'/g, "")}'` : name;
+}
+
+/** `<style:default-style>` for the paragraph family's default font, or nothing. */
+function defaultStyle(font: ResolvedPage["font"]): string | undefined {
+	if (!font?.family && font?.size === undefined) return undefined;
+	const attrs: string[] = [];
+	if (font.family) attrs.push(`fo:font-family="${escapeOdfAttr(fontFamily(font.family))}"`);
+	if (font.size !== undefined) attrs.push(`fo:font-size="${odfPt(font.size)}"`);
+	return `\t\t<style:default-style style:family="paragraph">
+\t\t\t<style:text-properties ${attrs.join(" ")}/>
+\t\t</style:default-style>`;
+}
+
+/**
+ * The page layout and the `Standard` master page that uses it - the master a
+ * document's paragraphs fall on unless told otherwise.
+ */
+function pageStyles(
+	page: ResolvedPage | undefined,
+): { automatic: string; master: string } | undefined {
+	if (!page?.size && !page?.margins) return undefined;
+	const attrs: string[] = [];
+	if (page.size) {
+		attrs.push(`fo:page-width="${odfPt(page.size.width)}"`);
+		attrs.push(`fo:page-height="${odfPt(page.size.height)}"`);
+		attrs.push(`style:print-orientation="${page.size.landscape ? "landscape" : "portrait"}"`);
+	}
+	for (const side of ["top", "right", "bottom", "left"] as const) {
+		const value = page.margins?.[side];
+		if (value !== undefined) attrs.push(`fo:margin-${side}="${odfPt(value)}"`);
+	}
+	return {
+		automatic: `\t<office:automatic-styles>
+\t\t<style:page-layout style:name="clawmark_page">
+\t\t\t<style:page-layout-properties ${attrs.join(" ")}/>
+\t\t</style:page-layout>
+\t</office:automatic-styles>`,
+		master: `\t<office:master-styles>
+\t\t<style:master-page style:name="Standard" style:page-layout-name="clawmark_page"/>
+\t</office:master-styles>`,
+	};
 }
 
 /**
@@ -159,11 +214,13 @@ export function stylesPart(options: StylesPartOptions | string): string {
 		defs.set(odtStyleId(name, opts.styles!), odtStyle(name, opts.styles!));
 	}
 
+	const defaults = defaultStyle(opts.page?.font);
+	const page = pageStyles(opts.page);
 	return `${XML_DECL}<office:document-styles ${nsAttrs()} office:version="${ODF_VERSION}">
 \t<office:styles>
-${[...defs.values()].join("\n")}
+${[...(defaults ? [defaults] : []), ...defs.values()].join("\n")}
 \t</office:styles>
-</office:document-styles>
+${page ? `${page.automatic}\n${page.master}\n` : ""}</office:document-styles>
 `;
 }
 

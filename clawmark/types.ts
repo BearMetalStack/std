@@ -512,6 +512,31 @@ export interface StyleBlock {
 	css?: Record<string, string>;
 }
 
+/** A named paper size. */
+export type PaperSize = "letter" | "legal" | "a4" | "a5";
+
+/**
+ * Page geometry and the document's default font, for the office writers
+ * (`docxWriter({ page })`, `odtWriter({ page })`). Lengths are CSS lengths
+ * (`"1in"`, `"2.5cm"`, `"72pt"`). Everything is optional; what is left out is
+ * left to the word processor's own defaults.
+ */
+export interface PageSetup {
+	/** A named size, or explicit dimensions (portrait: width < height). */
+	size?: PaperSize | { width: CssLength; height: CssLength };
+	/** Swaps width and height for `"landscape"`. Default `"portrait"`. */
+	orientation?: "portrait" | "landscape";
+	/** One length for every side, or per side. */
+	margins?: CssLength | {
+		top?: CssLength;
+		right?: CssLength;
+		bottom?: CssLength;
+		left?: CssLength;
+	};
+	/** The body text default: family name and size (`"12pt"`). */
+	font?: { family?: string; size?: CssLength };
+}
+
 export interface DocumentStylesOptions {
 	/**
 	 * Font size that `em`/`rem`/`%` resolve against when converting to docx and

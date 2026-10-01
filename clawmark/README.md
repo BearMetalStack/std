@@ -111,6 +111,18 @@ out.parts; // "word/document.xml", "word/styles.xml", "[Content_Types].xml", …
 out.primary; // "word/document.xml"
 ```
 
+Both office writers take a `page` option — paper size (`"letter"`, `"legal"`, `"a4"`, `"a5"`, or
+explicit lengths), orientation, margins, and the default body font:
+
+```ts
+docxWriter({
+	page: { size: "a4", margins: "2.5cm", font: { family: "Garamond", size: "11pt" } },
+});
+```
+
+It becomes `<w:pgSz>`/`<w:pgMar>` and `<w:docDefaults>` in docx, and a page layout on the `Standard`
+master page plus a paragraph `<style:default-style>` in odt.
+
 For reading, every part is optional; without `styles.xml` the docx profile falls back to matching
 style names heuristically, which covers most real documents. For writing, note that an odt's
 `mimetype` entry has to be stored **first and uncompressed** — that is a property of the archive

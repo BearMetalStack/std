@@ -25,6 +25,7 @@
 
 import type {
 	AnyEmitter,
+	AssembleContext,
 	BreakKind,
 	DocumentStyles,
 	EmitContext,
@@ -34,6 +35,8 @@ import type {
 	WriteResult,
 } from "../../types.ts";
 import type { XmlElement } from "../../xml/types.ts";
+import type { PageSetup } from "../../types.ts";
+import { type ResolvedPage, resolvePage } from "../page.ts";
 import { out, outAny } from "../../dsl.ts";
 import { append, XML_DECL } from "../../xml/build.ts";
 import { serializeXml } from "../../xml/serialize.ts";
@@ -84,6 +87,8 @@ export interface DocxWriteOptions {
 	 * references it by name rather than carrying direct formatting.
 	 */
 	styles?: DocumentStyles;
+	/** Page size, orientation, margins and the default body font. */
+	page?: PageSetup;
 	/** Extra emitters, consulted before the built-ins. */
 	emitters?: AnyEmitter[];
 }
@@ -475,9 +480,11 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 				new Map();
 			const nums = (ctx.state.get(NUMS) as NumberingInstance[] | undefined) ?? [];
 
+			const pageWarnings: string[] = [];
+			const page = resolvePage(options.page, (m) => pageWarnings.push(`docx: ${m}`));
 			const document = ctx.el("w:document");
 			const bodyEl = ctx.el("w:body", {}, body as XmlElement[]);
-			append(bodyEl, ctx.el("w:sectPr"));
+			append(bodyEl, sectionProperties(ctx, page));
 			append(document, bodyEl);
 			for (const [prefix, uri] of Object.entries(DOCX_WRITE_NS)) {
 				document.attrs.set(`xmlns:${prefix}`, uri);
@@ -488,7 +495,7 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 				"_rels/.rels": packageRels(),
 				"word/document.xml": ctx.serialize(document),
 				"word/_rels/document.xml.rels": documentRels(resources.entries, notes.size > 0),
-				"word/styles.xml": stylesPart({ monoFont: opts.monoFont, styles }),
+				"word/styles.xml": stylesPart({ monoFont: opts.monoFont, styles, font: page.font }),
 				"word/numbering.xml": numberingPart(nums),
 			};
 			if (notes.size > 0) parts["word/footnotes.xml"] = footnotesPart(notes);
@@ -498,13 +505,46 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 				primary: "word/document.xml",
 				extension: "docx",
 				mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-				warnings: [...ctx.warnings],
+				warnings: [...ctx.warnings, ...pageWarnings],
 			} satisfies WriteResult;
 		},
 	};
 }
 
 // ---- builders -------------------------------------------------------------
+
+const twips = (points: number) => Math.round(points * 20);
+
+/**
+ * `<w:sectPr>`: page size, then margins - a schema sequence, so in that order.
+ * `w:header`/`w:footer`/`w:gutter` are required attributes of `w:pgMar`; Word's
+ * own defaults (half an inch, none) fill them.
+ */
+function sectionProperties(ctx: AssembleContext, page: ResolvedPage): XmlElement {
+	const children: XmlElement[] = [];
+	if (page.size) {
+		const attrs: Record<string, string | number> = {
+			"w:w": twips(page.size.width),
+			"w:h": twips(page.size.height),
+		};
+		if (page.size.landscape) attrs["w:orient"] = "landscape";
+		children.push(ctx.el("w:pgSz", attrs));
+	}
+	if (page.margins) {
+		const inch = 1440;
+		const m = page.margins;
+		children.push(ctx.el("w:pgMar", {
+			"w:top": m.top === undefined ? inch : twips(m.top),
+			"w:right": m.right === undefined ? inch : twips(m.right),
+			"w:bottom": m.bottom === undefined ? inch : twips(m.bottom),
+			"w:left": m.left === undefined ? inch : twips(m.left),
+			"w:header": 720,
+			"w:footer": 720,
+			"w:gutter": 0,
+		}));
+	}
+	return ctx.el("w:sectPr", {}, children);
+}
 
 function mintNum(ctx: EmitContext, kind: "ordered" | "unordered"): string {
 	const list = numbering(ctx);
