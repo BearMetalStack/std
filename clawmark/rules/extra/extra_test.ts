@@ -170,3 +170,14 @@ Deno.test("docx: an untyped `<w:br>` is still a line break", () => {
 	assertStringIncludes(document, "<w:br/>");
 	assertEquals(document.includes('w:type="page"'), false);
 });
+
+Deno.test("a line-consuming rule on the last line consumes it to the end of input", () => {
+	const rules = [...pageBreakRules({ markers: "===" }), ...defaultRules()];
+	const html = toHtml("text\n\n===", rules);
+	assertEquals(html.includes("highlight"), false, html);
+	assertEquals(
+		html.endsWith('<div class="pagebreak" style="break-after:page;page-break-after:always"></div>'),
+		true,
+		html,
+	);
+});

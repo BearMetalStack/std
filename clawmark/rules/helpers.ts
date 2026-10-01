@@ -66,12 +66,16 @@ export function closeIfCurrentIs(ctx: TreeContext, ...tags: TokenIdentifier[]): 
  * everything in between. Mirrors v1's repeated
  * `cursor += lineEnd - cursor - 1` (hr, blockquote-hr) via
  * `toNextSubstring` instead of reaching into the raw input directly.
- * No-ops safely (instead of walking the cursor backwards, as v1 does) when
- * there's no trailing newline left in the document.
+ * On the last line, with no newline left, it consumes to the end of input.
  */
 export function consumeRestOfLine(ctx: LexerContext): void {
 	const seg = ctx.toNextSubstring("\n");
-	if (!seg) return;
+	if (!seg) {
+		// The last line: consume to the end of input rather than leaving the
+		// rest of the line to be read again as text.
+		ctx.cursor = Math.max(ctx.cursor, ctx.lineStart + ctx.currentLine.length - 1);
+		return;
+	}
 	ctx.cursor += seg.length - 2;
 }
 
