@@ -355,3 +355,55 @@ Deno.test("a JSX ref still resets to undefined when its element stops rendering"
 	flushEffects();
 	assertEquals(el.refs.field.get(), undefined, "ref resets once its element is gone");
 });
+
+// A ref on the element the template itself returns: the root of the rendered
+// tree, rather than a descendant of it. `#registerRefs` queries `this.root`,
+// which *contains* the template root, so both routes reach it.
+
+Deno.test("a JSX ref on the template's root element is registered", async () => {
+	setCurrentOwner(null);
+
+	@define(freshTag())
+	class C extends BMElement {
+		protected override get template(): BMTemplate {
+			return jsx("pre", { ref: "ghost" }) as unknown as BMTemplate;
+		}
+	}
+
+	const el = mount(C.tag) as unknown as C;
+	await flush();
+	assertEquals(el.refs.ghost.get()?.tagName.toLowerCase(), "pre");
+});
+
+Deno.test("an attribute ref on the template's root element is registered", async () => {
+	setCurrentOwner(null);
+
+	@define(freshTag())
+	class C extends BMElement {
+		protected override get template(): BMTemplate {
+			const pre = document.createElement("pre");
+			pre.setAttribute("ref", "ghost");
+			return pre as unknown as BMTemplate;
+		}
+	}
+
+	const el = mount(C.tag) as unknown as C;
+	await flush();
+	assertEquals(el.refs.ghost.get()?.tagName.toLowerCase(), "pre");
+});
+
+Deno.test("a root ref is registered inside a shadow root too", async () => {
+	setCurrentOwner(null);
+
+	@define(freshTag())
+	class C extends BMElement {
+		static override shadow = "open" as const;
+		protected override get template(): BMTemplate {
+			return jsx("pre", { ref: "ghost" }) as unknown as BMTemplate;
+		}
+	}
+
+	const el = mount(C.tag) as unknown as C;
+	await flush();
+	assertEquals(el.refs.ghost.get()?.tagName.toLowerCase(), "pre");
+});
