@@ -11,7 +11,7 @@
 
 import { DenError } from "./errors.ts";
 import { joinSegments, parentOf, urlFor } from "./paths.ts";
-import type { DenFile } from "./types.ts";
+import type { DenFile, ReadOptions } from "./types.ts";
 
 /** Knobs shared by every handle a {@linkcode Den} hands out. */
 export type FileOptions = {
@@ -72,9 +72,9 @@ export class DenFileHandle<T = unknown> implements DenFile<T> {
 	}
 
 	/** Staged bytes, else the cached read, else a fresh read. */
-	async #bytes(): Promise<Uint8Array | undefined> {
+	async #bytes(fresh = false): Promise<Uint8Array | undefined> {
 		if (this.#staged) return this.#staged;
-		if (this.#cacheValid) return this.#cached ?? undefined;
+		if (this.#cacheValid && !fresh) return this.#cached ?? undefined;
 
 		try {
 			this.#cached = await Deno.readFile(this.path);
@@ -86,20 +86,21 @@ export class DenFileHandle<T = unknown> implements DenFile<T> {
 		return this.#cached ?? undefined;
 	}
 
-	async read(): Promise<string | undefined> {
-		const bytes = await this.#bytes();
+	async read(options: ReadOptions = {}): Promise<string | undefined> {
+		const bytes = await this.#bytes(options.fresh);
 		return bytes && decoder.decode(bytes);
 	}
 
-	async readBytes(): Promise<Uint8Array | undefined> {
-		const bytes = await this.#bytes();
+	async readBytes(options: ReadOptions = {}): Promise<Uint8Array | undefined> {
+		const bytes = await this.#bytes(options.fresh);
 		return bytes && bytes.slice();
 	}
 
 	readJson<J = T>(): Promise<J | undefined>;
-	readJson<J = T>(fallback: J): Promise<J>;
-	async readJson<J = T>(fallback?: J): Promise<J | undefined> {
-		const text = await this.read();
+	readJson<J = T>(fallback: J, options?: ReadOptions): Promise<J>;
+	readJson<J = T>(fallback: undefined, options: ReadOptions): Promise<J | undefined>;
+	async readJson<J = T>(fallback?: J, options: ReadOptions = {}): Promise<J | undefined> {
+		const text = await this.read(options);
 		if (text === undefined) return fallback;
 		try {
 			return JSON.parse(text) as J;

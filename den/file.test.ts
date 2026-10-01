@@ -325,3 +325,38 @@ Deno.test("a den field in deno.json wins over the package name", async () => {
 		await Deno.remove(root, { recursive: true });
 	}
 });
+
+Deno.test("read({ fresh: true }) sees a hand edit the cache would hide", async () => {
+	const [app, cleanup] = await tempApp();
+	try {
+		const file = app.config.file("dictionary.txt");
+		await file.write("one");
+		await Deno.writeTextFile(file.path, "two");
+		assertEquals(await file.read(), "one");
+		assertEquals(await file.read({ fresh: true }), "two");
+		await Deno.writeTextFile(file.path, '{"n":3}');
+		assertEquals(await file.readJson(undefined, { fresh: true }), { n: 3 });
+	} finally {
+		await cleanup();
+	}
+});
+
+Deno.test("walk narrows by prefix, glob and filter", async () => {
+	const [app, cleanup] = await tempApp();
+	try {
+		for (const path of ["drafts/a.md", "drafts/b.txt", "draftsman/c.md", "notes/d.md"]) {
+			await app.data.file(path).write("x");
+		}
+		const walk = async (options: Parameters<typeof app.data.walk>[0]) =>
+			(await Array.fromAsync(app.data.walk(options))).sort();
+		assertEquals(await walk({ prefix: "drafts/" }), ["drafts/a.md", "drafts/b.txt"]);
+		assertEquals(await walk({ glob: "**/*.md" }), ["drafts/a.md", "draftsman/c.md", "notes/d.md"]);
+		assertEquals(await walk({ prefix: "drafts", glob: "*/*.md" }), [
+			"drafts/a.md",
+			"draftsman/c.md",
+		]);
+		assertEquals(await walk({ filter: (p) => p.endsWith(".txt") }), ["drafts/b.txt"]);
+	} finally {
+		await cleanup();
+	}
+});

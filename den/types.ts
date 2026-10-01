@@ -128,14 +128,20 @@ export type DenFile<T = unknown> = {
 	/** `Deno.stat`, or `undefined` when the file is missing. */
 	stat(): Promise<Deno.FileInfo | undefined>;
 
-	/** Staged content if any, else the file's text, else `undefined`. */
-	read(): Promise<string | undefined>;
+	/**
+	 * Staged content if any, else the file's text, else `undefined`. Repeat
+	 * reads come from the handle's cache; pass `{ fresh: true }` to re-read the
+	 * disk, e.g. to see a hand edit.
+	 */
+	read(options?: ReadOptions): Promise<string | undefined>;
 	/** Like {@linkcode DenFile.read}, as bytes. */
-	readBytes(): Promise<Uint8Array | undefined>;
+	readBytes(options?: ReadOptions): Promise<Uint8Array | undefined>;
 	/** Parsed JSON, or `undefined` when the file is missing or unparseable. */
 	readJson<J = T>(): Promise<J | undefined>;
 	/** Parsed JSON, falling back to `fallback` when missing or unparseable. */
-	readJson<J = T>(fallback: J): Promise<J>;
+	readJson<J = T>(fallback: J, options?: ReadOptions): Promise<J>;
+	/** Parsed JSON with read options and no fallback. */
+	readJson<J = T>(fallback: undefined, options: ReadOptions): Promise<J | undefined>;
 
 	/** Stage content. Nothing hits the disk until {@linkcode DenFile.flush}. */
 	set(content: string | Uint8Array): DenFile<T>;
@@ -164,6 +170,103 @@ export type DenFile<T = unknown> = {
 	[Symbol.asyncDispose](): Promise<void>;
 };
 
+/** Options for {@linkcode DenFile.read} and friends. */
+export type ReadOptions = {
+	/** Bypass the handle's cached read and go to the disk. Staged content still wins. */
+	fresh?: boolean;
+};
+
+/** Options for {@linkcode DenDir.walk}. Every option given must match. */
+export type DenWalkOptions = {
+	/** Only paths starting with this string. Subdirectories that can't match are skipped. */
+	prefix?: string;
+	/** Only paths matching this glob (`**` crosses directories), e.g. `"drafts/*.md"`. */
+	glob?: string;
+	/** Only paths this returns true for. */
+	filter?: (path: string) => boolean;
+};
+
+/** Options for {@linkcode DenDir.rotation}. */
+export type DenRotationOptions = {
+	/** How many entries to keep; older ones are pruned on push. Defaults to 5. */
+	keep?: number;
+	/** Extension for entries, without the dot. Defaults to `"bak"`; `""` for none. */
+	extension?: string;
+};
+
+/** One entry in a {@linkcode DenRotation}. */
+export type DenRotationEntry = {
+	/** File name: a UTC timestamp plus a sequence number. */
+	name: string;
+	/** When the entry was pushed. */
+	date: Date;
+	file: DenFile;
+};
+
+/**
+ * A rotating set of timestamped snapshots of one thing, e.g. a document's
+ * backups. Each key gets a subdirectory named from a slug of the key plus a
+ * hash of it, so keys are matched exactly and pruning only ever touches the
+ * set it was asked to. Entry names are UTC stamps (`20260930T140322123Z-000`),
+ * legal on every file system and sorting by time.
+ */
+export type DenRotation = {
+	/** The key this set was opened for. */
+	readonly key: string;
+	/** How many entries are kept. */
+	readonly keep: number;
+	/** The directory holding the set. */
+	readonly dir: DenDir;
+	/** Every entry, newest first. */
+	list(): Promise<DenRotationEntry[]>;
+	/** The newest entry, if any. */
+	latest(): Promise<DenFile | undefined>;
+	/** Writes `content` as a new entry, then prunes to `keep`. */
+	push(content: string | Uint8Array): Promise<DenFile>;
+	/** Copies the file at `source` in as a new entry, then prunes to `keep`. */
+	pushFile(source: string | URL): Promise<DenFile>;
+	/** Removes all but the newest `keep` entries, returning what was removed. */
+	prune(): Promise<DenRotationEntry[]>;
+	/** Removes the whole set. */
+	clear(): Promise<void>;
+};
+
+/** Options for {@linkcode DenDir.lock}. */
+export type DenLockOptions = {
+	/** Written into the lock file so a loser can say who holds it. Defaults to the lock's name. */
+	label?: string;
+};
+
+/** What a lock's holder writes into the lock file. */
+export type DenLockNote = {
+	pid: number;
+	/** ISO timestamp of when the lock was taken or last noted. */
+	since: string;
+	label: string;
+};
+
+/**
+ * An advisory lock, held until released or until the process exits — a crash
+ * releases it too. `await using lock = await dir.lock("x")` releases on scope
+ * exit (when it was acquired).
+ */
+export type DenLock = {
+	/** The lock file. */
+	readonly path: string;
+	/** The name (or canonical path) the lock was taken for. */
+	readonly name: string;
+	/** False once released. */
+	readonly held: boolean;
+	/** Rewrites the holder note, e.g. to name a session once one exists. */
+	note(label: string): Promise<void>;
+	/**
+	 * Lets go. The lock file is left in place by default; `{ remove: true }`
+	 * unlinks it while still holding the lock, which is the race-free order.
+	 */
+	release(options?: { remove?: boolean }): Promise<void>;
+	[Symbol.asyncDispose](): Promise<void>;
+};
+
 /** A handle on one directory. */
 export type DenDir = {
 	/** Absolute path of the directory. It need not exist. */
@@ -182,8 +285,18 @@ export type DenDir = {
 	ensure(): Promise<DenDir>;
 	/** Direct children, or `[]` when the directory is missing. */
 	list(): Promise<Deno.DirEntry[]>;
-	/** Every descendant file, as paths relative to this directory. */
-	walk(): AsyncIterableIterator<string>;
+	/** Every descendant file, as `/`-separated paths relative to this directory. */
+	walk(options?: DenWalkOptions): AsyncIterableIterator<string>;
+	/** A rotating set of timestamped files for `key`. See {@linkcode DenRotation}. */
+	rotation(key: string, options?: DenRotationOptions): DenRotation;
+	/** Takes the advisory lock `name`, or `null` when it is held. See {@linkcode DenLock}. */
+	lock(name: string, options?: DenLockOptions): Promise<DenLock | null>;
+	/** Takes the advisory lock for a file path, canonicalised first. */
+	lockPath(path: string | URL, options?: DenLockOptions): Promise<DenLock | null>;
+	/** Who holds the lock `name`, if anyone. */
+	lockHolder(name: string): Promise<DenLockNote | undefined>;
+	/** Who holds the lock for a file path, if anyone. */
+	lockPathHolder(path: string | URL): Promise<DenLockNote | undefined>;
 	/** Delete the contents but keep the directory, and its ownership marker. */
 	empty(options?: { force?: boolean }): Promise<void>;
 	/** Delete the directory and everything under it. */

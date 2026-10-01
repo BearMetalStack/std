@@ -8,8 +8,21 @@ import { DenOwnershipError } from "./errors.ts";
 import { fileAt } from "./file.ts";
 import type { DenFileHandle, FileOptions } from "./file.ts";
 import { inspect, MARKER, owner as buildOwner, readOwner, writeOwner } from "./marker.ts";
+import { canonicalPath, lockPathFor, readLockNote, tryLockAt } from "./lock.ts";
 import { joinSegments, urlFor } from "./paths.ts";
-import type { DenDir, DenDirKind, DenOwner, DenOwnership } from "./types.ts";
+import { DenRotationHandle } from "./rotation.ts";
+import type {
+	DenDir,
+	DenDirKind,
+	DenLock,
+	DenLockNote,
+	DenLockOptions,
+	DenOwner,
+	DenOwnership,
+	DenRotationOptions,
+	DenWalkOptions,
+} from "./types.ts";
+import { globToRegExp } from "@std/path/posix";
 
 function isMissing(error: unknown): boolean {
 	return error instanceof Deno.errors.NotFound;
@@ -77,13 +90,73 @@ export class DenDirHandle implements DenDir {
 		}
 	}
 
-	/** Depth-first descendant files, as paths relative to this directory. */
-	async *walk(prefix = ""): AsyncIterableIterator<string> {
+	/**
+	 * Depth-first descendant files, as `/`-separated paths relative to this
+	 * directory. `prefix`, `glob` and `filter` narrow what is yielded; a
+	 * subdirectory that cannot contain a match for `prefix` is not descended.
+	 */
+	walk(options: DenWalkOptions = {}): AsyncIterableIterator<string> {
+		const glob = options.glob === undefined
+			? undefined
+			: globToRegExp(options.glob, { extended: true, globstar: true });
+		const accept = (path: string) =>
+			(!options.prefix || path.startsWith(options.prefix)) &&
+			(!glob || glob.test(path)) &&
+			(!options.filter || options.filter(path));
+		return this.#walk("", options.prefix ?? "", accept);
+	}
+
+	async *#walk(
+		base: string,
+		prefix: string,
+		accept: (path: string) => boolean,
+	): AsyncIterableIterator<string> {
 		for (const entry of await this.list()) {
-			const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-			if (entry.isDirectory) yield* this.dir(entry.name).walk(relative);
-			else yield relative;
+			const relative = base ? `${base}/${entry.name}` : entry.name;
+			if (entry.isDirectory) {
+				const asDir = `${relative}/`;
+				if (prefix && !asDir.startsWith(prefix) && !prefix.startsWith(asDir)) continue;
+				yield* (this.dir(entry.name) as DenDirHandle).#walk(relative, prefix, accept);
+			} else if (accept(relative)) {
+				yield relative;
+			}
 		}
+	}
+
+	/**
+	 * A rotating set of timestamped files for `key`, kept in a subdirectory of
+	 * its own named from the exact key, so pruning one set can never touch
+	 * another's.
+	 */
+	rotation(key: string, options: DenRotationOptions = {}): DenRotationHandle {
+		return new DenRotationHandle(this, key, options);
+	}
+
+	/**
+	 * Takes the advisory lock `name` in this directory (usually `runtime`), or
+	 * resolves `null` when another handle or process holds it. Never waits.
+	 */
+	lock(name: string, options: DenLockOptions = {}): Promise<DenLock | null> {
+		return tryLockAt(lockPathFor(this.path, name), name, options);
+	}
+
+	/**
+	 * {@linkcode lock}, keyed by a file path rather than a name: the path is
+	 * resolved, symlinks followed and (on Windows and macOS) case-folded first,
+	 * so every spelling of one file takes the same lock.
+	 */
+	async lockPath(path: string | URL, options: DenLockOptions = {}): Promise<DenLock | null> {
+		return this.lock(await canonicalPath(path), options);
+	}
+
+	/** Who holds the lock `name`, as they described themselves, if anyone. */
+	lockHolder(name: string): Promise<DenLockNote | undefined> {
+		return readLockNote(lockPathFor(this.path, name));
+	}
+
+	/** {@linkcode lockHolder} for a lock taken with {@linkcode lockPath}. */
+	async lockPathHolder(path: string | URL): Promise<DenLockNote | undefined> {
+		return this.lockHolder(await canonicalPath(path));
 	}
 
 	/**

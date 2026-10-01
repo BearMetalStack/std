@@ -107,6 +107,7 @@ await file.flush();
 
 file.discard(); // drop what's staged, leave the file alone
 file.reload(); // drop the cached read too, next read hits the disk
+await file.read({ fresh: true }); // or skip the cache for one read — see a hand edit
 ```
 
 Or let the scope flush for you:
@@ -143,6 +144,46 @@ Segments may contain `/`, so `file("a/b.json")` and `file("a", "b.json")` are th
 they may never do is leave the directory — `..`, an absolute path, or an embedded NUL throws
 `DenPathError`. Handles get built from names that came from a user, a config file, or a request, and
 `cache.file(key)` must not be a way to write to `/etc`.
+
+`walk()` yields every descendant file as a `/`-separated relative path, and narrows with
+`{ prefix, glob, filter }` — a subdirectory that can't match the prefix is never read.
+
+```ts
+for await (const draft of app.data.walk({ glob: "drafts/**/*.md" })) console.log(draft);
+```
+
+### Rotating sets
+
+`rotation(key, { keep })` is a set of timestamped snapshots of one thing — backups of a document,
+say — pruned to the newest `keep` (default 5) on every push.
+
+```ts
+const backups = app.data.rotation(manuscriptPath, { keep: 10 });
+await backups.pushFile(manuscriptPath); // or push(bytes | string)
+await backups.latest(); // DenFile | undefined
+await backups.list(); // [{ name, date, file }], newest first
+await backups.clear();
+```
+
+Each key gets its own subdirectory, named from a slug of the key plus a hash of it, so keys match
+exactly: `Bell` and `Bell (old)` never share entries and pruning one never touches the other.
+Entries are named by UTC stamp (`20260930T140322123Z-000.bak`) — no `:`, legal on Windows, and
+sorting by time.
+
+### Locks
+
+`lock(name)` takes an OS advisory lock, or resolves `null` when another handle or process has it. A
+crash releases it, so there is nothing stale to reap. The holder's pid and a label go in the file,
+which is also the fallback on file systems without advisory locking.
+
+```ts
+await using lock = await app.runtime.lockPath(manuscriptPath, { label: "editor" });
+if (!lock) throw new Error(`open in ${(await app.runtime.lockPathHolder(manuscriptPath))?.label}`);
+```
+
+`lockPath(path)` canonicalises the path first — resolved, symlinks followed, case-folded on Windows
+and macOS — so every spelling of a file takes the same lock. `release({ remove: true })` unlinks the
+lock file while still holding it; a waiter that opened the old file notices and retries.
 
 ## Naming the app
 
