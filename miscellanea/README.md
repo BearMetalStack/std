@@ -7,3 +7,6 @@ The zero-dependency utility grab bag nearly every other BearMetal package builds
 conversion, path handling, filesystem helpers, time utilities, function helpers (argument sets,
 currying), and object/list utilities, plus environment detection (`isDev`/`isProd`) used throughout
 the stack to gate dev-only behavior.
+
+Also: a FIFO async `Mutex` (`./async`) for serializing async calls, and `messageOf(e)` (`./error`)
+for turning whatever was thrown into a human-readable string.

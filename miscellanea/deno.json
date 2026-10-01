@@ -10,6 +10,8 @@
 		"./modules": "./modules/mod.ts",
 		"./environment": "./environment.ts",
 		"./function": "./function/mod.ts",
+		"./async": "./async/mod.ts",
+		"./error": "./error/mod.ts",
 		"./types": "./types.ts"
 	},
 	"tasks": {

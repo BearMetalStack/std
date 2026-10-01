@@ -11,5 +11,7 @@ export * from "./colors/mod.ts";
 export * from "@list";
 export { argset, fn } from "@fn";
 export * from "@/collections/mod.ts";
+export * from "./async/mod.ts";
+export * from "./error/mod.ts";
 
 export type * from "./types.ts";
