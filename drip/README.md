@@ -312,3 +312,16 @@ list, since a published package has no directory to read it from — add a new f
   uses it keeps using it.
 - Ramp names are kebab-case. `.` nests a ramp (`brand.grey` → `--color-brand-grey-500`); `-` is part
   of the name, never structure, so the accessor for a ramp is always its name plus the stop.
+
+## Icon names
+
+`@bearmetal/drip/icons` turns an SVG sprite sheet's `<symbol id>`s into a string-literal union, so
+an `<bm-icon icon>` (or your own `<Icon name>`) is type-checked against the icons you actually ship.
+Generate it from the sheet instead of committing a hand-maintained list:
+
+```sh
+deno run -R -W jsr:@bearmetal/drip/icons public/iconography/*.svg --out=gen/icons.ts --name=TablerIcon
+```
+
+or from a dev script with `writeIconTypes(sheets, out, { name })`, which only rewrites the file when
+the set changed. `iconNames(svg)` and `iconTypes(names)` are the pieces.

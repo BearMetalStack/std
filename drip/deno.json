@@ -9,7 +9,8 @@
 		"./fonts": "./fonts/mod.ts",
 		"./namespaces": "./namespaces.ts",
 		"./palette": "./palette/mod.tsx",
-		"./build": "./build.ts"
+		"./build": "./build.ts",
+		"./icons": "./icons.ts"
 	},
 	"compilerOptions": {
 		"jsx": "react-jsx",
