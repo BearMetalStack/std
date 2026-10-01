@@ -4,8 +4,8 @@
 import "@bearmetal/slag/global";
 import { assertEquals, assertExists } from "@std/assert";
 import { type SlagElement, SlagText } from "@bearmetal/slag";
-import { each, For } from "./For.ts";
-import { createSignal } from "../signals.ts";
+import { each, type EachRow, For } from "./For.ts";
+import { createSignal, effect } from "../signals.ts";
 import { getCurrentOwner, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 
 // Signal writes flush reactively via a microtask-scheduled Watcher; a macrotask
@@ -249,6 +249,92 @@ Deno.test("For delegates to each", async () => {
 		await flush();
 		assertEquals(tags(host), ["a"]);
 	} finally {
+		setCurrentOwner(null);
+	}
+});
+
+Deno.test("selected flips per row without rebuilding any row", async () => {
+	const owner = fakeOwner();
+	setCurrentOwner(owner);
+	try {
+		const items = createSignal<Item[]>([
+			{ id: 1, label: "a" },
+			{ id: 2, label: "b" },
+			{ id: 3, label: "c" },
+		]);
+		const selection = createSignal<number | null>(1);
+		let renders = 0;
+		const flips: string[] = [];
+		const host = mount(
+			For({
+				$: items,
+				keyOn: (i) => i.id,
+				selected: selection,
+				children: (item, _i, row) => {
+					renders++;
+					const el = document.createElement(item.label) as unknown as Element;
+					effect(() => {
+						const on = row.selected.get();
+						el.toggleAttribute("aria-selected", on);
+						flips.push(`${item.label}:${on}`);
+					});
+					return el;
+				},
+			}),
+		);
+		await flush();
+		assertEquals(renders, 3);
+		const selectedTags = () =>
+			host.children.filter((c) => c.hasAttribute("aria-selected")).map((c) => c.localName);
+		assertEquals(selectedTags(), ["a"]);
+
+		flips.length = 0;
+		selection.set(3);
+		await flush();
+		assertEquals(selectedTags(), ["c"]);
+		assertEquals(renders, 3, "no row was rebuilt");
+		assertEquals(
+			flips.sort(),
+			["a:false", "c:true"],
+			"only the two rows that changed heard about it",
+		);
+
+		selection.set(null);
+		await flush();
+		assertEquals(selectedTags(), []);
+	} finally {
+		owner.runCleanups();
+		setCurrentOwner(null);
+	}
+});
+
+Deno.test("selected accepts several keys, and row.index follows reorders", async () => {
+	const owner = fakeOwner();
+	setCurrentOwner(owner);
+	try {
+		const items = createSignal<Item[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }]);
+		const rows = new Map<string, EachRow>();
+		mount(each(
+			items,
+			(item, _i, row) => {
+				rows.set(item.label, row);
+				return document.createElement(item.label) as unknown as Element;
+			},
+			(i) => i.id,
+			{ selected: createSignal(new Set([1, 2])) },
+		));
+		await flush();
+		assertEquals(rows.get("a")!.selected.get(), true);
+		assertEquals(rows.get("b")!.selected.get(), true);
+		assertEquals(rows.get("a")!.index.get(), 0);
+
+		items.set([{ id: 2, label: "b" }, { id: 1, label: "a" }]);
+		await flush();
+		assertEquals(rows.get("a")!.index.get(), 1);
+		assertEquals(rows.get("b")!.index.get(), 0);
+		assertEquals(rows.get("a")!.key, 1);
+	} finally {
+		owner.runCleanups();
 		setCurrentOwner(null);
 	}
 });

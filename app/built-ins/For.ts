@@ -3,16 +3,76 @@ import { effect } from "../signals.ts";
 import { Signal } from "../signals/wrapper.ts";
 import type { SignalOf } from "../types.ts";
 
-interface ForProps<T> {
-	$: SignalOf<T[]>;
-	keyOn: (item: T) => string | number;
-	children: (a: T, i: number) => JSX.Element | Element | null;
+type Key = string | number;
+
+/**
+ * Per-row reactive state {@linkcode each} hands its render callback, so a row
+ * can react to things that change *about* it without being rebuilt.
+ */
+export interface EachRow {
+	/** The row's key. */
+	readonly key: Key;
+	/** The row's current position. Unlike the render callback's `index`, follows reorders. */
+	readonly index: Signal.Computed<number>;
+	/**
+	 * Whether this row is the selected one, per the `selected` option. Only the
+	 * rows whose answer changed are notified, so moving a selection touches two
+	 * rows rather than rebuilding the list. Always `false` with no `selected`.
+	 */
+	readonly selected: Signal.Computed<boolean>;
 }
 
+/** Options for {@linkcode each}. */
+export interface EachOptions {
+	/**
+	 * The selected key, or several (an array or set of keys). Drives each row's
+	 * {@linkcode EachRow.selected}.
+	 */
+	selected?: SignalOf<Key | null | undefined | readonly Key[] | ReadonlySet<Key>>;
+}
+
+/** What `each()` and `<For>` call to build a row. */
+export type EachRender<T> = (
+	item: T,
+	index: number,
+	row: EachRow,
+) => Element | JSX.Element | null;
+
+interface ForProps<T> {
+	$: SignalOf<T[]>;
+	keyOn: (item: T) => Key;
+	/** The selected key(s); see {@linkcode EachOptions.selected}. */
+	selected?: EachOptions["selected"];
+	children: EachRender<T>;
+}
+
+/**
+ * A keyed, reconciled list. See {@linkcode each}.
+ *
+ * @example
+ * ```tsx
+ * <For $={results} keyOn={(r) => r.id} selected={activeId}>
+ *   {(result, _i, row) => <li class-active={row.selected}>{result.name}</li>}
+ * </For>
+ * ```
+ */
 export function For<T>(
-	{ $, keyOn, children }: ForProps<T>,
+	{ $, keyOn, selected, children }: ForProps<T>,
 ): ReturnType<typeof each<T>> {
-	return each($, children, keyOn);
+	return each($, children, keyOn, { selected });
+}
+
+function isSelected(
+	selection: Key | null | undefined | readonly Key[] | ReadonlySet<Key>,
+	key: Key,
+): boolean {
+	if (selection == null) return false;
+	if (typeof selection === "object") {
+		return selection instanceof Set
+			? selection.has(key)
+			: (selection as readonly Key[]).includes(key);
+	}
+	return selection === key;
 }
 
 function ownerScope() {
@@ -52,8 +112,9 @@ function ownerScope() {
  */
 export function each<T>(
 	signal: SignalOf<T[] | Set<T>>,
-	render: (item: T, index: number) => Element | JSX.Element | null,
-	key: (item: T) => string | number,
+	render: EachRender<T>,
+	key: (item: T) => Key,
+	options: EachOptions = {},
 ): DocumentFragment {
 	const anchor = document.createTextNode("");
 	const fragment = document.createDocumentFragment();
@@ -64,8 +125,9 @@ export function each<T>(
 	const stop = reconcile(
 		anchor,
 		signal,
-		render as (i: T, ii: number) => Element,
+		render as (i: T, ii: number, row: EachRow) => Element,
 		key,
+		options,
 	);
 	if (!owner) {
 		console.warn(
@@ -118,14 +180,27 @@ function shallowDiff<T>(
 function reconcile<T>(
 	anchor: Text,
 	signal: SignalOf<T[] | Set<T>>,
-	render: (item: T, index: number) => Element | null,
-	key: (item: T) => string | number,
+	render: (item: T, index: number, row: EachRow) => Element | null,
+	key: (item: T) => Key,
+	options: EachOptions,
 ) {
 	const keyMap = new Map<
-		string | number,
-		{ node: Element; cleanup?: () => void }
+		Key,
+		{ node: Element; cleanup?: () => void; row: EachRow; position: Signal.State<number> }
 	>();
 	const diff = shallowDiff(signal, key);
+	const { selected } = options;
+	const noSelection = new Signal.Computed(() => false);
+
+	const makeRow = (k: Key, index: number) => {
+		const position = new Signal.State(index);
+		const row: EachRow = {
+			key: k,
+			index: new Signal.Computed(() => position.get()),
+			selected: selected ? new Signal.Computed(() => isSelected(selected.get(), k)) : noSelection,
+		};
+		return { row, position };
+	};
 
 	const stop = effect(() => {
 		const { added, removed, updated } = diff.get();
@@ -143,7 +218,7 @@ function reconcile<T>(
 			const entry = keyMap.get(k);
 			if (!entry) continue;
 			using scope = ownerScope();
-			const newNode = render(item, items.indexOf(item));
+			const newNode = render(item, items.indexOf(item), entry.row);
 			entry.cleanup?.();
 			if (newNode == null) {
 				keyMap.delete(k);
@@ -158,11 +233,15 @@ function reconcile<T>(
 		for (const item of added) {
 			const k = key(item);
 			using scope = ownerScope();
-			const node = render(item, items.indexOf(item));
+			const index = items.indexOf(item);
+			const { row, position } = makeRow(k, index);
+			const node = render(item, index, row);
 			if (node == null) continue;
 			keyMap.set(k, {
 				node,
 				cleanup: () => scope.cleanups.forEach((fn) => fn()),
+				row,
+				position,
 			});
 		}
 
@@ -171,11 +250,14 @@ function reconcile<T>(
 		// so untouched items keep their identity (and DOM state) across updates.
 		// Newly added nodes, still detached, are inserted here on their first pass.
 		let previousNode: ChildNode = anchor;
+		let position = 0;
 		for (const item of items) {
 			const k = key(item);
 			const entry = keyMap.get(k);
 			if (!entry) continue;
 			const { node } = entry;
+			const at = position++;
+			if (Signal.subtle.untrack(() => entry.position.get()) !== at) entry.position.set(at);
 			if (previousNode.nextSibling !== node) {
 				previousNode.after(node);
 			}
