@@ -106,3 +106,78 @@ Deno.test("Switch invokes the matched renderer exactly once per activation", asy
 	await rendered(out);
 	assertEquals(calls, 1, "the branch must render once, not twice");
 });
+
+Deno.test("$$ keeps a visited branch's effects alive while another shows", async () => {
+	const { setCurrentOwner } = await import("@bearmetal/jsx/jsx-runtime");
+	const { createEffect } = await import("../signals.ts");
+	const parentCleanups: (() => void)[] = [];
+	setCurrentOwner({ registerCleanup: (fn) => parentCleanups.push(fn) });
+	try {
+		const mode = createSignal("a");
+		const tick = createSignal(0);
+		const seen: string[] = [];
+		const branch = (name: string) => () => {
+			createEffect(() => {
+				seen.push(`${name}${tick.get()}`);
+			});
+			return name as unknown as JSX.Element;
+		};
+		const out = Switch({
+			$: mode,
+			$$: true,
+			children: [Case({ $: "a", children: branch("a") }), Case({ $: "b", children: branch("b") })],
+		});
+		const read = () => (out as unknown as { get(): unknown }).get();
+		read();
+		mode.set("b");
+		read();
+		mode.set("a");
+		assertEquals(read(), "a", "the kept node comes back");
+		seen.length = 0;
+		tick.set(1);
+		await new Promise((r) => setTimeout(r, 0));
+		assertEquals(seen.sort(), ["a1", "b1"], "both kept branches are still live");
+
+		parentCleanups.forEach((fn) => fn());
+		seen.length = 0;
+		tick.set(2);
+		await new Promise((r) => setTimeout(r, 0));
+		assertEquals(seen, [], "tearing down the owner tears down every kept branch");
+	} finally {
+		setCurrentOwner(null);
+	}
+});
+
+Deno.test("without $$, leaving a branch tears it down", async () => {
+	const { setCurrentOwner } = await import("@bearmetal/jsx/jsx-runtime");
+	const { createEffect } = await import("../signals.ts");
+	setCurrentOwner({ registerCleanup: () => {} });
+	try {
+		const mode = createSignal("a");
+		const tick = createSignal(0);
+		const seen: string[] = [];
+		const out = Switch({
+			$: mode,
+			children: [
+				Case({
+					$: "a",
+					children: () => {
+						createEffect(() => void seen.push(`a${tick.get()}`));
+						return "a" as unknown as JSX.Element;
+					},
+				}),
+				Case({ $: "b", children: r("b") }),
+			],
+		});
+		const read = () => (out as unknown as { get(): unknown }).get();
+		read();
+		mode.set("b");
+		read();
+		seen.length = 0;
+		tick.set(1);
+		await new Promise((r) => setTimeout(r, 0));
+		assertEquals(seen, []);
+	} finally {
+		setCurrentOwner(null);
+	}
+});
