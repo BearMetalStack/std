@@ -40,6 +40,14 @@ import type {
 import type { XmlElement } from "../../xml/types.ts";
 import type { PageSetup } from "../../types.ts";
 import { resolvePage } from "../page.ts";
+import {
+	embeddedImages,
+	embedImage,
+	type ImageResolver,
+	imageSize,
+	mediaParts,
+	textWidth,
+} from "../media.ts";
 import { out, outAny } from "../../dsl.ts";
 import { append } from "../../xml/build.ts";
 import { createStyleSink } from "../../style.ts";
@@ -79,6 +87,12 @@ export interface OdtWriteOptions {
 	page?: PageSetup;
 	/** Extra emitters, consulted before the built-ins. */
 	emitters?: AnyEmitter[];
+	/**
+	 * Bytes for an image's `src`. An image it resolves is embedded under
+	 * `Pictures/`, listed in the manifest and sized from its pixels (capped at
+	 * the text width); one it declines keeps its `src` as the link.
+	 */
+	resolveImage?: ImageResolver;
 }
 
 /**
@@ -193,6 +207,7 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 	const generator = options.generator ?? "clawmark";
 	const styles = createStyleSink({ prefix: { paragraph: "P", text: "T", list: "L" } });
 	const documentStyles = options.styles;
+	const maxImageWidth = textWidth(resolvePage(options.page, () => {}));
 
 	/** A `<text:list>`'s style name, one per kind, deduped through the sink. */
 	const listStyleName = (ctx: EmitContext, kind: "ordered" | "unordered") =>
@@ -374,8 +389,15 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 
 		out("md:image").to((node, ctx) => {
 			const data = node.data as { src?: string; alt?: string };
+			const embedded = embedImage(
+				ctx.state,
+				data.src ?? "",
+				options.resolveImage,
+				"Pictures/",
+			);
+			const size = embedded ? imageSize(embedded, maxImageWidth) : null;
 			const image = ctx.el("draw:image", {
-				"xlink:href": data.src ?? "",
+				"xlink:href": embedded?.path ?? data.src ?? "",
 				"xlink:type": "simple",
 				"xlink:show": "embed",
 				"xlink:actuate": "onLoad",
@@ -383,6 +405,12 @@ export function odtWriter(options: OdtWriteOptions = {}): WriteProfile {
 			const frame = ctx.el("draw:frame", {
 				"text:anchor-type": "as-char",
 				"draw:name": data.alt || (data.src ?? "image"),
+				...(size
+					? {
+						"svg:width": `${size.width.toFixed(2)}pt`,
+						"svg:height": `${size.height.toFixed(2)}pt`,
+					}
+					: {}),
 			}, [image]);
 			if (data.alt) append(frame, ctx.el("svg:title", {}, [ctx.txt(data.alt)]));
 			return { kind: "nodes", nodes: [frame] };
@@ -434,10 +462,12 @@ ${automatic}
 </office:document-content>
 `;
 
+			const images = embeddedImages(ctx.state);
 			return {
+				...(images.length ? { media: mediaParts(images) } : {}),
 				parts: {
 					"mimetype": MIMETYPE,
-					"META-INF/manifest.xml": manifest(),
+					"META-INF/manifest.xml": manifest(images),
 					"content.xml": content,
 					"styles.xml": stylesPart({
 						monoFont,

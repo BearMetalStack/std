@@ -772,7 +772,15 @@ export interface ResourceEntry {
  * ignores the sink entirely.
  */
 export interface ResourceSink {
-	ensure(target: string, type: ResourceType): string;
+	/**
+	 * The id for `target`. External (an outbound URL) unless `external: false`
+	 * says it is a part inside the package, such as an embedded image.
+	 */
+	ensure(
+		target: string,
+		type: ResourceType,
+		options?: { external?: boolean },
+	): string;
 	readonly entries: readonly ResourceEntry[];
 }
 
@@ -834,5 +842,10 @@ export interface WriteResult {
 	extension?: string;
 	/** Media type of the assembled package. */
 	mediaType?: string;
+	/**
+	 * Binary parts - embedded images - by package path. Packed alongside
+	 * `parts`; absent when nothing was embedded.
+	 */
+	media?: Record<string, Uint8Array>;
 	warnings: string[];
 }

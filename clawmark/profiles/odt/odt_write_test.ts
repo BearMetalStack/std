@@ -419,3 +419,26 @@ Deno.test("odt write: a horizontal rule has room below it", () => {
 
 	assertStringIncludes(hr.slice(0, hr.indexOf("</style:style>")), 'fo:margin-bottom="0.5cm"');
 });
+
+Deno.test("odt write: a resolved image is embedded under Pictures/ and listed", () => {
+	const jpeg = new Uint8Array([0xff, 0xd8, 0xff]);
+	const result = markdownWith(
+		"![a bell](res:bell) then ![far](far.png)",
+		odtWriter({
+			resolveImage: (src) =>
+				src === "res:bell" ? { bytes: jpeg, mime: "image/jpeg", width: 96, height: 48 } : null,
+		}),
+	);
+	const content = result.parts["content.xml"];
+
+	assertEquals(Object.keys(result.media ?? {}), ["Pictures/image1.jpeg"]);
+	assertStringIncludes(content, 'xlink:href="Pictures/image1.jpeg"');
+	assertStringIncludes(content, 'xlink:href="far.png"');
+	// 96×48 px at 96dpi is 72×36 pt.
+	assertStringIncludes(content, 'svg:width="72.00pt" svg:height="36.00pt"');
+	assertStringIncludes(
+		result.parts["META-INF/manifest.xml"],
+		'manifest:full-path="Pictures/image1.jpeg" manifest:media-type="image/jpeg"',
+	);
+	assertStringIncludes(read(result.parts), "![a bell](Pictures/image1.jpeg)");
+});

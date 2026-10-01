@@ -67,7 +67,13 @@ function escapeAttr(value: string): string {
 }
 
 export function contentTypes(
-	options: { footnotes: boolean; settings?: boolean; footer?: boolean },
+	options: {
+		footnotes: boolean;
+		settings?: boolean;
+		footer?: boolean;
+		/** Embedded images: one `<Default>` per extension, for their media type. */
+		media?: readonly { ext: string; mime: string }[];
+	},
 ): string {
 	const WML = "application/vnd.openxmlformats-officedocument.wordprocessingml";
 	const footnotes = [
@@ -81,9 +87,16 @@ export function contentTypes(
 			? `\n\t<Override PartName="/word/footer1.xml" ContentType="${WML}.footer+xml"/>`
 			: "",
 	].join("");
+	const media = [
+		...new Map((options.media ?? []).map((m) => [m.ext, m.mime])).entries(),
+	]
+		.map(([ext, mime]) =>
+			`\n\t<Default Extension="${escapeAttr(ext)}" ContentType="${escapeAttr(mime)}"/>`
+		)
+		.join("");
 	return `${XML_DECL}<Types xmlns="${PKG_BASE}/content-types">
 \t<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-\t<Default Extension="xml" ContentType="application/xml"/>
+\t<Default Extension="xml" ContentType="application/xml"/>${media}
 \t<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
 \t<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 \t<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>${footnotes}

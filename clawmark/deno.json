@@ -17,6 +17,7 @@
 		"./profiles/docx": "./profiles/docx/mod.ts",
 		"./profiles/odt": "./profiles/odt/mod.ts",
 		"./profiles/text": "./profiles/text/mod.ts",
+		"./profiles/media": "./profiles/media.ts",
 		"./rules/extra": "./rules/extra/mod.ts",
 		"./rules/helpers": "./rules/helpers.ts"
 	},

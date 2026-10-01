@@ -320,3 +320,38 @@ Deno.test("docx write: the styles part is self-describing to the reader", () => 
 	// Indexed by display name too, which is what a non-English Word writes.
 	assertEquals(table.resolve("Scene Break").italic, true);
 });
+
+Deno.test("docx write: a resolved image is embedded and sized from its pixels", () => {
+	const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+	const result = markdownWith(
+		"![a map](res:map) and ![a map](res:map) and ![elsewhere](far.png)",
+		docxWriter({
+			resolveImage: (src) =>
+				src === "res:map" ? { bytes: png, mime: "image/png", width: 1600, height: 800 } : null,
+		}),
+	);
+	const doc = result.parts["word/document.xml"];
+	const rels = result.parts["word/_rels/document.xml.rels"];
+
+	// One media part for one image, however often it appears.
+	assertEquals(Object.keys(result.media ?? {}), ["word/media/image1.png"]);
+	assertEquals(result.media!["word/media/image1.png"], png);
+	assertStringIncludes(rels, 'Target="media/image1.png"/>');
+	assertStringIncludes(rels, 'Target="far.png" TargetMode="External"/>');
+	assertStringIncludes(
+		result.parts["[Content_Types].xml"],
+		'<Default Extension="png" ContentType="image/png"/>',
+	);
+	assertStringIncludes(doc, "r:embed=");
+	assertStringIncludes(doc, "r:link=");
+	// 1600px is wider than the 6.5in text block: scaled to fit, ratio kept.
+	assertStringIncludes(doc, `<wp:extent cx="${468 * 12700}" cy="${234 * 12700}"/>`);
+	// Every drawing has its own docPr id.
+	const ids = [...doc.matchAll(/<wp:docPr id="(\d+)"/g)].map((m) => m[1]);
+	assertEquals(new Set(ids).size, 3);
+	// It still reads back as an image.
+	assertStringIncludes(
+		xmlToMarkdown(doc, docxProfile({ rels })),
+		"![a map](media/image1.png)",
+	);
+});

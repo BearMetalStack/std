@@ -45,12 +45,17 @@ export const ODT_WRITE_NS: Record<string, string> = {
  * The `/` entry carries the package media type; without it a consumer has only
  * the `mimetype` entry to go on, and some refuse the file outright.
  */
-export function manifest(): string {
-	const entries = ["content.xml", "styles.xml", "meta.xml"]
-		.map((path) =>
+export function manifest(
+	media: readonly { path: string; mime: string }[] = [],
+): string {
+	const entries = [
+		...["content.xml", "styles.xml", "meta.xml"].map((path) =>
 			`\t<manifest:file-entry manifest:full-path="${path}" manifest:media-type="text/xml"/>`
-		)
-		.join("\n");
+		),
+		...media.map((m) =>
+			`\t<manifest:file-entry manifest:full-path="${m.path}" manifest:media-type="${m.mime}"/>`
+		),
+	].join("\n");
 	return `${XML_DECL}<manifest:manifest xmlns:manifest="${MANIFEST_NS}" manifest:version="${ODF_VERSION}">
 \t<manifest:file-entry manifest:full-path="/" manifest:version="${ODF_VERSION}" manifest:media-type="${MIMETYPE}"/>
 ${entries}

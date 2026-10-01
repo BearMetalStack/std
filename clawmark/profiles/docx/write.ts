@@ -41,6 +41,14 @@ import { out, outAny } from "../../dsl.ts";
 import { append, XML_DECL } from "../../xml/build.ts";
 import { serializeXml } from "../../xml/serialize.ts";
 import { createResourceSink } from "../../write.ts";
+import {
+	embeddedImages,
+	embedImage,
+	type ImageResolver,
+	imageSize,
+	mediaParts,
+	textWidth,
+} from "../media.ts";
 import { hasBlockChildren, wrapsSoleBlock } from "../../rules/paragraph.ts";
 import { breakKind, collectHeadings, TOC_TAG, type TocData } from "../../rules/extra/mod.ts";
 import { DOCX_NS, REL_NS, WML_NS } from "./styles.ts";
@@ -72,6 +80,8 @@ const LIST_TAGS = new Set(["md:orderedlist", "md:unorderedlist"]);
 
 /** One EMU-inch. Used for both dimensions of an image with no known size. */
 const DEFAULT_EXTENT = 914400;
+const EMU_PER_POINT = 12700;
+const DRAWING_IDS = "docx:drawing-ids";
 
 export interface DocxWriteOptions {
 	/** Font referenced for code spans and code blocks. Default "Consolas". */
@@ -94,6 +104,12 @@ export interface DocxWriteOptions {
 	page?: PageSetup;
 	/** Extra emitters, consulted before the built-ins. */
 	emitters?: AnyEmitter[];
+	/**
+	 * Bytes for an image's `src`. An image it resolves is embedded as a
+	 * `word/media/` part and sized from its pixels (capped at the text width);
+	 * one it declines stays an external link at `imageExtent`.
+	 */
+	resolveImage?: ImageResolver;
 }
 
 // ---- per-document state ---------------------------------------------------
@@ -292,6 +308,7 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 	const styles = options.styles;
 	const extent = options.imageExtent ?? { cx: DEFAULT_EXTENT, cy: DEFAULT_EXTENT };
 	const resources = createResourceSink();
+	const maxImageWidth = textWidth(resolvePage(options.page, () => {}));
 
 	const emitters: AnyEmitter[] = [
 		...(options.emitters ?? []),
@@ -454,8 +471,28 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 
 		out("md:image").to((node, ctx) => {
 			const data = node.data as { src?: string; alt?: string };
+			const image = embedImage(
+				ctx.state,
+				data.src ?? "",
+				options.resolveImage,
+				"word/media/",
+			);
+			if (image) {
+				// Relationship targets are relative to `word/`.
+				const id = resources.ensure(image.path.slice("word/".length), "image", {
+					external: false,
+				});
+				const size = imageSize(image, maxImageWidth);
+				const embedded = size
+					? {
+						cx: Math.round(size.width * EMU_PER_POINT),
+						cy: Math.round(size.height * EMU_PER_POINT),
+					}
+					: extent;
+				return { kind: "nodes", nodes: [buildDrawing(ctx, id, data, embedded, "embed")] };
+			}
 			const id = resources.ensure(data.src ?? "", "image");
-			return { kind: "nodes", nodes: [buildDrawing(ctx, id, data, extent)] };
+			return { kind: "nodes", nodes: [buildDrawing(ctx, id, data, extent, "link")] };
 		}),
 
 		out("md:linebreak").to((_node, ctx) => ({
@@ -497,11 +534,13 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 				document.attrs.set(`xmlns:${prefix}`, uri);
 			}
 
+			const images = embeddedImages(ctx.state);
 			const parts: Record<string, string> = {
 				"[Content_Types].xml": contentTypes({
 					footnotes: notes.size > 0,
 					settings: hasToc,
 					footer: footer,
+					media: images,
 				}),
 				"_rels/.rels": packageRels(),
 				"word/document.xml": ctx.serialize(document),
@@ -521,6 +560,7 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 				primary: "word/document.xml",
 				extension: "docx",
 				mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+				...(images.length ? { media: mediaParts(images) } : {}),
 				warnings: [...ctx.warnings, ...pageWarnings],
 			} satisfies WriteResult;
 		},
@@ -718,27 +758,29 @@ function buildTable(
 }
 
 /**
- * An inline `<w:drawing>` referencing the image as an *external* relationship.
- *
- * clawmark never opens the file, so there is no media part to embed and no way
- * to know the real dimensions - `<wp:extent>` gets `imageExtent` and Word
- * scales to it. That is the honest limit of writing an image without reading
- * one.
+ * An inline `<w:drawing>`. `"embed"` references a media part in the package
+ * (`r:embed`); `"link"` an external file (`r:link`), for an image no resolver
+ * supplied - then clawmark has never seen the file, so `<wp:extent>` is the
+ * fallback size and Word scales to it.
  */
 function buildDrawing(
 	ctx: EmitContext,
 	relId: string,
 	data: { src?: string; alt?: string },
 	extent: { cx: number; cy: number },
+	mode: "embed" | "link",
 ): XmlElement {
 	const name = (data.src ?? "image").split("/").pop() || "image";
+	// Word rejects a document whose drawings share a `docPr` id.
+	const drawingId = (ctx.state.get(DRAWING_IDS) as number | undefined ?? 0) + 1;
+	ctx.state.set(DRAWING_IDS, drawingId);
 	const pic = ctx.el("pic:pic", {}, [
 		ctx.el("pic:nvPicPr", {}, [
-			ctx.el("pic:cNvPr", { id: 1, name, descr: data.alt }),
+			ctx.el("pic:cNvPr", { id: drawingId, name, descr: data.alt }),
 			ctx.el("pic:cNvPicPr"),
 		]),
 		ctx.el("pic:blipFill", {}, [
-			ctx.el("a:blip", { "r:link": relId }),
+			ctx.el("a:blip", { [mode === "embed" ? "r:embed" : "r:link"]: relId }),
 			ctx.el("a:stretch", {}, [ctx.el("a:fillRect")]),
 		]),
 		ctx.el("pic:spPr", {}, [
@@ -754,7 +796,7 @@ function buildDrawing(
 		ctx.el("w:drawing", {}, [
 			ctx.el("wp:inline", { distT: 0, distB: 0, distL: 0, distR: 0 }, [
 				ctx.el("wp:extent", { cx: extent.cx, cy: extent.cy }),
-				ctx.el("wp:docPr", { id: 1, name, descr: data.alt }),
+				ctx.el("wp:docPr", { id: drawingId, name, descr: data.alt }),
 				ctx.el("a:graphic", {}, [
 					ctx.el("a:graphicData", {
 						uri: "http://schemas.openxmlformats.org/drawingml/2006/picture",

@@ -177,14 +177,22 @@ above all render identically.
 against the engine's own `md → md` output so the forward lossiness above is not counted twice. What
 the office formats lose on top of it is genuinely theirs:
 
-| Construct                | docx                    | odt  | Why                                                                                       |
-| ------------------------ | ----------------------- | ---- | ----------------------------------------------------------------------------------------- |
-| code block language      | lost                    | lost | Neither format has a slot for it, and inventing an attribute would defeat the point.      |
-| task list check state    | becomes a `☐`/`☒` glyph | same | Neither format has a checkbox a list item can carry.                                      |
-| emphasis inside emphasis | flattens to siblings    | kept | A `<w:r>` cannot contain a `<w:r>`; a `<text:span>` can contain a `<text:span>`.          |
-| non-numeric `[^label]`   | renumbered, warns       | kept | A docx footnote id is an integer. ODF keeps the citation text.                            |
-| table alignment          | lost                    | lost | The readers flatten every cell to plain text, so only a body row's own markers survive.   |
-| image dimensions         | placeholder             | n/a  | clawmark never opens the file, so `<wp:extent>` gets `imageExtent` (one inch by default). |
+| Construct                | docx                    | odt  | Why                                                                                                                                               |
+| ------------------------ | ----------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| code block language      | lost                    | lost | Neither format has a slot for it, and inventing an attribute would defeat the point.                                                              |
+| task list check state    | becomes a `☐`/`☒` glyph | same | Neither format has a checkbox a list item can carry.                                                                                              |
+| emphasis inside emphasis | flattens to siblings    | kept | A `<w:r>` cannot contain a `<w:r>`; a `<text:span>` can contain a `<text:span>`.                                                                  |
+| non-numeric `[^label]`   | renumbered, warns       | kept | A docx footnote id is an integer. ODF keeps the citation text.                                                                                    |
+| table alignment          | lost                    | lost | The readers flatten every cell to plain text, so only a body row's own markers survive.                                                           |
+| image dimensions         | placeholder             | n/a  | clawmark never opens the file, so `<wp:extent>` gets `imageExtent` (one inch by default) - unless a `resolveImage` supplies the bytes, see below. |
+
+**Embedding images.** Both office writers take `resolveImage(src)`, returning
+`{ bytes, mime,
+width?, height? }` or nothing. A resolved image is written into the package
+(`word/media/` with an `r:embed` relationship and a content type; `Pictures/` with a manifest
+entry), sized from its pixels at 96 dpi and scaled down to the text width. Its bytes come back on
+`WriteResult.media`, beside the string `parts`, for the caller to pack. An image the resolver
+declines stays an external link.
 
 Two further divergences from CommonMark are deliberate: `<` is never escaped (clawmark has no
 raw-HTML rule, so `<script>` is plain text and round-trips exactly), and list continuation uses a
