@@ -1,4 +1,5 @@
 import { directoryOf, joinPath } from "@bearmetal/miscellanea";
+import { codeMatches } from "@bearmetal/miscellanea/string";
 
 /** A local module compiled on its own, with every import left for the browser to resolve. */
 export interface CompiledModule {
@@ -10,7 +11,8 @@ export interface CompiledModule {
 }
 
 const SCRIPT = /\.[cm]?[jt]sx?$/;
-const SPECIFIER = /\bfrom\s*["']([^"'\n]+)["']|\bimport\s*\(?\s*["']([^"'\n]+)["']/g;
+/** `from "x"`, `import "x"` and `import("x")`, but not `obj.from("x")` or `"doc.import"`. */
+const SPECIFIER = /(?<![.\w$])(?:from|import\s*\(?)\s*(["'])([^"'\n]+)\1/g;
 const JSX_RUNTIME = ["*/jsx-runtime", "*/jsx-dev-runtime"];
 
 /** Whether `path` is a module the dev server compiles. */
@@ -19,25 +21,41 @@ export function isScript(path: string): boolean {
 }
 
 /**
- * Every string that looks like an import specifier in `code`.
+ * The import specifiers in `code`, each with the index its text starts at.
  *
- * Deliberately over-inclusive: the result is only ever used as a bundler
- * `external` list or intersected with one, where a string that is not really
- * an import changes nothing.
+ * A keyword only counts when it sits in code — not in a string, comment or regex literal — so a
+ * capability string like `"doc.import"` or a log message mentioning `import "x"` is not mistaken
+ * for one. Over source (TSX included) the mask can misread the rest of a line after a JSX text
+ * apostrophe; that only ever drops a candidate, never invents one.
  */
-function specifiers(code: string): Set<string> {
-	const found = new Set<string>();
-	for (const m of code.matchAll(SPECIFIER)) found.add(m[1] ?? m[2]);
+function scan(code: string): { specifier: string; start: number }[] {
+	const found: { specifier: string; start: number }[] = [];
+	for (const m of codeMatches(code, SPECIFIER)) {
+		const start = m.index + m[0].length - m[2].length - 1;
+		found.push({ specifier: m[2], start });
+	}
 	return found;
 }
 
+/**
+ * Every import specifier in `code`.
+ *
+ * The result is used as a bundler `external` list or intersected with one.
+ */
+export function specifiers(code: string): Set<string> {
+	return new Set(scan(code).map((s) => s.specifier));
+}
+
 /** Replaces every import specifier in `code` with what `map` returns for it. */
-function rewriteSpecifiers(code: string, map: (specifier: string) => string): string {
-	return code.replace(SPECIFIER, (match, from?: string, dynamic?: string) => {
-		const specifier = from ?? dynamic!;
+export function rewriteSpecifiers(code: string, map: (specifier: string) => string): string {
+	let out = code;
+	for (const { specifier, start } of scan(code).reverse()) {
 		const next = map(specifier);
-		return next === specifier ? match : match.replace(specifier, next);
-	});
+		if (next !== specifier) {
+			out = out.slice(0, start) + next + out.slice(start + specifier.length);
+		}
+	}
+	return out;
 }
 
 function isRelative(specifier: string): boolean {
