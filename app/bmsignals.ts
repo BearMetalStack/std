@@ -74,9 +74,20 @@ export class DirtySignal<T> extends Signal.State<T> {
 	}
 }
 
+/**
+ * A `Signal.State` that fetches its value the first time it is read, starting
+ * from `initial` until the fetch lands. A value `set()` before then wins over
+ * the fetch.
+ *
+ * Each instance fetches once, so a function that returns `new LazySignal(...)`
+ * hands every caller a fresh, empty signal — a computed re-running it only ever
+ * sees `initial`. Use {@linkcode createLazySignals} to get the same signal back
+ * for the same arguments.
+ */
 export class LazySignal<T> extends Signal.State<T> {
 	#fetcher: () => Promise<T>;
 	#fetched = false;
+	#inflight: Promise<void> | null = null;
 	constructor(initial: T, fetcher: () => T | Promise<T>) {
 		super(initial);
 		this.#fetcher = async () => await fetcher();
@@ -86,15 +97,86 @@ export class LazySignal<T> extends Signal.State<T> {
 		super.set(val);
 	}
 	get(): T {
-		if (!this.#fetched) {
-			this.#fetcher().then((val) => !this.#fetched && this.set(val))
-				.catch((e) => {
-					this.#fetched = false;
-					throw e;
-				});
-		}
+		if (!this.#fetched && !this.#inflight) this.#fetch(false);
 		return super.get();
 	}
+
+	/** Fetches again, replacing the current value when it lands. */
+	refresh(): Promise<void> {
+		return this.#fetch(true);
+	}
+
+	#fetch(force: boolean): Promise<void> {
+		const run = this.#fetcher().then(
+			(val) => {
+				if (this.#inflight === run) this.#inflight = null;
+				if (force || !this.#fetched) this.set(val);
+			},
+			(e) => {
+				if (this.#inflight === run) this.#inflight = null;
+				throw e;
+			},
+		);
+		this.#inflight = run;
+		run.catch((e) => console.error("LazySignal fetch failed:", e));
+		return run;
+	}
+}
+
+/** A memoized family of {@linkcode LazySignal}s; see {@linkcode createLazySignals}. */
+export interface LazySignals<TArgs extends unknown[], T> {
+	/** The signal for these arguments — the same one every time until it is deleted. */
+	(...args: TArgs): LazySignal<T>;
+	/** Refetches the signal for these arguments, if one exists. */
+	refresh(...args: TArgs): Promise<void>;
+	/** Refetches every signal created so far. */
+	refreshAll(): Promise<void>;
+	/** Forgets the signal for these arguments; the next call makes a new one. */
+	delete(...args: TArgs): boolean;
+	/** Forgets every signal. */
+	clear(): void;
+}
+
+/**
+ * A keyed {@linkcode LazySignal} factory: the same arguments give back the same
+ * signal, so a computed that asks for it on every run sees the fetch land
+ * instead of a new, empty signal each time.
+ *
+ * Arguments are keyed with `JSON.stringify` unless `key` says otherwise.
+ *
+ * @example
+ * ```ts
+ * const characters = createLazySignals([], (project: string) => api.characters(project));
+ * const names = createComputed(() => characters(projectId.get()).get().map((c) => c.name));
+ * ```
+ */
+export function createLazySignals<TArgs extends unknown[], T>(
+	initial: T | ((...args: TArgs) => T),
+	fetcher: (...args: TArgs) => T | Promise<T>,
+	options: { key?: (...args: TArgs) => unknown } = {},
+): LazySignals<TArgs, T> {
+	const cache = new Map<unknown, LazySignal<T>>();
+	const keyOf = options.key ?? ((...args: TArgs) => JSON.stringify(args));
+	const family = (...args: TArgs): LazySignal<T> => {
+		const k = keyOf(...args);
+		let signal = cache.get(k);
+		if (!signal) {
+			const start = typeof initial === "function"
+				? (initial as (...args: TArgs) => T)(...args)
+				: initial;
+			signal = new LazySignal(start, () => fetcher(...args));
+			cache.set(k, signal);
+		}
+		return signal;
+	};
+	return Object.assign(family, {
+		refresh: (...args: TArgs) => cache.get(keyOf(...args))?.refresh() ?? Promise.resolve(),
+		refreshAll: async () => {
+			await Promise.all([...cache.values()].map((s) => s.refresh()));
+		},
+		delete: (...args: TArgs) => cache.delete(keyOf(...args)),
+		clear: () => cache.clear(),
+	});
 }
 
 /**
