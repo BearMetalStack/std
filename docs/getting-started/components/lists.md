@@ -1,10 +1,10 @@
 ---
 next:
-    text: "Props"
-    link: "./props"
+  text: "Props"
+  link: "./props"
 prev:
-    text: "DOM refs"
-    link: "./dom-refs"
+  text: "DOM refs"
+  link: "./dom-refs"
 ---
 
 # List Rendering
@@ -24,9 +24,7 @@ return (
 	<>
 		<h1>Things I cannot eat</h1>
 		<ul>
-			{list.map((item) => (
-				<li>{item}</li>
-			))}
+			{list.map((item) => <li>{item}</li>)}
 		</ul>
 	</>
 );
@@ -54,9 +52,7 @@ function foods(item: string) {
 			<ul>
 				{each(
 					list,
-					(item) => (
-						<li>{item}</li>
-					),
+					(item) => <li>{item}</li>,
 					(item) => item,
 				)}
 			</ul>
@@ -115,8 +111,7 @@ export class ListExplosion extends Component {
 		return (
 			<>
 				<h1>
-					That's a nice chunk of memory you have there. Would be a
-					shame if I were to...
+					That's a nice chunk of memory you have there. Would be a shame if I were to...
 				</h1>
 				<ListExploder list={this.#list} />
 			</>
@@ -129,8 +124,7 @@ export class ListExplosion extends Component {
 				this.#list.set([
 					...this.#list().map((e) => ({
 						...e,
-						[Object.keys(e).reduce((k, h) => (k > h ? k : h), "")]:
-							"word",
+						[Object.keys(e).reduce((k, h) => (k > h ? k : h), "")]: "word",
 					})),
 					{ k1: "word" },
 				]);
@@ -167,3 +161,28 @@ each(
 
 Here, setting `item.label` re-renders only that `<li>`'s text node. Replacing the array, adding,
 removing, or reordering items is what `each` reconciles.
+
+## Per-row state
+
+The render callback gets a third argument with state about the row that changes without the row
+being rebuilt: its `key`, an `index` signal that follows reorders, and a `selected` signal driven by
+the `selected` option (a key, or an array or set of keys).
+
+```tsx
+<For $={results} keyOn={(r) => r.id} selected={activeId}>
+	{(result, _i, row) => <li class-active={row.selected}>{result.name}</li>}
+</For>;
+
+each(
+	results,
+	(result, _i, row) => <li class-active={row.selected}>{result.name}</li>,
+	(r) => r.id,
+	{
+		selected: activeId,
+	},
+);
+```
+
+Moving the selection notifies only the two rows whose answer changed. Selection driven by rebuilding
+rows instead is a trap: a rebuilt row under a still mouse fires `mouseenter`, which moves the
+selection, which rebuilds the row...

@@ -58,6 +58,15 @@ class MyComponent extends BMElement {
 ```
 
 This will give you access to various features such as SSR, signals, managed shadow DOMs, and more.
+
+To build an instance in code, use `create()` rather than `new`. It goes through the custom element
+registry — which is what makes it work under hot replacement, where `new` is an illegal constructor
+— and applies props the way JSX does:
+
+```ts
+document.body.append(Toast.create({ message: "Saved" }));
+```
+
 If you find that your custom element/component doesn't require access to these, it may be prudent to
 use [functional components](#functional-components) instead.
 
