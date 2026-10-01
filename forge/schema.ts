@@ -42,6 +42,7 @@ export interface JSONSchema {
 	pattern?: string;
 	minItems?: number;
 	maxItems?: number;
+	propertyNames?: JSONSchema;
 	/** Signals to the router how to source the value for this schema */
 	"x-content-type"?: "multipart/form-data" | "application/x-www-form-urlencoded" | "query";
 }
@@ -102,7 +103,8 @@ type StringCheck =
 	| { kind: "url" }
 	| { kind: "uuid" }
 	| { kind: "regex"; pattern: RegExp; message?: string }
-	| { kind: "trim" };
+	| { kind: "trim" }
+	| { kind: "nonEmpty" };
 
 export class StringSchema extends Schema<string> {
 	constructor(
@@ -123,6 +125,9 @@ export class StringSchema extends Schema<string> {
 			switch (check.kind) {
 				case "trim":
 					str = str.trim();
+					break;
+				case "nonEmpty":
+					if (!str.length) issues.push({ path, message: "Must not be empty" });
 					break;
 				case "min":
 					if (str.length < check.value) {
@@ -175,6 +180,9 @@ export class StringSchema extends Schema<string> {
 				case "max":
 					schema.maxLength = check.value;
 					break;
+				case "nonEmpty":
+					schema.minLength = Math.max(schema.minLength ?? 0, 1);
+					break;
 				case "email":
 					schema.format = "email";
 					break;
@@ -223,8 +231,22 @@ export class StringSchema extends Schema<string> {
 		);
 	}
 
+	/**
+	 * Trims the value. Checks run in the order they were chained, so put `trim()` first for them to
+	 * see the trimmed string: `f.string().trim().nonEmpty()`.
+	 */
 	trim(): StringSchema {
 		return new StringSchema([...this.checks, { kind: "trim" }], this.description);
+	}
+
+	/** Rejects the empty string. Chain after {@linkcode trim} to reject whitespace too. */
+	nonEmpty(): StringSchema {
+		return new StringSchema([...this.checks, { kind: "nonEmpty" }], this.description);
+	}
+
+	/** Alias of {@linkcode nonEmpty}, matching {@linkcode ArraySchema.nonempty}. */
+	nonempty(): StringSchema {
+		return this.nonEmpty();
 	}
 }
 
@@ -236,7 +258,8 @@ type NumberCheck =
 	| { kind: "integer" }
 	| { kind: "positive" }
 	| { kind: "negative" }
-	| { kind: "multipleOf"; value: number };
+	| { kind: "multipleOf"; value: number }
+	| { kind: "finite" };
 
 export class NumberSchema extends Schema<number> {
 	constructor(
@@ -293,6 +316,9 @@ export class NumberSchema extends Schema<number> {
 					if (num % check.value !== 0) {
 						issues.push({ path, message: `Must be a multiple of ${check.value}` });
 					}
+					break;
+				case "finite":
+					if (!Number.isFinite(num)) issues.push({ path, message: "Must be finite" });
 					break;
 			}
 		}
@@ -392,6 +418,15 @@ export class NumberSchema extends Schema<number> {
 	multipleOf(value: number): NumberSchema {
 		return new NumberSchema(
 			[...this.checks, { kind: "multipleOf", value }],
+			this._coerce,
+			this.description,
+		);
+	}
+
+	/** Rejects `Infinity` and `-Infinity` (`NaN` is always rejected). */
+	finite(): NumberSchema {
+		return new NumberSchema(
+			[...this.checks, { kind: "finite" }],
 			this._coerce,
 			this.description,
 		);
@@ -637,6 +672,114 @@ export class ArraySchema<T> extends Schema<T[]> {
 
 	nonempty(): ArraySchema<T> {
 		return new ArraySchema(this.items, [...this.checks, { kind: "nonempty" }], this.description);
+	}
+}
+
+// ─── Record ───────────────────────────────────────────────────────────────────
+
+/**
+ * An object used as a dictionary: any number of keys, each validated by `keys` (when given), every
+ * value validated by `values`. JSON Schema output is an object with `additionalProperties`.
+ */
+/** A record over every string, or a partial one over a known key set. */
+export type InferRecord<K extends string, V> = string extends K ? Record<string, V>
+	: Partial<Record<K, V>>;
+
+export class RecordSchema<K extends string, V> extends Schema<InferRecord<K, V>> {
+	constructor(
+		private readonly values: Schema<V>,
+		private readonly keys?: Schema<K>,
+		protected readonly description?: string,
+	) {
+		super();
+	}
+
+	_parse(value: unknown, path: (string | number)[]): ParseResult<InferRecord<K, V>> {
+		if (typeof value !== "object" || value === null || Array.isArray(value)) {
+			return fail(
+				path,
+				`Expected object, got ${
+					value === null ? "null" : Array.isArray(value) ? "array" : typeof value
+				}`,
+			);
+		}
+
+		const result = {} as InferRecord<K, V>;
+		const issues: ValidationIssue[] = [];
+
+		for (const [key, raw] of Object.entries(value)) {
+			let outKey = key as K;
+			if (this.keys) {
+				const keyResult = this.keys._parse(key, [...path, key]);
+				if (!keyResult.success) {
+					issues.push(
+						...keyResult.issues.map((i) => ({ ...i, message: `Invalid key: ${i.message}` })),
+					);
+					continue;
+				}
+				outKey = keyResult.data;
+			}
+			const valueResult = this.values._parse(raw, [...path, key]);
+			if (valueResult.success) {
+				if (valueResult.data !== undefined) {
+					Object.defineProperty(result, outKey, {
+						value: valueResult.data,
+						enumerable: true,
+						writable: true,
+						configurable: true,
+					});
+				}
+			} else {
+				issues.push(...valueResult.issues);
+			}
+		}
+
+		return issues.length ? { success: false, issues } : { success: true, data: result };
+	}
+
+	toJSONSchema(): JSONSchema {
+		const schema: JSONSchema = {
+			type: "object",
+			additionalProperties: this.values.toJSONSchema(),
+		};
+		if (this.keys) {
+			const { pattern, minLength, maxLength } = this.keys.toJSONSchema();
+			const propertyNames: JSONSchema = {};
+			if (pattern) propertyNames.pattern = pattern;
+			if (minLength !== undefined) propertyNames.minLength = minLength;
+			if (maxLength !== undefined) propertyNames.maxLength = maxLength;
+			if (Object.keys(propertyNames).length) schema.propertyNames = propertyNames;
+		}
+		if (this.description) schema.description = this.description;
+		return schema;
+	}
+
+	describe(description: string): RecordSchema<K, V> {
+		return new RecordSchema(this.values, this.keys, description);
+	}
+}
+
+// ─── Unknown / JSON ───────────────────────────────────────────────────────────
+
+/**
+ * Accepts any value as-is. As a route body schema it means "parse the body as JSON and hand it to
+ * me unshaped" — an empty body arrives as `undefined` rather than failing the request.
+ */
+export class UnknownSchema extends Schema<unknown> {
+	constructor(protected readonly description?: string) {
+		super();
+	}
+
+	_parse(value: unknown): ParseResult<unknown> {
+		return { success: true, data: value };
+	}
+
+	toJSONSchema(): JSONSchema {
+		return this.description ? { description: this.description } : {};
+	}
+
+	describe(description: string): UnknownSchema {
+		return new UnknownSchema(description);
 	}
 }
 
@@ -918,6 +1061,22 @@ export const s = {
 	formData: <S extends SchemaShape>(shape: S): FormDataSchema<S> => new FormDataSchema(shape),
 	query: <S extends SchemaShape>(shape: S): QuerySchema<S> => new QuerySchema(shape),
 	file: (): FileSchema => new FileSchema(),
+	/** Shorthand for `f.string().uuid()`. */
+	uuid: (): StringSchema => new StringSchema([{ kind: "uuid" }]),
+	/**
+	 * A dictionary: `f.record(values)` or `f.record(keys, values)`, where `keys` is a string schema
+	 * (e.g. `f.string().regex(...)` or `f.enum(...)`).
+	 */
+	record:
+		(<K extends string, V>(a: Schema<V> | Schema<K>, b?: Schema<V>) =>
+			b ? new RecordSchema(b, a as Schema<K>) : new RecordSchema(a as Schema<V>)) as {
+				<V>(values: Schema<V>): RecordSchema<string, V>;
+				<K extends string, V>(keys: Schema<K>, values: Schema<V>): RecordSchema<K, V>;
+			},
+	/** Accepts anything, untouched. */
+	unknown: (): UnknownSchema => new UnknownSchema(),
+	/** A body that is JSON and nothing more specific: alias of {@linkcode s.unknown}. */
+	json: (): UnknownSchema => new UnknownSchema(),
 };
 
 export const f = s;

@@ -570,3 +570,81 @@ describe("Schema type class checks", () => {
 		assertEquals(s.formData({}) instanceof FormDataSchema, true);
 	});
 });
+
+// ─── Refinements ──────────────────────────────────────────────────────────────
+
+describe("refinements", () => {
+	it("trim().nonEmpty() rejects whitespace and returns the trimmed value", () => {
+		const name = s.string().trim().nonEmpty();
+		assertEquals(ok(name, "  Ash  "), "Ash");
+		assertEquals(fail(name, "   "), ["Must not be empty"]);
+		assertEquals(name.toJSONSchema().minLength, 1);
+	});
+
+	it("finite() rejects infinities", () => {
+		const n = s.number().finite();
+		assertEquals(ok(n, 1.5), 1.5);
+		assertEquals(fail(n, Infinity), ["Must be finite"]);
+		assertEquals(ok(n.nullable(), null), null);
+	});
+
+	it("s.uuid() is string().uuid()", () => {
+		assertEquals(ok(s.uuid(), "123e4567-e89b-12d3-a456-426614174000").length, 36);
+		assertEquals(fail(s.uuid(), "nope"), ["Invalid UUID"]);
+		assertEquals(s.uuid().toJSONSchema(), { type: "string", format: "uuid" });
+	});
+});
+
+// ─── s.record() ───────────────────────────────────────────────────────────────
+
+describe("s.record()", () => {
+	it("validates every value", () => {
+		const props = s.record(s.union(s.string(), s.number()));
+		assertEquals(ok(props, { a: "x", b: 2 }), { a: "x", b: 2 });
+		const result = props.safeParse({ a: "x", b: true });
+		assertEquals(result.success, false);
+		if (!result.success) assertEquals(result.issues[0].path, ["b"]);
+	});
+
+	it("rejects non-objects", () => {
+		assertEquals(fail(s.record(s.string()), []), ["Expected object, got array"]);
+		assertEquals(fail(s.record(s.string()), null), ["Expected object, got null"]);
+	});
+
+	it("validates keys when given a key schema", () => {
+		const props = s.record(s.enum("hp", "mp"), s.number());
+		const parsed: { hp?: number; mp?: number } = ok(props, { hp: 3 });
+		assertEquals(parsed, { hp: 3 });
+		assertEquals(fail(props, { xp: 1 })[0].startsWith("Invalid key"), true);
+	});
+
+	it("treats __proto__ as an ordinary key", () => {
+		const parsed = ok(s.record(s.string()), JSON.parse('{"__proto__":"x"}'));
+		assertEquals(Object.getPrototypeOf(parsed), Object.prototype);
+		assertEquals(Object.keys(parsed), ["__proto__"]);
+	});
+
+	it("emits additionalProperties", () => {
+		assertEquals(s.record(s.number()).toJSONSchema(), {
+			type: "object",
+			additionalProperties: { type: "number" },
+		});
+	});
+
+	it("nests inside objects", () => {
+		const patch = s.object({ name: s.string().optional(), properties: s.record(s.string()) });
+		const parsed = ok(patch, { properties: { eyes: "green" } });
+		assertEquals(parsed.properties, { eyes: "green" });
+	});
+});
+
+// ─── s.unknown() / s.json() ───────────────────────────────────────────────────
+
+describe("s.unknown() / s.json()", () => {
+	it("passes anything through", () => {
+		const body = { nested: [1, 2] };
+		assertEquals(ok(s.json(), body) === body, true);
+		assertEquals(ok(s.unknown(), undefined), undefined);
+		assertEquals(s.json().toJSONSchema(), {});
+	});
+});
