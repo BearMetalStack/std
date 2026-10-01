@@ -6,7 +6,12 @@ type HeadingData = { level: number; phase: "open" | "close" };
 export const headingRule: Rule<HeadingData> = {
 	id: "md:heading",
 	trigger: "#",
-	validate: (ctx) => ctx.cursor === ctx.lineStart,
+	// `#[` is not a heading (CommonMark wants a space after the run anyway),
+	// and declining it leaves the character to a rule that wants it, e.g. a
+	// `#[label]` element, wherever that rule is registered.
+	validate: (ctx) =>
+		ctx.cursor === ctx.lineStart &&
+		ctx.currentLine.match(/^#{1,6}(.?)/)?.[1] !== "[",
 
 	tokenize(ctx) {
 		const level = ctx.peek(6).match(/^#{1,6}/)?.[0].length ?? 1;

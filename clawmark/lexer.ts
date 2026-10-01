@@ -49,6 +49,10 @@ export class Lexer {
 			list.push(rule);
 			this.#byTrigger.set(rule.trigger, list);
 		}
+		// Stable, so equal priorities keep registration order.
+		for (const list of this.#byTrigger.values()) {
+			list.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+		}
 		this.#ctx = this.#buildContext();
 	}
 

@@ -116,6 +116,16 @@ export interface Rule<T = Record<string, unknown>> extends ReverseRule<T> {
 	requires?: TokenIdentifier[];
 	overrides?: TokenIdentifier[];
 	trigger: Char;
+	/**
+	 * Order among rules sharing a `trigger`: higher is offered the character
+	 * first. Ties keep registration order. Defaults to `0`.
+	 *
+	 * The first rule whose `validate` accepts wins, so a broad rule (one that
+	 * validates on little more than line start) should sit below the narrower
+	 * ones it would otherwise shadow — give the narrow one a positive priority
+	 * rather than relying on where it appears in the array.
+	 */
+	priority?: number;
 	validate(ctx: LexerContext): boolean;
 	tokenize(ctx: LexerContext): Token<T> | Token<T>[];
 	tree(token: Token<T>, ctx: TreeContext): void;

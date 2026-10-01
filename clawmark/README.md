@@ -203,6 +203,10 @@ LibreOffice writes, where `fo:break-before` sits on the paragraph _following_ th
 
 ## Extending
 
+Rules sharing a `trigger` character are offered it in `priority` order (higher first, default `0`),
+then registration order. The first whose `validate` accepts wins, so a narrow rule that a broad one
+would shadow should take a positive `priority` instead of depending on where it sits in the array.
+
 `rules/extra/mod.ts` (exported as `@bearmetal/clawmark/rules/extra`) is the reserved slot for
 optional _syntax_ rules. Reverse-only rules belong in a profile and should take ids in the `rev:`
 namespace, which keeps them out of the forward dispatch maps entirely; emitters take `out:` ids for
