@@ -269,7 +269,8 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			} else if (schema instanceof FormDataSchema) {
 				body = schema.parse(await req.formData());
 			} else if (schema) {
-				body = schema.parse(await req.json());
+				const text = await req.text();
+				body = schema.parse(text.trim() ? JSON.parse(text) : undefined);
 			} else {
 				body = await req.text();
 			}
@@ -284,9 +285,14 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			() => matchingRoutes.length > 0 ? MethodNotAllowed() : NotFound(),
 		]);
 
+		const rawParams: Record<string, string | undefined> = matchingRoutes.reduce(
+			(a, b) => ({ ...a, ...b.raw }),
+			{},
+		);
 		const ctx: RouterContext<StateType, unknown> = {
 			url,
 			params: matchingRoutes.reduce((a, b) => ({ ...a, ...b.params }), {}),
+			segments: (name) => splitSegments(rawParams[name]),
 			state: {},
 			request: req,
 			query,
@@ -354,7 +360,8 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 		return this.routes.values().map((route) => {
 			const result = route.pattern.exec(url);
 			if (result) {
-				return { config: route, params: decodeGroups(result.pathname.groups) };
+				const raw = result.pathname.groups;
+				return { config: route, params: decodeGroups(raw), raw };
 			}
 		}).filter((r) => !!r).toArray();
 	}
@@ -454,6 +461,21 @@ function decodeGroups(
 		}
 	}
 	return decoded;
+}
+
+/**
+ * A splat group split on its raw `/` separators, each segment decoded on its own — so an encoded
+ * `%2F` stays inside its segment rather than splitting it.
+ */
+function splitSegments(raw: string | undefined): string[] {
+	if (!raw) return [];
+	return raw.split("/").filter(Boolean).map((segment) => {
+		try {
+			return decodeURIComponent(segment);
+		} catch {
+			return segment;
+		}
+	});
 }
 
 export default Router;

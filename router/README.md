@@ -27,14 +27,15 @@ Deno.serve(router.handle);
 
 Handlers receive a single `ctx` object:
 
-| Property      | Type                                  | Description                                         |
-| ------------- | ------------------------------------- | --------------------------------------------------- |
-| `ctx.request` | `Request`                             | The incoming request                                |
-| `ctx.url`     | `URL`                                 | Parsed request URL                                  |
-| `ctx.params`  | `Record<string, string \| undefined>` | URL path parameters                                 |
-| `ctx.state`   | `Record<string, unknown>`             | Shared mutable state across the handler chain       |
-| `ctx.body`    | `string` (default) or schema output   | Parsed request body - see [Validation](#validation) |
-| `ctx.query`   | `Record<string, string>`              | Raw URL query parameters, always present            |
+| Property             | Type                                  | Description                                          |
+| -------------------- | ------------------------------------- | ---------------------------------------------------- |
+| `ctx.request`        | `Request`                             | The incoming request                                 |
+| `ctx.url`            | `URL`                                 | Parsed request URL                                   |
+| `ctx.params`         | `Record<string, string \| undefined>` | URL path parameters, already percent-decoded         |
+| `ctx.segments(name)` | `string[]`                            | A splat param (`:path*`) split into decoded segments |
+| `ctx.state`          | `Record<string, unknown>`             | Shared mutable state across the handler chain        |
+| `ctx.body`           | `string` (default) or schema output   | Parsed request body - see [Validation](#validation)  |
+| `ctx.query`          | `Record<string, string>`              | Raw URL query parameters, always present             |
 
 ### Middleware
 
@@ -259,21 +260,27 @@ issue.
 
 #### Schema types
 
-| Factory              | TypeScript type  | Notes                                       |
-| -------------------- | ---------------- | ------------------------------------------- |
-| `s.string()`         | `string`         |                                             |
-| `s.number()`         | `number`         |                                             |
-| `s.boolean()`        | `boolean`        |                                             |
-| `s.literal(value)`   | `typeof value`   | exact match                                 |
-| `s.enum("a", "b")`   | `"a" \| "b"`     | string enum                                 |
-| `s.object({ … })`    | `{ … }`          | nested schemas                              |
-| `s.array(schema)`    | `T[]`            |                                             |
-| `s.union(a, b)`      | `A \| B`         | first-match                                 |
-| `s.optional(schema)` | `T \| undefined` | also `.optional()` on any schema            |
-| `s.nullable(schema)` | `T \| null`      | also `.nullable()` on any schema            |
-| `s.formData({ … })`  | `{ … }`          | parses `multipart/form-data`                |
-| `s.query({ … })`     | `{ … }`          | parses URL query parameters into `ctx.body` |
-| `s.file()`           | `File`           | for use inside `s.formData()`               |
+| Factory              | TypeScript type     | Notes                                                   |
+| -------------------- | ------------------- | ------------------------------------------------------- |
+| `s.string()`         | `string`            |                                                         |
+| `s.number()`         | `number`            |                                                         |
+| `s.boolean()`        | `boolean`           |                                                         |
+| `s.literal(value)`   | `typeof value`      | exact match                                             |
+| `s.enum("a", "b")`   | `"a" \| "b"`        | string enum                                             |
+| `s.object({ … })`    | `{ … }`             | nested schemas                                          |
+| `s.array(schema)`    | `T[]`               |                                                         |
+| `s.union(a, b)`      | `A \| B`            | first-match                                             |
+| `s.optional(schema)` | `T \| undefined`    | also `.optional()` on any schema                        |
+| `s.nullable(schema)` | `T \| null`         | also `.nullable()` on any schema                        |
+| `s.formData({ … })`  | `{ … }`             | parses `multipart/form-data`                            |
+| `s.query({ … })`     | `{ … }`             | parses URL query parameters into `ctx.body`             |
+| `s.file()`           | `File`              | for use inside `s.formData()`                           |
+| `s.record(values)`   | `Record<string, T>` | dictionary; `s.record(keys, values)` checks keys too    |
+| `s.json()`           | `unknown`           | "it's JSON, I'll validate it"; empty body → `undefined` |
+| `s.uuid()`           | `string`            | shorthand for `s.string().uuid()`                       |
+
+A schema route reads the body as JSON. An empty body is parsed as `undefined`, so `s.json()` and
+`.optional()` schemas accept a request with no body; a required schema still answers 400.
 
 #### String refinements
 
@@ -283,7 +290,8 @@ s.string().email();
 s.string().url();
 s.string().uuid();
 s.string().regex(/^\d{4}$/);
-s.string().trim(); // strips whitespace before other checks
+s.string().trim(); // strips whitespace for the checks chained after it
+s.string().trim().nonEmpty(); // required, and not just whitespace
 ```
 
 #### Number refinements
@@ -296,6 +304,7 @@ s.number().min(0).max(100);
 s.number().gt(0).lt(10); // exclusive bounds
 s.number().multipleOf(5);
 s.number().coerce(); // accepts "42" → 42 (useful for FormData)
+s.number().finite(); // rejects ±Infinity
 ```
 
 #### Object utilities
@@ -526,6 +535,37 @@ A response whose status the contract does not declare, or whose body fails its s
 Response bodies are validated on both ends by default, and skipped when `BEARMETAL_ENV=prod`.
 Override per module with `createApiModule(api, controllers, { validateResponses })`, and per client
 with `createClient(api, { validateResponses })`.
+
+### Errors
+
+A handler that throws reaches the error handlers registered with `onError()`, in registration order;
+the first to return a `Response` answers, and with none the router answers 500. `mapError()` is the
+common case — map an error class (and its subclasses) to a response:
+
+```ts
+router
+	.mapError(NotFoundError, (e) => NotFound(e.message))
+	.mapError(ValidationError, (e) => UnprocessableEntity(e.message))
+	.mapDenoErrors(); // Deno.errors.NotFound → 404, PermissionDenied → 403, … and SchemaError → 400
+```
+
+Mappings registered on a module bubble up when it is mounted. `mapDenoErrors()` answers with the
+bare status text, never the error message, and is opt-in: a `NotFound` from a missing config file is
+a 500.
+
+### Serving a local app
+
+`Deno.serve` binds `0.0.0.0` when no hostname is given, which exposes a desktop app's backend to the
+network. `serveLocal()` binds loopback and refuses requests whose `Host` isn't loopback (DNS
+rebinding) and state-changing requests from another web page's `Origin`:
+
+```ts
+import { serveLocal } from "@bearmetal/router";
+
+serveLocal(router, { port: 0, onListen: ({ port }) => openWindow(port) });
+```
+
+`localGuard(request, options)` is the same check on its own, for composing with your own server.
 
 ### Static Files
 

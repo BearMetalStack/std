@@ -3,6 +3,7 @@ import { assertEquals } from "@std/assert";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import Router from "./router.ts";
 import { Module } from "./module.ts";
+import { s } from "./schema.ts";
 
 describe("Router", () => {
 	let router: Router;
@@ -525,6 +526,123 @@ describe("Router", () => {
 			const res = await router.handle(new Request("http://localhost/boom"), {} as any);
 			assertEquals(res.status, 418);
 			assertEquals(await res.text(), "async");
+		});
+	});
+	describe("mapError", () => {
+		class MissingThing extends Error {}
+		class MissingChapter extends MissingThing {}
+
+		it("answers a matching error class, subclasses included", async () => {
+			router.mapError(MissingThing, (e) => new Response(e.message, { status: 404 }));
+			router.route("/x").get(() => {
+				throw new MissingChapter("no chapter 9");
+			});
+			const res = await router.handle(new Request("http://localhost/x"), {} as any);
+			assertEquals(res.status, 404);
+			assertEquals(await res.text(), "no chapter 9");
+		});
+
+		it("lets other errors fall through to 500", async () => {
+			router.mapError(MissingThing, () => new Response("", { status: 404 }));
+			router.route("/x").get(() => {
+				throw new Error("plain");
+			});
+			const res = await router.handle(new Request("http://localhost/x"), {} as any);
+			assertEquals(res.status, 500);
+		});
+
+		it("bubbles up from a mounted module", async () => {
+			const mod = new Module();
+			mod.mapError(MissingThing, () => new Response("", { status: 410 }));
+			mod.route("/x").get(() => {
+				throw new MissingThing();
+			});
+			router.use("/api", mod);
+			const res = await router.handle(new Request("http://localhost/api/x"), {} as any);
+			assertEquals(res.status, 410);
+		});
+
+		it("mapDenoErrors maps filesystem errors without leaking the message", async () => {
+			router.mapDenoErrors();
+			router.route("/nf").get(() => {
+				throw new Deno.errors.NotFound("/home/someone/secret.txt");
+			});
+			router.route("/pd").get(() => {
+				throw new Deno.errors.PermissionDenied("nope");
+			});
+			const nf = await router.handle(new Request("http://localhost/nf"), {} as any);
+			assertEquals(nf.status, 404);
+			assertEquals(await nf.text(), "Not Found");
+			const pd = await router.handle(new Request("http://localhost/pd"), {} as any);
+			assertEquals(pd.status, 403);
+			await pd.body?.cancel();
+		});
+	});
+
+	describe("request bodies", () => {
+		it("parses an empty body as undefined for a schema route", async () => {
+			let seen: unknown = "unset";
+			router.route("/b").post(s.json(), (ctx) => {
+				seen = ctx.body;
+				return new Response("ok");
+			});
+			const res = await router.handle(
+				new Request("http://localhost/b", { method: "POST" }),
+				{} as any,
+			);
+			assertEquals(res.status, 200);
+			await res.body?.cancel();
+			assertEquals(seen, undefined);
+		});
+
+		it("still rejects an empty body for a required object schema", async () => {
+			router.route("/b").post(s.object({ a: s.string() }), () => new Response("ok"));
+			const res = await router.handle(
+				new Request("http://localhost/b", { method: "POST" }),
+				{} as any,
+			);
+			assertEquals(res.status, 400);
+			await res.body?.cancel();
+		});
+
+		it("rejects malformed JSON", async () => {
+			router.route("/b").post(s.json(), () => new Response("ok"));
+			const res = await router.handle(
+				new Request("http://localhost/b", { method: "POST", body: "{nope" }),
+				{} as any,
+			);
+			assertEquals(res.status, 400);
+			await res.body?.cancel();
+		});
+	});
+
+	describe("segments", () => {
+		it("splits a splat param before decoding each segment", async () => {
+			let segments: string[] = [];
+			let param: string | undefined;
+			router.route("/files/:path*").get((ctx) => {
+				segments = ctx.segments("path");
+				param = ctx.params.path;
+				return new Response("ok");
+			});
+			const res = await router.handle(
+				new Request("http://localhost/files/a/b%2Fc/Chapter%201"),
+				{} as any,
+			);
+			await res.body?.cancel();
+			assertEquals(segments, ["a", "b/c", "Chapter 1"]);
+			assertEquals(param, "a/b/c/Chapter 1");
+		});
+
+		it("is empty for an unmatched param", async () => {
+			let segments: string[] = ["x"];
+			router.route("/files/:path*").get((ctx) => {
+				segments = ctx.segments("path");
+				return new Response("ok");
+			});
+			const res = await router.handle(new Request("http://localhost/files"), {} as any);
+			await res.body?.cancel();
+			assertEquals(segments, []);
 		});
 	});
 });

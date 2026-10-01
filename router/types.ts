@@ -51,10 +51,20 @@ export interface RouterContext<
 	TBody = string,
 > {
 	url: URL;
+	/** Route params, percent-decoded. A splat (`:path*`) arrives as one `/`-joined string. */
 	params: Record<string, string | undefined>;
+	/**
+	 * A param's path segments: `:path*` matching `a/b%2Fc/d` gives `["a", "b/c", "d"]`. Split before
+	 * decoding, so an encoded slash stays in its segment. `[]` when the param did not match.
+	 */
+	segments(name: string): string[];
 	state: T;
 	request: Request;
-	/** Parsed request body. Type is `string` unless a schema is registered on the route. */
+	/**
+	 * Parsed request body. Type is `string` unless a schema is registered on the route. With a JSON
+	 * schema, an empty body is parsed as `undefined`, so `f.json()` or an `.optional()` schema
+	 * accepts a request with no body.
+	 */
 	body: TBody;
 	/** Raw query parameters from the URL. Always available regardless of schema. */
 	query: Record<string, string>;

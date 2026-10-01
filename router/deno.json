@@ -28,6 +28,7 @@
 		".": "./mod.ts",
 		"./types": "./types.ts",
 		"./response": "./util/response.ts",
+		"./local": "./util/local.ts",
 		"./api": "./api/mod.ts",
 		"./api/server": "./api/server.ts",
 		"./modules/forager": "./modules/forager.ts"

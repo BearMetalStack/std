@@ -9,8 +9,17 @@
 // deno-lint-ignore-file no-explicit-any ban-unused-ignore ban-types
 
 import { joinPath, stringsSufficientlySimilar } from "@bearmetal/miscellanea";
-import { type Infer, Schema } from "./schema.ts";
+import { type Infer, Schema, SchemaError } from "./schema.ts";
+import {
+	BadRequest,
+	Conflict,
+	Forbidden,
+	GatewayTimeout,
+	NotFound,
+	ServiceUnavailable,
+} from "./util/response.ts";
 import type {
+	RouterContext,
 	RouterErrorHandler,
 	RouterHandler,
 	Service,
@@ -319,6 +328,54 @@ export class Module<TState extends StateType = {}> {
 	onError(handler: RouterErrorHandler): this {
 		this._errorHandlers.push(handler);
 		return this;
+	}
+
+	/**
+	 * Answer every error that is an `instanceof` `errorClass` with `respond`'s Response.
+	 *
+	 * Sugar over {@link onError}: the mapping takes its place among the other error handlers in
+	 * registration order, and bubbles up from mounted modules the same way, so a feature module can
+	 * declare how its own errors surface. Subclasses match too.
+	 *
+	 * @example
+	 * ```ts
+	 * router
+	 *   .mapError(NotFoundError, (e) => NotFound(e.message))
+	 *   .mapError(ValidationError, (e) => UnprocessableEntity(e.message));
+	 * ```
+	 */
+	mapError<E>(
+		// deno-lint-ignore no-explicit-any
+		errorClass: abstract new (...args: any[]) => E,
+		respond: (error: E, ctx: RouterContext<StateType, unknown>) => Response | Promise<Response>,
+	): this {
+		return this.onError((error, ctx) =>
+			error instanceof errorClass ? respond(error as E, ctx) : undefined
+		);
+	}
+
+	/**
+	 * Map the `Deno.errors` a handler is likely to let escape onto their HTTP statuses:
+	 * `NotFound` 404, `PermissionDenied` and `NotCapable` 403, `AlreadyExists` 409, `InvalidData`
+	 * 400, `TimedOut` 504, `Busy` 503, plus forge's `SchemaError` (a `parse()` inside a handler) 400.
+	 *
+	 * Bodies are the bare status text, never the error message: a filesystem error's message carries
+	 * the absolute path. Opt-in, because a `NotFound` from a missing config file is a 500, not a 404 —
+	 * register it after any mapping that should win.
+	 */
+	mapDenoErrors(): this {
+		return this.onError((error) => {
+			if (error instanceof SchemaError) return BadRequest(error.message);
+			if (error instanceof Deno.errors.NotFound) return NotFound();
+			if (
+				error instanceof Deno.errors.PermissionDenied ||
+				error instanceof Deno.errors.NotCapable
+			) return Forbidden();
+			if (error instanceof Deno.errors.AlreadyExists) return Conflict();
+			if (error instanceof Deno.errors.InvalidData) return BadRequest();
+			if (error instanceof Deno.errors.TimedOut) return GatewayTimeout();
+			if (error instanceof Deno.errors.Busy) return ServiceUnavailable();
+		});
 	}
 
 	/** @internal Run all deferred callbacks one final time. Called by Router.ready(). */
