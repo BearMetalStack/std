@@ -428,6 +428,10 @@ function insertValue(
 	raw = false,
 ): void {
 	if (value == null || value === false || value === true) return;
+	if (isSignal(value)) {
+		insertValue(parent, unwrap(value), before, raw);
+		return;
+	}
 	if (Array.isArray(value)) {
 		for (const item of value.flat(Infinity as 0)) insertValue(parent, item, before, raw);
 		return;
@@ -464,11 +468,28 @@ function markRange(parent: Node): { start: Node; end: Node } {
 	return { start, end };
 }
 
+/**
+ * A signal's value, with any signals it holds read through too.
+ *
+ * A component may return a computed, and a `<Switch>` or another computed may
+ * then hand that component's result on as its own value: a signal of a signal.
+ * Reading through, inside the slot's effect, tracks every layer, so the slot
+ * follows whichever one changes rather than stringifying the inner signal.
+ */
+function unwrap(value: unknown): unknown {
+	while (isSignal(value)) value = value.get();
+	return value;
+}
+
 function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalLike, raw: boolean) {
 	const { start, end } = markRange(parent);
+	bindRange(start, end, signal, raw);
+}
 
+/** Keeps the nodes between two markers in step with `signal`. */
+function bindRange(start: Node, end: Node, signal: SignalLike, raw: boolean) {
 	reactiveEffect(() => {
-		const v = signal.get();
+		const v = unwrap(signal);
 		const parentNode = end.parentNode;
 		if (!parentNode) return;
 
@@ -511,11 +532,22 @@ function appendPendingChild(
 	raw: boolean,
 ) {
 	const { start, end } = markRange(parent);
+	const owner = _currentOwner;
 
 	trackPending(
 		work.then((value) => {
 			const parentNode = end.parentNode;
 			if (!parentNode) return;
+			if (isSignal(value)) {
+				const prev = _currentOwner;
+				_currentOwner = owner;
+				try {
+					bindRange(start, end, value, raw);
+				} finally {
+					_currentOwner = prev;
+				}
+				return;
+			}
 			clearRange(parentNode, start, end);
 			insertValue(parentNode, value, end, raw);
 		}),

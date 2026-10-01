@@ -432,3 +432,48 @@ Deno.test("$bind serializes the bound value and checkedness", () => {
 	on.set(false);
 	assertEquals(html(box), '<input type="checkbox">');
 });
+
+Deno.test("a signal whose value is a signal renders the inner value and follows both", () => {
+	const branch = signal("a");
+	const text = signal("one");
+	const inner = { get: () => jsx("p", { children: text.get() }) };
+	const other = { get: () => "plain" };
+	const outer = { get: () => branch.get() === "a" ? inner : other };
+	const container = jsx("div", { children: outer }) as unknown as El;
+
+	assertEquals(container.innerHTML, "<p>one</p>");
+	text.set("two");
+	assertEquals(container.innerHTML, "<p>two</p>", "the inner signal is tracked");
+	branch.set("b");
+	assertEquals(container.innerHTML, "plain", "and so is the outer one");
+});
+
+Deno.test("a function component returning a computed renders it", () => {
+	const name = signal("Ash");
+	const Greeting = () => ({ get: () => `hi ${name.get()}` });
+	const pick = { get: () => jsx(Greeting, {}) };
+	const container = jsx("div", { children: pick }) as unknown as El;
+	assertEquals(container.innerHTML, "hi Ash");
+	name.set("Rowan");
+	assertEquals(container.innerHTML, "hi Rowan");
+});
+
+Deno.test("signals inside an array value render their values", () => {
+	const n = signal(1);
+	const list = { get: () => ["a", { get: () => n.get() }, "c"] };
+	const container = jsx("div", { children: list }) as unknown as El;
+	assertEquals(container.innerHTML, "a1c");
+	n.set(2);
+	assertEquals(container.innerHTML, "a2c");
+});
+
+Deno.test("a promise resolving to a signal fills its slot reactively", async () => {
+	const n = signal("first");
+	const container = jsx("div", {
+		children: ["[", Promise.resolve({ get: () => n.get() }), "]"],
+	}) as unknown as El;
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	assertEquals(container.innerHTML, "[first]");
+	n.set("second");
+	assertEquals(container.innerHTML, "[second]");
+});
