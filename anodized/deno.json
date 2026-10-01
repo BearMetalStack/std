@@ -1,0 +1,19 @@
+{
+	"name": "@bearmetal/anodized",
+	"description": "Immediate-mode WebGPU canvas for charts, diagrams and node graphs, with headless snapshots",
+	"version": "0.0.1",
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts",
+		"./text": "./text/mod.ts",
+		"./solvers": "./solvers/mod.ts"
+	},
+	"tasks": {
+		"test": "deno test -R",
+		"dev": "deno test --watch -R"
+	},
+	"license": "MIT",
+	"publish": {
+		"exclude": ["testdata/", "examples/"]
+	}
+}

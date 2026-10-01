@@ -1,0 +1,6 @@
+{
+	"tasks": {
+		"snapshot": "deno run -R -W=flowchart.png snapshot.ts",
+		"serve": "deno run -R --allow-net=127.0.0.1 serve.ts"
+	}
+}
