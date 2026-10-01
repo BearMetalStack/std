@@ -3,6 +3,7 @@ import {
 	Fragment,
 	getCurrentOwner,
 	isServerRendering,
+	jsx,
 	setCurrentOwner,
 	trackPending,
 } from "@bearmetal/jsx";
@@ -15,6 +16,7 @@ import { coerceProp, declaredProps } from "./prop.ts";
 import { declaredState } from "./state.ts";
 import { primeServerState, STATE_ATTRIBUTE, takeServerState } from "./hydration.ts";
 import { each } from "./built-ins/For.ts";
+import { claimConstruction, type ConstructionOwner } from "./util/construction.ts";
 import type { BMTemplate, RefSignals } from "./types.ts";
 
 export { STATE_ATTRIBUTE } from "./hydration.ts";
@@ -43,7 +45,36 @@ function toNode(v: unknown): Node {
 
 export abstract class BMElement<
 	TRefs extends Record<string, Element> = Record<string, Element>,
-> extends BMC {
+> extends BMC implements ConstructionOwner {
+	// Variadic like the base it extends: JSX reads a class component's props off
+	// its constructor, so a zero-argument one would reject every attribute.
+	// deno-lint-ignore no-explicit-any
+	constructor(...args: any[]) {
+		super(...args);
+		claimConstruction(this);
+	}
+
+	/**
+	 * Builds an instance of this component through the custom element registry,
+	 * with `props` applied the way JSX applies them.
+	 *
+	 * `new MyToast()` only works when the class itself is what the registry
+	 * holds. Under hot replacement the registry holds a stand-in, so `new` is an
+	 * illegal constructor there; this goes through `document.createElement`,
+	 * which works in both cases, without the caller spelling out the tag.
+	 *
+	 * @example
+	 * ```ts
+	 * document.body.append(Toast.create({ message: "Saved" }));
+	 * ```
+	 */
+	static create<T extends BMElement>(
+		this: (abstract new () => T) & { tag: string },
+		props: Record<string, unknown> = {},
+	): T {
+		return jsx(this as unknown as typeof BMC, props) as unknown as T;
+	}
+
 	static register(): typeof BMElement | undefined {
 		if (typeof customElements === "undefined") return;
 		if (!this.tag) throw new Error(`${this.name} must define a static tag`);
@@ -139,6 +170,45 @@ export abstract class BMElement<
 		this.#cleanups.push(fn);
 	}
 
+	/** Effects created from field initializers, restarted whenever the element reconnects. */
+	#constructionEffects: Array<() => (() => void) | void> = [];
+	#constructionEffectsLive = false;
+
+	/**
+	 * Takes an effect created while this element was being constructed — from a
+	 * class field initializer, directly or through a helper. It runs now, like
+	 * any effect, and is torn down with the element's other cleanups when it
+	 * disconnects; unlike `init()`'s effects it cannot be re-created by running
+	 * the field initializer again, so it is restarted on reconnect instead.
+	 *
+	 * Called by `createEffect()`; not usually called directly.
+	 */
+	adoptConstructionEffect(fn: () => (() => void) | void): () => void {
+		this.#constructionEffects.push(fn);
+		const forget = () => {
+			const i = this.#constructionEffects.indexOf(fn);
+			if (i !== -1) this.#constructionEffects.splice(i, 1);
+		};
+		// A server render builds elements it never disconnects, so an effect
+		// started here would be watched for the life of the process. It waits
+		// for a browser connect instead, like `init()`.
+		if (isServerRendering()) return forget;
+		this.#constructionEffectsLive = true;
+		let stop = effect(fn);
+		this.registerCleanup(() => stop());
+		return () => {
+			stop();
+			stop = () => {};
+			forget();
+		};
+	}
+
+	#restartConstructionEffects(): void {
+		if (this.#constructionEffectsLive || !this.#constructionEffects.length) return;
+		this.#constructionEffectsLive = true;
+		for (const fn of this.#constructionEffects) this.registerCleanup(effect(fn));
+	}
+
 	connectedCallback(): void {
 		if (this.#disconnectPending) {
 			this.#disconnectPending = false;
@@ -150,6 +220,7 @@ export abstract class BMElement<
 		if (onServer && (this.constructor as typeof BMElement).client) return;
 
 		if (!onServer) this.#hydrateState();
+		if (!onServer) this.#restartConstructionEffects();
 
 		const { shadow } = this.constructor as typeof BMElement;
 		if (shadow) this.useShadow(shadow);
@@ -233,6 +304,7 @@ export abstract class BMElement<
 			if (!this.#disconnectPending) return;
 			this.#disconnectPending = false;
 			this.#initialized = false;
+			this.#constructionEffectsLive = false;
 			for (const cleanup of this.#cleanups) cleanup();
 			this.#cleanups = [];
 		});

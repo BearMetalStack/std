@@ -2,6 +2,7 @@ import type { BMC } from "@bearmetal/jsx";
 import { onDomChanged } from "@bearmetal/jsx";
 import { hotStandIn, hotSwap, isHotEnabled } from "./hmr.ts";
 import { isBrowser } from "./util/environment.ts";
+import { beginConstruction, endConstruction } from "./util/construction.ts";
 
 type BmElementConstructor = {
 	new (...args: any[]): BMC;
@@ -68,13 +69,32 @@ export function getAllStylesheets(): string {
  */
 export function define(
 	tag: string,
-): <T extends BmElementConstructor>(target: T, context: ClassDecoratorContext) => void {
+): <T extends BmElementConstructor>(target: T, context: ClassDecoratorContext) => T {
 	return function <T extends BmElementConstructor>(
-		target: T,
+		original: T,
 		context: ClassDecoratorContext,
-	) {
+	): T {
 		tag = normalizeComponentName(tag);
-		target.tag = tag;
+		original.tag = tag;
+
+		// Constructing through a frame is what lets a class field initializer
+		// call `createEffect()` and have the element own it. See
+		// `./util/construction.ts`.
+		const target = {
+			[original.name]: class extends original {
+				// `super()` inside `try` is deliberate: the frame must close even
+				// when a constructor throws.
+				// deno-lint-ignore no-explicit-any constructor-super
+				constructor(...args: any[]) {
+					const prev = beginConstruction();
+					try {
+						super(...args);
+					} finally {
+						endConstruction(prev);
+					}
+				}
+			},
+		}[original.name] as T;
 
 		// Register the element wherever there is a registry to register it with.
 		// A server has one now — the microdom's — and that is precisely what lets
@@ -98,7 +118,7 @@ export function define(
 		// meaningful in a browser. Doing it server-side would pile every
 		// component's CSS into one long-lived microdom that no response ever
 		// serializes.
-		if (!isBrowser() || !s || isHotEnabled() && definitions.has(tag)) return;
+		if (!isBrowser() || !s || isHotEnabled() && definitions.has(tag)) return target;
 
 		if (!document.head.querySelector(`style#${tag}`)) {
 			if (s instanceof CSSStyleSheet) {
@@ -110,6 +130,7 @@ export function define(
 				document.head.appendChild(style);
 			}
 		}
+		return target;
 	};
 }
 

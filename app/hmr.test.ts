@@ -142,3 +142,17 @@ Deno.test("hotSwap works without a browser, re-pointing the stand-in for later r
 	assertEquals(document.head.querySelector(`style#${tag}`), null);
 	el.remove();
 });
+
+Deno.test("create() builds a hot-registered element where `new` cannot", () => {
+	class Toast extends BMElement {}
+	register(Toast);
+	let threw = false;
+	try {
+		new (Toast as unknown as new () => Toast)();
+	} catch {
+		threw = true;
+	}
+	assert(threw, "the class itself is not what the registry holds");
+	const el = Toast.create();
+	assert(el instanceof Toast);
+});

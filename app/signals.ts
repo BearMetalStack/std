@@ -7,6 +7,7 @@ import {
 	setUntrackImpl,
 } from "@bearmetal/jsx";
 import type { SignalOf } from "./types.ts";
+import { constructingElement } from "./util/construction.ts";
 
 /**
  * How many passes run back to back before deciding the graph is not going to
@@ -88,7 +89,6 @@ function scheduledFlush(): void {
 	flushPass();
 }
 
-
 /**
  * Runs every dirty effect now, instead of on the next microtask, and keeps
  * going until none are left.
@@ -147,11 +147,13 @@ setEffectImpl(effect);
 setUntrackImpl(Signal.subtle.untrack);
 
 export function createEffect(init: () => CleanupFn | void): CleanupFn {
+	const constructing = constructingElement();
+	if (constructing) return constructing.adoptConstructionEffect(init);
 	if (!getCurrentOwner()) {
 		console.warn(
 			"createEffect() called without an owner — cleanup won't be automatic.\n" +
 				"Call the returned function to clean up manually, or call createEffect() inside:\n" +
-				"  • a BmElement.init() method\n" +
+				"  • a BmElement.init() method, or a @define'd element's field initializer\n" +
 				"  • an each() render callback",
 		);
 	}
