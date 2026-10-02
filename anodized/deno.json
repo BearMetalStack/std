@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/anodized",
 	"description": "Immediate-mode WebGPU canvas for charts, diagrams and node graphs, with headless snapshots",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts",
@@ -14,6 +14,9 @@
 	},
 	"license": "MIT",
 	"publish": {
-		"exclude": ["testdata/", "examples/"]
+		"exclude": [
+			"testdata/",
+			"examples/"
+		]
 	}
 }
