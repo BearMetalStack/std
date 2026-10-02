@@ -1,6 +1,7 @@
 import { assert, assertEquals } from "@std/assert";
-import { type PointerClick, PointerInput } from "./input.ts";
+import { type InputState, type PointerClick, PointerInput } from "./input.ts";
 import { contains, HandleManager } from "./handles.ts";
+import type { HandleResult, Handles } from "../types.ts";
 import { Camera } from "../core/camera.ts";
 
 function fakeCanvas() {
@@ -87,4 +88,52 @@ Deno.test("hit targets carry their box in screen pixels at the current pan and z
 	const t = h.hitTest(50, 50)!;
 	assertEquals(t.screen, { x: 30, y: 40, w: 60, h: 30 });
 	assertEquals([t.x, t.y, t.w, t.h], [10, 10, 30, 15], "world box is unchanged");
+});
+
+/** Hovers `from`, presses there, then moves to `to`; returns the last frame's result. */
+function drag(handles: Handles, from: [number, number], to: [number, number]) {
+	const cam = new Camera(400, 400);
+	const h = new HandleManager();
+	const rect = { x: 0, y: 0, w: 100, h: 100 };
+	const meta = { kind: "rect", shape: "rect" } as const;
+	const input = (x: number, y: number, pressed: boolean): InputState => ({
+		x,
+		y,
+		dx: 0,
+		dy: 0,
+		inside: true,
+		down: true,
+		pressed,
+		released: false,
+		wheel: 0,
+	});
+	const frames = [input(...from, false), input(...from, true), input(...to, false)];
+	let result!: HandleResult, overlays = 0;
+	for (const state of frames) {
+		h.begin(state, cam);
+		result = h.interact("r", rect, handles, meta);
+		overlays = h.end().overlays.length;
+	}
+	return { ...result, overlays };
+}
+
+Deno.test(`handles: "move" drags the body and has no resize handles`, () => {
+	const body = drag("move", [50, 50], [70, 60]);
+	assertEquals([body.dragging, body.pos, body.size], [true, { x: 20, y: 10 }, { w: 100, h: 100 }]);
+	assertEquals(body.overlays, 0);
+	const corner = drag("move", [100, 100], [120, 130]);
+	assertEquals([corner.resizing, corner.size], [false, { w: 100, h: 100 }]);
+});
+
+Deno.test(`handles: "resize" resizes from the handles and ignores body drags`, () => {
+	const corner = drag("resize", [100, 100], [120, 130]);
+	assertEquals([corner.resizing, corner.size], [true, { w: 120, h: 130 }]);
+	assert(corner.overlays > 0);
+	const body = drag("resize", [50, 50], [70, 60]);
+	assertEquals([body.changed, body.dragging], [false, false]);
+});
+
+Deno.test("handles: true does both", () => {
+	assertEquals(drag(true, [50, 50], [70, 60]).pos, { x: 20, y: 10 });
+	assertEquals(drag(true, [100, 100], [120, 130]).size, { w: 120, h: 130 });
 });

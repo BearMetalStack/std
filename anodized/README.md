@@ -38,6 +38,13 @@ clicks, and add `handles` to make it movable and resizable. Each call returns an
 `hovered`, `dragging`, `resizing`, `pos`, `size` and `changed`, and you decide whether to write the
 new position back.
 
+| `handles`                      | the object can be…                                          |
+| ------------------------------ | ----------------------------------------------------------- |
+| `true`                         | moved by dragging its body, and resized by its handles      |
+| `"move"`                       | moved only; no resize handles are drawn                     |
+| `"resize"`                     | resized only; dragging the body does nothing                |
+| `{ move?, resize?, minSize? }` | either, spelled out, plus the smallest size a resize allows |
+
 `loop()` only redraws when something changed: input, the camera, the canvas size, or a call to
 `invalidate()`. That keeps an idle canvas at zero cost. For animation there are two ways to keep it
 drawing:

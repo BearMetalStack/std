@@ -1,4 +1,4 @@
-import type { HandleOptions, HandleResult, HitTarget, Rect } from "../types.ts";
+import type { HandleResult, Handles, HitTarget, Rect } from "../types.ts";
 import type { Camera } from "../core/camera.ts";
 import type { InputState } from "./input.ts";
 import { hitLine, type LineHit, type LineRegion } from "./linehit.ts";
@@ -68,9 +68,15 @@ export interface HandleOverlay {
 	points: [number, number][];
 }
 
-function resolve(h: boolean | HandleOptions | undefined): ResolvedHandles | null {
+function resolve(h: Handles | undefined): ResolvedHandles | null {
 	if (!h) return null;
-	const o = h === true ? {} : h;
+	const o = h === true
+		? {}
+		: h === "move"
+		? { resize: false }
+		: h === "resize"
+		? { move: false }
+		: h;
 	return { move: o.move ?? true, resize: o.resize ?? true, minSize: o.minSize ?? 4 };
 }
 
@@ -102,7 +108,7 @@ export class HandleManager {
 	interact(
 		id: string,
 		rect: Rect,
-		handles: boolean | HandleOptions | undefined,
+		handles: Handles | undefined,
 		meta: HitMeta,
 	): HandleResult {
 		const h = resolve(handles);

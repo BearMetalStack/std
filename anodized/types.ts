@@ -133,13 +133,20 @@ export interface Clickable {
 export interface Interactive {
 	/** A stable id. Required for hover tracking and handles. */
 	id?: string;
-	/** `true` for move and resize handles, or pick which ones. */
-	handles?: boolean | HandleOptions;
+	/** Which control handles the object gets; see {@linkcode Handles}. */
+	handles?: Handles;
 	/** Anything you like; handed back as `target.data` when the object is clicked. */
 	data?: unknown;
 }
 
-/** Which control handles an object gets. */
+/**
+ * Which control handles an object gets: `true` for both moving and resizing, `"move"` to drag it
+ * by its body only, `"resize"` for the eight edge/corner handles only, or {@linkcode HandleOptions}
+ * for finer control. `false` or omitted for none.
+ */
+export type Handles = boolean | "move" | "resize" | HandleOptions;
+
+/** Which control handles an object gets, spelled out. */
 export interface HandleOptions {
 	/** Drag the body to move it. Default `true`. */
 	move?: boolean;
