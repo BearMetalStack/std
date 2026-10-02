@@ -10,7 +10,8 @@
 		"./namespaces": "./namespaces.ts",
 		"./palette": "./palette/mod.tsx",
 		"./build": "./build.ts",
-		"./icons": "./icons.ts"
+		"./icons": "./icons.ts",
+		"./computed": "./computed.ts"
 	},
 	"compilerOptions": {
 		"jsx": "react-jsx",

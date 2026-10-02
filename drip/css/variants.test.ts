@@ -39,7 +39,7 @@ Deno.test("the default variant sorts first", () => {
 
 Deno.test("the default variant's rules are emitted once, against a grouped selector", () => {
 	const css = buildVariantsCss(theme());
-	assertStringIncludes(css, ':root, :root[data-theme="light"] {');
+	assertStringIncludes(css, ':root, :root[data-theme="light"], [data-theme=light] {');
 	// The old shape wrote the same block twice; make sure it does not come back.
 	assertEquals(css.split("--color-bg: #ffffff").length - 1, 1);
 });
@@ -50,7 +50,14 @@ Deno.test("a media block excludes the other variants' explicit choices", () => {
 	assertStringIncludes(css, ':root:not([data-theme="light"]) {');
 	// ...and the explicit block still exists so `data-theme="dark"` works on a
 	// light OS.
-	assertStringIncludes(css, ':root[data-theme="dark"] {');
+	assertStringIncludes(css, ':root[data-theme="dark"], [data-theme=dark] {');
+});
+
+Deno.test("a variant built for :root also applies to any element carrying data-theme", () => {
+	const css = buildVariantsCss(theme());
+	assertStringIncludes(css, "[data-theme=light] {");
+	assertStringIncludes(css, "[data-theme=dark] {");
+	assert(!buildVariantsCss(theme(), ".themed").includes("[data-theme=light]"));
 });
 
 Deno.test("the media guard names every other variant", () => {

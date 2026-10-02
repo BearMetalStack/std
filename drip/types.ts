@@ -35,3 +35,4 @@ export type { FillRole, SemanticRole, VariantTokenDef, VariantTokenGroup } from 
 export type { BuildVariantsOptions } from "./css/variants.ts";
 export type { HueRampName, RampDiagnostic, RequiredBaseRamp } from "./css/ramps.ts";
 export type { FontDef, FontFace, FontKey } from "./fonts/manifest.ts";
+export type { TokenLookupOptions, TokenReaderOptions } from "./computed.ts";

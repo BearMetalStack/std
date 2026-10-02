@@ -11,6 +11,7 @@ export * from "./palette/ThemeUtils.ts";
 export * from "./css/compliantCSS.ts";
 export * from "./module.ts";
 export * from "./fonts/mod.ts";
+export * from "./computed.ts";
 
 import { generateStylesheets } from "./theme.ts";
 

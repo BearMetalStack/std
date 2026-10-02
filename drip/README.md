@@ -325,3 +325,23 @@ deno run -R -W jsr:@bearmetal/drip/icons public/iconography/*.svg --out=gen/icon
 
 or from a dev script with `writeIconTypes(sheets, out, { name })`, which only rewrites the file when
 the set changed. `iconNames(svg)` and `iconTypes(names)` are the pieces.
+
+## Reading tokens as hex on the client
+
+`drip/computed` resolves a token to the hex color the browser actually computes for it, for code
+that only takes hexes (canvas, WebGPU, chart libraries) when the token is a `color-mix()`, an
+`oklch()`, a `var()` chain or a `light-dark()`:
+
+```ts
+import { tokenHex, TokenReader } from "@bearmetal/drip/computed";
+
+tokenHex("--color-primary-500"); // "#3b82f6"
+tokenHex("btn-primary-bg", { scope: sidebar }); // resolved under the sidebar's data-theme
+
+const tokens = new TokenReader({ ttl: 500 }); // per-frame lookups hit a cache
+```
+
+The result is `#rrggbb`, `#rrggbbaa` when translucent, or `undefined` when the token is unset or not
+a color. Values are cached per scope element and dropped as soon as a theme stylesheet, a
+`data-theme`/`class`/`style` attribute or the color scheme changes; the TTL catches anything else
+(defaults to 500ms, `Infinity` relies on invalidation alone). `invalidate()` forces a re-read.
