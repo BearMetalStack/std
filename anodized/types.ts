@@ -303,6 +303,11 @@ export interface HitTarget {
 	y: number;
 	w: number;
 	h: number;
+	/**
+	 * The bounding box in CSS pixels relative to the canvas, at the pan and zoom of the hit test.
+	 * Position an HTML element here to cover the object exactly.
+	 */
+	screen: Rect;
 	/** The node's label, for nodes that have one. */
 	label?: string;
 	/** Whatever was passed as `data`. */
@@ -353,6 +358,13 @@ export interface LineHitTarget {
 	label?: string;
 	/** Whatever was passed as `data`. */
 	data?: unknown;
+	/**
+	 * Bounding box of the line in CSS pixels relative to the canvas, at the pan and zoom of the
+	 * hit test. It contains the line; around curves it may be a little larger.
+	 */
+	screen: Rect;
+	/** The label plate of a labelled connection, in CSS pixels relative to the canvas. */
+	labelScreen?: Rect;
 }
 
 /** The result of {@linkcode Anodized.hitTestLine}. */

@@ -5,7 +5,7 @@ import { wangCubic } from "../geometry/flatten.ts";
 
 /** A clickable line recorded during a frame, in world coordinates. */
 export interface LineRegion {
-	target: LineHitTarget;
+	target: Omit<LineHitTarget, "screen" | "labelScreen">;
 	path: Path;
 	strokeWidth: number;
 	scaleWidth: boolean;

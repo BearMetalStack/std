@@ -1,12 +1,14 @@
 import { assert, assertEquals } from "@std/assert";
 import { type Anodized, createHeadless, Path } from "../mod.ts";
 import type { Snapshot } from "../types.ts";
+import { Font } from "../text/ttf.ts";
 
 const adapter = typeof navigator !== "undefined" && navigator.gpu
 	? await navigator.gpu.requestAdapter()
 	: null;
 const device = await adapter?.requestDevice();
 const ignore = !device;
+const font = new Font(await Deno.readFile(new URL("../testdata/Vera.ttf", import.meta.url)));
 
 function px(img: Snapshot, x: number, y: number): number[] {
 	const i = (y * img.width + x) * 4;
@@ -138,6 +140,7 @@ Deno.test(
 			assertEquals(hit.target?.kind, "node");
 			assertEquals(hit.target?.data, "payload");
 			assertEquals([hit.x, hit.y], [20, 15]);
+			assertEquals(hit.target?.screen, { x: 20, y: 20, w: 80, h: 40 });
 			const miss = a.hitTest(150, 150);
 			assertEquals(miss.hit, false);
 			assertEquals(miss.target, undefined);
@@ -158,7 +161,27 @@ Deno.test(
 			assertEquals(hit.point, { x: 70, y: 100 });
 			assertEquals(hit.along, 50);
 			assertEquals(hit.fraction, 0.25);
+			assertEquals(hit.target?.screen, { x: 20, y: 100, w: 200, h: 0 });
 			assertEquals(a.hitTestLine(70, 130).hit, false);
+			await Promise.resolve();
+		}),
+);
+
+Deno.test(
+	{ name: "a connection label reports its plate in screen pixels", ignore },
+	() =>
+		withHeadless(400, 200, async (a) => {
+			a.camera.zoomAt(0, 0, 2);
+			a.frame((f) => {
+				f.node({ id: "a", x: 0, y: 0, w: 40, h: 20 });
+				f.node({ id: "b", x: 150, y: 0, w: 40, h: 20 });
+				f.connect("a", "b", { label: "edit me", labelStyle: { font } });
+			});
+			const hit = a.hitTestLine(190, 20);
+			const plate = hit.target?.labelScreen;
+			assert(plate, "labelled connections report labelScreen");
+			assert(plate.x < 190 && plate.x + plate.w > 190 && plate.y < 20 && plate.y + plate.h > 20);
+			assert(plate.w > 60, "the plate is scaled with the zoom");
 			await Promise.resolve();
 		}),
 );

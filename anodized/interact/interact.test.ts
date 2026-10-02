@@ -75,3 +75,16 @@ Deno.test("hitTest returns the topmost target with its data", () => {
 	assertEquals(h.hitTest(55, 55)?.id, "under", "ellipse corner falls through to the rect");
 	assertEquals(h.hitTest(190, 10), undefined);
 });
+
+Deno.test("hit targets carry their box in screen pixels at the current pan and zoom", () => {
+	const cam = new Camera(200, 200);
+	cam.zoomAt(0, 0, 2);
+	cam.pan(10, 20);
+	const h = new HandleManager();
+	h.begin(null, cam);
+	h.interact("r", { x: 10, y: 10, w: 30, h: 15 }, false, { kind: "rect", shape: "rect" });
+	h.end();
+	const t = h.hitTest(50, 50)!;
+	assertEquals(t.screen, { x: 30, y: 40, w: 60, h: 30 });
+	assertEquals([t.x, t.y, t.w, t.h], [10, 10, 30, 15], "world box is unchanged");
+});

@@ -39,7 +39,7 @@ interface Region {
 	id: string;
 	rect: Rect;
 	handles: ResolvedHandles | null;
-	target: HitTarget;
+	target: Omit<HitTarget, "screen">;
 	z: number;
 }
 
@@ -229,7 +229,7 @@ export class HandleManager {
 	/** The topmost object under a screen point (CSS pixels), as drawn in the most recent frame. */
 	hitTest(sx: number, sy: number): HitTarget | undefined {
 		const t = this.#pick(sx, sy)?.region.target;
-		return t ? { ...t } : undefined;
+		return t ? { ...t, screen: this.#camera!.rectToScreen(t) } : undefined;
 	}
 }
 

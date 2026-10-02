@@ -89,6 +89,34 @@ A hit is anything within half the stroke width plus 4px, measured on screen, so 
 clickable at any zoom. Lines and shapes share one paint order: a node drawn over the end of an edge
 wins there. `a.hitTestLine(x, y)` gives the same answer on demand.
 
+### Overlaying HTML
+
+Every target carries `screen`, its box in CSS pixels relative to the canvas at the current pan and
+zoom. Line targets also carry `labelScreen` when the connection has a label. Put the canvas in a
+`position: relative` wrapper and an absolutely positioned element lands exactly on the object:
+
+```ts
+a.onClick(({ target }) => {
+	if (target?.kind !== "node") return;
+	const { x, y, w, h } = target.screen;
+	const input = Object.assign(document.createElement("input"), { value: target.label ?? "" });
+	Object.assign(input.style, {
+		position: "absolute",
+		left: `${x}px`,
+		top: `${y}px`,
+		width: `${w}px`,
+		height: `${h}px`,
+		fontSize: `${14 * a.camera.scale}px`, // world units to pixels
+	});
+	canvas.parentElement!.append(input);
+});
+```
+
+`screen` is a snapshot, taken at the moment of the click. To keep an overlay pinned while the user
+pans or zooms, keep the world box (`target.x`, `y`, `w`, `h`) and reposition it with
+`a.camera.rectToScreen(box)` from your draw callback, which `loop()` reruns whenever the camera
+moves.
+
 ## What you can draw
 
 | call                                | notes                                                                                         |

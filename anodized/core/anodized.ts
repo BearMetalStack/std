@@ -10,6 +10,7 @@ import {
 	type DrawFn,
 	type HitResult,
 	type LineHitResult,
+	type LineHitTarget,
 	type RGBA,
 	type Snapshot,
 	type SnapshotOptions,
@@ -308,9 +309,21 @@ export class Anodized {
 		const h = this.#handles.hitTestLine(screenX, screenY);
 		const [x, y] = this.camera.screenToWorld(screenX, screenY);
 		if (!h) return { hit: false, x, y, screenX, screenY };
+		const { region } = h;
+		const b = region.path.bounds();
+		const target: LineHitTarget = {
+			...region.target,
+			screen: this.camera.rectToScreen({
+				x: b.minX,
+				y: b.minY,
+				w: b.maxX - b.minX,
+				h: b.maxY - b.minY,
+			}),
+		};
+		if (region.label) target.labelScreen = this.camera.rectToScreen(region.label);
 		return {
 			hit: true,
-			target: { ...h.region.target },
+			target,
 			point: { x: h.point[0], y: h.point[1] },
 			segment: h.segment,
 			along: h.along,

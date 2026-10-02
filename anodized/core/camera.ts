@@ -1,4 +1,4 @@
-import type { Bounds } from "../types.ts";
+import type { Bounds, Rect } from "../types.ts";
 
 /**
  * World-to-device mapping used during tessellation: `X = (x - cx) * s + ox`.
@@ -72,6 +72,16 @@ export class Camera {
 	worldToScreen(x: number, y: number): [number, number] {
 		const s = this.scale;
 		return [(x - this.x) * s + this.width / 2, (y - this.y) * s + this.height / 2];
+	}
+
+	/**
+	 * A world rectangle in screen CSS pixels relative to the canvas: where to put an HTML element
+	 * so it covers exactly that rectangle at the current pan and zoom.
+	 */
+	rectToScreen(r: Rect): Rect {
+		const [x, y] = this.worldToScreen(r.x, r.y);
+		const s = this.scale;
+		return { x, y, w: r.w * s, h: r.h * s };
 	}
 
 	/** Screen CSS pixels to world coordinates. */
