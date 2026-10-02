@@ -91,9 +91,10 @@ export class Frame {
 	readonly camera: Camera;
 	/** The instance's default font, if any. */
 	readonly font: Font | undefined;
-	/** The pointer in world coordinates, or `null` when it is not over the canvas. */
-	readonly pointer: { x: number; y: number } | null;
+	#pointer: { x: number; y: number } | null;
 	#ctx: FrameContext;
+	#ox = 0;
+	#oy = 0;
 	#entries: Entry[] = [];
 	#below: Connection[] = [];
 	#nodes = new Map<string, NodeGeometry>();
@@ -104,7 +105,54 @@ export class Frame {
 		this.#ctx = ctx;
 		this.camera = ctx.camera;
 		this.font = ctx.font;
-		this.pointer = pointer;
+		this.#pointer = pointer;
+	}
+
+	/**
+	 * The pointer in the current coordinate space (world, or local inside {@linkcode local}), or
+	 * `null` when it is not over the canvas.
+	 */
+	get pointer(): { x: number; y: number } | null {
+		const p = this.#pointer;
+		return p && { x: p.x - this.#ox, y: p.y - this.#oy };
+	}
+
+	/** Where the current coordinate space's origin sits in world coordinates. */
+	get origin(): { x: number; y: number } {
+		return { x: this.#ox, y: this.#oy };
+	}
+
+	/**
+	 * Draws in a local coordinate space whose origin is at `(x, y)` in the current one. Every
+	 * position given inside `draw` is relative to that origin, and positions handed back
+	 * (`HandleResult.pos`, {@linkcode pointer}) are local too, so writing a dragged position back
+	 * into your data keeps it relative. Calls nest, and the offsets add up.
+	 *
+	 * Node ids are global: a connection may join nodes drawn in different local spaces. Sizes,
+	 * stroke widths and `dotGrid()` are unaffected.
+	 *
+	 * ```ts
+	 * f.local(card.x, card.y, (f) => {
+	 * 	f.rect({ x: 0, y: 0, w: 200, h: 120, fill: "#fff" });
+	 * 	f.text(card.title, { x: 12, y: 12, baseline: "top" });
+	 * });
+	 * ```
+	 */
+	local<T>(x: number, y: number, draw: (f: this) => T): T {
+		const ox = this.#ox, oy = this.#oy;
+		this.#ox += x;
+		this.#oy += y;
+		try {
+			return draw(this);
+		} finally {
+			this.#ox = ox;
+			this.#oy = oy;
+		}
+	}
+
+	/** `path` moved from the current local space into world coordinates. */
+	#place(path: Path): Path {
+		return this.#ox || this.#oy ? new Path().addPath(path, 1, 1, this.#ox, this.#oy) : path;
 	}
 
 	/** Screen pixels per world unit at the moment. Handy for sizing things in pixels. */
@@ -112,9 +160,12 @@ export class Frame {
 		return this.camera.scale;
 	}
 
-	#push(path: Path, style: ShapeStyle, convex = false, defaults?: ShapeStyle): void {
-		if (path.empty) return;
-		this.#entries.push({ cmd: command(path, resolveStyle(style, defaults), convex) });
+	/** Records `path`, given in local coordinates, and returns it in world coordinates. */
+	#push(path: Path, style: ShapeStyle, convex = false, defaults?: ShapeStyle): Path {
+		if (path.empty) return path;
+		const placed = this.#place(path);
+		this.#entries.push({ cmd: command(placed, resolveStyle(style, defaults), convex) });
+		return placed;
 	}
 
 	#interact(
@@ -126,7 +177,12 @@ export class Frame {
 		h: number,
 	): HandleResult {
 		if (o.id && this.#ctx.handles) {
-			return this.#ctx.handles.interact(o.id, { x, y, w, h }, o.handles, { ...meta, data: o.data });
+			const ox = this.#ox, oy = this.#oy;
+			const r = this.#ctx.handles.interact(o.id, { x: x + ox, y: y + oy, w, h }, o.handles, {
+				...meta,
+				data: o.data,
+			});
+			return { ...r, pos: { x: r.pos.x - ox, y: r.pos.y - oy } };
 		}
 		return {
 			hovered: false,
@@ -212,21 +268,20 @@ export class Frame {
 		style: ShapeStyle & Clickable = {},
 	): void {
 		const path = new Path().moveTo(x1, y1).lineTo(x2, y2);
-		this.#push(path, { stroke: "#000", ...style, fill: undefined });
-		this.#clickable(path, style, "line");
+		const placed = this.#push(path, { stroke: "#000", ...style, fill: undefined });
+		this.#clickable(placed, style, "line");
 	}
 
 	/** An open polyline. With `id` it is clickable via `anode:lineclick`. */
 	polyline(points: readonly Point[], style: ShapeStyle & Clickable = {}): void {
 		const path = new Path().poly(points);
-		this.#push(path, { stroke: "#000", ...style, fill: undefined });
-		this.#clickable(path, style, "polyline");
+		const placed = this.#push(path, { stroke: "#000", ...style, fill: undefined });
+		this.#clickable(placed, style, "polyline");
 	}
 
 	/** Any {@linkcode Path}. With `id`, its outline is clickable via `anode:lineclick`. */
 	path(path: Path, style: ShapeStyle & Clickable): void {
-		this.#push(path, style);
-		this.#clickable(path, style, "path");
+		this.#clickable(this.#push(path, style), style, "path");
 	}
 
 	#clickable(
@@ -283,7 +338,7 @@ export class Frame {
 		const { x, y } = r.pos, { w, h } = r.size;
 		const radius = o.radius ?? 6;
 		if (this.#firstNode < 0) this.#firstNode = this.#entries.length;
-		this.#nodes.set(o.id, { rect: { x, y, w, h }, shape, radius });
+		this.#nodes.set(o.id, { rect: { x: x + this.#ox, y: y + this.#oy, w, h }, shape, radius });
 		const path = new Path();
 		switch (shape) {
 			case "rect":
@@ -339,8 +394,12 @@ export class Frame {
 				opacity: o.area.opacity,
 			});
 		}
-		const line = curvePath(points, curve, o.tension);
-		this.#push(line, { ...o, fill: undefined }, false, SERIES_DEFAULTS);
+		const line = this.#push(
+			curvePath(points, curve, o.tension),
+			{ ...o, fill: undefined },
+			false,
+			SERIES_DEFAULTS,
+		);
 		const perInterval = curve === "stepMiddle"
 			? 3
 			: curve === "stepBefore" || curve === "stepAfter"

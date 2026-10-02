@@ -102,6 +102,27 @@ wins there. `a.hitTestLine(x, y)` gives the same answer on demand.
 | `series(points)`                    | fitted curve, optional area fill and point markers                                            |
 | `dotGrid({ size, spacing, color })` | background dots: spacing in world units, size in screen pixels; thins out when zoomed far out |
 
+### Local coordinates
+
+`f.local(x, y, draw)` runs `draw` with the origin moved to `(x, y)`, so a group of shapes can be
+laid out relative to its own corner and placed as a unit:
+
+```ts
+for (const card of cards) {
+	f.local(card.x, card.y, (f) => {
+		f.rect({ x: 0, y: 0, w: 200, h: 120, radius: 8, fill: "#fff", stroke: "#cbd5e1" });
+		f.text(card.title, { x: 12, y: 12, baseline: "top", size: 16 });
+		const h = f.rect({ id: `${card.id}:badge`, ...card.badge, fill: "#f59e0b", handles: true });
+		if (h.changed) Object.assign(card.badge, h.pos, h.size); // still relative to the card
+	});
+}
+```
+
+- Spaces nest, and their offsets add up. `f.origin` gives the current origin in world coordinates.
+- What you get back is local too: `HandleResult.pos` and `f.pointer`.
+- Node ids stay global, so `connect()` can join nodes drawn in different local spaces.
+- Sizes, stroke widths and `dotGrid()` are not affected.
+
 Stroke widths are in screen pixels by default, so lines stay crisp as you zoom. Set
 `scaleWidth: true` to make them scale with the world instead. `linearScale()` and `niceTicks()`
 cover the arithmetic for chart axes.
