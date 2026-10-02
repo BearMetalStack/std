@@ -40,10 +40,65 @@ export type LineCap = "butt" | "round" | "square";
 /** Which regions of a self-overlapping path count as inside. */
 export type FillRule = "nonzero" | "evenodd";
 
+/** Straight-alpha RGBA pixels: what {@linkcode decodePng} returns, and the shape of a {@linkcode Snapshot}. */
+export interface RawImage {
+	width: number;
+	height: number;
+	/** RGBA, straight alpha, row-major, no padding. */
+	pixels: Uint8Array;
+}
+
+/**
+ * Anything an image can be drawn from. Raw pixels work everywhere; the DOM sources need a
+ * runtime that can upload them to the GPU (browsers can, Deno cannot). An `HTMLImageElement`
+ * must have finished loading.
+ */
+export type ImageSource =
+	| RawImage
+	| ImageBitmap
+	| HTMLImageElement
+	| HTMLCanvasElement
+	| OffscreenCanvas
+	| HTMLVideoElement
+	| VideoFrame;
+
+/**
+ * How an image is fitted into its box, as in CSS `object-fit`: `"fill"` stretches it,
+ * `"contain"` fits it inside keeping its aspect ratio, `"cover"` fills the box keeping its aspect
+ * ratio and crops the rest, `"none"` draws it at one world unit per pixel.
+ */
+export type ImageFit = "fill" | "contain" | "cover" | "none";
+
+/** How an image is sampled: `"linear"` is smooth, `"nearest"` keeps hard pixel edges. */
+export type ImageSmoothing = "linear" | "nearest";
+
+/** Image placement shared by image fills and {@linkcode Frame.image}. */
+export interface ImagePlacement {
+	/** Default `"cover"` for fills, `"fill"` for {@linkcode Frame.image}. */
+	fit?: ImageFit;
+	/** Where the image sits in its box when it does not fill it exactly, as fractions. Default `[0.5, 0.5]`. */
+	position?: readonly [number, number];
+	/** Default `"linear"`. */
+	smoothing?: ImageSmoothing;
+}
+
+/** Fills a shape with an image. The parts of the shape the image does not reach stay empty. */
+export interface ImagePaint extends ImagePlacement {
+	image: ImageSource;
+	/**
+	 * The box the image is fitted into, in the same coordinates as the shape. Defaults to the
+	 * shape's bounding box.
+	 */
+	box?: Rect;
+}
+
+/** What a shape can be filled with: a color, or an image. */
+export type Paint = ColorInput | ImagePaint;
+
 /** Fill and stroke settings shared by every shape. */
 export interface ShapeStyle {
-	/** Fill color. Omit for no fill. */
-	fill?: ColorInput;
+	/** Fill color or image. Omit for no fill. */
+	fill?: Paint;
 	/** Fill rule for paths whose contours overlap. Default `"nonzero"`. */
 	fillRule?: FillRule;
 	/** Stroke color. Omit for no stroke. */
@@ -139,6 +194,21 @@ export interface EllipseOptions extends ShapeStyle, Interactive {
 	ry: number;
 }
 
+/** Options for {@linkcode Frame.image}. */
+export interface ImageOptions
+	extends Omit<ShapeStyle, "fill" | "fillRule">, Interactive, ImagePlacement {
+	/** Left edge. */
+	x: number;
+	/** Top edge. */
+	y: number;
+	/** Width in world units. Defaults to the image's width, or keeps its aspect ratio when only `h` is given. */
+	w?: number;
+	/** Height in world units. Defaults to the image's height, or keeps its aspect ratio when only `w` is given. */
+	h?: number;
+	/** Corner radius in world units. */
+	radius?: number;
+}
+
 /** Horizontal text alignment relative to the anchor. */
 export type TextAlign = "start" | "center" | "end";
 
@@ -153,8 +223,8 @@ export interface TextOptions {
 	size?: number;
 	/** Font to draw with. Defaults to the instance's `font`. */
 	font?: Font;
-	/** Default `"#000"`. */
-	fill?: ColorInput;
+	/** Color or image. Default `"#000"`. */
+	fill?: Paint;
 	align?: TextAlign;
 	baseline?: TextBaseline;
 	/** Wrap words to this width, in world units. */
@@ -272,11 +342,7 @@ export interface SnapshotOptions {
 }
 
 /** A rendered image. */
-export interface Snapshot {
-	width: number;
-	height: number;
-	/** RGBA, straight alpha, row-major, no padding. */
-	pixels: Uint8Array;
+export interface Snapshot extends RawImage {
 	/** Encodes the image as a PNG file. */
 	png(): Promise<Uint8Array>;
 }
@@ -290,7 +356,7 @@ export interface ViewportOptions {
 }
 
 /** What kind of call drew a clickable object. */
-export type HitKind = "node" | "rect" | "circle" | "ellipse";
+export type HitKind = "node" | "rect" | "circle" | "ellipse" | "image";
 
 /** The object under a point, as it was drawn in the most recent frame. */
 export interface HitTarget {
@@ -407,6 +473,15 @@ export type AnodeLineClickEvent = CustomEvent<AnodeLineClickDetail>;
 /** The name of the line click event. */
 export const ANODE_LINE_CLICK = "anode:lineclick";
 
+/** Options for {@linkcode Anodized.loop}. */
+export interface LoopOptions {
+	/**
+	 * Redraw on every animation frame instead of only when something changed. Same as setting
+	 * {@linkcode Anodized.continuous}, which can be flipped at any time.
+	 */
+	continuous?: boolean;
+}
+
 /** A frame's draw callback. */
 export type DrawFn = (f: Frame) => void;
 
@@ -420,7 +495,7 @@ export type { AnodizedOptions, HeadlessOptions } from "./core/anodized.ts";
 export type { Transform } from "./core/camera.ts";
 export type { LinearScale } from "./core/scale.ts";
 export type { Verb } from "./geometry/path.ts";
-export type { Backend, DrawItem, Geometry, Offscreen, Surface } from "./gpu/backend.ts";
+export type { Backend, DrawItem, Geometry, ImageDraw, Offscreen, Surface } from "./gpu/backend.ts";
 export type { LayoutOptions, PlacedGlyph, TextLayout, TextLine } from "./text/layout.ts";
 export type { NodeGeometry } from "./solvers/anchors.ts";
 export type { Route, RouteRequest } from "./solvers/route.ts";

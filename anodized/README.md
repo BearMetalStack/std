@@ -39,7 +39,24 @@ clicks, and add `handles` to make it movable and resizable. Each call returns an
 new position back.
 
 `loop()` only redraws when something changed: input, the camera, the canvas size, or a call to
-`invalidate()`.
+`invalidate()`. That keeps an idle canvas at zero cost. For animation there are two ways to keep it
+drawing:
+
+```ts
+// a short animation: ask for the next frame for as long as it runs
+a.loop((f) => {
+	const t = Math.min(1, (f.time - start) / 300);
+	f.circle({ x: 100 * ease(t), y: 50, r: 10, fill: "#2563eb" });
+	if (t < 1) f.requestFrame();
+});
+
+// something that runs indefinitely: redraw on every animation frame
+a.loop(draw, { continuous: true });
+a.continuous = false; // flip it whenever you like
+```
+
+`f.time` is `performance.now()` at the start of the frame. `f.dt` is the number of milliseconds
+since the previous frame, capped at 100 so an animation doesn't jump after the loop has been idle.
 
 ## Clicks
 
@@ -125,6 +142,7 @@ moves.
 | `line`, `polyline`, `polygon`       | joins (miter/round/bevel), caps, dashes, `nonzero`/`evenodd`                                  |
 | `path(new Path()…)`                 | lines, quadratic/cubic Béziers, arcs, `arcTo`, round rects                                    |
 | `text`                              | vector glyphs from a TrueType font, kerning, word wrap, alignment                             |
+| `image(src, { x, y, w?, h? })`      | sized from the image, `fit` like CSS `object-fit`, corner radius; accepts `id`/`handles`      |
 | `node`                              | rect / round rect / ellipse / diamond with a centered, wrapped label                          |
 | `connect(from, to)`                 | routed connector with arrowheads and an optional label                                        |
 | `series(points)`                    | fitted curve, optional area fill and point markers                                            |
@@ -200,6 +218,49 @@ built on `CompressionStream`.
 Deno exposes WebGPU without any flag, so this runs from a plain `deno run` on a server. The same
 call works in a browser.
 
+## Images
+
+```ts
+const logo = await loadImage("/logo.png");
+
+a.loop((f) => {
+	f.image(logo, { x: 0, y: 0, w: 120 }); // height follows the aspect ratio
+	f.circle({ x: 200, y: 40, r: 24, fill: { image: avatar } }); // round avatar
+	f.node({ id: "n", x: 0, y: 100, w: 160, h: 90, label: "Photo", fill: { image: photo } });
+});
+```
+
+An image is a kind of fill, so any shape, node, path or text can be filled with one:
+`fill: { image, fit, position, smoothing, box }`. The image is fitted into `box`, which defaults to
+the shape's bounding box. The shape clips it, and parts of the shape the image doesn't reach stay
+empty. `f.image()` is the shortcut for the common case, a picture in a rectangle. Give it `w` or `h`
+alone to keep the aspect ratio, or neither for the image's own size in world units.
+
+| option      | values                                                      | default                                 |
+| ----------- | ----------------------------------------------------------- | --------------------------------------- |
+| `fit`       | `fill` (stretch), `contain`, `cover`, `none` (1px = 1 unit) | `cover` for fills, `fill` for `image()` |
+| `position`  | `[x, y]` fractions, like `object-position`                  | `[0.5, 0.5]`                            |
+| `smoothing` | `linear`, or `nearest` for hard pixel edges                 | `linear`                                |
+
+`opacity` applies to images as to any fill, and a `stroke` on `f.image()` draws a border. Images are
+mipmapped, so a large photo drawn as a thumbnail stays smooth rather than shimmering.
+
+### Sources
+
+Pass the same object every frame. Each image is uploaded to the GPU once, the first time it is
+drawn. An image that goes unused for 120 frames has its upload freed. If its pixels change, for
+example a `<video>` frame or a canvas you painted into, call `a.invalidateImage(src)`.
+
+- In a browser, anything WebGPU can copy from works: `ImageBitmap`, a loaded `<img>`, `<canvas>`,
+  `OffscreenCanvas`, `<video>`, `VideoFrame`. `loadImage(urlOrBytes)` returns an `ImageBitmap`
+  decoded by the browser, so any format it supports is fine.
+- Raw pixels, `{ width, height, pixels }` with straight-alpha RGBA, work everywhere. A `Snapshot`
+  has that shape, so one render can be drawn into another.
+- Deno can't hand DOM images to WebGPU, so there `loadImage()` decodes PNG itself with
+  `decodePng()`. That decoder handles every color type and bit depth, palettes, transparency and
+  interlacing. JPEG and other formats are rejected with an error for now: convert them, or decode
+  them yourself into raw pixels.
+
 ## Text
 
 Fonts are TrueType files you load yourself: `await loadFont(urlOrBytes)`. Nothing is bundled. Glyphs
@@ -214,6 +275,8 @@ stays sharp at any zoom.
 
 - One render pass per frame: 4× MSAA color plus a stencil buffer, painted in call order.
 - Arbitrary fills use stencil-then-cover; convex shapes skip the stencil.
+- Image fills paint the same cover pass with a texture. The image's own edges clip the geometry, so
+  MSAA antialiases them like any other edge.
 - WebGPU is the only backend today. The `Backend` interface is where a WebGL2 fallback would go.
 
 ## Example

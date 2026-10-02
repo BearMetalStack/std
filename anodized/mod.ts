@@ -29,4 +29,7 @@ export { Path } from "./geometry/path.ts";
 export { Font, loadFont, parseFont } from "./text/ttf.ts";
 export { layoutText, measureText, textPath } from "./text/layout.ts";
 export { encodePng } from "./snapshot/png.ts";
+export { decodePng } from "./image/png.ts";
+export { loadImage } from "./image/load.ts";
+export { fitImage, imageSize } from "./image/source.ts";
 export { createWebGPUBackend, hasWebGPU, WebGPUBackend } from "./gpu/webgpu.ts";

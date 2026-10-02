@@ -7,6 +7,8 @@ import type {
 	DotGridOptions,
 	EllipseOptions,
 	HandleResult,
+	ImageOptions,
+	ImageSource,
 	Interactive,
 	LineHitKind,
 	NodeOptions,
@@ -19,7 +21,9 @@ import type {
 	TextOptions,
 } from "../types.ts";
 import type { Camera } from "./camera.ts";
-import { command, type DrawCommand, resolveStyle } from "./commands.ts";
+import { command, type DrawCommand, isImageFill, resolveStyle } from "./commands.ts";
+import { imageSize } from "../image/source.ts";
+import { warnOnce } from "./warn.ts";
 import { Path } from "../geometry/path.ts";
 import type { Font } from "../text/ttf.ts";
 import { layoutText, measureText, type TextLayout, textPath } from "../text/layout.ts";
@@ -44,6 +48,12 @@ export interface FrameContext {
 	routeCache: Map<string, Route>;
 	/** Opaque color used behind connection labels. */
 	background: ColorInput;
+	/** `performance.now()` when the frame started. */
+	time?: number;
+	/** Milliseconds since the previous frame. */
+	dt?: number;
+	/** Asks for another frame after this one. */
+	requestFrame?: () => void;
 }
 
 interface Connection {
@@ -75,13 +85,6 @@ const SERIES_DEFAULTS: ShapeStyle = {
 	cap: "round",
 };
 
-const warned = new Set<string>();
-function warnOnce(msg: string): void {
-	if (warned.has(msg)) return;
-	warned.add(msg);
-	console.warn(`anodized: ${msg}`);
-}
-
 /**
  * The immediate-mode drawing API handed to a draw callback. Every call records into the frame
  * in world coordinates; nothing touches the GPU until the callback returns. Calls are cheap:
@@ -91,6 +94,13 @@ export class Frame {
 	readonly camera: Camera;
 	/** The instance's default font, if any. */
 	readonly font: Font | undefined;
+	/** `performance.now()` when this frame started, in milliseconds. Use it to drive animations. */
+	readonly time: number;
+	/**
+	 * Milliseconds since the previous frame, capped at 100 so an animation resuming after the loop
+	 * sat idle does not jump. `0` on the first frame and in snapshots.
+	 */
+	readonly dt: number;
 	#pointer: { x: number; y: number } | null;
 	#ctx: FrameContext;
 	#ox = 0;
@@ -105,7 +115,18 @@ export class Frame {
 		this.#ctx = ctx;
 		this.camera = ctx.camera;
 		this.font = ctx.font;
+		this.time = ctx.time ?? performance.now();
+		this.dt = ctx.dt ?? 0;
 		this.#pointer = pointer;
+	}
+
+	/**
+	 * Asks {@linkcode Anodized.loop} for another frame after this one, even if nothing else
+	 * changed. Call it on every frame of an animation; once you stop, the loop goes back to
+	 * redrawing only on input. A no-op in snapshots.
+	 */
+	requestFrame(): void {
+		this.#ctx.requestFrame?.();
 	}
 
 	/**
@@ -164,7 +185,12 @@ export class Frame {
 	#push(path: Path, style: ShapeStyle, convex = false, defaults?: ShapeStyle): Path {
 		if (path.empty) return path;
 		const placed = this.#place(path);
-		this.#entries.push({ cmd: command(placed, resolveStyle(style, defaults), convex) });
+		const resolved = resolveStyle(style, defaults);
+		const f = resolved.fill;
+		if (isImageFill(f) && f.box && (this.#ox || this.#oy)) {
+			resolved.fill = { ...f, box: { ...f.box, x: f.box.x + this.#ox, y: f.box.y + this.#oy } };
+		}
+		this.#entries.push({ cmd: command(placed, resolved, convex) });
 		return placed;
 	}
 
@@ -233,6 +259,30 @@ export class Frame {
 		);
 		const { w, h } = r.size;
 		this.#push(new Path().ellipse(r.pos.x + w / 2, r.pos.y + h / 2, w / 2, h / 2), o, true);
+		return r;
+	}
+
+	/**
+	 * An image in a box at `(x, y)`. Give `w` or `h` alone to keep the aspect ratio, neither for
+	 * the image's own size in world units. `fit` decides what happens when the box's aspect ratio
+	 * differs from the image's (default `"fill"`, stretching it, like an `<img>`). Takes a stroke
+	 * for a border, and `id`/`handles` like {@linkcode rect}. To put an image inside any other
+	 * shape, fill the shape with it: `fill: { image }`.
+	 */
+	image(src: ImageSource, o: ImageOptions): HandleResult {
+		const { width: iw, height: ih } = imageSize(src);
+		let w = o.w, h = o.h;
+		if (w === undefined && h === undefined) [w, h] = [iw, ih];
+		else if (w === undefined) w = ih ? h! * iw / ih : 0;
+		else if (h === undefined) h = iw ? w * ih / iw : 0;
+		const shape = o.radius ? "roundRect" : "rect";
+		const r = this.#interact(o, { kind: "image", shape }, o.x, o.y, w, h!);
+		const { x, y } = r.pos, size = r.size;
+		const path = o.radius
+			? new Path().roundRect(x, y, size.w, size.h, o.radius)
+			: new Path().rect(x, y, size.w, size.h);
+		const fill = { image: src, fit: o.fit ?? "fill", position: o.position, smoothing: o.smoothing };
+		this.#push(path, { ...o, fill }, true);
 		return r;
 	}
 

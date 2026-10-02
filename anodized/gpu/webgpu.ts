@@ -1,12 +1,15 @@
-import type { RGBA } from "../types.ts";
+import type { ImageSmoothing, ImageSource, RGBA } from "../types.ts";
 import {
 	type Backend,
 	type Geometry,
+	type ImageDraw,
 	type Offscreen,
 	type Surface,
 	VERTEX_FLOATS,
 } from "./backend.ts";
-import { SHADER } from "./shaders.ts";
+import { MIP_SHADER, SHADER } from "./shaders.ts";
+import { imageSize, isRawImage } from "../image/source.ts";
+import { warnOnce } from "../core/warn.ts";
 
 const SAMPLES = 4;
 const STENCIL_FORMAT: GPUTextureFormat = "stencil8";
@@ -17,6 +20,15 @@ interface Pipelines {
 	evenodd: GPURenderPipeline;
 	union: GPURenderPipeline;
 	cover: GPURenderPipeline;
+	convexImage: GPURenderPipeline;
+	coverImage: GPURenderPipeline;
+}
+
+const TEXTURE_FORMAT: GPUTextureFormat = "rgba8unorm";
+
+interface TextureEntry {
+	texture: GPUTexture;
+	groups: Partial<Record<ImageSmoothing, GPUBindGroup>>;
 }
 
 /** `true` when this runtime exposes WebGPU at all. Does not guarantee an adapter exists. */
@@ -42,6 +54,11 @@ export class WebGPUBackend implements Backend {
 	#module: GPUShaderModule;
 	#layout: GPUBindGroupLayout;
 	#pipelineLayout: GPUPipelineLayout;
+	#imagePipelineLayout: GPUPipelineLayout;
+	#imageLayout: GPUBindGroupLayout;
+	#samplers: Record<ImageSmoothing, GPUSampler>;
+	#textures = new Map<ImageSource, TextureEntry | null>();
+	#mip: { pipeline: GPURenderPipeline; sampler: GPUSampler } | null = null;
 	#pipelines = new Map<GPUTextureFormat, Pipelines>();
 	#uniforms: GPUBuffer;
 	#bindGroup: GPUBindGroup;
@@ -57,6 +74,25 @@ export class WebGPUBackend implements Backend {
 			entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } }],
 		});
 		this.#pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [this.#layout] });
+		this.#imageLayout = device.createBindGroupLayout({
+			entries: [
+				{ binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+				{ binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+			],
+		});
+		this.#imagePipelineLayout = device.createPipelineLayout({
+			bindGroupLayouts: [this.#layout, this.#imageLayout],
+		});
+		const clamp = { addressModeU: "clamp-to-edge", addressModeV: "clamp-to-edge" } as const;
+		this.#samplers = {
+			linear: device.createSampler({
+				...clamp,
+				magFilter: "linear",
+				minFilter: "linear",
+				mipmapFilter: "linear",
+			}),
+			nearest: device.createSampler({ ...clamp, lodMaxClamp: 0 }),
+		};
 		this.#uniforms = device.createBuffer({
 			size: 16,
 			usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -74,9 +110,10 @@ export class WebGPUBackend implements Backend {
 			stencil: GPUStencilFaceState,
 			back: GPUStencilFaceState,
 			writeColor: boolean,
+			image = false,
 		) =>
 			this.device.createRenderPipeline({
-				layout: this.#pipelineLayout,
+				layout: image ? this.#imagePipelineLayout : this.#pipelineLayout,
 				vertex: {
 					module: this.#module,
 					entryPoint: "vs",
@@ -85,12 +122,13 @@ export class WebGPUBackend implements Backend {
 						attributes: [
 							{ shaderLocation: 0, offset: 0, format: "float32x2" },
 							{ shaderLocation: 1, offset: 8, format: "float32x4" },
+							{ shaderLocation: 2, offset: 24, format: "float32x2" },
 						],
 					}],
 				},
 				fragment: {
 					module: this.#module,
-					entryPoint: "fs",
+					entryPoint: image ? "fs_image" : "fs",
 					targets: [{
 						format,
 						writeMask: writeColor ? GPUColorWrite.ALL : 0,
@@ -128,12 +166,14 @@ export class WebGPUBackend implements Backend {
 			evenodd: make(always("invert"), always("invert"), false),
 			union: make(always("replace"), always("replace"), false),
 			cover: make(cover, cover, true),
+			convexImage: make(always("keep"), always("keep"), true, true),
+			coverImage: make(cover, cover, true, true),
 		};
 		this.#pipelines.set(format, p);
 		return p;
 	}
 
-	#upload(geometry: Geometry): void {
+	#uploadVertices(geometry: Geometry): void {
 		const bytes = geometry.vertexCount * VERTEX_FLOATS * 4;
 		if (bytes === 0) return;
 		if (!this.#vertexBuffer || this.#vertexBuffer.size < bytes) {
@@ -154,6 +194,111 @@ export class WebGPUBackend implements Backend {
 		);
 	}
 
+	/** The bind group for an image, uploading it on first use. `null` when it cannot be drawn. */
+	#imageGroup({ source, smoothing }: ImageDraw): GPUBindGroup | null {
+		let entry = this.#textures.get(source);
+		if (entry === undefined) {
+			entry = this.#upload(source);
+			const { width, height } = imageSize(source);
+			// An image element still loading reports 0×0; try again once it has a size.
+			if (entry || (width && height)) this.#textures.set(source, entry);
+		}
+		if (!entry) return null;
+		return entry.groups[smoothing] ??= this.device.createBindGroup({
+			layout: this.#imageLayout,
+			entries: [
+				{ binding: 0, resource: entry.texture.createView() },
+				{ binding: 1, resource: this.#samplers[smoothing] },
+			],
+		});
+	}
+
+	#upload(source: ImageSource): TextureEntry | null {
+		const { width, height } = imageSize(source);
+		if (!width || !height) return null;
+		const max = this.maxTextureSize;
+		if (width > max || height > max) {
+			warnOnce(`a ${width}x${height} image is larger than this GPU's ${max}px texture limit`);
+			return null;
+		}
+		const queue = this.device.queue;
+		if (!isRawImage(source) && typeof queue.copyExternalImageToTexture !== "function") {
+			warnOnce(
+				"this runtime cannot upload DOM image sources to the GPU; use loadImage() or raw pixels",
+			);
+			return null;
+		}
+		const texture = this.device.createTexture({
+			size: [width, height],
+			format: TEXTURE_FORMAT,
+			mipLevelCount: Math.floor(Math.log2(Math.max(width, height))) + 1,
+			usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST |
+				GPUTextureUsage.RENDER_ATTACHMENT,
+		});
+		if (isRawImage(source)) {
+			const data = premultiply(source.pixels.subarray(0, width * height * 4));
+			queue.writeTexture({ texture }, data as Uint8Array<ArrayBuffer>, {
+				bytesPerRow: width * 4,
+			}, [width, height]);
+		} else {
+			queue.copyExternalImageToTexture(
+				{ source },
+				{ texture, premultipliedAlpha: true },
+				[width, height],
+			);
+		}
+		this.#generateMips(texture);
+		return { texture, groups: {} };
+	}
+
+	#generateMips(texture: GPUTexture): void {
+		if (texture.mipLevelCount < 2) return;
+		const device = this.device;
+		this.#mip ??= (() => {
+			const module = device.createShaderModule({ code: MIP_SHADER });
+			return {
+				pipeline: device.createRenderPipeline({
+					layout: "auto",
+					vertex: { module, entryPoint: "vs" },
+					fragment: { module, entryPoint: "fs", targets: [{ format: TEXTURE_FORMAT }] },
+					primitive: { topology: "triangle-list" },
+				}),
+				sampler: device.createSampler({ minFilter: "linear", magFilter: "linear" }),
+			};
+		})();
+		const { pipeline, sampler } = this.#mip;
+		const enc = device.createCommandEncoder();
+		for (let level = 1; level < texture.mipLevelCount; level++) {
+			const group = device.createBindGroup({
+				layout: pipeline.getBindGroupLayout(0),
+				entries: [
+					{
+						binding: 0,
+						resource: texture.createView({ baseMipLevel: level - 1, mipLevelCount: 1 }),
+					},
+					{ binding: 1, resource: sampler },
+				],
+			});
+			const pass = enc.beginRenderPass({
+				colorAttachments: [{
+					view: texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
+					loadOp: "clear",
+					storeOp: "store",
+				}],
+			});
+			pass.setPipeline(pipeline);
+			pass.setBindGroup(0, group);
+			pass.draw(3);
+			pass.end();
+		}
+		device.queue.submit([enc.finish()]);
+	}
+
+	releaseImage(source: ImageSource): void {
+		this.#textures.get(source)?.texture.destroy();
+		this.#textures.delete(source);
+	}
+
 	/** Encodes one frame into `resolveView` (single-sample) via MSAA color + stencil textures. */
 	encode(
 		geometry: Geometry,
@@ -166,7 +311,8 @@ export class WebGPUBackend implements Backend {
 		clear: RGBA,
 	): GPUCommandBuffer {
 		const pipes = this.#pipelinesFor(format);
-		this.#upload(geometry);
+		this.#uploadVertices(geometry);
+		const groups = geometry.items.map((item) => item.image ? this.#imageGroup(item.image) : null);
 		this.device.queue.writeBuffer(this.#uniforms, 0, new Float32Array([width, height, 0, 0]));
 		const enc = this.device.createCommandEncoder();
 		const [r, g, b, a] = clear;
@@ -192,19 +338,22 @@ export class WebGPUBackend implements Backend {
 			const use = (p: GPURenderPipeline) => {
 				if (p !== current) pass.setPipeline(current = p);
 			};
-			for (const item of geometry.items) {
+			geometry.items.forEach((item, i) => {
+				const group = groups[i];
+				if (item.image && !group) return;
+				if (group) pass.setBindGroup(1, group);
 				if (item.kind === "convex") {
-					use(pipes.convex);
+					use(group ? pipes.convexImage : pipes.convex);
 					pass.draw(item.count, 1, item.first);
-					continue;
+					return;
 				}
 				use(pipes[item.kind]);
 				pass.setStencilReference(item.kind === "union" ? 1 : 0);
 				pass.draw(item.count, 1, item.first);
-				use(pipes.cover);
+				use(group ? pipes.coverImage : pipes.cover);
 				pass.setStencilReference(0);
 				pass.draw(item.coverCount, 1, item.coverFirst);
-			}
+			});
 		}
 		pass.end();
 		return enc.finish();
@@ -232,6 +381,8 @@ export class WebGPUBackend implements Backend {
 	}
 
 	destroy(): void {
+		for (const entry of this.#textures.values()) entry?.texture.destroy();
+		this.#textures.clear();
 		this.#vertexBuffer?.destroy();
 		this.#uniforms.destroy();
 		if (this.#owned) this.device.destroy();
@@ -381,6 +532,19 @@ class WebGPUOffscreen implements Offscreen {
 		this.#target.destroy();
 		this.#readBuffer.destroy();
 	}
+}
+
+/** A premultiplied copy of straight-alpha RGBA bytes. */
+function premultiply(px: Uint8Array): Uint8Array {
+	const out = new Uint8Array(px);
+	for (let i = 0; i < out.length; i += 4) {
+		const a = out[i + 3];
+		if (a === 255) continue;
+		out[i] = Math.round((out[i] * a) / 255);
+		out[i + 1] = Math.round((out[i + 1] * a) / 255);
+		out[i + 2] = Math.round((out[i + 2] * a) / 255);
+	}
+	return out;
 }
 
 /** Converts premultiplied RGBA bytes to straight alpha in place. */

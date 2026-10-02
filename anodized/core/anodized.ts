@@ -9,8 +9,10 @@ import {
 	type ColorInput,
 	type DrawFn,
 	type HitResult,
+	type ImageSource,
 	type LineHitResult,
 	type LineHitTarget,
+	type LoopOptions,
 	type RGBA,
 	type Snapshot,
 	type SnapshotOptions,
@@ -18,7 +20,7 @@ import {
 } from "../types.ts";
 import { Camera, type Transform } from "./camera.ts";
 import { parseColor } from "./color.ts";
-import { command, type DrawCommand, expandGrids, resolveStyle } from "./commands.ts";
+import { command, type DrawCommand, expandGrids, isImageFill, resolveStyle } from "./commands.ts";
 import { commandBounds, Frame } from "./frame.ts";
 import { tessellate } from "./tessellate.ts";
 import type { Backend, Offscreen, Surface } from "../gpu/backend.ts";
@@ -53,6 +55,8 @@ export interface HeadlessOptions extends AnodizedOptions {
 
 const MAX_TILE = 4096;
 const MIN_TILE = 64;
+/** An image not drawn for this many frames gives its GPU memory back. */
+const IMAGE_IDLE_FRAMES = 120;
 
 /**
  * An anodized canvas: one camera, one frame buffer. Draw by passing a callback to
@@ -78,6 +82,11 @@ export class Anodized {
 	#dirty = true;
 	#wake: (() => void) | null = null;
 	#stopLoop: (() => void) | null = null;
+	#frameCount = 0;
+	#continuous = false;
+	#frameRequested = false;
+	#lastFrame: number | null = null;
+	#imageUse = new Map<ImageSource, number>();
 
 	/** Use {@linkcode createAnodized} or {@linkcode createHeadless}. */
 	constructor(
@@ -140,13 +149,40 @@ export class Anodized {
 		this.#wake?.();
 	}
 
+	/**
+	 * When `true`, a running {@linkcode loop} redraws on every animation frame, for animations.
+	 * When `false` (the default), it redraws only when something changed. Flip it whenever you
+	 * like; for a short animation, calling `f.requestFrame()` from the draw callback is often
+	 * simpler, since it stops by itself.
+	 */
+	get continuous(): boolean {
+		return this.#continuous;
+	}
+
+	set continuous(on: boolean) {
+		this.#continuous = on;
+		if (on) this.invalidate();
+	}
+
 	/** Records `draw` against the current camera and paints it. */
 	frame(draw: DrawFn): void {
+		const now = performance.now();
+		const dt = this.#lastFrame === null ? 0 : Math.min(100, now - this.#lastFrame);
+		this.#lastFrame = now;
+		this.#frameRequested = false;
 		const input = this.#input?.consume() ?? null;
 		if (input && this.#viewport) {
 			this.#viewport.update(input, this.camera, this.#handles.hot !== null);
 		}
-		const recorded = this.#record(draw, this.camera, input, this.#routes, true);
+		const recorded = this.#record(draw, this.camera, input, this.#routes, true, now, dt);
+		this.#frameCount++;
+		this.#trackImages(recorded.cmds);
+		for (const [src, last] of this.#imageUse) {
+			if (this.#frameCount - last > IMAGE_IDLE_FRAMES) {
+				this.backend.releaseImage(src);
+				this.#imageUse.delete(src);
+			}
+		}
 		const { overlays, cursor } = recorded;
 		const cmds = expandGrids(recorded.cmds, this.camera.visibleBounds(), this.camera.scale);
 		if (this.canvas && isElement(this.canvas)) this.canvas.style.cursor = cursor;
@@ -164,14 +200,18 @@ export class Anodized {
 			}
 			this.#offscreen.render(geometry, this.background);
 		}
-		this.#dirty = this.#handles.active !== null || !!this.#viewport?.panning;
+		this.#dirty = this.#handles.active !== null || !!this.#viewport?.panning ||
+			this.#frameRequested || this.#continuous;
 	}
 
 	/**
 	 * Redraws with `draw` whenever something changed: input, camera, size, or
-	 * {@linkcode invalidate}. Returns a function that stops the loop.
+	 * {@linkcode invalidate}. For animation, pass `{ continuous: true }`, set
+	 * {@linkcode continuous}, or call `f.requestFrame()` while it runs. Returns a function that
+	 * stops the loop.
 	 */
-	loop(draw: DrawFn): () => void {
+	loop(draw: DrawFn, opts: LoopOptions = {}): () => void {
+		if (opts.continuous !== undefined) this.#continuous = opts.continuous;
 		this.#stopLoop?.();
 		let stopped = false;
 		let scheduled = false;
@@ -217,6 +257,7 @@ export class Anodized {
 		const cam = new Camera(1, 1, scale);
 		cam.x = cam.y = 0;
 		const recorded = this.#record(draw, cam, null, new Map(), false).cmds;
+		this.#trackImages(recorded);
 		const bounds: Bounds | null = opts.bounds ?? commandBounds(recorded, 1);
 		if (!bounds) throw new Error("anodized: snapshot() found nothing to draw");
 		const pad = padding / scale;
@@ -356,6 +397,22 @@ export class Anodized {
 		return { width, height, pixels, png: () => encodePng(width, height, pixels) };
 	}
 
+	/**
+	 * Tells the instance an image's pixels changed, so it is uploaded again the next time it is
+	 * drawn, and redraws. Call it for every new video frame, or after painting into a canvas that
+	 * is used as an image. Uploads are otherwise kept until an image goes unused for a while.
+	 */
+	invalidateImage(source: ImageSource): void {
+		this.backend.releaseImage(source);
+		this.invalidate();
+	}
+
+	#trackImages(cmds: readonly DrawCommand[]): void {
+		for (const c of cmds) {
+			if (isImageFill(c.style.fill)) this.#imageUse.set(c.style.fill.image, this.#frameCount);
+		}
+	}
+
 	/** Releases GPU resources and DOM listeners. */
 	destroy(): void {
 		this.#stopLoop?.();
@@ -371,6 +428,8 @@ export class Anodized {
 		input: InputState | null,
 		routeCache: Map<string, Route>,
 		live: boolean,
+		time?: number,
+		dt?: number,
 	): { cmds: DrawCommand[]; overlays: HandleOverlay[]; cursor: string } {
 		const handles = live ? this.#handles : null;
 		handles?.begin(input, camera);
@@ -383,6 +442,9 @@ export class Anodized {
 			handles,
 			routeCache,
 			background: this.background[3] > 0 ? this.background : "#ffffff",
+			time,
+			dt,
+			requestFrame: live ? () => this.#frameRequested = true : undefined,
 		}, pointer);
 		draw(frame);
 		const cmds = frame.finish();

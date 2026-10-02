@@ -1,7 +1,16 @@
-import type { RGBA } from "../types.ts";
+import type { ImageSmoothing, ImageSource, RGBA } from "../types.ts";
 
-/** Floats per vertex: `x, y` in device pixels, then premultiplied `r, g, b, a`. */
-export const VERTEX_FLOATS = 6;
+/**
+ * Floats per vertex: `x, y` in device pixels, premultiplied `r, g, b, a`, then `u, v` image
+ * coordinates (unused by color fills).
+ */
+export const VERTEX_FLOATS = 8;
+
+/** The image a draw samples; its color multiplies the texels. */
+export interface ImageDraw {
+	source: ImageSource;
+	smoothing: ImageSmoothing;
+}
 
 /**
  * One draw in painter's order.
@@ -16,6 +25,8 @@ export interface DrawItem {
 	count: number;
 	coverFirst: number;
 	coverCount: number;
+	/** Paint the color pass with this image instead of a flat color. */
+	image?: ImageDraw;
 }
 
 /** A tessellated frame, ready to upload. */
@@ -51,5 +62,7 @@ export interface Backend {
 	createOffscreen(width: number, height: number): Offscreen;
 	/** Like {@linkcode createOffscreen}, but resolves `null` when the device cannot allocate it. */
 	tryCreateOffscreen(width: number, height: number): Promise<Offscreen | null>;
+	/** Frees the GPU copy of an image; it is uploaded again if drawn later. */
+	releaseImage(source: ImageSource): void;
 	destroy(): void;
 }

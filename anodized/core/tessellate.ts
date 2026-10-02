@@ -1,7 +1,16 @@
 import type { Bounds, RGBA } from "../types.ts";
 import type { Transform } from "./camera.ts";
 import type { DrawCommand } from "./commands.ts";
-import { type DrawItem, type Geometry, VERTEX_FLOATS } from "../gpu/backend.ts";
+
+/** Maps device pixels to image coordinates: `u = (x - x0) * sx`, `v = (y - y0) * sy`. */
+interface UvMap {
+	x0: number;
+	y0: number;
+	sx: number;
+	sy: number;
+}
+import { type DrawItem, type Geometry, type ImageDraw, VERTEX_FLOATS } from "../gpu/backend.ts";
+import { isImageFill } from "./commands.ts";
 import { flattenPath, TOLERANCE } from "../geometry/flatten.ts";
 import { clipPolygon, clipPolyline, containsBounds, pointBounds } from "../geometry/clip.ts";
 import { fanTriangles } from "../geometry/fill.ts";
@@ -24,7 +33,7 @@ class GeometryBuilder {
 	}
 
 	/** Appends flat `[x, y, …]` triangle points with one color; returns the first vertex. */
-	triangles(tris: number[], c: RGBA): number {
+	triangles(tris: number[], c: RGBA, uv?: UvMap): number {
 		const n = tris.length / 2;
 		this.#reserve(n);
 		const first = this.count;
@@ -38,25 +47,39 @@ class GeometryBuilder {
 			d[o + 3] = g;
 			d[o + 4] = b;
 			d[o + 5] = a;
+			if (uv) {
+				d[o + 6] = (tris[i] - uv.x0) * uv.sx;
+				d[o + 7] = (tris[i + 1] - uv.y0) * uv.sy;
+			}
 			o += VERTEX_FLOATS;
 		}
 		this.count += n;
 		return first;
 	}
 
-	convex(tris: number[], c: RGBA): void {
+	convex(tris: number[], c: RGBA, image?: ImageDraw, uv?: UvMap): void {
 		if (!tris.length) return;
-		const first = this.triangles(tris, c);
+		const first = this.triangles(tris, c, uv);
 		const count = tris.length / 2;
 		const prev = this.items[this.items.length - 1];
-		if (prev && prev.kind === "convex" && prev.first + prev.count === first) {
+		if (
+			prev && prev.kind === "convex" && prev.first + prev.count === first &&
+			prev.image?.source === image?.source && prev.image?.smoothing === image?.smoothing
+		) {
 			prev.count += count;
 		} else {
-			this.items.push({ kind: "convex", first, count, coverFirst: 0, coverCount: 0 });
+			this.items.push({ kind: "convex", first, count, coverFirst: 0, coverCount: 0, image });
 		}
 	}
 
-	stencil(kind: "nonzero" | "evenodd" | "union", tris: number[], c: RGBA, b: Bounds): void {
+	stencil(
+		kind: "nonzero" | "evenodd" | "union",
+		tris: number[],
+		c: RGBA,
+		b: Bounds,
+		image?: ImageDraw,
+		uv?: UvMap,
+	): void {
 		if (!tris.length || b.minX >= b.maxX || b.minY >= b.maxY) return;
 		const first = this.triangles(tris, c);
 		const cover = [
@@ -73,8 +96,8 @@ class GeometryBuilder {
 			b.minX,
 			b.maxY,
 		];
-		const coverFirst = this.triangles(cover, c);
-		this.items.push({ kind, first, count: tris.length / 2, coverFirst, coverCount: 6 });
+		const coverFirst = this.triangles(cover, c, uv);
+		this.items.push({ kind, first, count: tris.length / 2, coverFirst, coverCount: 6, image });
 	}
 
 	finish(): Geometry {
@@ -130,12 +153,26 @@ export function tessellate(cmds: Iterable<DrawCommand>, t: Transform, tol = TOLE
 		if (!polys.length) continue;
 
 		if (s.fill) {
-			const tris: number[] = [];
-			const clipped = polys.map((p) => clipPolygon(p.pts, fillView)).filter((p) => p.length >= 6);
-			for (const p of clipped) fanTriangles(p, tris);
-			if (cmd.convex && clipped.length === 1) g.convex(tris, s.fill);
-			else if (tris.length) {
-				g.stencil(s.fillRule, tris, s.fill, intersect(pointBounds(tris), view));
+			let color = s.fill as RGBA, clip = fillView;
+			let image: ImageDraw | undefined, uv: UvMap | undefined;
+			if (isImageFill(s.fill)) {
+				const f = s.fill, r = f.rect!;
+				const x0 = (r.x - t.cx) * t.s + t.ox, y0 = (r.y - t.cy) * t.s + t.oy;
+				const w = r.w * t.s, h = r.h * t.s;
+				// The image's own edges clip the fill, so MSAA antialiases them like any other edge.
+				clip = intersect(fillView, { minX: x0, minY: y0, maxX: x0 + w, maxY: y0 + h });
+				color = [1, 1, 1, f.opacity];
+				image = { source: f.image, smoothing: f.smoothing };
+				uv = { x0, y0, sx: 1 / w, sy: 1 / h };
+			}
+			if (clip.minX < clip.maxX && clip.minY < clip.maxY) {
+				const tris: number[] = [];
+				const clipped = polys.map((p) => clipPolygon(p.pts, clip)).filter((p) => p.length >= 6);
+				for (const p of clipped) fanTriangles(p, tris);
+				if (cmd.convex && clipped.length === 1) g.convex(tris, color, image, uv);
+				else if (tris.length) {
+					g.stencil(s.fillRule, tris, color, intersect(pointBounds(tris), view), image, uv);
+				}
 			}
 		}
 
