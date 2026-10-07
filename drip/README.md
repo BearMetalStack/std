@@ -345,3 +345,56 @@ The result is `#rrggbb`, `#rrggbbaa` when translucent, or `undefined` when the t
 a color. Values are cached per scope element and dropped as soon as a theme stylesheet, a
 `data-theme`/`class`/`style` attribute or the color scheme changes; the TTL catches anything else
 (defaults to 500ms, `Infinity` relies on invalidation alone). `invalidate()` forces a re-read.
+
+## Theme switching
+
+A page can switch between whole themes (`bearmetal` → `foxfire`) and between a theme's variants
+(`light` → `dark`, `trans`) without a reload, and the server renders the next page the same way.
+
+Mount `dripModule()` with the themes a visitor may choose from — the first is the default. Nothing
+outside that list is ever loaded on a visitor's say-so:
+
+```ts
+router
+	.use(dripModule({ themes: ["bearmetal", "foxfire", "pride"] }))
+	.use(page);
+```
+
+Its middleware reads the choice from the `bm-drip-theme` and `bm-drip-variant` cookies (or from
+`resolve(ctx)` first, for a preference saved on the user's account) and scopes it into the page
+render. `BMDripBase` with no `theme` renders the chosen theme, and `themeSelection()` reports it, so
+the layout can pin the variant:
+
+```tsx
+export const page = Layout((props) => (
+	<html lang="en" data-theme={themeSelection()?.variant}>
+		<head>
+			<BMDripBase />
+		</head>
+		…
+```
+
+Passing `theme` to `BMDripBase` pins every page to that theme instead.
+
+In the browser, `@bearmetal/drip/switch` fetches the new theme from the module and swaps the
+contents of `<style id="bm-drip-theme">` and `<style id="bm-drip-fonts">` in place, sets
+`data-theme` on `<html>`, writes the cookies and tells every other open tab to follow:
+
+```ts
+import { listThemes, onThemeChange, setTheme, setVariant } from "@bearmetal/drip/switch";
+
+const { themes } = await listThemes(); // [{ name, variants: [{ name, media?, default? }] }]
+await setTheme("pride", { variant: "trans" });
+setVariant("dark");
+setVariant(null); // follow the OS preference again
+onThemeChange(({ theme, variant }) => …);
+```
+
+A variant the new theme doesn't have is dropped when switching. `TokenReader` and `tokenHex` already
+invalidate when the sheets change.
+
+| Route                               | Serves                                           |
+| ----------------------------------- | ------------------------------------------------ |
+| `GET /@bearmetal/drip/themes`       | the catalog: allowed themes and their variants   |
+| `GET /@bearmetal/drip/themes/:name` | the theme's tokens, as `ThemeStyle` renders them |
+| `GET /@bearmetal/drip/fonts/:name`  | its `@font-face` sheet, linked to served files   |

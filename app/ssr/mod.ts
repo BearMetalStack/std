@@ -20,6 +20,7 @@ import {
 } from "@bearmetal/router";
 import { hasHeadContributors, headContributions } from "./head.ts";
 import { renderToTree, serializeTree } from "./render.ts";
+import type { RenderContextState } from "./context.ts";
 
 export { bundleEntrypoints, type BundleOutput } from "./bundle.ts";
 export { mirrorStripped, type StripOptions, type StrippedTree } from "./prestrip.ts";
@@ -38,7 +39,7 @@ export {
 	serializeNode,
 	serializeTree,
 } from "./render.ts";
-export { RENDER_URL } from "./context.ts";
+export { RENDER_URL, type RenderContextState } from "./context.ts";
 
 export type LayoutState = {
 	layout?: LayoutEl;
@@ -81,7 +82,7 @@ export function Page<T extends StateType>(
 		const layout = ctx.state.layout as LayoutState["layout"];
 		const tree = await renderToTree(
 			() => typeof layout === "function" ? layout({ children: render(ctx), title }) : render(ctx),
-			{ url: ctx.request.url },
+			{ url: ctx.request.url, context: (ctx.state as RenderContextState).renderContext },
 		);
 
 		try {

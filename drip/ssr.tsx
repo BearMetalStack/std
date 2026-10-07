@@ -1,13 +1,28 @@
 import { compliantCSS } from "./css/compliantCSS.ts";
 import { themeCSS } from "./css/generate.ts";
-import { getDefaultTheme, loadTheme } from "./theme.ts";
+import { getDefaultThemeName, loadTheme } from "./theme.ts";
 import { fontFiles, type FontHref, fontHref, type FontKey, themeFontFaceCSS } from "./fonts/mod.ts";
+import { FONTS_STYLE_ID, THEME_STYLE_ID, themeSelection } from "./selection.ts";
 
+export { themeSelection } from "./selection.ts";
+
+/**
+ * The theme's tokens as a `<style>`. With no `theme`, renders the one this
+ * request chose through `dripModule()`, else the project default.
+ *
+ * The element carries a fixed `id` and the theme's name in `data-drip-theme`,
+ * which is what `@bearmetal/drip/switch` finds and swaps in the browser.
+ */
 export async function ThemeStyle(
 	{ theme }: { theme?: string | null },
 ): Promise<import("@bearmetal/jsx/jsx-runtime").JSX.Element> {
-	const data = theme ? await loadTheme(theme) : await getDefaultTheme();
-	return <style id="thingy" $raw>{themeCSS(data, ":root").replaceAll(/\n\s*/g, " ")}</style>;
+	const name = theme || themeSelection()?.theme || await getDefaultThemeName();
+	const data = await loadTheme(name);
+	return (
+		<style id={THEME_STYLE_ID} data-drip-theme={name} $raw>
+			{themeCSS(data, ":root").replaceAll(/\n\s*/g, " ")}
+		</style>
+	);
 }
 
 /** Props for {@linkcode Fonts}. */
@@ -44,8 +59,8 @@ export interface FontsProps {
 export async function Fonts(
 	{ theme, fonts = [], href, preload = [] }: FontsProps,
 ): Promise<import("@bearmetal/jsx/jsx-runtime").JSX.Element | null> {
-	const data = theme ? await loadTheme(theme) : await getDefaultTheme();
-	const sheet = themeFontFaceCSS(data, fonts, { href });
+	const name = theme || themeSelection()?.theme || await getDefaultThemeName();
+	const sheet = themeFontFaceCSS(await loadTheme(name), fonts, { href });
 	if (!sheet) return null;
 	const preloads = href ? fontFiles(preload).map((file) => fontHref(href, file)) : [];
 	return (
@@ -59,7 +74,7 @@ export async function Fonts(
 					crossorigin
 				/>
 			))}
-			<style $raw>{sheet}</style>
+			<style id={FONTS_STYLE_ID} $raw>{sheet}</style>
 		</>
 	);
 }
@@ -98,6 +113,10 @@ export function Animations(): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
  * Drip's whole base in one: the theme's tokens, its self-hosted fonts, and the
  * base, component and legible sheets. `fontHref` and `preloadFonts` are
  * {@linkcode Fonts}'s `href` and `preload`.
+ *
+ * Leave `theme` unset to render whichever theme the request chose through
+ * `dripModule()` — passing one pins every page to it and switching stops at
+ * the next navigation.
  */
 export function BMDripBase(
 	{ theme, fontHref, preloadFonts }: {

@@ -12,6 +12,7 @@ export * from "./css/compliantCSS.ts";
 export * from "./module.ts";
 export * from "./fonts/mod.ts";
 export * from "./computed.ts";
+export * from "./selection.ts";
 
 import { generateStylesheets } from "./theme.ts";
 

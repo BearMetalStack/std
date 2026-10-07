@@ -60,6 +60,14 @@ export interface RenderOptions {
 	 * hrefs against it.
 	 */
 	url?: string | URL;
+	/**
+	 * Further values to scope to this render, readable from any component with
+	 * `getContextItemOrDefault`. `Page()` fills it from
+	 * {@linkcode RenderContextState.renderContext}, which is how a middleware
+	 * hands a component something about the request it is rendering.
+	 * {@linkcode RENDER_URL} always wins over a key of the same name here.
+	 */
+	context?: Record<string, unknown>;
 	/** How shadow roots are rendered. Defaults to `"declarative"`. */
 	shadow?: ShadowSerialization;
 	/**
@@ -112,7 +120,7 @@ export async function renderToTree(
 	// normal thing to hand a renderer, so the base is supplied here rather than
 	// demanded of the caller.
 	const url = options.url == null ? undefined : new URL(options.url, LOCAL_BASE).href;
-	const scoped = <T>(fn: () => T): T => withContext({ [RENDER_URL]: url }, fn);
+	const scoped = <T>(fn: () => T): T => withContext({ ...options.context, [RENDER_URL]: url }, fn);
 
 	const scope = beginRenderScope();
 	try {

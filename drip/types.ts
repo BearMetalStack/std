@@ -36,3 +36,6 @@ export type { BuildVariantsOptions } from "./css/variants.ts";
 export type { HueRampName, RampDiagnostic, RequiredBaseRamp } from "./css/ramps.ts";
 export type { FontDef, FontFace, FontKey } from "./fonts/manifest.ts";
 export type { TokenLookupOptions, TokenReaderOptions } from "./computed.ts";
+export type { ThemeCatalog, ThemeCatalogVariant, ThemeSelection } from "./selection.ts";
+export type { DripModuleOptions } from "./module.ts";
+export type { SetThemeOptions } from "./switch.ts";

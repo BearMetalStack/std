@@ -11,7 +11,8 @@
 		"./palette": "./palette/mod.tsx",
 		"./build": "./build.ts",
 		"./icons": "./icons.ts",
-		"./computed": "./computed.ts"
+		"./computed": "./computed.ts",
+		"./switch": "./switch.ts"
 	},
 	"compilerOptions": {
 		"jsx": "react-jsx",
