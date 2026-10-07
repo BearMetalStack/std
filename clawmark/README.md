@@ -230,6 +230,35 @@ an automatic paragraph style through the `StyleSink` and every break in the docu
 `P1`. Reading odt accepts both the empty-paragraph form clawmark writes and the loaded form
 LibreOffice writes, where `fo:break-before` sits on the paragraph _following_ the break.
 
+## Stages
+
+Forward rules run in one of three stages, set by `stage` on the rule:
+
+```
+source ──preparse──▶ source ──parse──▶ Node tree ──postparse──▶ Node tree ──▶ renderers, writers
+```
+
+- **`preparse`** rewrites source text before the lexer sees it, and **never creates nodes** — a
+  `PreparseRule` has `trigger`/`priority`/`validate` like any rule, but `expand(ctx)` returns a
+  string, and its context has no tree, block stack or token emission to reach for. Expansion is one
+  pass: the output is not offered to preparse rules again, so it cannot loop, but it is lexed as
+  ordinary markup, so an expansion can produce headings, list items or table rows that join the text
+  around them. It is lossy by design; html → md gives back the expansion, not the source tag.
+- **`parse`** is the lexer and tree builder. It is the default, so a rule without a `stage` is a
+  parse rule.
+- **`postparse`** rewrites the built tree before any renderer or writer, so HTML, docx and odt all
+  see the result. `transform(node, ctx)` mutates the node, returns a replacement (`Node` or
+  `Node[]`), or returns `null` to remove it; `visit` limits it to some tags. Each rule is one
+  post-order walk, in array order.
+
+One array carries all three. `parse`, `toHtml`, `toDom` and `markdownWith` split it with
+`splitStages`, and `toMarkdown` ignores the non-parse rules, so the same array works both ways:
+
+```ts
+const rules = [templateRule, numberFootnotes, ...defaultRules()];
+toHtml(source, rules);
+```
+
 ## Extending
 
 Rules sharing a `trigger` character are offered it in `priority` order (higher first, default `0`),

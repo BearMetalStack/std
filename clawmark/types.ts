@@ -112,6 +112,8 @@ export interface RenderContext {
 
 export interface Rule<T = Record<string, unknown>> extends ReverseRule<T> {
 	id: TokenIdentifier;
+	/** Rules without a `stage` are parse rules. See `RuleStage`. */
+	stage?: "parse";
 	/** Rule interop - not implemented yet, kept for shape-compatibility with v2.ts. */
 	requires?: TokenIdentifier[];
 	overrides?: TokenIdentifier[];
@@ -199,9 +201,101 @@ export type AnyReverseRule = ReverseRule<any>;
 export type EngineRule = AnyRule | AnyReverseRule;
 
 /** Narrows to a rule that can participate in lexing/tree-building/rendering. */
-export function isForwardRule(rule: EngineRule): rule is AnyRule {
-	return typeof (rule as AnyRule).validate === "function";
+export function isForwardRule(rule: EngineRule | StagedRule): rule is AnyRule {
+	return ruleStage(rule) === "parse" && typeof (rule as AnyRule).validate === "function";
 }
+
+/** The stage a rule runs in. Rules without a `stage`, reverse-only ones included, are `"parse"`. */
+export function ruleStage(rule: EngineRule | StagedRule): RuleStage {
+	return (rule as { stage?: RuleStage }).stage ?? "parse";
+}
+
+// ===========================================================================
+// Stages: preparse -> parse -> postparse.
+// ===========================================================================
+
+/**
+ * Where a forward rule runs.
+ *
+ * - `preparse` rewrites source text before the lexer sees it, and never
+ *   creates nodes.
+ * - `parse` is the lexer and tree builder; it is the default.
+ * - `postparse` rewrites the built tree before any renderer or writer.
+ */
+export type RuleStage = "preparse" | "parse" | "postparse";
+
+/**
+ * Passed to `PreparseRule.validate` / `PreparseRule.expand`. A cursor over
+ * the *original* source, with the lexer's lookahead helpers and nothing that
+ * could build a node.
+ */
+export interface PreparseContext {
+	readonly input: string;
+	peek(length: number, offset?: number): string;
+	toNextSubstring(sub: string, offset?: number): string;
+	readonly lineStart: number;
+	/**
+	 * Sits on the trigger character when `expand` is called. Leave it on the
+	 * last character the expansion consumed, as a lexer rule does.
+	 */
+	cursor: number;
+	readonly currentLine: string;
+}
+
+/**
+ * Replaces a span of source text with other source text, before lexing.
+ *
+ * Expansion is one pass: the output is not offered to preparse rules again,
+ * so an expansion cannot loop, but the parse stage lexes it as ordinary
+ * markup. Preparse is lossy by design: the tree, and so anything serialized
+ * from it, only ever sees the expansion.
+ *
+ * Preparse rules see raw text and know nothing of its structure, so a
+ * trigger inside a code span or fenced block is expanded like any other.
+ */
+export interface PreparseRule {
+	id: TokenIdentifier;
+	stage: "preparse";
+	trigger: Char;
+	/** Order among preparse rules sharing a `trigger`, higher first. Default `0`. */
+	priority?: number;
+	validate(ctx: PreparseContext): boolean;
+	expand(ctx: PreparseContext): string;
+}
+
+/** Passed to `PostparseRule.transform`. */
+export interface PostparseContext {
+	readonly root: Node;
+	readonly parent: Node;
+}
+
+/**
+ * What `PostparseRule.transform` returns: nothing to keep the node (mutated
+ * or not), a node or nodes to replace it, or `null` to remove it.
+ */
+export type PostparseResult = void | undefined | null | Node | Node[];
+
+/**
+ * Rewrites the built tree before any renderer or writer sees it, so HTML,
+ * docx and odt all get the result.
+ *
+ * Each postparse rule makes one post-order walk of the tree, in rule-array
+ * order. Children are visited before their parent, and nodes a transform
+ * returns are not revisited by the same rule. The root is never visited.
+ */
+export interface PostparseRule<T = Record<string, unknown>> {
+	id: TokenIdentifier;
+	stage: "postparse";
+	/** Node tags to visit. Omitted: every node. */
+	visit?: TokenIdentifier | TokenIdentifier[];
+	transform(node: Node<T>, ctx: PostparseContext): PostparseResult;
+}
+
+// deno-lint-ignore no-explicit-any
+export type AnyPostparseRule = PostparseRule<any>;
+
+/** Any forward rule, in any stage - what `parse` and the render entry points accept. */
+export type StagedRule = AnyRule | PreparseRule | AnyPostparseRule;
 
 export type WhitespaceMode = "normal" | "pre";
 

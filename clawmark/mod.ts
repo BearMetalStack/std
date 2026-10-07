@@ -8,7 +8,7 @@
  * footnotes, code, hr) behavior possible.
  */
 
-import type { AnyRule, EngineRule, Node, Profile, SerializeOptions } from "./types.ts";
+import type { EngineRule, Node, Profile, SerializeOptions, StagedRule } from "./types.ts";
 import type { WriteProfile, WriteResult } from "./types.ts";
 import type { XmlElement } from "./xml/types.ts";
 import { Lexer } from "./lexer.ts";
@@ -17,6 +17,8 @@ import { Renderer } from "./render.ts";
 import { MarkdownSerializer } from "./serialize.ts";
 import { Crawler } from "./crawl.ts";
 import { renderWith } from "./write.ts";
+import { postparse, preparse, splitStages } from "./stages.ts";
+import { ruleStage } from "./types.ts";
 import { XmlParser } from "./xml/parser.ts";
 import { fromDom } from "./xml/dom.ts";
 import { defaultRules } from "./rules/mod.ts";
@@ -25,6 +27,8 @@ import type { HtmlProfileOptions } from "./profiles/html/mod.ts";
 
 export * from "./types.ts";
 export { defaultRules } from "./rules/mod.ts";
+export { postparse, preparse, splitStages } from "./stages.ts";
+export type { SplitRules } from "./stages.ts";
 // A rule pack that introduces its own block construct has to declare it, or the
 // lexer's automatic paragraph wrapper stays put and every writer emits the
 // construct inside a paragraph element. See rules/paragraph.ts.
@@ -43,35 +47,44 @@ export * from "./dsl.ts";
 export { htmlProfile } from "./profiles/html/mod.ts";
 export type { HtmlProfileOptions } from "./profiles/html/mod.ts";
 
-/** Parses `input` into a tree using `rules` (a fresh `defaultRules()` set by default). */
-export function parse(input: string, rules: AnyRule[] = defaultRules()): Node {
-	const tokens = new Lexer(input, rules).tokenize();
-	return new TreeBuilder(rules).build(tokens);
+/**
+ * Parses `input` into a tree using `rules` (a fresh `defaultRules()` set by
+ * default): preparse rules expand the source, parse rules lex and build it,
+ * and postparse rules rewrite the finished tree.
+ */
+export function parse(input: string, rules: StagedRule[] = defaultRules()): Node {
+	const stages = splitStages(rules);
+	const tokens = new Lexer(preparse(input, stages.preparse), stages.parse).tokenize();
+	return postparse(new TreeBuilder(stages.parse).build(tokens), stages.postparse);
 }
 
 /** Parses and renders `input` straight to an HTML string. */
-export function toHtml(input: string, rules: AnyRule[] = defaultRules()): string {
+export function toHtml(input: string, rules: StagedRule[] = defaultRules()): string {
 	const tree = parse(input, rules);
-	return new Renderer(rules).renderHtml(tree);
+	return new Renderer(splitStages(rules).parse).renderHtml(tree);
 }
 
 /** Parses and renders `input` to a live DOM fragment (requires a `Document`). */
 export function toDom(
 	input: string,
 	doc?: Document,
-	rules: AnyRule[] = defaultRules(),
+	rules: StagedRule[] = defaultRules(),
 ): DocumentFragment {
 	const tree = parse(input, rules);
-	return new Renderer(rules).renderDom(tree, doc);
+	return new Renderer(splitStages(rules).parse).renderDom(tree, doc);
 }
 
-/** Serializes a tree back to markdown text - the inverse of `parse`. */
+/**
+ * Serializes a tree back to markdown text - the inverse of `parse`. Preparse
+ * and postparse rules are skipped, so the array `parse` took can be reused.
+ */
 export function toMarkdown(
 	tree: Node,
-	rules: EngineRule[] = defaultRules(),
+	rules: (EngineRule | StagedRule)[] = defaultRules(),
 	options?: SerializeOptions,
 ): string {
-	return new MarkdownSerializer(rules, options).serialize(tree);
+	const reverse = rules.filter((rule): rule is EngineRule => ruleStage(rule) === "parse");
+	return new MarkdownSerializer(reverse, options).serialize(tree);
 }
 
 /**
@@ -126,7 +139,7 @@ export function htmlToMarkdown(
 export function markdownWith(
 	input: string,
 	profile: WriteProfile,
-	rules: AnyRule[] = defaultRules(),
+	rules: StagedRule[] = defaultRules(),
 ): WriteResult {
 	return renderWith(parse(input, rules), profile);
 }
