@@ -356,6 +356,68 @@ The tags produced by `defaultRules()`, and therefore the tags a reverse matcher 
 `md:link` and `md:image` keep their text in `data`, never as child nodes — which is why markup
 inside link text is opaque in both directions.
 
+## Stages
+
+Every rule on this page so far is a **parse** rule: it lexes source and builds nodes. Two more
+stages sit either side of it, and a rule declares which one it belongs to with `stage`:
+
+```
+source ──preparse──▶ source ──parse──▶ Node tree ──postparse──▶ Node tree ──▶ renderers, writers
+```
+
+A rule with no `stage` is a parse rule, so nothing above changes. One array carries all three kinds;
+`parse`, `toHtml`, `toDom` and `markdownWith` sort it with `splitStages`, and `toMarkdown` ignores
+everything but parse rules, so the same array works in both directions.
+
+### preparse: source to source
+
+A `PreparseRule` replaces a span of source text with other source text before the lexer runs. It
+matches like a parse rule (`trigger`, `priority`, `validate`), but `expand` returns a string, and
+its context has the cursor and lookahead and nothing else. **A preparse rule cannot create nodes**;
+there is nothing on its context to create them with.
+
+```ts
+const vars: PreparseRule = {
+	id: "my:vars",
+	stage: "preparse",
+	trigger: "$",
+	validate: (ctx) => /^\$[a-z]+/.test(ctx.peek(2)),
+	expand(ctx) {
+		const name = /^\$([a-z]+)/.exec(ctx.input.slice(ctx.cursor))![1];
+		ctx.cursor += name.length; // leave the cursor on the last character consumed
+		return lookup(name);
+	},
+};
+```
+
+- **One pass.** Output is not offered to preparse rules again, so an expansion cannot loop.
+- **Output is markup.** The parse stage lexes it like any other source, so an expansion can produce
+  headings, list items, or table rows that join the table above them.
+- **Lossy by design.** The tree only ever sees the expansion, so reading the HTML back gives the
+  expanded markdown, not the original text.
+- **It sees raw text.** A trigger inside a code span or a fenced block is expanded like anything
+  else; a rule that should skip code has to check for it itself.
+
+### postparse: tree to tree
+
+A `PostparseRule` rewrites the finished tree before any renderer or writer sees it, so HTML, docx
+and odt all get the result. `transform` mutates the node and returns nothing, returns a replacement
+(`Node` or `Node[]`), or returns `null` to remove it. `visit` limits it to some tags.
+
+```ts
+const shout: PostparseRule<{ value: string }> = {
+	id: "my:shout",
+	stage: "postparse",
+	visit: "core:text",
+	transform(node) {
+		node.data.value = node.data.value.toUpperCase();
+	},
+};
+```
+
+Each postparse rule makes one post-order walk, in array order: children before their parent, the
+root never, and nodes a transform returns are not revisited by the same rule.
+
 ## Extension points
 
 `rules/extra/mod.ts`, exported as `@bearmetal/clawmark/rules/extra`, is the reserved slot for

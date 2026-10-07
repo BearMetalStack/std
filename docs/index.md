@@ -38,6 +38,9 @@ features:
   - title: "@bearmetal/clawmark"
     details: A rule-based markup engine that runs both ways. Markdown to HTML, and HTML, docx, or odt back to markdown — driven by a swappable rule set rather than a fixed grammar.
     link: /clawmark/
+  - title: "@bearmetal/bmql"
+    details: A query language for JSON-shaped data, structured or not. Every step yields a set, missing keys are empty rather than errors, and it reads through signals — so a query, a template, or a {{…}} tag in a clawmark document stays live.
+    link: /bmql/
   - title: "@bearmetal/cli"
     details: Everything a terminal program needs — inline prompts and menus that don't eat your scrollback, repaintable regions, a widget contract, and an arg parser that turns its own definitions into prompts and --help.
     link: /cli/

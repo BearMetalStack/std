@@ -8,28 +8,31 @@ the lookup table.
 Exported from `@bearmetal/clawmark`.
 
 ```ts
-parse(input: string, rules?: AnyRule[]): Node
+parse(input: string, rules?: StagedRule[]): Node
 ```
 
-Parses markdown into a tree. Defaults to a fresh `defaultRules()`.
+Parses markdown into a tree. Defaults to a fresh `defaultRules()`. Runs every stage: preparse rules
+expand the source, parse rules lex and build it, postparse rules rewrite the tree. See
+[Stages](./rules#stages).
 
 ```ts
-toHtml(input: string, rules?: AnyRule[]): string
+toHtml(input: string, rules?: StagedRule[]): string
 ```
 
 Parses and renders straight to an HTML string.
 
 ```ts
-toDom(input: string, doc?: Document, rules?: AnyRule[]): DocumentFragment
+toDom(input: string, doc?: Document, rules?: StagedRule[]): DocumentFragment
 ```
 
 Parses and renders to a live DOM fragment. Throws if no `Document` is available.
 
 ```ts
-toMarkdown(tree: Node, rules?: EngineRule[], options?: SerializeOptions): string
+toMarkdown(tree: Node, rules?: (EngineRule | StagedRule)[], options?: SerializeOptions): string
 ```
 
-Serializes a tree back to markdown — the inverse of `parse`.
+Serializes a tree back to markdown — the inverse of `parse`. Preparse and postparse rules are
+skipped, so the array `parse` took can be passed as-is.
 
 ```ts
 fromXml(source: string | XmlElement, profile: Profile): Node
@@ -70,7 +73,7 @@ renderWith(tree: Node, profile: WriteProfile): WriteResult
 Renders a tree into a set of markup parts using `profile`'s emitters. See [Writing](./write).
 
 ```ts
-markdownWith(input: string, profile: WriteProfile, rules?: AnyRule[]): WriteResult
+markdownWith(input: string, profile: WriteProfile, rules?: StagedRule[]): WriteResult
 ```
 
 Parses markdown and renders it through a write profile in one step.
@@ -89,6 +92,15 @@ defaultRules(): AnyRule[]
 A **fresh** rule set for one parse/render pass. Stateful rules (lists, tables) are built via
 factories precisely so calling this twice never lets one document's parse state bleed into
 another's.
+
+```ts
+preparse(input: string, rules: readonly StagedRule[]): string
+postparse(root: Node, rules: readonly StagedRule[]): Node
+splitStages(rules: readonly StagedRule[]): SplitRules // { preparse, parse, postparse }
+```
+
+The stages on their own. `preparse` and `postparse` ignore rules from other stages, so a whole rule
+array can be passed to either.
 
 ## Engine classes
 
@@ -189,6 +201,7 @@ const BOF_TOKEN: Token; // { tag: "core:bof", data: {} }
 ```ts
 interface Rule<T> extends ReverseRule<T> {
 	id: TokenIdentifier;
+	stage?: "parse"; // the default; see RuleStage
 	requires?: TokenIdentifier[]; // rule interop — reserved, not implemented
 	overrides?: TokenIdentifier[]; // ditto
 	trigger: Char;
@@ -210,14 +223,42 @@ interface ReverseRule<T> {
 
 type AnyRule = Rule<any>;
 type AnyReverseRule = ReverseRule<any>;
-type EngineRule = AnyRule | AnyReverseRule; // anything the engine accepts
+type EngineRule = AnyRule | AnyReverseRule; // anything the serializer and crawler accept
 type RuleFactory = () => AnyRule;
 
-function isForwardRule(rule: EngineRule): rule is AnyRule;
+function isForwardRule(rule: EngineRule | StagedRule): rule is AnyRule;
+function ruleStage(rule: EngineRule | StagedRule): RuleStage;
 ```
 
-`isForwardRule` narrows by checking for a `validate` function — the engine holds a heterogeneous
-array and needs to know which members can lex.
+`isForwardRule` narrows to parse-stage rules with a `validate` function — the engine holds a
+heterogeneous array and needs to know which members can lex. `ruleStage` reads a rule's `stage`,
+defaulting to `"parse"`.
+
+### Stage rules
+
+```ts
+type RuleStage = "preparse" | "parse" | "postparse";
+
+interface PreparseRule {
+	id: TokenIdentifier;
+	stage: "preparse";
+	trigger: Char;
+	priority?: number;
+	validate(ctx: PreparseContext): boolean;
+	expand(ctx: PreparseContext): string;
+}
+
+interface PostparseRule<T> {
+	id: TokenIdentifier;
+	stage: "postparse";
+	visit?: TokenIdentifier | TokenIdentifier[]; // omitted: every node
+	transform(node: Node<T>, ctx: PostparseContext): PostparseResult;
+}
+
+type PostparseResult = void | undefined | null | Node | Node[]; // keep, remove, replace
+type AnyPostparseRule = PostparseRule<any>;
+type StagedRule = AnyRule | PreparseRule | AnyPostparseRule; // what the entry points accept
+```
 
 ## Contexts
 
@@ -225,6 +266,7 @@ array and needs to know which members can lex.
 
 ```ts
 interface LexerContext {
+	readonly input: string; // the whole source, for a rule that parses ahead on its own
 	peek(length: number, offset?: number): string;
 	toNextSubstring(sub: string, offset?: number): string;
 	readonly lineStart: number;
@@ -240,6 +282,26 @@ interface LexerContext {
 	discardBuffer(): void;
 }
 ```
+
+### PreparseContext / PostparseContext
+
+```ts
+interface PreparseContext {
+	readonly input: string;
+	peek(length: number, offset?: number): string;
+	toNextSubstring(sub: string, offset?: number): string;
+	readonly lineStart: number;
+	cursor: number; // leave it on the last character the expansion consumed
+	readonly currentLine: string;
+}
+
+interface PostparseContext {
+	readonly root: Node;
+	readonly parent: Node;
+}
+```
+
+`PreparseContext` reads the _original_ source and has nothing that could build a node.
 
 ### TreeContext / RenderContext
 
