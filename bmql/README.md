@@ -113,6 +113,42 @@ Backstory: {{characters{name:Sel}.properties{key:backstory}.value}}
 - `\{{` is a literal `{{`. Tags inside inline code and fenced blocks are left alone, and a tag that
   does not parse stays as text.
 
+## Store
+
+`@bearmetal/bmql/store` is a table store you query and write with BMQL. Every table's rows live in a
+signal under one reactive `store.root`, so anything querying the root stays current:
+
+```ts
+import { Store } from "@bearmetal/bmql/store";
+import { computeValues } from "@bearmetal/bmql";
+import { f } from "@bearmetal/forge";
+
+const store = new Store();
+const characters = store.table("characters", f.object({ name: f.string(), level: f.number() }));
+characters.insert({ name: "Sel", level: 5 }, { name: "Vex", level: 3 });
+
+const high = computeValues(store.root, "characters{level:>4}.name"); // ["Sel"]
+store.merge("characters{name:Vex}", { level: 6 }); // high: ["Sel", "Vex"]
+store.update("characters.level", (level) => level + 1);
+store.delete("characters{name:Sel}");
+```
+
+- **Writes hit every match.** That follows from sets: narrow with a slice
+  (`characters{name:Sel}[0]`) or pass `{ limit }`. Each method returns how many it wrote.
+- **Writes copy; they never mutate signal-held data.** The containers between the target and the
+  nearest `Signal.State` above it are copied and that signal is set, so untouched rows keep their
+  identity and `each()`-style shallow diffs see exactly what changed. A value that is itself a
+  signal is `set()` directly. A `Signal.Computed` in the way is an error.
+- **Schemas are optional per table and checked per write.** `insert` parses rows through the schema.
+  `update`, `merge` and `delete` validate every row they changed once the batch is done; if one
+  fails, every signal is put back and the `SchemaError` is thrown, with paths starting at the table.
+- `table.query`/`values`/`update`/`merge`/`delete` start at that table's rows (`{name:Sel}`); the
+  store's versions start at the root (`characters{name:Sel}`).
+- `bmqlRules(store.root)` puts the store in a clawmark document.
+
+`WriteBatch` is the same write machinery without the store, for writing through `evaluate`'s
+locations on your own data.
+
 ## Signals
 
 Values may be `Signal.State`s or `Signal.Computed`s from `@bearmetal/app/signals`, anywhere in the

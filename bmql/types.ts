@@ -81,6 +81,8 @@ export interface Location {
 	 * `parent[key]` to keep the signal.
 	 */
 	cell?: unknown;
+	/** The location of `parent` itself, so a write can find its way back to the root. */
+	up?: Location;
 }
 
 /** Options for `evaluate`. */
@@ -139,3 +141,20 @@ export interface FormatOptions extends EvaluateOptions {
 	 */
 	onWarn?: (message: string) => void;
 }
+
+/** Options for a store write. Evaluation options apply to finding the matches. */
+export interface WriteOptions extends EvaluateOptions {
+	/** Write at most this many matches, in order. Default: all of them. */
+	limit?: number;
+}
+
+/** A new value, or a function from the current value (and where it is) to one. */
+export type Update =
+	| ((current: unknown, location: Location) => unknown)
+	| string
+	| number
+	| boolean
+	| bigint
+	| null
+	| undefined
+	| object;

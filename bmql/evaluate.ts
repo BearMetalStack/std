@@ -33,7 +33,8 @@ export function evaluate(
 	const unwrap = options.unwrap ?? unwrapSignal;
 	const start = parsed.relative && "self" in options ? options.self : root;
 
-	let set = spread({ value: unwrap(start) }, unwrap);
+	const value = unwrap(start);
+	let set = spread(value === start ? { value } : { value, cell: start }, unwrap);
 	for (const step of parsed.steps) set = apply(set, step, options, unwrap);
 	return set;
 }
@@ -50,7 +51,7 @@ export function values(
 function apply(set: Location[], step: Step, options: EvaluateOptions, unwrap: Unwrap): Location[] {
 	switch (step.kind) {
 		case "key":
-			return set.flatMap((member) => readKey(member.value, step.key, unwrap));
+			return set.flatMap((member) => readKey(member, step.key, unwrap));
 		case "filter":
 			return set.filter((member) =>
 				step.predicates.every((predicate) => test(member.value, predicate, options, unwrap))
@@ -63,24 +64,28 @@ function apply(set: Location[], step: Step, options: EvaluateOptions, unwrap: Un
 function spread(location: Location, unwrap: Unwrap): Location[] {
 	const { value } = location;
 	if (!Array.isArray(value)) return [location];
-	return value.map((element, index) => read(value, index, element, unwrap));
+	return value.map((element, index) => read(location, index, element, unwrap));
 }
 
-function read(parent: object, key: string | number, raw: unknown, unwrap: Unwrap): Location {
+function read(up: Location, key: string | number, raw: unknown, unwrap: Unwrap): Location {
+	const parent = up.value as object;
 	const value = unwrap(raw);
-	return value === raw ? { parent, key, value } : { parent, key, value, cell: raw };
+	return value === raw ? { parent, key, value, up } : { parent, key, value, cell: raw, up };
 }
 
-function readKey(member: unknown, key: string, unwrap: Unwrap): Location[] {
-	if (member === null || typeof member !== "object") return [];
-	const raw = member instanceof Map ? member.get(key) : (member as Record<string, unknown>)[key];
+function readKey(member: Location, key: string, unwrap: Unwrap): Location[] {
+	const container = member.value;
+	if (container === null || typeof container !== "object") return [];
+	const raw = container instanceof Map
+		? container.get(key)
+		: (container as Record<string, unknown>)[key];
 	if (raw === undefined || typeof raw === "function") return [];
 	return spread(read(member, key, raw, unwrap), unwrap);
 }
 
 function readField(member: unknown, field: string[], unwrap: Unwrap): unknown[] {
 	let set: Location[] = [{ value: member }];
-	for (const key of field) set = set.flatMap((location) => readKey(location.value, key, unwrap));
+	for (const key of field) set = set.flatMap((location) => readKey(location, key, unwrap));
 	return set.map((location) => location.value);
 }
 

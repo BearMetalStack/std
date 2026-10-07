@@ -5,7 +5,8 @@
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts",
-		"./clawmark": "./clawmark.ts"
+		"./clawmark": "./clawmark.ts",
+		"./store": "./store.ts"
 	},
 	"tasks": {
 		"dev": "deno test --watch"
