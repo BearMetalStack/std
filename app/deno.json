@@ -9,6 +9,7 @@
 		"./types": "./types.ts"
 	},
 	"tasks": {
+		"test": "deno test -RW",
 		"example:counter": {
 			"command": "export EXAMPLE_DIR=./examples/counter-app && (deno task example:bundle & deno task example:serve)"
 		},
