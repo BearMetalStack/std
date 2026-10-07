@@ -15,7 +15,7 @@
  */
 
 export * from "./types.ts";
-export { BmqlSyntaxError, parse, parseAt, parsePipeline } from "./parser.ts";
+export { BmqlSyntaxError, parse, parseAt, parsePipeline, parsePipelineAt } from "./parser.ts";
 export { format, hasTemplate } from "./format.ts";
 export { evaluate, values } from "./evaluate.ts";
 export { compute, computeText, computeValues } from "./signals.ts";

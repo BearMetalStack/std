@@ -56,18 +56,27 @@ export function parse(source: string): Query {
 export function parsePipeline(source: string): Pipeline {
 	const cached = pipelineCache.get(source);
 	if (cached) return cached;
-
 	const parser = new Parser(source);
-	parser.skipSpace();
-	const query = parser.query();
-	parser.skipSpace();
-	const stages: Stage[] = [];
-	while (!parser.done) {
-		if (!parser.src.startsWith(">>", parser.pos)) parser.fail(`Unexpected "${parser.at()}"`);
-		parser.pos += 2;
-		stages.push(parser.stage());
-	}
-	return remember(pipelineCache, source, { source, query, stages });
+	const pipeline = parser.pipeline();
+	return remember(pipelineCache, source, { source, ...pipeline });
+}
+
+/**
+ * Parses a pipeline that starts at `offset` in `source` and ends at `close`
+ * (`"}}"`, say), for callers that embed pipelines in larger syntax. Braces
+ * and quotes inside the pipeline are parsed rather than counted, so
+ * `characters{name:Sel}}}` closes after the filter. `end` is the index after
+ * `close`; `pipeline.source` is the text between the two.
+ */
+export function parsePipelineAt(
+	source: string,
+	offset: number,
+	close: string,
+): { pipeline: Pipeline; end: number } {
+	const parser = new Parser(source, offset, close);
+	parser.pipeline();
+	const inner = source.slice(offset, parser.pos);
+	return { pipeline: parsePipeline(inner), end: parser.pos + close.length };
 }
 
 /**
@@ -83,8 +92,30 @@ export function parseAt(source: string, offset: number): { query: Query; end: nu
 
 class Parser {
 	pos: number;
-	constructor(readonly src: string, start = 0) {
+	constructor(readonly src: string, start = 0, readonly close?: string) {
 		this.pos = start;
+	}
+
+	get closed(): boolean {
+		return this.close !== undefined && this.src.startsWith(this.close, this.pos);
+	}
+
+	get stageEnd(): boolean {
+		return this.done || this.closed || this.src.startsWith(">>", this.pos);
+	}
+
+	pipeline(): Omit<Pipeline, "source"> {
+		this.skipSpace();
+		const query = this.query();
+		this.skipSpace();
+		const stages: Stage[] = [];
+		while (this.close === undefined ? !this.done : !this.closed) {
+			if (this.done) this.fail(`Expected "${this.close}"`);
+			if (!this.src.startsWith(">>", this.pos)) this.fail(`Unexpected "${this.at()}"`);
+			this.pos += 2;
+			stages.push(this.stage());
+		}
+		return { query, stages };
 	}
 
 	get done(): boolean {
@@ -172,7 +203,7 @@ class Parser {
 			const start = this.pos;
 			const value = this.quoted();
 			this.skipSpace();
-			if (this.done || this.src.startsWith(">>", this.pos)) {
+			if (this.stageEnd) {
 				return { kind: "separator", value, offset };
 			}
 			this.pos = start;
@@ -183,7 +214,7 @@ class Parser {
 	template(): (string | Query)[] {
 		const parts: (string | Query)[] = [];
 		let text = "";
-		while (!this.done && !this.src.startsWith(">>", this.pos)) {
+		while (!this.stageEnd) {
 			const ch = this.at();
 			if (ch === "\\") {
 				this.pos++;

@@ -77,6 +77,42 @@ format(data, "characters{class:rogue} >> | $.name | $.class |", { block: true })
 stopped a key short. `computeText` is `format` in a `Signal.Computed`, and `hasTemplate` says
 whether a pipeline's output is markup rather than a plain value.
 
+## In clawmark documents
+
+`@bearmetal/bmql/clawmark` adds `{{…}}` tags to clawmark:
+
+```ts
+import { Signal } from "@bearmetal/app/signals";
+import { defaultRules, toHtml } from "@bearmetal/clawmark";
+import { bindQueries, bmqlRules } from "@bearmetal/bmql/clawmark";
+
+const rules = [...bmqlRules(data), ...defaultRules()];
+const html = new Signal.Computed(() => toHtml(source, rules));
+// once the HTML is in the page:
+const stop = bindQueries(container, data);
+```
+
+```md
+Backstory: {{characters{name:Sel}.properties{key:backstory}.value}}
+
+| Name                         | Class  |
+| ---------------------------- | ------ |
+| {{characters{class:rogue} >> | $.name |
+```
+
+- **Value tags** (no template stage) render as `<span data-bmql="query">current text</span>`.
+  `bindQueries` gives each one an effect that keeps its text current. The text is read untracked
+  while rendering, so a value changing does not re-render the document; only its span updates.
+  Writers that don't know the tag unwrap it, so docx and odt get the text. Reading the HTML back
+  with `htmlToMarkdown(html, { rules: [bmqlValueRule(data)] })` restores the tag.
+- **Template tags** are markup, so a preparse rule expands them before lexing and their output joins
+  the text around it: the rows above become rows of the table. A template on a line of its own joins
+  with a newline. Expansion does read its signals, so a document rendered inside a `Signal.Computed`
+  re-renders when a template's data changes. Expansion is one-way; reading the HTML back gives the
+  expanded markup.
+- `\{{` is a literal `{{`. Tags inside inline code and fenced blocks are left alone, and a tag that
+  does not parse stays as text.
+
 ## Signals
 
 Values may be `Signal.State`s or `Signal.Computed`s from `@bearmetal/app/signals`, anywhere in the

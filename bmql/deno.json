@@ -4,7 +4,8 @@
 	"version": "0.1.0",
 	"exports": {
 		".": "./mod.ts",
-		"./types": "./types.ts"
+		"./types": "./types.ts",
+		"./clawmark": "./clawmark.ts"
 	},
 	"tasks": {
 		"dev": "deno test --watch"
