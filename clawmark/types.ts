@@ -48,6 +48,8 @@ export interface Node<T = Record<string, unknown>> {
  * handling closes the top of the stack without needing to know what it is.
  */
 export interface LexerContext {
+	/** The whole source being lexed, for a rule that parses ahead on its own. */
+	readonly input: string;
 	peek(length: number, offset?: number): string;
 	toNextSubstring(sub: string, offset?: number): string;
 	readonly lineStart: number;

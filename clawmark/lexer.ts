@@ -63,6 +63,9 @@ export class Lexer {
 		// deno-lint-ignore no-this-alias
 		const self = this;
 		return {
+			get input() {
+				return self.#input;
+			},
 			peek: (length, offset = 0) => self.#peek(length, offset),
 			toNextSubstring: (sub, offset = 0) => self.#toNextSubstring(sub, offset),
 			get rules() {
