@@ -7,10 +7,7 @@ import { Signal } from "@bearmetal/app/signals";
  * exactly the signals it read on the way to its result.
  */
 export function unwrapSignal(value: unknown): unknown {
-	while (
-		value !== null && typeof value === "object" &&
-		(Signal.isState(value) || Signal.isComputed(value))
-	) {
+	while (Signal.isState(value) || Signal.isComputed(value)) {
 		value = (value as Signal.State<unknown>).get();
 	}
 	return value;

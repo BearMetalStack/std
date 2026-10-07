@@ -90,7 +90,7 @@ export class WriteBatch {
 }
 
 function isState(value: unknown): value is Signal.State<unknown> {
-	return value !== null && typeof value === "object" && Signal.isState(value);
+	return Signal.isState(value);
 }
 
 function hasStateAbove(location: Location | undefined): boolean {
