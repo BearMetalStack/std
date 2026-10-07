@@ -97,3 +97,45 @@ export interface EvaluateOptions {
 	 */
 	unwrap?: (value: unknown) => unknown;
 }
+
+/** A query followed by `>>` stages: `characters{class:rogue} >> | $.name | >> "\n"`. */
+export interface Pipeline {
+	/** The source text the pipeline was parsed from. */
+	source: string;
+	query: Query;
+	stages: Stage[];
+}
+
+/** One `>>` stage of a pipeline. */
+export type Stage = SeparatorStage | TemplateStage;
+
+/** `>> "\n"`: the string the final text is joined with. The last one wins. */
+export interface SeparatorStage {
+	kind: "separator";
+	value: string;
+	offset: number;
+}
+
+/**
+ * `>> | $.name | $.class |`: maps each item to a string. Literal text is kept
+ * (trimmed at both ends); each `$` query is evaluated against the item.
+ */
+export interface TemplateStage {
+	kind: "template";
+	parts: (string | Query)[];
+	offset: number;
+}
+
+/** Options for `format` and `computeText`. */
+export interface FormatOptions extends EvaluateOptions {
+	/**
+	 * The tag stands on a line of its own, so items are joined with a newline
+	 * by default instead of `", "`. A separator stage overrides either.
+	 */
+	block?: boolean;
+	/**
+	 * Called when an item cannot be written as text (an object or an array)
+	 * and is skipped. Default: `console.warn`, once per distinct message.
+	 */
+	onWarn?: (message: string) => void;
+}

@@ -50,6 +50,33 @@ a predicate holds if **any** value at that path satisfies it.
 | `!backstory`    | absent or `null`                                                     |
 | `name:$who`     | equals `options.vars.who`, or any of its members if it is an array   |
 
+## Pipes and text
+
+`format` turns a query into text, and `>>` stages control how:
+
+```ts
+import { format } from "@bearmetal/bmql";
+
+format(data, "characters{class:rogue}.name"); // "Sel, Vex"
+format(data, `characters{class:rogue}.name >> " / "`); // "Sel / Vex"
+format(data, "characters{class:rogue} >> | $.name | $.class |", { block: true });
+// | Sel | rogue |
+// | Vex | rogue |
+```
+
+- A stage that is exactly one quoted string is a **separator**: the string the items are joined
+  with. The default is `", "`, or a newline with `block: true` (a tag on a line of its own).
+- Anything else is a **template**, which maps each item to text. Literal text is kept, trimmed at
+  both ends; `$` starts a query against the item (`$.name`, `$.tags{x:1}`, or bare `$` for the item
+  itself), and a query that finds several values joins them with `", "`. `\` escapes the next
+  character (`\>>`, `\$`, `\\`), and `\n`/`\t` are a newline and a tab.
+- Stages run left to right. A template after a template sees the previous one's text as `$`.
+
+`null` and `undefined` are left out of the text. An object or array is left out with a warning
+(`onWarn`, default `console.warn` once per message), because landing on one usually means the query
+stopped a key short. `computeText` is `format` in a `Signal.Computed`, and `hasTemplate` says
+whether a pipeline's output is markup rather than a plain value.
+
 ## Signals
 
 Values may be `Signal.State`s or `Signal.Computed`s from `@bearmetal/app/signals`, anywhere in the

@@ -1,7 +1,8 @@
 import { Signal } from "@bearmetal/app/signals";
 import { evaluate, values } from "./evaluate.ts";
-import { parse } from "./parser.ts";
-import type { EvaluateOptions, Location, Query } from "./types.ts";
+import { format } from "./format.ts";
+import { parse, parsePipeline } from "./parser.ts";
+import type { EvaluateOptions, FormatOptions, Location, Pipeline, Query } from "./types.ts";
 
 /**
  * A `Signal.Computed` of `evaluate(root, query, options)`. The query is
@@ -28,6 +29,16 @@ export function computeValues(
 ): Signal.Computed<unknown[]> {
 	const parsed = typeof query === "string" ? parse(query) : query;
 	return new Signal.Computed(() => values(root, parsed, options), { equals: sameValues });
+}
+
+/** A `Signal.Computed` of `format(root, pipeline, options)`, parsed up front. */
+export function computeText(
+	root: unknown,
+	pipeline: string | Pipeline,
+	options?: FormatOptions,
+): Signal.Computed<string> {
+	const parsed = typeof pipeline === "string" ? parsePipeline(pipeline) : pipeline;
+	return new Signal.Computed(() => format(root, parsed, options));
 }
 
 function sameLocations(a: Location[], b: Location[]): boolean {

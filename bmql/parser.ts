@@ -1,4 +1,14 @@
-import type { CompareOp, FilterStep, Operand, Predicate, Query, SliceStep, Step } from "./types.ts";
+import type {
+	CompareOp,
+	FilterStep,
+	Operand,
+	Pipeline,
+	Predicate,
+	Query,
+	SliceStep,
+	Stage,
+	Step,
+} from "./types.ts";
 
 /** Thrown for malformed query text. `offset` is the index the parser stopped at. */
 export class BmqlSyntaxError extends SyntaxError {
@@ -12,6 +22,13 @@ const IDENT = /[\p{L}\p{N}_-]/u;
 const OPS: CompareOp[] = [">=", "<=", "!=", ">", "<", "~"];
 const CACHE_LIMIT = 512;
 const cache = new Map<string, Query>();
+const pipelineCache = new Map<string, Pipeline>();
+
+function remember<T>(map: Map<string, T>, key: string, value: T): T {
+	if (map.size >= CACHE_LIMIT) map.delete(map.keys().next().value!);
+	map.set(key, value);
+	return value;
+}
 
 /**
  * Parses a whole query. Leading and trailing whitespace is allowed; anything
@@ -27,9 +44,30 @@ export function parse(source: string): Query {
 	parser.skipSpace();
 	if (!parser.done) parser.fail(`Unexpected "${parser.at()}"`);
 
-	if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value!);
-	cache.set(source, query);
-	return query;
+	return remember(cache, source, query);
+}
+
+/**
+ * Parses a query followed by any number of `>>` stages. A stage that is
+ * exactly one quoted string is a separator; anything else is a template, in
+ * which `$` starts a query against the item and `\` escapes the next
+ * character (`\>`, `\$`, `\\`, plus `\n` and `\t`). Memoized by source text.
+ */
+export function parsePipeline(source: string): Pipeline {
+	const cached = pipelineCache.get(source);
+	if (cached) return cached;
+
+	const parser = new Parser(source);
+	parser.skipSpace();
+	const query = parser.query();
+	parser.skipSpace();
+	const stages: Stage[] = [];
+	while (!parser.done) {
+		if (!parser.src.startsWith(">>", parser.pos)) parser.fail(`Unexpected "${parser.at()}"`);
+		parser.pos += 2;
+		stages.push(parser.stage());
+	}
+	return remember(pipelineCache, source, { source, query, stages });
 }
 
 /**
@@ -125,6 +163,50 @@ class Parser {
 		}
 		this.pos++;
 		return out;
+	}
+
+	stage(): Stage {
+		const offset = this.pos;
+		this.skipSpace();
+		if (this.at() === '"' || this.at() === "'") {
+			const start = this.pos;
+			const value = this.quoted();
+			this.skipSpace();
+			if (this.done || this.src.startsWith(">>", this.pos)) {
+				return { kind: "separator", value, offset };
+			}
+			this.pos = start;
+		}
+		return { kind: "template", parts: this.template(), offset };
+	}
+
+	template(): (string | Query)[] {
+		const parts: (string | Query)[] = [];
+		let text = "";
+		while (!this.done && !this.src.startsWith(">>", this.pos)) {
+			const ch = this.at();
+			if (ch === "\\") {
+				this.pos++;
+				if (this.done) this.fail("Nothing to escape");
+				const escaped = this.at();
+				text += escaped === "n" ? "\n" : escaped === "t" ? "\t" : escaped;
+				this.pos++;
+			} else if (ch === "$") {
+				if (text) parts.push(text);
+				text = "";
+				parts.push(this.query());
+			} else {
+				text += ch;
+				this.pos++;
+			}
+		}
+		if (text) parts.push(text);
+
+		const first = parts[0];
+		if (typeof first === "string") parts[0] = first.trimStart();
+		const last = parts.length - 1;
+		if (typeof parts[last] === "string") parts[last] = (parts[last] as string).trimEnd();
+		return parts.filter((part) => part !== "");
 	}
 
 	field(): string[] {
