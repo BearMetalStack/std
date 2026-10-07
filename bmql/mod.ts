@@ -17,3 +17,5 @@
 export * from "./types.ts";
 export { BmqlSyntaxError, parse, parseAt } from "./parser.ts";
 export { evaluate, values } from "./evaluate.ts";
+export { compute, computeValues } from "./signals.ts";
+export { unwrapSignal } from "./unwrap.ts";

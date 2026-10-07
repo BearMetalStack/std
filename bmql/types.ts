@@ -75,6 +75,12 @@ export interface Location {
 	parent?: object;
 	key?: string | number;
 	value: unknown;
+	/**
+	 * What `parent[key]` actually holds, when `unwrap` read through it - the
+	 * `Signal.State` a value came out of, say. Write to this rather than to
+	 * `parent[key]` to keep the signal.
+	 */
+	cell?: unknown;
 }
 
 /** Options for `evaluate`. */
@@ -85,7 +91,9 @@ export interface EvaluateOptions {
 	self?: unknown;
 	/**
 	 * Applied to every value before it is read: the root, each key's value,
-	 * each array element, each variable. Default: identity.
+	 * each array element, each variable. Default: `unwrapSignal`, which reads
+	 * through `Signal.State` and `Signal.Computed`. Pass `(v) => v` to treat
+	 * signals as opaque values.
 	 */
 	unwrap?: (value: unknown) => unknown;
 }

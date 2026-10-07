@@ -1,4 +1,5 @@
 import { parse } from "./parser.ts";
+import { unwrapSignal } from "./unwrap.ts";
 import type {
 	ComparePredicate,
 	EvaluateOptions,
@@ -11,8 +12,6 @@ import type {
 
 type Unwrap = (value: unknown) => unknown;
 
-const identity: Unwrap = (value) => value;
-
 /**
  * Runs `query` against `root` and returns every location it lands on, in
  * order. Never throws on data shape: a key that is missing, or a member that
@@ -21,6 +20,9 @@ const identity: Unwrap = (value) => value;
  * A key step that lands on an array contributes the array's elements rather
  * than the array, so `characters` is the set of characters whether it holds
  * an array or one object, and filters always test members.
+ *
+ * Signals are read through wherever they appear (see `unwrapSignal`), so
+ * evaluating inside a `Signal.Computed` tracks exactly what was read.
  */
 export function evaluate(
 	root: unknown,
@@ -28,7 +30,7 @@ export function evaluate(
 	options: EvaluateOptions = {},
 ): Location[] {
 	const parsed = typeof query === "string" ? parse(query) : query;
-	const unwrap = options.unwrap ?? identity;
+	const unwrap = options.unwrap ?? unwrapSignal;
 	const start = parsed.relative && "self" in options ? options.self : root;
 
 	let set = spread({ value: unwrap(start) }, unwrap);
@@ -61,14 +63,19 @@ function apply(set: Location[], step: Step, options: EvaluateOptions, unwrap: Un
 function spread(location: Location, unwrap: Unwrap): Location[] {
 	const { value } = location;
 	if (!Array.isArray(value)) return [location];
-	return value.map((element, index) => ({ parent: value, key: index, value: unwrap(element) }));
+	return value.map((element, index) => read(value, index, element, unwrap));
+}
+
+function read(parent: object, key: string | number, raw: unknown, unwrap: Unwrap): Location {
+	const value = unwrap(raw);
+	return value === raw ? { parent, key, value } : { parent, key, value, cell: raw };
 }
 
 function readKey(member: unknown, key: string, unwrap: Unwrap): Location[] {
 	if (member === null || typeof member !== "object") return [];
 	const raw = member instanceof Map ? member.get(key) : (member as Record<string, unknown>)[key];
 	if (raw === undefined || typeof raw === "function") return [];
-	return spread({ parent: member, key, value: unwrap(raw) }, unwrap);
+	return spread(read(member, key, raw, unwrap), unwrap);
 }
 
 function readField(member: unknown, field: string[], unwrap: Unwrap): unknown[] {

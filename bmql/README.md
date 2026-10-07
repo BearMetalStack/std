@@ -50,9 +50,31 @@ a predicate holds if **any** value at that path satisfies it.
 | `!backstory`    | absent or `null`                                                     |
 | `name:$who`     | equals `options.vars.who`, or any of its members if it is an array   |
 
+## Signals
+
+Values may be `Signal.State`s or `Signal.Computed`s from `@bearmetal/app/signals`, anywhere in the
+data: the root, an array, a key's value, a variable. `evaluate` reads through them by default, so
+run inside a `Signal.Computed` or an effect, a query subscribes to exactly the signals it read:
+
+```ts
+import { compute, computeValues } from "@bearmetal/bmql";
+
+const backstory = computeValues(data, "characters{name:Sel}.properties{key:backstory}.value");
+backstory.get(); // ["Born in the Ashen Reach."]
+```
+
+The filter has to read every character's `name`, so renaming any character re-runs the query, but
+writing to a property of a character it filtered out does not. `compute` and `computeValues` also
+compare results before reporting a change, so a re-run that lands on the same result wakes nothing
+downstream.
+
+A location read out of a signal carries it as `cell`, so a caller writing back can `set()` the
+signal instead of replacing it.
+
 ## Options
 
 - `vars` – values for `$name` operands.
 - `self` – what `$` refers to. Default: the root.
 - `unwrap` – applied to every value read (the root, each key's value, each array element, each
-  variable). This is the hook for reading through signals or other boxes.
+  variable). Default: `unwrapSignal`. Pass `(v) => v` to treat signals as opaque, or your own to
+  read through some other kind of box.
