@@ -176,3 +176,18 @@ Deno.test("creating an effect nested inside another effect's run does not wire t
 	stopInner!();
 	stopOuter();
 });
+
+Deno.test("type guards answer false for null and primitives instead of throwing", () => {
+	const state = new Signal.State(1);
+	const computed = new Signal.Computed(() => state.get());
+	const watcher = new Signal.subtle.Watcher(() => {});
+	for (const value of [null, undefined, 0, "", "x", true, Symbol("s"), {}, [], () => {}]) {
+		assertFalse(Signal.isState(value));
+		assertFalse(Signal.isComputed(value));
+		assertFalse(Signal.isWatcher(value));
+	}
+	assertEquals(Signal.isState(state), true);
+	assertEquals(Signal.isComputed(computed), true);
+	assertEquals(Signal.isWatcher(watcher), true);
+	assertFalse(Signal.isState(computed));
+});

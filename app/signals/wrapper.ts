@@ -45,7 +45,7 @@ export namespace Signal {
 		#brand() {}
 
 		static {
-			isState = (s) => typeof s === "object" && #brand in s;
+			isState = (s) => typeof s === "object" && s !== null && #brand in s;
 		}
 
 		constructor(initialValue: T, options: Signal.Options<T> = {}) {
@@ -85,7 +85,7 @@ export namespace Signal {
 		#brand() {}
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		static {
-			isComputed = (c: any) => typeof c === "object" && #brand in c;
+			isComputed = (c: any) => typeof c === "object" && c !== null && #brand in c;
 		}
 
 		// Create a Signal which evaluates to the value returned by the callback.
@@ -178,7 +178,7 @@ export namespace Signal {
 
 			#brand() {}
 			static {
-				isWatcher = (w: any): w is Watcher => #brand in w;
+				isWatcher = (w: any): w is Watcher => typeof w === "object" && w !== null && #brand in w;
 			}
 
 			// When a (recursive) source of Watcher is written to, call this callback,
