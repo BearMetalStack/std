@@ -23,7 +23,8 @@ space in the code. Use them sparingly. Comments used for code organization are a
 ## Worktrees
 
 All work happens in a dedicated git worktree and branch, never directly on the checked-out branch in
-the main worktree. Open PRs via the `tea` CLI (Gitea). Use the worktree skill for the exact steps.
+the main worktree (unless specified). Open PRs via the `tea` CLI (Gitea). Use the worktree skill for
+the exact steps.
 
 ### Commits
 

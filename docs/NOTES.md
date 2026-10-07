@@ -198,9 +198,9 @@ element's light DOM.
 
 Because `init()` is browser-only, a server render never attaches a shadow root requested there: the
 template goes into the light DOM and any children passed to the component are replaced by it. For a
-server-rendered component, declare `static shadow = "open"` instead. The root is then attached before
-`init()`/`serverInit()` on both sides, serialized as declarative shadow DOM, and the light children
-stay slotted.
+server-rendered component, declare `static shadow = "open"` instead. The root is then attached
+before `init()`/`serverInit()` on both sides, serialized as declarative shadow DOM, and the light
+children stay slotted.
 
 ---
 

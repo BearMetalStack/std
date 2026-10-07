@@ -1,29 +1,24 @@
 ---
 prev:
-    text: "Loading data"
-    link: "./data-loading"
+  text: "Loading data"
+  link: "./data-loading"
 next: false
 ---
 
 # The Render API
 
 `Layout()` and `Page()` cover a page in a router. Underneath them is a renderer you can call
-yourself for various purposes: for a fragment over a websocket, an email body, a static site build, or anything else
-that wants markup out of the same components.
+yourself for various purposes: for a fragment over a websocket, an email body, a static site build,
+or anything else that wants markup out of the same components.
 
 ```ts
-import {
-	renderToString,
-	renderToTree,
-	serializeNode,
-	serializeTree,
-} from "@bearmetal/app/ssr";
+import { renderToString, renderToTree, serializeNode, serializeTree } from "@bearmetal/app/ssr";
 ```
 
 ## `renderToString(view, options?)`
 
-Renders and returns markup. `view` is a **function** returning JSX, not JSX directly. The renderer opens its
-scope first, then calls it.
+Renders and returns markup. `view` is a **function** returning JSX, not JSX directly. The renderer
+opens its scope first, then calls it.
 
 ```tsx
 const html = await renderToString(() => <user-card userId="42" />, {
@@ -80,8 +75,8 @@ something to resolve against.
 ## The URL, and routing
 
 `url` is put in call-stack context for the duration of the render, which is what lets a
-[`<Router>`](/app#client-routing) anywhere in the page, including those that are several levels down inside a
-component's `template`, match the right route with nothing threaded down to it.
+[`<Router>`](/app#client-routing) anywhere in the page, including those that are several levels down
+inside a component's `template`, match the right route with nothing threaded down to it.
 
 ```tsx
 router.route("/app/*").get(Page(() => <Router>{/* … */}</Router>));
@@ -116,9 +111,9 @@ installGlobals();
 ```
 
 Import order does not matter either way. `@define` keeps its own list of components and registers
-them against whatever registry exists, re-running when one appears. Whichever of "install the
-DOM" and "import the components" happens second catches up. `BMC` likewise re-points its prototype
-chain at whichever `HTMLElement` is ambient, whenever that changes.
+them against whatever registry exists, re-running when one appears. Whichever of "install the DOM"
+and "import the components" happens second catches up. `BMC` likewise re-points its prototype chain
+at whichever `HTMLElement` is ambient, whenever that changes.
 
 ## Telling the sides apart
 
@@ -132,8 +127,8 @@ if (isBrowser()) globalThis.addEventListener("resize", onResize);
 ```
 
 Reach for it only for things that are genuinely browser-only: attaching listeners to a document that
-is about to be thrown away, patching `history`, starting timers. Rendering is not one of them since that
-is supposed to be identical, and a component that branches on it has two behaviours again.
+is about to be thrown away, patching `history`, starting timers. Rendering is not one of them since
+that is supposed to be identical, and a component that branches on it has two behaviours again.
 
 Inside the framework the equivalent question is `isServerRendering()` from `@bearmetal/jsx`, true
 for the whole of a render including the gaps where it is awaiting work.
@@ -144,15 +139,16 @@ for the whole of a render including the gaps where it is awaiting work.
 belongs in [`serverInit()`](./data-loading).
 
 **Shadow DOM has to be declared.** A component with `static shadow = "open"` renders into a shadow
-root on the server too, serialized as `<template shadowrootmode="open">` with its light children left
-in place for its slots. The browser rebuilds the root on parse and the first client render replaces
-its contents. `useShadow()` called from `init()` never happens on a server, so such a component's
-template lands in its light DOM there, replaces its light children, and is left behind as stray
-markup once the browser attaches a root.
+root on the server too, serialized as `<template shadowrootmode="open">` with its light children
+left in place for its slots. The browser rebuilds the root on parse and the first client render
+replaces its contents. `useShadow()` called from `init()` never happens on a server, so such a
+component's template lands in its light DOM there, replaces its light children, and is left behind
+as stray markup once the browser attaches a root.
 
 **Only scalar props are markup.** A string, number or boolean handed to a declared `@prop` is
 mirrored onto its attribute and reaches the browser. An object handed to a component from a `Page()`
-view does not. Use `serverInit()` and `@state`; see [Loading data](./data-loading#state-is-not-prop).
+view does not. Use `serverInit()` and `@state`; see
+[Loading data](./data-loading#state-is-not-prop).
 
 **`@state` has to survive `JSON.stringify`.** A `Map`, a `Date` or a class instance does not. Derive
 those in `init()` from something that does.
@@ -160,4 +156,5 @@ those in `init()` from something that does.
 **Effects run when the renderer says so.** During a render the renderer flushes them itself, in
 scope, and keeps going until the graph stops moving; the usual microtask scheduling stands aside.
 This is the one place where a signal written from inside an effect _does_ reach its readers before
-anything is read. The server necessarily needs to treat this differently, so don't rely on it in code that also runs client-side.
+anything is read. The server necessarily needs to treat this differently, so don't rely on it in
+code that also runs client-side.
