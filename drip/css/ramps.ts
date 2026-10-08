@@ -69,6 +69,23 @@ export const REQUIRED_RAMPS: readonly string[] = Object.freeze([
 	...SEMANTIC_ROLES,
 ]);
 
+/**
+ * Ramps that must carry a `base`. A ramp's bare `--color-<name>` is emitted
+ * only from its `base`, and each semantic role's `base` is a hue's bare
+ * identity (`"$color.red"`), which `--color-danger` and friends then read.
+ * `brand`, `accent` and `neutral` are exempt: the variant layer states their
+ * bare tokens.
+ */
+const BASE_CARRYING_RAMPS: ReadonlySet<string> = new Set([
+	...REQUIRED_HUE_RAMPS,
+	...SEMANTIC_ROLES,
+]);
+
+/** Whether a ramp states its identity color, under `base` or the older `""` key. */
+function hasBase(node: unknown): boolean {
+	return Object.hasOwn(node as object, "base") || Object.hasOwn(node as object, "");
+}
+
 /** Whether a theme node is a color ramp — has at least one numeric stop key. */
 function isStopRamp(node: unknown): boolean {
 	if (!node || typeof node !== "object" || Array.isArray(node)) return false;
@@ -78,12 +95,13 @@ function isStopRamp(node: unknown): boolean {
 /** A missing or malformed required ramp, for {@linkcode validateRamps}. */
 export interface RampDiagnostic {
 	ramp: string;
-	problem: "missing" | "not-a-ramp";
+	problem: "missing" | "not-a-ramp" | "no-base";
 }
 
 /**
  * Checks that every required base ramp and semantic ramp exists under
- * `theme.color` and is shaped like a color scale (has numeric stop keys).
+ * `theme.color`, is shaped like a color scale (has numeric stop keys), and —
+ * for the hues and semantic roles — states a `base`.
  * Doesn't check stop completeness (50-950) — a ramp mid-generation with a
  * handful of stops still counts as present.
  */
@@ -96,6 +114,8 @@ export function validateRamps(theme: Theme): RampDiagnostic[] {
 			diagnostics.push({ ramp, problem: "missing" });
 		} else if (!isStopRamp(node)) {
 			diagnostics.push({ ramp, problem: "not-a-ramp" });
+		} else if (BASE_CARRYING_RAMPS.has(ramp) && !hasBase(node)) {
+			diagnostics.push({ ramp, problem: "no-base" });
 		}
 	}
 	return diagnostics;

@@ -150,6 +150,11 @@ cover, so a theme that names its neutral ramp something else silently loses thos
 it's swapped in. `REQUIRED_BASE_RAMPS` and `SEMANTIC_ROLES` in `css/ramps.ts` (`@bearmetal/drip`)
 are the canonical list; `validateRamps` checks a theme against it at generate time.
 
+Each hue ramp also needs a `base`: it is the only thing that emits the bare `--color-<hue>`, and the
+semantic ramps alias exactly that, so a hue without one leaves `--color-danger`, `--color-info` and
+the rest pointing at nothing. Pick the stop that carries the hue's identity, not necessarily `500`.
+`brand`, `accent` and `neutral` may leave it out; the variant layer states their bare tokens.
+
 A semantic ramp is never seeded independently — it's a full **alias** into one of the eight hues, so
 state colors never compete with the brand for attention and a theme can't accidentally make "danger"
 the same hue as its own brand color. Every stop is a `$color.<hue>.<stop>` accessor, and `base` is

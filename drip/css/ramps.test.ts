@@ -66,6 +66,32 @@ Deno.test("a theme missing just the semantic ramps is flagged for those only", (
 	assertEquals(diagnostics, [{ ramp: "danger", problem: "missing" }]);
 });
 
+Deno.test("a hue or semantic ramp without a base is flagged", () => {
+	const theme = completeTheme();
+	delete ((theme.color as Theme).blue as Theme).base;
+	delete ((theme.color as Theme).info as Theme).base;
+	assertEquals(validateRamps(theme), [
+		{ ramp: "blue", problem: "no-base" },
+		{ ramp: "info", problem: "no-base" },
+	]);
+});
+
+Deno.test("brand, accent and neutral may leave base to the variant layer", () => {
+	const theme = completeTheme();
+	for (const ramp of ["brand", "accent", "neutral"]) {
+		delete ((theme.color as Theme)[ramp] as Theme).base;
+	}
+	assertEquals(validateRamps(theme), []);
+});
+
+Deno.test("the older empty-string key counts as a base", () => {
+	const theme = completeTheme();
+	const red = (theme.color as Theme).red as Theme;
+	red[""] = red.base;
+	delete red.base;
+	assertEquals(validateRamps(theme), []);
+});
+
 Deno.test("isHueRampName recognizes the eight required hues and nothing else", () => {
 	for (const hue of REQUIRED_HUE_RAMPS) assert(isHueRampName(hue));
 	assert(!isHueRampName("brand"));

@@ -12,7 +12,7 @@
 
 import type { Theme, Variant } from "../types.ts";
 import { VARIANT_TOKENS, VARIANT_TOKENS_BY_PROPERTY } from "./tokens.ts";
-import { validateRamps } from "./ramps.ts";
+import { type RampDiagnostic, validateRamps } from "./ramps.ts";
 
 /** Severity of a generate-time finding. */
 export type DiagnosticLevel = "error" | "warning";
@@ -206,6 +206,15 @@ function validateVariant(
 	return diagnostics;
 }
 
+const RAMP_PROBLEMS: Record<RampDiagnostic["problem"], string> = {
+	missing:
+		"required ramp is not defined — components that assume it (badges, fills, semantic colors) will silently lose their color on this theme",
+	"not-a-ramp":
+		"exists but isn't shaped like a color scale (no numeric stops) — expected a ramp with 50-950 stops",
+	"no-base":
+		"has no `base`, so its bare --color-<name> is never emitted — and every semantic token aliasing it (--color-danger, --color-info, …) is invalid at computed-value time",
+};
+
 /**
  * Ramp-level diagnostics, in the same shape `validateVariants` produces, so a
  * caller can merge the two into one report. Kept separate from
@@ -218,9 +227,7 @@ export function validateThemeRamps(theme: Theme): DripDiagnostic[] {
 	return validateRamps(theme).map(({ ramp, problem }) => ({
 		level: "warning",
 		where: `color.${ramp}`,
-		message: problem === "missing"
-			? "required ramp is not defined — components that assume it (badges, fills, semantic colors) will silently lose their color on this theme"
-			: "exists but isn't shaped like a color scale (no numeric stops) — expected a ramp with 50-950 stops",
+		message: RAMP_PROBLEMS[problem],
 	}));
 }
 
