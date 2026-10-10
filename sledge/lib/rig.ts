@@ -35,6 +35,8 @@ export interface Attachment {
 	eye: SVGGeometryElement;
 	/** The part's root, in the eye wrapper's space. */
 	anchor: Point;
+	/** The middle of the eye at rest, which the part keeps pointing away from. */
+	center: Point;
 	/** The part's own blend shapes, which take over from attaching where they're weighted. */
 	morph?: MorphTarget;
 	target: Pose;
@@ -550,6 +552,9 @@ function rigAttachment(
 		lidBase: normalizePath(lid.getAttribute("d") ?? ""),
 		eye: eyeRig.eye,
 		anchor: { x: anchor.x, y: anchor.y },
+		center: (({ x, y, width, height }) => ({ x: x + width / 2, y: y + height / 2 }))(
+			eyeRegion(eye, 0),
+		),
 		morph: morphs.get(part),
 		target: { ...rest },
 		current: { ...rest },
@@ -575,7 +580,7 @@ export function stepAttachments(
 			const values = lidMorph?.current ?? a.lidBase.values;
 			const lidPoly = samplePath(a.lidBase.signature, values, matrixOf(a.lid));
 			const toEye = matrixOf(a.eye).inverse();
-			const pose = attachPose(lidPoly, a.anchor, (p) => {
+			const pose = attachPose(lidPoly, a.anchor, a.center, (p) => {
 				const q = toEye.transformPoint(p);
 				return a.eye.isPointInFill(new DOMPoint(q.x, q.y));
 			});

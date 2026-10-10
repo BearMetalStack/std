@@ -135,7 +135,7 @@ const smoothstep = (t: number) => t * t * (3 - 2 * t);
  *   cuts the eye away; a `cover` lid paints over it. A `closed` state is what
  *   blinking closes it to; any other path with a `closed` state closes along.
  * - `data-attach="<lid id>"`: the part (e.g. eyelashes) moves with that lid's
- *   eye, and once the lid covers its root (a path's first point) it rides the
+ *   eye, and once the lid covers its root (where it leaves the eye) it rides the
  *   lid's edge. Its own weighted states take over from that where present.
  * - On the root `<svg>`: `data-bob="ampY periodY [ampX periodX]"` for an idle
  *   float, and `data-default-expression="<state>"`.

@@ -74,20 +74,31 @@ export function pointInPolygon(poly: readonly Point[], p: Point): boolean {
 	return inside;
 }
 
+/** Whether any of a segment, from `a` along (`dx`, `dy`), lies inside the eye. */
+function touches(a: Point, dx: number, dy: number, insideEye: (p: Point) => boolean): boolean {
+	for (let i = 0; i <= 8; i++) {
+		if (insideEye({ x: a.x + (dx * i) / 8, y: a.y + (dy * i) / 8 })) return true;
+	}
+	return false;
+}
+
 /**
  * Where a part rooted at `anchor` sits on a lid. The part stays put (`null`)
  * until the lid covers its root; from then on it rides the nearest point of
- * the lid's edge that touches the eye, turned to follow that edge.
- * Starting from the point that touches the root keeps the hand-off seamless.
+ * the lid's edge that touches the eye. It turns by however far its root has
+ * swung around the eye's `center`, so it keeps pointing away from the eye:
+ * lashes fan out as a lid comes down over a corner. Starting from the point
+ * that touches the root keeps the hand-off seamless.
  */
 export function attachPose(
 	lid: readonly Point[],
 	anchor: Point,
+	center: Point,
 	insideEye: (p: Point) => boolean,
 ): Pose | null {
 	if (lid.length < 3 || !pointInPolygon(lid, anchor)) return null;
-	let best: Pose | null = null, bestDist = Infinity;
-	let fallback: Pose | null = null, fallbackDist = Infinity;
+	let best: Point | null = null, bestDist = Infinity;
+	let fallback: Point | null = null, fallbackDist = Infinity;
 	for (let i = 0; i < lid.length; i++) {
 		const a = lid[i], b = lid[(i + 1) % lid.length];
 		const dx = b.x - a.x, dy = b.y - a.y;
@@ -96,13 +107,15 @@ export function attachPose(
 		const t = Math.max(0, Math.min(1, ((anchor.x - a.x) * dx + (anchor.y - a.y) * dy) / len2));
 		const x = a.x + dx * t, y = a.y + dy * t;
 		const dist = (x - anchor.x) ** 2 + (y - anchor.y) ** 2;
-		let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-		if (angle > 90) angle -= 180;
-		else if (angle <= -90) angle += 180;
-		if (dist < fallbackDist) fallback = { x, y, angle }, fallbackDist = dist;
-		if (dist < bestDist && (insideEye(a) || insideEye(b))) {
-			best = { x, y, angle }, bestDist = dist;
-		}
+		if (dist < fallbackDist) fallback = { x, y }, fallbackDist = dist;
+		if (dist < bestDist && touches(a, dx, dy, insideEye)) best = { x, y }, bestDist = dist;
 	}
-	return best ?? fallback;
+	const at = best ?? fallback;
+	if (!at) return null;
+	const from = Math.atan2(anchor.y - center.y, anchor.x - center.x);
+	const to = Math.atan2(at.y - center.y, at.x - center.x);
+	let angle = ((to - from) * 180) / Math.PI;
+	if (angle > 180) angle -= 360;
+	else if (angle <= -180) angle += 360;
+	return { ...at, angle };
 }
