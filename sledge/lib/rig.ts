@@ -263,7 +263,14 @@ export function buildRig(svg: SVGSVGElement): Rig {
 	}
 
 	for (const part of svg.querySelectorAll("[data-attach]")) {
-		const attachment = rigAttachment(svg, rig, part, morphs);
+		const attachment = rigAttachment(
+			svg,
+			defs,
+			`${uid}-a${rig.attachments.length}`,
+			rig,
+			part,
+			morphs,
+		);
 		if (attachment) rig.attachments.push(attachment);
 	}
 
@@ -418,12 +425,38 @@ function rigLids(
 	}
 }
 
+/** A shape's outline as path data, for the shapes an eye is likely to be. */
+function outlineOf(el: Element): string | undefined {
+	const n = (name: string) => parseFloat(el.getAttribute(name) ?? "0");
+	if (el instanceof SVGPathElement) return el.getAttribute("d") ?? undefined;
+	if (el instanceof SVGEllipseElement || el instanceof SVGCircleElement) {
+		const cx = n("cx"), cy = n("cy");
+		const rx = el instanceof SVGCircleElement ? n("r") : n("rx");
+		const ry = el instanceof SVGCircleElement ? n("r") : n("ry");
+		return `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${
+			cx - rx
+		} ${cy} Z`;
+	}
+	if (el instanceof SVGRectElement) {
+		const x = n("x"), y = n("y"), w = n("width"), h = n("height");
+		return `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
+	}
+	return undefined;
+}
+
 /**
  * Moves a part into its lid's eye wrapper, so it glances and tilts with the
- * eye, and records its root: the first point of a path, else its center.
+ * eye, and records its root: where a path leaves the eye, else its first
+ * point, else its center.
+ *
+ * Whatever of the part lies inside the eye is hidden for good. Drawn over the
+ * eye it was invisible anyway, but a lid cutting the eye away would otherwise
+ * uncover it and the part would seem to grow.
  */
 function rigAttachment(
 	svg: SVGSVGElement,
+	defs: SVGDefsElement,
+	id: string,
 	rig: Rig,
 	part: Element,
 	morphs: Map<Element, MorphTarget>,
@@ -440,21 +473,74 @@ function rigAttachment(
 		return undefined;
 	}
 
+	const eye = eyeRig.eye;
+	const eyeMatrix = matrixOf(eye);
+	const toEye = eyeMatrix.inverse();
+	const inEye = (p: Point) => {
+		const q = toEye.transformPoint(p);
+		return eye.isPointInFill(new DOMPoint(q.x, q.y));
+	};
+
 	const toWrapper = mapInto(part, eyeRig.wrapper, svg);
-	let root: DOMPointInit;
+	let anchor: Point;
+	let overlapsEye = false;
+	let outline: Point[] = [];
 	if (part instanceof SVGPathElement) {
-		const [x, y] = normalizePath(part.getAttribute("d") ?? "M 0 0").values;
-		root = { x, y };
+		const shape = normalizePath(part.getAttribute("d") ?? "M 0 0");
+		outline = samplePath(shape.signature, shape.values, toWrapper, 32);
+		anchor = outline[0];
+		const exit = outline.findIndex((p) => !inEye(p));
+		if (exit > 0) {
+			overlapsEye = true;
+			let a = outline[exit - 1], b = outline[exit];
+			for (let i = 0; i < 12; i++) {
+				const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+				if (inEye(mid)) a = mid;
+				else b = mid;
+			}
+			anchor = b;
+		}
 	} else {
 		const box = (part as SVGGraphicsElement).getBBox();
-		root = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+		anchor = toWrapper.transformPoint({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
 	}
-	const anchor = toWrapper.transformPoint(root);
 
 	setMatrix(part, toWrapper);
 	const wrapper = svgEl("g", { "data-sledge-attach": "" });
 	eyeRig.wrapper.appendChild(wrapper);
 	wrapper.appendChild(part);
+
+	const eyeOutline = outlineOf(eye);
+	if (overlapsEye && eyeOutline) {
+		// An alpha mask, like the lids': the eye is a hole in a box around the part and eye.
+		const strokePad = parseFloat(getComputedStyle(part).strokeWidth) || 0;
+		const eyeBox = eyeRegion(eye, 0);
+		const xs = [...outline.map((p) => p.x), eyeBox.left, eyeBox.right];
+		const ys = [...outline.map((p) => p.y), eyeBox.top, eyeBox.bottom];
+		const pad = strokePad + 1;
+		const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
+		const x1 = Math.max(...xs) + pad, y1 = Math.max(...ys) + pad;
+		const box = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+			.map(([x, y]) => toEye.transformPoint({ x, y }))
+			.map((p) => `${p.x} ${p.y}`);
+		const mask = svgEl("mask", {
+			id: `${id}-mask`,
+			style: "mask-type:alpha",
+			maskUnits: "userSpaceOnUse",
+			x: `${x0}`,
+			y: `${y0}`,
+			width: `${x1 - x0}`,
+			height: `${y1 - y0}`,
+		});
+		mask.appendChild(svgEl("path", {
+			transform:
+				`matrix(${eyeMatrix.a} ${eyeMatrix.b} ${eyeMatrix.c} ${eyeMatrix.d} ${eyeMatrix.e} ${eyeMatrix.f})`,
+			"fill-rule": "evenodd",
+			d: `M ${box.join(" L ")} Z ${eyeOutline}`,
+		}));
+		defs.appendChild(mask);
+		wrap(part, { mask: `url(#${id}-mask)` });
+	}
 
 	const rest = { x: anchor.x, y: anchor.y, angle: 0 };
 	return {

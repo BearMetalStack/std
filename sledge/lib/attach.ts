@@ -77,7 +77,7 @@ export function pointInPolygon(poly: readonly Point[], p: Point): boolean {
 /**
  * Where a part rooted at `anchor` sits on a lid. The part stays put (`null`)
  * until the lid covers its root; from then on it rides the nearest point of
- * the lid's edge that lies inside the eye, turned to follow that edge.
+ * the lid's edge that touches the eye, turned to follow that edge.
  * Starting from the point that touches the root keeps the hand-off seamless.
  */
 export function attachPose(
@@ -100,7 +100,7 @@ export function attachPose(
 		if (angle > 90) angle -= 180;
 		else if (angle <= -90) angle += 180;
 		if (dist < fallbackDist) fallback = { x, y, angle }, fallbackDist = dist;
-		if (dist < bestDist && insideEye({ x: a.x + dx / 2, y: a.y + dy / 2 })) {
+		if (dist < bestDist && (insideEye(a) || insideEye(b))) {
 			best = { x, y, angle }, bestDist = dist;
 		}
 	}
