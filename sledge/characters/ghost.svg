@@ -66,8 +66,8 @@
 					id="mouth"
 					style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;fill:none"
 					d="M 90.1325,107.6218 C 90.1325,107.6218 92.9583,111.6836 96.8945,111.6336 C 100.8307,111.5836 103.6565,107.0986 103.6565,107.0986" />
-				<path style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 120.00626,72.649023 c 1.63363,-1.498155 2.57941,-2.996311 2.83734,-4.494466" />
-				<path style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 73.782941,72.649023 c -1.63363,-1.498155 -2.57941,-2.996311 -2.83734,-4.494466" />
+				<path id="lash-right" data-attach="lid-right-upper" style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 120.00626,72.649023 c 1.63363,-1.498155 2.57941,-2.996311 2.83734,-4.494466" />
+				<path id="lash-left" data-attach="lid-left-upper" style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 73.782941,72.649023 c -1.63363,-1.498155 -2.57941,-2.996311 -2.83734,-4.494466" />
 			</g>
 			<g
 				id="flower"

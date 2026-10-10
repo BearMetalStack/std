@@ -30,6 +30,7 @@ Everything is opt-in. Anything a character doesn't tag just doesn't happen.
 | `data-sway="stiffness damping [gain] [drag]"` | Swings on a spring as the character moves; defaults `120 10 1 1`     |
 | `data-pivot-for="<id>"`                       | Marker shape whose center is that part's pivot, removed at runtime   |
 | `data-lid="mask\|cover" data-for="<eye id>"`  | An eyelid path for that eye                                          |
+| `data-attach="<lid id>"`                      | Rides that lid's edge once the lid covers its root, e.g. eyelashes   |
 | `data-bob="ampY periodY [ampX periodX]"`      | On the root `<svg>`: idle float, in SVG units and seconds            |
 | `data-default-expression="<state>"`           | On the root `<svg>`: the starting expression                         |
 
@@ -57,6 +58,17 @@ blink closes them to. Eyes without lids blink by squashing instead.
   the eye's stroke color is drawn along the cut, so the outline survives.
 - **`cover`** paints over the eye in the lid's own fill and stroke, confined to the eye. The eye's
   outline is redrawn on top.
+
+Any other path with a `closed` state closes along with a blink.
+
+### Attached parts
+
+`data-attach="<lid id>"` makes a part, such as an eyelash, belong to that lid's eye. It moves with
+the eye's glance and tilt, and it stays where you drew it until the lid covers its root (a path's
+first point, so draw lashes outward from the eye). From then on it rides the nearest point of the
+lid's edge inside the eye, turned to follow that edge. If the part has its own blend shapes, they
+take over from attaching in proportion to their weight, so you can hand-place a lash for any pose
+where riding the edge doesn't look right.
 
 ## Sway
 

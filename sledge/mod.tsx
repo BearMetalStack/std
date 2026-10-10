@@ -1,6 +1,6 @@
 import { BMElement, type BMTemplate, define } from "@bearmetal/app";
 import { css } from "@bearmetal/miscellanea";
-import { applyMorphs, buildRig, type Rig } from "./lib/rig.ts";
+import { applyMorphs, buildRig, type Rig, stepAttachments } from "./lib/rig.ts";
 import { bobOffset, Motion } from "./lib/motion.ts";
 
 const styles = new CSSStyleSheet();
@@ -133,7 +133,10 @@ const smoothstep = (t: number) => t * t * (3 - 2 * t);
  *   `data-pivot-for="<part id>"`.
  * - `data-lid="mask|cover" data-for="<eye id>"`: an eyelid path. A `mask` lid
  *   cuts the eye away; a `cover` lid paints over it. A `closed` state is what
- *   blinking closes it to.
+ *   blinking closes it to; any other path with a `closed` state closes along.
+ * - `data-attach="<lid id>"`: the part (e.g. eyelashes) moves with that lid's
+ *   eye, and once the lid covers its root (a path's first point) it rides the
+ *   lid's edge. Its own weighted states take over from that where present.
  * - On the root `<svg>`: `data-bob="ampY periodY [ampX periodX]"` for an idle
  *   float, and `data-default-expression="<state>"`.
  */
@@ -355,6 +358,7 @@ export class Sledge extends BMElement<{ root: SVGSVGElement; slot: HTMLSlotEleme
 			this.#morphDirty = false;
 			applyMorphs(rig, this.#weights, this.#blink);
 		}
+		stepAttachments(rig, this.#weights, this.#blink, dt);
 	};
 
 	#stepExpression(t: number) {

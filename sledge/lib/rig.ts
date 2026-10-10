@@ -1,3 +1,4 @@
+import { attachPose, type Point, type Pose, samplePath } from "./attach.ts";
 import { AngularSpring } from "./spring.ts";
 import { type Bob, parseBob } from "./motion.ts";
 import {
@@ -21,6 +22,24 @@ export interface MorphTarget {
 	followers: ((d: string) => void)[];
 	isLid: boolean;
 	lastD: string;
+	/** The blended shape last written. */
+	current: Float64Array;
+}
+
+/** A part that rides a lid's edge (`data-attach="<lid id>"`), such as eyelashes. */
+export interface Attachment {
+	part: Element;
+	wrapper: SVGGElement;
+	lid: SVGPathElement;
+	lidBase: NormalizedPath;
+	eye: SVGGeometryElement;
+	/** The part's root, in the eye wrapper's space. */
+	anchor: Point;
+	/** The part's own blend shapes, which take over from attaching where they're weighted. */
+	morph?: MorphTarget;
+	target: Pose;
+	current: Pose;
+	lastLidD?: string;
 }
 
 /** A part that rotates on a spring around a pivot (`data-sway`, `data-pivot-for`). */
@@ -51,6 +70,7 @@ export interface Rig {
 	zMix: Map<Element, [number, number]>;
 	morphs: MorphTarget[];
 	sways: SwayRig[];
+	attachments: Attachment[];
 	bob?: Bob;
 	defaultExpression?: string;
 	/** Every state name any morph target knows. */
@@ -133,6 +153,7 @@ export function buildRig(svg: SVGSVGElement): Rig {
 		zMix: new Map(),
 		morphs: [],
 		sways: [],
+		attachments: [],
 		bob: parseBob(svg.getAttribute("data-bob")),
 		defaultExpression: svg.getAttribute("data-default-expression") ?? undefined,
 		states: new Set(),
@@ -158,13 +179,15 @@ export function buildRig(svg: SVGSVGElement): Rig {
 		let target = morphs.get(base);
 		if (!target) {
 			const d = base.getAttribute("d") ?? "";
+			const shape = normalizePath(d);
 			target = {
 				el: base,
-				base: normalizePath(d),
+				base: shape,
 				states: new Map(),
 				followers: [],
 				isLid: base.hasAttribute("data-lid"),
 				lastD: d,
+				current: Float64Array.from(shape.values),
 			};
 			morphs.set(base, target);
 		}
@@ -237,6 +260,11 @@ export function buildRig(svg: SVGSVGElement): Rig {
 			: [];
 		rig.eyeRigs.push({ eye, wrapper, lids });
 		if (lids.length) rigLids(svg, defs, `${uid}-${rig.eyeRigs.length}`, eye, wrapper, lids, morphs);
+	}
+
+	for (const part of svg.querySelectorAll("[data-attach]")) {
+		const attachment = rigAttachment(svg, rig, part, morphs);
+		if (attachment) rig.attachments.push(attachment);
 	}
 
 	for (const el of svg.querySelectorAll("[data-z-mix]")) {
@@ -390,6 +418,113 @@ function rigLids(
 	}
 }
 
+/**
+ * Moves a part into its lid's eye wrapper, so it glances and tilts with the
+ * eye, and records its root: the first point of a path, else its center.
+ */
+function rigAttachment(
+	svg: SVGSVGElement,
+	rig: Rig,
+	part: Element,
+	morphs: Map<Element, MorphTarget>,
+): Attachment | undefined {
+	const lidId = part.getAttribute("data-attach");
+	const lid = byId(svg, lidId);
+	const eyeRig = rig.eyeRigs.find((r) => r.lids.includes(lid as SVGPathElement));
+	if (!(lid instanceof SVGPathElement) || !eyeRig) {
+		warn(`"${part.id || part.tagName}" attaches to "${lidId}", which is not a lid`);
+		return undefined;
+	}
+	if (!(eyeRig.eye instanceof SVGGeometryElement)) {
+		warn(`"${part.id || part.tagName}" attaches to a lid of an eye that isn't a shape`);
+		return undefined;
+	}
+
+	const toWrapper = mapInto(part, eyeRig.wrapper, svg);
+	let root: DOMPointInit;
+	if (part instanceof SVGPathElement) {
+		const [x, y] = normalizePath(part.getAttribute("d") ?? "M 0 0").values;
+		root = { x, y };
+	} else {
+		const box = (part as SVGGraphicsElement).getBBox();
+		root = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+	}
+	const anchor = toWrapper.transformPoint(root);
+
+	setMatrix(part, toWrapper);
+	const wrapper = svgEl("g", { "data-sledge-attach": "" });
+	eyeRig.wrapper.appendChild(wrapper);
+	wrapper.appendChild(part);
+
+	const rest = { x: anchor.x, y: anchor.y, angle: 0 };
+	return {
+		part,
+		wrapper,
+		lid,
+		lidBase: normalizePath(lid.getAttribute("d") ?? ""),
+		eye: eyeRig.eye,
+		anchor: { x: anchor.x, y: anchor.y },
+		morph: morphs.get(part),
+		target: { ...rest },
+		current: { ...rest },
+	};
+}
+
+/**
+ * Moves attached parts toward where their lids put them. Each part's own
+ * weighted states (and `closed`, while blinking) take over from attaching in
+ * proportion to their weight.
+ */
+export function stepAttachments(
+	rig: Rig,
+	weights: ReadonlyMap<string, number>,
+	blink: number,
+	dt: number,
+) {
+	for (const a of rig.attachments) {
+		const lidMorph = rig.morphs.find((m) => m.el === a.lid);
+		const lidD = lidMorph?.lastD ?? a.lid.getAttribute("d") ?? "";
+		if (lidD !== a.lastLidD) {
+			a.lastLidD = lidD;
+			const values = lidMorph?.current ?? a.lidBase.values;
+			const lidPoly = samplePath(a.lidBase.signature, values, matrixOf(a.lid));
+			const toEye = matrixOf(a.eye).inverse();
+			const pose = attachPose(lidPoly, a.anchor, (p) => {
+				const q = toEye.transformPoint(p);
+				return a.eye.isPointInFill(new DOMPoint(q.x, q.y));
+			});
+			a.target = pose ?? { ...a.anchor, angle: 0 };
+		}
+
+		let override = 0;
+		if (a.morph) {
+			for (const name of a.morph.states.keys()) {
+				override += name === "closed" ? blink + (weights.get(name) ?? 0) : weights.get(name) ?? 0;
+			}
+		}
+		const follow = 1 - Math.min(1, Math.max(0, override));
+		const goal = {
+			x: a.anchor.x + (a.target.x - a.anchor.x) * follow,
+			y: a.anchor.y + (a.target.y - a.anchor.y) * follow,
+			angle: a.target.angle * follow,
+		};
+
+		const k = dt > 0 ? 1 - Math.exp(-dt / 0.035) : 1;
+		const c = a.current;
+		const moved = Math.abs(goal.x - c.x) + Math.abs(goal.y - c.y) + Math.abs(goal.angle - c.angle);
+		if (moved < 1e-3) continue;
+		c.x += (goal.x - c.x) * k;
+		c.y += (goal.y - c.y) * k;
+		c.angle += (goal.angle - c.angle) * k;
+		a.wrapper.setAttribute(
+			"transform",
+			`translate(${c.x - a.anchor.x} ${
+				c.y - a.anchor.y
+			}) rotate(${c.angle} ${a.anchor.x} ${a.anchor.y})`,
+		);
+	}
+}
+
 const scratch = new Map<MorphTarget, Float64Array>();
 
 /**
@@ -407,8 +542,9 @@ export function applyMorphs(rig: Rig, weights: ReadonlyMap<string, number>, blin
 			names.map((n) => weights.get(n) ?? 0),
 			out,
 		);
-		const closed = target.isLid ? target.states.get("closed") : undefined;
+		const closed = target.states.get("closed");
 		if (closed && blink > 0) lerpValues(out, closed.values, blink, out);
+		target.current.set(out);
 		const d = serializePath(target.base.signature, out);
 		if (d === target.lastD) continue;
 		target.lastD = d;
