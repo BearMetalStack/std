@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+	Ghostwriter, rigged for Sledge. Derived from graver's ghostwriter.svg.
+
+	The "States" layer holds blend-shape variants (data-shape-of + data-state).
+	Edit one by showing the layer and moving nodes; never add or delete nodes.
+	The "Pivots" layer holds the points the swaying parts rotate around.
+-->
+<svg
+	width="186.63742mm"
+	height="186.63742mm"
+	viewBox="0 0 186.63742 186.63742"
+	version="1.1"
+	id="ghostwriter"
+	data-bob="2.5 3.2 1.2 5.3"
+	data-default-expression="joy"
+	xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+	xmlns="http://www.w3.org/2000/svg">
+	<defs id="defs1" />
+	<g
+		inkscape:label="Ghost"
+		inkscape:groupmode="layer"
+		id="layer1"
+		transform="translate(-3.575772,-22.300587)">
+		<g id="ghost" data-sway="35 6 1 1">
+			<path
+				id="body"
+				style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+				d="m 46.412058,178.84136 c -11.681636,-28.7139 0.190121,-66.98891 0,-92.997508 -0.190121,-26.008595 23.598603,-50.744301 50.445596,-50.692274 27.086946,0.05249 50.445596,23.552711 50.445596,50.692274 0,27.139568 11.68164,64.283608 0,92.997508 -3.02558,7.43699 -8.78632,17.24574 -16.8152,17.24574 -8.02888,0 -8.78632,-17.24574 -16.8152,-17.24574 -8.02888,0 -8.78631,17.24574 -16.815197,17.24574 -8.028881,0 -8.786316,-17.24574 -16.815198,-17.24574 -8.028882,0 -8.786317,17.24574 -16.815199,17.24574 -8.028881,0 -13.789618,-9.80875 -16.815198,-17.24574 z" />
+			<g id="wisps" data-sway="90 8 0.6 0.6">
+				<path style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 107.4645,61.224054 c 4.41878,-3.662977 6.97701,-7.325955 7.67467,-10.988932" />
+				<path style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 97.894483,61.224054 c 4.418787,-3.662977 6.977017,-7.325955 7.674677,-10.988932" />
+				<path style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 88.324471,61.224054 c 4.418786,-3.662977 6.977013,-7.325955 7.674679,-10.988932" />
+				<path style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 78.754459,61.224054 c 4.418786,-3.662977 6.977013,-7.325955 7.674679,-10.988932" />
+			</g>
+			<g id="eyes" data-part="eyes" data-layer="1">
+				<ellipse id="eye-left" data-part="eye" style="fill:#060011;fill-opacity:1;stroke:none" cx="79.5388" cy="82.9402" rx="9.5935" ry="15.7857" />
+				<ellipse id="eye-right" data-part="eye" style="fill:#060011;fill-opacity:1;stroke:none" cx="114.2499" cy="82.9402" rx="9.5935" ry="15.7857" />
+			<path
+				id="lid-left-upper"
+				data-lid="mask"
+				data-for="eye-left"
+				style="fill:#ffffff;stroke:none"
+				d="M 68.9453,63 L 90.1323,63 L 90.1323,66 C 90.1323,66 68.9453,66 68.9453,66 Z" />
+			<path
+				id="lid-left-lower"
+				data-lid="mask"
+				data-for="eye-left"
+				style="fill:#ffffff;stroke:none"
+				d="M 68.9453,100 C 68.9453,100 90.1323,100 90.1323,100 L 90.1323,110 L 68.9453,110 Z" />
+			<path
+				id="lid-right-upper"
+				data-lid="mask"
+				data-for="eye-right"
+				style="fill:#ffffff;stroke:none"
+				d="M 103.6564,63 L 124.8434,63 L 124.8434,66 C 124.8434,66 103.6564,66 103.6564,66 Z" />
+			<path
+				id="lid-right-lower"
+				data-lid="mask"
+				data-for="eye-right"
+				style="fill:#ffffff;stroke:none"
+				d="M 103.6564,100 C 103.6564,100 124.8434,100 124.8434,100 L 124.8434,110 L 103.6564,110 Z" />
+			</g>
+			<g id="features" data-layer="1">
+				<path
+					id="mouth"
+					style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;fill:none"
+					d="M 90.1325,107.6218 C 90.1325,107.6218 92.9583,111.6836 96.8945,111.6336 C 100.8307,111.5836 103.6565,107.0986 103.6565,107.0986" />
+				<path style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 120.00626,72.649023 c 1.63363,-1.498155 2.57941,-2.996311 2.83734,-4.494466" />
+				<path style="font-variation-settings:'wght' 700;fill:#ffffff;fill-opacity:1;stroke:#060011;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" d="m 73.782941,72.649023 c -1.63363,-1.498155 -2.57941,-2.996311 -2.83734,-4.494466" />
+			</g>
+			<g
+				id="flower"
+				data-sway="140 5 0.8 0.4"
+				transform="matrix(-0.89486252,0.44634187,0.44634187,0.89486252,22.342861,-201.76667)">
+				<ellipse style="font-variation-settings:'wght' 700;fill:#d4820f;fill-opacity:1;stroke:none" cx="81.719284" cy="246.98935" rx="18.402102" ry="5.2328253" />
+				<ellipse style="font-variation-settings:'wght' 700;fill:#d4820f;fill-opacity:1;stroke:none" cx="235.48901" cy="110.57442" rx="18.402102" ry="5.2328253" transform="rotate(46.540092)" />
+				<circle style="font-variation-settings:'wght' 700;fill:#d4820f;fill-opacity:1;stroke:none;stroke:#ffffff;stroke-width:2" cx="81.719284" cy="246.98935" r="6.9608841" />
+			</g>
+		</g>
+	</g>
+	<g
+		inkscape:label="Pivots"
+		inkscape:groupmode="layer"
+		id="pivots"
+		style="display:none"
+		transform="translate(-3.575772,-22.300587)">
+		<circle data-pivot-for="ghost" cx="96.8576" cy="45" r="1.5" style="fill:#ff0000" />
+		<circle data-pivot-for="wisps" cx="96.9" cy="61.5" r="1.5" style="fill:#ff0000" />
+		<circle data-pivot-for="flower" cx="59.45" cy="55.73" r="1.5" style="fill:#ff0000" />
+	</g>
+	<g
+		inkscape:label="States"
+		inkscape:groupmode="layer"
+		id="states"
+		style="display:none;fill:none;stroke:#ff00ff;stroke-width:0.5"
+		transform="translate(-3.575772,-22.300587)">
+		<path data-shape-of="lid-left-upper" data-state="angry" d="M 68.9453,63 L 90.1323,63 L 90.1323,75 C 90.1323,75 68.9453,65 68.9453,65 Z" />
+		<path data-shape-of="lid-left-upper" data-state="sad" d="M 68.9453,63 L 90.1323,63 L 90.1323,66 C 90.1323,66 68.9453,80 68.9453,80 Z" />
+		<path data-shape-of="lid-left-upper" data-state="closed" d="M 68.9453,63 L 90.1323,63 L 90.1323,83 C 90.1323,88.3333 68.9453,88.3333 68.9453,83 Z" />
+		<path data-shape-of="lid-left-lower" data-state="joy" d="M 68.9453,97.3006 C 68.9453,86.1373 90.1323,86.1373 90.1323,97.3006 L 90.1323,110 L 68.9453,110 Z" />
+		<path data-shape-of="lid-left-lower" data-state="angry" d="M 68.9453,93 C 68.9453,93 90.1323,93 90.1323,93 L 90.1323,110 L 68.9453,110 Z" />
+		<path data-shape-of="lid-left-lower" data-state="closed" d="M 68.9453,85.5 C 68.9453,90.4333 90.1323,90.4333 90.1323,85.5 L 90.1323,110 L 68.9453,110 Z" />
+		<path data-shape-of="lid-right-upper" data-state="angry" d="M 103.6564,63 L 124.8434,63 L 124.8434,65 C 124.8434,65 103.6564,75 103.6564,75 Z" />
+		<path data-shape-of="lid-right-upper" data-state="sad" d="M 103.6564,63 L 124.8434,63 L 124.8434,80 C 124.8434,80 103.6564,66 103.6564,66 Z" />
+		<path data-shape-of="lid-right-upper" data-state="closed" d="M 103.6564,63 L 124.8434,63 L 124.8434,83 C 124.8434,88.3333 103.6564,88.3333 103.6564,83 Z" />
+		<path data-shape-of="lid-right-lower" data-state="joy" d="M 103.6564,97.3006 C 103.6564,86.1373 124.8434,86.1373 124.8434,97.3006 L 124.8434,110 L 103.6564,110 Z" />
+		<path data-shape-of="lid-right-lower" data-state="angry" d="M 103.6564,93 C 103.6564,93 124.8434,93 124.8434,93 L 124.8434,110 L 103.6564,110 Z" />
+		<path data-shape-of="lid-right-lower" data-state="closed" d="M 103.6564,85.5 C 103.6564,90.4333 124.8434,90.4333 124.8434,85.5 L 124.8434,110 L 103.6564,110 Z" />
+		<path data-shape-of="mouth" data-state="joy" d="M 89.5,106.8 C 89.5,106.8 92.6,113 96.8945,113 C 101.2,113 104.3,106.8 104.3,106.8" />
+		<path data-shape-of="mouth" data-state="angry" d="M 91.5,110 C 91.5,110 94,108.6 96.8945,108.6 C 99.8,108.6 102.3,110 102.3,110" />
+		<path data-shape-of="mouth" data-state="sad" d="M 90.1325,111.2 C 90.1325,111.2 92.9583,107.2 96.8945,107.2 C 100.8307,107.2 103.6565,111.2 103.6565,111.2" />
+	</g>
+</svg>
