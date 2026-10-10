@@ -67,9 +67,9 @@ Any other path with a `closed` state closes along with a blink.
 the eye's glance and tilt, and it stays where you drew it until the lid covers its root: the point
 where it leaves the eye, or a path's first point if it starts outside. From then on it slides along
 the lid's edge and turns to keep pointing away from the eye's center, so lashes fan out as a lid
-comes down over a corner. The whole part moves rigidly; anything of it you drew overlapping the eye
-stays hidden, so a closing lid can't uncover it. If the part has its own blend shapes, they take
-over from attaching in proportion to their weight, so you can hand-place a lash for any pose.
+comes down over a corner. The whole part moves rigidly, at full length: a lash drawn starting inside
+the eye runs on into the lid line once the lid closes. If the part has its own blend shapes, they
+take over from attaching in proportion to their weight, so you can hand-place a lash for any pose.
 
 ## Sway
 
