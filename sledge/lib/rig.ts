@@ -17,8 +17,8 @@ export interface MorphTarget {
 	el: SVGPathElement;
 	base: NormalizedPath;
 	states: Map<string, NormalizedPath>;
-	/** Copies that must always carry the same `d`, such as a lid's edge line. */
-	followers: SVGPathElement[];
+	/** Called with every new `d`, to keep copies such as a lid's edge line in step. */
+	followers: ((d: string) => void)[];
 	isLid: boolean;
 	lastD: string;
 }
@@ -259,6 +259,25 @@ export function buildRig(svg: SVGSVGElement): Rig {
 	return rig;
 }
 
+/**
+ * The eye's box in its wrapper's space, padded by half its size on every side
+ * so a morphing eye or a thick stroke stays inside.
+ */
+function eyeRegion(eye: SVGGraphicsElement, strokeWidth: number): DOMRect {
+	const box = eye.getBBox();
+	const pad = Math.max(box.width, box.height) / 2 + strokeWidth;
+	const m = matrixOf(eye);
+	const corners = [
+		[box.x - pad, box.y - pad],
+		[box.x + box.width + pad, box.y - pad],
+		[box.x - pad, box.y + box.height + pad],
+		[box.x + box.width + pad, box.y + box.height + pad],
+	].map(([x, y]) => m.transformPoint({ x, y }));
+	const xs = corners.map((p) => p.x), ys = corners.map((p) => p.y);
+	const x = Math.min(...xs), y = Math.min(...ys);
+	return new DOMRect(x, y, Math.max(...xs) - x, Math.max(...ys) - y);
+}
+
 function isStroked(el: Element): boolean {
 	const style = getComputedStyle(el);
 	return style.stroke !== "none" && parseFloat(style.strokeWidth) > 0;
@@ -283,42 +302,37 @@ function rigLids(
 	const eyeStyle = getComputedStyle(eye);
 	const toWrapper = lids.map((lid) => mapInto(lid, wrapper, svg));
 
+	// Masks get a region just around the eye: a huge one can exceed the GPU's
+	// texture limit, and Chromium then drops the mask entirely.
+	const region = eyeRegion(eye, parseFloat(eyeStyle.strokeWidth) || 0);
+	const regionAttrs = {
+		maskUnits: "userSpaceOnUse",
+		x: `${region.x}`,
+		y: `${region.y}`,
+		width: `${region.width}`,
+		height: `${region.height}`,
+	};
+
 	// Lids are confined to the eye including its stroke, so an edge line runs to the
 	// outline's outer edge instead of stopping halfway through it.
-	const area = svgEl("mask", {
-		id: `${id}-area`,
-		maskUnits: "userSpaceOnUse",
-		x: "-100000",
-		y: "-100000",
-		width: "200000",
-		height: "200000",
-	});
+	const area = svgEl("mask", { id: `${id}-area`, style: "mask-type:alpha", ...regionAttrs });
 	const eyeShape = eye.cloneNode() as SVGGraphicsElement;
 	eyeShape.removeAttribute("id");
 	eyeShape.removeAttribute("data-part");
 	eyeShape.setAttribute(
 		"style",
-		`fill:#fff;stroke:${stroked ? "#fff" : "none"};stroke-width:${eyeStyle.strokeWidth}`,
+		`fill:#000;stroke:${stroked ? "#000" : "none"};stroke-width:${eyeStyle.strokeWidth}`,
 	);
 	area.appendChild(eyeShape);
 	defs.appendChild(area);
 
-	const mask = svgEl("mask", {
-		id: `${id}-mask`,
-		maskUnits: "userSpaceOnUse",
-		x: "-100000",
-		y: "-100000",
-		width: "200000",
-		height: "200000",
-	});
-	mask.appendChild(svgEl("rect", {
-		x: "-100000",
-		y: "-100000",
-		width: "200000",
-		height: "200000",
-		fill: "#fff",
-	}));
-	let masked = false;
+	const corners = [
+		[region.left, region.top],
+		[region.right, region.top],
+		[region.right, region.bottom],
+		[region.left, region.bottom],
+	];
+	let cut: Element = eye;
 
 	const over = svgEl("g", { mask: `url(#${id}-area)` });
 
@@ -326,10 +340,26 @@ function rigLids(
 		const mode = lid.getAttribute("data-lid");
 		setMatrix(lid, toWrapper[i]);
 		if (mode === "mask") {
-			lid.style.setProperty("fill", "#000");
-			lid.style.setProperty("stroke", "none");
-			mask.appendChild(lid);
-			masked = true;
+			// Alpha masks ignore colour, so forced dark modes can't flatten them. An alpha
+			// mask can't be painted out, so each lid is a hole in an evenodd path instead,
+			// and several lids nest.
+			const mask = svgEl("mask", { id: `${id}-lid${i}`, style: "mask-type:alpha", ...regionAttrs });
+			const toLid = toWrapper[i].inverse();
+			const box = "M " + corners
+				.map(([x, y]) => toLid.transformPoint({ x, y }))
+				.map((p) => `${p.x} ${p.y}`)
+				.join(" L ") +
+				" Z ";
+			const hole = svgEl("path", {
+				transform: lid.getAttribute("transform")!,
+				"fill-rule": "evenodd",
+				d: box + (lid.getAttribute("d") ?? ""),
+			});
+			mask.appendChild(hole);
+			defs.appendChild(mask);
+			defs.appendChild(lid);
+			morphs.get(lid)?.followers.push((d) => hole.setAttribute("d", box + d));
+			cut = wrap(cut, { mask: `url(#${id}-lid${i})` });
 			if (stroked) {
 				const edge = lid.cloneNode() as SVGPathElement;
 				edge.removeAttribute("id");
@@ -338,7 +368,7 @@ function rigLids(
 				edge.style.setProperty("stroke-width", eyeStyle.strokeWidth);
 				edge.style.setProperty("stroke-linecap", "round");
 				over.appendChild(edge);
-				morphs.get(lid)?.followers.push(edge);
+				morphs.get(lid)?.followers.push((d) => edge.setAttribute("d", d));
 			}
 		} else {
 			if (mode !== "cover") warn(`lid "${lid.id}" has data-lid="${mode}"; expected cover or mask`);
@@ -346,21 +376,17 @@ function rigLids(
 		}
 	});
 
-	if (masked) {
-		defs.appendChild(mask);
-		wrap(eye, { mask: `url(#${id}-mask)` });
-	}
 	wrapper.appendChild(over);
 
 	const eyeMorph = morphs.get(eye);
-	if (eyeMorph && eyeShape instanceof SVGPathElement) eyeMorph.followers.push(eyeShape);
+	if (eyeMorph) eyeMorph.followers.push((d) => eyeShape.setAttribute("d", d));
 	if (stroked && lids.some((l) => l.getAttribute("data-lid") !== "mask")) {
 		const outline = eye.cloneNode() as SVGGraphicsElement;
 		outline.removeAttribute("id");
 		outline.removeAttribute("data-part");
 		outline.style.setProperty("fill", "none");
 		wrapper.appendChild(outline);
-		if (eyeMorph && outline instanceof SVGPathElement) eyeMorph.followers.push(outline);
+		if (eyeMorph) eyeMorph.followers.push((d) => outline.setAttribute("d", d));
 	}
 }
 
@@ -387,6 +413,6 @@ export function applyMorphs(rig: Rig, weights: ReadonlyMap<string, number>, blin
 		if (d === target.lastD) continue;
 		target.lastD = d;
 		target.el.setAttribute("d", d);
-		for (const f of target.followers) f.setAttribute("d", d);
+		for (const follow of target.followers) follow(d);
 	}
 }
