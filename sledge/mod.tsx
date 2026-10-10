@@ -28,11 +28,12 @@ styles.replaceSync(css`
 		)
 			var(--base-transform, translate(0,0));
 	}
+	/* The glance moves the eyes on top of their layer's parallax, and alone while the body holds still. */
 	[data-part="eyes"] {
 		transform:
 			translate(
-			calc(var(--glance-offset-x,0) * 1px),
-			calc(var(--glance-offset-y,0) * 1px)
+			calc(var(--offset-x,0) * var(--depth,0) * 1.5px + var(--glance-offset-x,0) * 1px),
+			calc(var(--offset-y,0) * var(--depth,0) * 1.5px + var(--glance-offset-y,0) * 1px)
 		)
 			var(--base-transform, translate(0,0));
 	}
@@ -672,7 +673,7 @@ export class Sledge extends BMElement<{ root: SVGSVGElement; slot: HTMLSlotEleme
 								d="m 110.91584,38.379149 c -0.91896,0 -5.05427,-7.162567 -4.59479,-7.958408 0.45948,-0.795841 8.7301,-0.795841 9.18958,-1e-6 0.45948,0.795841 -3.67583,7.958409 -4.59479,7.958409 z"
 							/>
 						</g>
-						<g id="eyes" data-part="eyes" data-layer="1">
+						<g id="eyes" data-part="eyes" data-layer="0">
 							<path
 								id="eye-right"
 								data-part="eye"
