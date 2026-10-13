@@ -477,3 +477,52 @@ Deno.test("a promise resolving to a signal fills its slot reactively", async () 
 	n.set("second");
 	assertEquals(container.innerHTML, "[second]");
 });
+
+Deno.test("a style object serializes as declarations", () => {
+	const el = jsx("div", {
+		style: {
+			backgroundColor: "red",
+			"margin-top": 4,
+			"--accent": "blue",
+			opacity: 0.5,
+			zIndex: 2,
+			WebkitLineClamp: 3,
+			padding: 0,
+			color: null,
+			border: false,
+		},
+	});
+	assertEquals(
+		html(el),
+		'<div style="background-color: red; margin-top: 4px; --accent: blue; opacity: 0.5; ' +
+			'z-index: 2; -webkit-line-clamp: 3; padding: 0"></div>',
+	);
+});
+
+Deno.test("a string style is still written as markup", () => {
+	assertEquals(html(jsx("div", { style: "color: red" })), '<div style="color: red"></div>');
+});
+
+Deno.test("a signal in a style object rewrites only its own property", () => {
+	const color = signal<string | null>("red");
+	const el = jsx("div", { style: { color, width: 10 } });
+	assertEquals(html(el), '<div style="color: red; width: 10px"></div>');
+	color.set("blue");
+	assertEquals(html(el), '<div style="color: blue; width: 10px"></div>');
+	color.set(null);
+	assertEquals(html(el), '<div style="width: 10px"></div>');
+});
+
+Deno.test("a signal style drops properties the next object leaves out", () => {
+	const style = signal<Record<string, unknown> | string | null>({ color: "red", width: 10 });
+	const el = jsx("div", { style });
+	assertEquals(html(el), '<div style="color: red; width: 10px"></div>');
+	style.set({ width: 20 });
+	assertEquals(html(el), '<div style="width: 20px"></div>');
+	style.set("display: none");
+	assertEquals(html(el), '<div style="display: none"></div>');
+	style.set({ color: "green" });
+	assertEquals(html(el), '<div style="color: green"></div>');
+	style.set(null);
+	assertEquals(html(el), "<div></div>");
+});

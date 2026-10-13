@@ -72,6 +72,20 @@ A child may also be:
 - a **promise** — the slot stays empty until it resolves. During a server render the renderer waits
   for it before serializing, so an `async` component's output lands in the response.
 
+## Styles
+
+`style` takes a string of CSS, or an object:
+
+```tsx
+<div style={{ backgroundColor: "red", marginTop: 8, "--accent": accent, opacity: 0.5 }} />;
+// <div style="background-color: red; margin-top: 8px; --accent: …; opacity: 0.5">
+```
+
+Keys are camelCase, kebab-case, or custom properties. Numbers get `px` unless the property is
+unitless. `null`, `undefined` and `false` leave a property unset. A signal on one property updates
+just that property. A signal holding the whole object re-applies it, and removes whatever the
+previous object set that the new one doesn't.
+
 ## Props of your own
 
 `registerPropHandler()` claims a prop name, on every element, for a handler of yours — the supported

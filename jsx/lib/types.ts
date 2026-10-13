@@ -24,10 +24,34 @@ export type MakeChild<Extra = never> =
 
 export type MakeChildren<Extra = never> = MakeChild<Extra> | MakeChild<Extra>[];
 
+/** Every CSS property `CSSStyleDeclaration` knows, by its camelCase name. */
+export type CssPropertyName = Exclude<
+	{
+		[K in keyof CSSStyleDeclaration]: CSSStyleDeclaration[K] extends string ? K : never;
+	}[keyof CSSStyleDeclaration],
+	number | "cssText"
+>;
+
+/** One declaration's value. `null`, `undefined` and `false` leave the property unset. */
+export type CssValue = string | number | null | undefined | false;
+
+/**
+ * An inline style written as an object.
+ *
+ * Keys are camelCase CSS properties, kebab-case ones, or custom properties
+ * (`--accent`). A number gets `px` appended unless the property is unitless
+ * (`opacity`, `zIndex`, `lineHeight`, …). Any single value may be a signal, and
+ * only that property is rewritten when it changes.
+ */
+export type MakeStyleObject<Extra = never> =
+	& { [K in CssPropertyName]?: CssValue | Extra }
+	& { [key: `--${string}`]: CssValue | Extra }
+	& { [key: `${string}-${string}`]: CssValue | Extra };
+
 export interface MakeCommonProps<Extra = never> extends CustomProps {
 	class?: string | Extra;
 	id?: string | Extra;
-	style?: string | Partial<CSSStyleDeclaration> | Extra;
+	style?: string | MakeStyleObject<Extra> | Extra;
 	title?: string | Extra;
 	role?: string | Extra;
 	tabindex?: number | Extra;

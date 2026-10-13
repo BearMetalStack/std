@@ -170,6 +170,107 @@ function reflectProp(el: Element, key: string, val: unknown): void {
 	else if (typeof val === "string" || typeof val === "number") el.setAttribute(key, String(val));
 }
 
+// -- style --
+
+const UNITLESS_PROPERTIES: ReadonlySet<string> = new Set([
+	"animation-iteration-count",
+	"aspect-ratio",
+	"border-image-outset",
+	"border-image-slice",
+	"border-image-width",
+	"column-count",
+	"columns",
+	"fill-opacity",
+	"flex",
+	"flex-grow",
+	"flex-shrink",
+	"flood-opacity",
+	"font-weight",
+	"grid-area",
+	"grid-column",
+	"grid-column-end",
+	"grid-column-start",
+	"grid-row",
+	"grid-row-end",
+	"grid-row-start",
+	"line-clamp",
+	"line-height",
+	"opacity",
+	"order",
+	"orphans",
+	"scale",
+	"stop-opacity",
+	"stroke-dasharray",
+	"stroke-dashoffset",
+	"stroke-miterlimit",
+	"stroke-opacity",
+	"stroke-width",
+	"tab-size",
+	"widows",
+	"z-index",
+	"zoom",
+]);
+
+/** `backgroundColor` → `background-color`, `WebkitLineClamp` → `-webkit-line-clamp`. */
+function cssPropertyName(key: string): string {
+	if (key.includes("-")) return key;
+	if (key === "cssFloat") return "float";
+	const kebab = key.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
+	return kebab.startsWith("ms-") ? "-" + kebab : kebab;
+}
+
+function cssPropertyValue(property: string, value: unknown): string {
+	if (value == null || value === false) return "";
+	if (typeof value === "number" && value !== 0 && !property.startsWith("--")) {
+		const unprefixed = property.replace(/^-(webkit|moz|ms|o)-/, "");
+		if (!UNITLESS_PROPERTIES.has(unprefixed)) return value + "px";
+	}
+	return String(value);
+}
+
+function setStyleProperty(el: Element, property: string, value: unknown): void {
+	const style = (el as HTMLElement).style;
+	const text = cssPropertyValue(property, value);
+	if (text === "") style.removeProperty(property);
+	else style.setProperty(property, text);
+}
+
+/**
+ * Applies a `style` prop: markup as written, or an object of declarations.
+ *
+ * An object is written one `setProperty` at a time, so it means the same thing
+ * in a browser and in Slag, and properties a previous object set but this one
+ * leaves out are removed. With `trackEach`, a signal held by a single property
+ * gets an effect of its own; otherwise it is only read, so a style that is
+ * already being re-applied from an effect tracks it through that one.
+ */
+function applyStyle(el: Element, val: unknown, trackEach: boolean): void {
+	const e = el as unknown as { prevStyleKeys?: string[] };
+	if (val == null || val === false || typeof val !== "object") {
+		e.prevStyleKeys = undefined;
+		if (val == null || val === false || val === "") el.removeAttribute("style");
+		else el.setAttribute("style", String(val));
+		return;
+	}
+	const entries = Object.entries(val as Record<string, unknown>)
+		.map(([key, value]) => [cssPropertyName(key), value] as const);
+	const keys = entries.map(([property]) => property);
+	if (e.prevStyleKeys === undefined) el.removeAttribute("style");
+	else {
+		for (const property of e.prevStyleKeys) {
+			if (!keys.includes(property)) (el as HTMLElement).style.removeProperty(property);
+		}
+	}
+	e.prevStyleKeys = keys;
+	for (const [property, value] of entries) {
+		if (trackEach && isSignal(value)) {
+			reactiveEffect(() => setStyleProperty(el, property, unwrap(value)));
+		} else {
+			setStyleProperty(el, property, unwrap(value));
+		}
+	}
+}
+
 function isPixelable(key: string, val: unknown): boolean {
 	const pixelables = ["width", "height"];
 	return typeof val === "number" && pixelables.includes(key);
@@ -381,6 +482,11 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 		const handler = _propHandlers.get(key);
 		if (handler) {
 			applyHandledProp(handler, el, key, val);
+			continue;
+		}
+		if (key === "style") {
+			if (isSignal(val)) reactiveEffect(() => applyStyle(el, unwrap(val), false));
+			else applyStyle(el, val, true);
 			continue;
 		}
 		// deno-lint-ignore no-explicit-any
