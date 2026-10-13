@@ -4,8 +4,21 @@ import { css } from "@bearmetal/miscellanea";
 
 let _bundle = await bundle();
 
-Deno.serve({ port: 3000 }, async (r) => {
+Deno.serve({ port: Number(Deno.env.get("BEARMETAL_SLEDGE_PORT") ?? 3000) }, async (r) => {
 	const url = new URL(r.url);
+	const character = url.pathname.match(/^\/characters\/([\w-]+\.svg)$/)?.[1];
+	if (character) {
+		try {
+			return new Response(
+				await Deno.readFile(new URL(`./characters/${character}`, import.meta.url)),
+				{
+					headers: { "Content-Type": "image/svg+xml" },
+				},
+			);
+		} catch {
+			return new Response("Not found", { status: 404 });
+		}
+	}
 	if (url.pathname.endsWith(".js")) {
 		return new Response(_bundle.outputFiles?.find((f) => f.path === url.pathname)?.text(), {
 			headers: {
@@ -25,11 +38,14 @@ Deno.serve({ port: 3000 }, async (r) => {
 							html {
 								background: #1a1a1a;
 							}
-							:has(bm-sledge) {
+							.stage {
 								position: fixed;
 								top: 50%;
 								left: 50%;
 								transform: translate(-50%, -50%);
+								display: flex;
+								gap: 4rem;
+								align-items: center;
 							}
 							bm-sledge {
 								width: 200px;
@@ -45,11 +61,9 @@ Deno.serve({ port: 3000 }, async (r) => {
 					{_bundle.outputFiles?.map((f) => <script type="module" src={f.path}></script>)}
 				</head>
 				<body>
-					<div>
-						{Array.from({ length: 1 }, () => (
-							<bm-sledge debug>
-							</bm-sledge>
-						))}
+					<div class="stage">
+						<bm-sledge debug></bm-sledge>
+						<bm-sledge src="/characters/ghost.svg"></bm-sledge>
 					</div>
 				</body>
 			</html>
@@ -62,9 +76,12 @@ Deno.serve({ port: 3000 }, async (r) => {
 	);
 });
 
-for await (const ev of Deno.watchFs("./mod.tsx")) {
+for await (const ev of Deno.watchFs(["./mod.tsx", "./lib"])) {
 	if (ev.kind === "modify") {
-		_bundle = await bundle();
+		const next = await bundle().catch((e) => ({ errors: [e], outputFiles: undefined }));
+		if (next.errors?.length || !next.outputFiles?.length) {
+			console.error("Rebundle failed, keeping the previous bundle:", next.errors);
+		} else _bundle = next;
 	}
 }
 
