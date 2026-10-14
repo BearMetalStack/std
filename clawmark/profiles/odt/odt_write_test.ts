@@ -63,6 +63,9 @@ Deno.test("odt write: lists", () => {
 	assertStable("- a\n- b");
 	assertStable("- a\n- b\n  - nested");
 	assertStable("1. one\n2. two");
+	assertStable("4. four\n5. five");
+	assertStable("2. a\n  7. b\n  8. c\n3. d");
+	assertStable("1. a\n\n9. b");
 });
 
 Deno.test("odt write: table", () => {

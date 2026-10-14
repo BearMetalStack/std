@@ -33,6 +33,12 @@ const NUMBERING = `<w:numbering ${W}>
 	</w:abstractNum>
 	<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>
 	<w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>
+	<w:abstractNum w:abstractNumId="2">
+		<w:lvl w:ilvl="0"><w:start w:val="3"/><w:numFmt w:val="decimal"/></w:lvl>
+	</w:abstractNum>
+	<w:num w:numId="3"><w:abstractNumId w:val="2"/></w:num>
+	<w:num w:numId="4"><w:abstractNumId w:val="2"/>` +
+	`<w:lvlOverride w:ilvl="0"><w:startOverride w:val="10"/></w:lvlOverride></w:num>
 </w:numbering>`;
 
 const RELS = `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -118,6 +124,31 @@ Deno.test("docx: a run of numPr paragraphs becomes one nested list", () => {
 Deno.test("docx: numbering.xml decides ordered vs bulleted", () => {
 	const body = listPara("a", 0, "2") + listPara("b", 0, "2");
 	assertEquals(run(body, { numbering: NUMBERING }), "1. a\n2. b");
+});
+
+Deno.test("docx: a list starts at its numbering's w:start", () => {
+	const body = listPara("a", 0, "3") + listPara("b", 0, "3");
+	assertEquals(run(body, { numbering: NUMBERING }), "3. a\n4. b");
+});
+
+Deno.test("docx: a startOverride beats the abstract start", () => {
+	assertEquals(run(listPara("a", 0, "4"), { numbering: NUMBERING }), "10. a");
+});
+
+Deno.test("docx: a numId that reappears continues its count", () => {
+	// Word numbers both runs as one list: 1, 2, (paragraph), 3.
+	const body = listPara("a", 0, "2") + listPara("b", 0, "2") + para("between") +
+		listPara("c", 0, "2");
+	assertEquals(run(body, { numbering: NUMBERING }), "1. a\n2. b\n\nbetween\n\n3. c");
+});
+
+Deno.test("docx: a deeper level restarts when its parent advances", () => {
+	const body = listPara("a", 0, "2") + listPara("a1", 1, "2") + listPara("a2", 1, "2") +
+		listPara("b", 0, "2") + listPara("b1", 1, "2");
+	assertEquals(
+		run(body, { numbering: NUMBERING }),
+		"1. a\n  1. a1\n  2. a2\n2. b\n  1. b1",
+	);
 });
 
 Deno.test("docx: a list run ends where the list paragraphs stop", () => {

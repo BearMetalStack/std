@@ -147,6 +147,48 @@ export function docxNumbering(
 	return out;
 }
 
+/**
+ * Maps `numId` to the first number of each level, read from
+ * `word/numbering.xml`: the abstract definition's `<w:start>`, overridden by
+ * the instance's `<w:startOverride>`. Levels that start at 1 are omitted.
+ */
+export function docxNumberingStarts(
+	numbering?: string | XmlElement,
+): Map<string, Map<number, number>> {
+	const out = new Map<string, Map<number, number>>();
+	const root = parseIfString(numbering);
+	if (!root) return out;
+
+	const levelStarts = (parent: XmlElement, tag: string, valueTag: string) => {
+		const starts = new Map<number, number>();
+		for (const el of descendants(parent, tag)) {
+			const level = Number(lookupAttr(el, "ilvl") ?? "0");
+			const start = Number(lookupAttr(firstChild(el, valueTag), "val"));
+			if (Number.isInteger(start)) starts.set(level, start);
+		}
+		return starts;
+	};
+
+	const abstractStarts = new Map<string, Map<number, number>>();
+	for (const abstract of descendants(root, "abstractNum")) {
+		const id = lookupAttr(abstract, "abstractNumId");
+		if (id) abstractStarts.set(id, levelStarts(abstract, "lvl", "start"));
+	}
+
+	for (const num of descendants(root, "num")) {
+		const numId = lookupAttr(num, "numId");
+		if (!numId) continue;
+		const abstractId = lookupAttr(firstChild(num, "abstractNumId"), "val") ?? "";
+		const starts = new Map([
+			...(abstractStarts.get(abstractId) ?? []),
+			...levelStarts(num, "lvlOverride", "startOverride"),
+		]);
+		for (const [level, start] of starts) if (start === 1) starts.delete(level);
+		if (starts.size > 0) out.set(numId, starts);
+	}
+	return out;
+}
+
 /** Maps relationship ids to their targets, read from `word/_rels/document.xml.rels`. */
 export function docxRelationships(rels?: string | XmlElement): Map<string, string> {
 	const out = new Map<string, string>();
