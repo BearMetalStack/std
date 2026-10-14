@@ -11,7 +11,7 @@ import type {
 import { closeIfCurrentIs, closeNode, openNode } from "./helpers.ts";
 
 type ListTag = "md:orderedlist" | "md:unorderedlist";
-type ListData = { phase: "open" | "close"; style?: "none" };
+type ListData = { phase: "open" | "close"; style?: "none"; start?: number };
 type ItemData = { phase: "open" | "close"; style?: "none" };
 type CheckItemData = { phase: "open" | "close"; checked: boolean };
 
@@ -27,9 +27,9 @@ const LIST_TAGS: TokenIdentifier[] = ["md:orderedlist", "md:unorderedlist"];
 /**
  * Items join with a single newline, never a blank line: clawmark's lexer has
  * no loose-list concept at all, since a blank line closes the enclosing block
- * outright (Lexer.#handleNewline). Ordinals come from sibling position because
- * orderedListRule.validate calls ctx.discardBuffer() - the digits the author
- * wrote never reach the tree.
+ * outright (Lexer.#handleNewline). Ordinals count up from the list's `start`
+ * (the first item's number) by sibling position, so `3. 7. 4.` normalizes to
+ * `3. 4. 5.` - the same thing an HTML `<ol start="3">` renders.
  */
 function serializeList(
 	kind: "ordered" | "unordered",
@@ -37,8 +37,9 @@ function serializeList(
 	ctx: SerializeContext,
 ): string {
 	const indent = " ".repeat(ctx.options.listIndent);
+	const start = (node.data as ListData).start ?? 1;
 	return node.children
-		.map((item, i) => ctx.withList({ kind, ordinal: i + 1, indent }, () => ctx.node(item)))
+		.map((item, i) => ctx.withList({ kind, ordinal: start + i, indent }, () => ctx.node(item)))
 		.join("\n");
 }
 
@@ -87,11 +88,11 @@ export function createListRules(): AnyRule[] {
 		indent: number,
 		tag: ListTag,
 		tokens: Token[],
-		style?: "none",
+		extra: Omit<ListData, "phase">,
 	) {
 		stack.push({ indent, tag });
 		ctx.pushBlock(tag);
-		tokens.push({ tag, data: { phase: "open", style } });
+		tokens.push({ tag, data: { phase: "open", ...extra } });
 	}
 
 	/** Closes deeper/mismatched levels, then opens or continues at `indent`. */
@@ -100,7 +101,7 @@ export function createListRules(): AnyRule[] {
 		indent: number,
 		tag: ListTag,
 		itemToken: Token,
-		style?: "none",
+		extra: Omit<ListData, "phase"> = {},
 	): Token[] {
 		const tokens: Token[] = [];
 
@@ -125,12 +126,12 @@ export function createListRules(): AnyRule[] {
 
 		const top = stack[stack.length - 1];
 		if (!top || top.indent < indent) {
-			openList(ctx, indent, tag, tokens, style);
+			openList(ctx, indent, tag, tokens, extra);
 		} else if (top.tag !== tag) {
 			stack.pop();
 			ctx.popBlock();
 			tokens.push({ tag: top.tag, data: { phase: "close" } });
-			openList(ctx, indent, tag, tokens, style);
+			openList(ctx, indent, tag, tokens, extra);
 		}
 
 		tokens.push(itemToken);
@@ -154,12 +155,18 @@ export function createListRules(): AnyRule[] {
 
 		tokenize(ctx) {
 			const before = ctx.currentLine.slice(0, ctx.cursor - ctx.lineStart);
-			const indent = before.match(/^(\s*)\d+$/)?.[1].length ?? 0;
+			const [, space, digits] = before.match(/^(\s*)(\d+)$/)!;
+			const start = Number(digits);
 			ctx.cursor += 1;
-			return enterItem(ctx, indent, "md:orderedlist", {
-				tag: "md:listitem",
-				data: { phase: "open" },
-			}) as Token<ListData>[];
+			// Only the item that opens a list sets its start; later numbers are
+			// ignored, as in CommonMark.
+			return enterItem(
+				ctx,
+				space.length,
+				"md:orderedlist",
+				{ tag: "md:listitem", data: { phase: "open" } },
+				start === 1 ? {} : { start },
+			) as Token<ListData>[];
 		},
 
 		tree(token, ctx) {
@@ -167,11 +174,21 @@ export function createListRules(): AnyRule[] {
 			else closeList(ctx);
 		},
 
-		renderOpen: () => "<ol>",
+		renderOpen: (node) => {
+			const start = (node.data as ListData).start;
+			return start === undefined ? "<ol>" : `<ol start="${start}">`;
+		},
 		renderClose: () => "</ol>",
 
 		matchTag: "ol",
-		match: () => ({ kind: "wrap", tag: "md:orderedlist", data: { phase: "open" } }),
+		match(el) {
+			const start = Number.parseInt(el.attrs.get("start") ?? "", 10);
+			return {
+				kind: "wrap",
+				tag: "md:orderedlist",
+				data: Number.isFinite(start) && start !== 1 ? { phase: "open", start } : { phase: "open" },
+			};
+		},
 
 		serializeKind: "block",
 		serialize: (node, ctx) => serializeList("ordered", node, ctx),
@@ -200,7 +217,7 @@ export function createListRules(): AnyRule[] {
 					indent,
 					"md:unorderedlist",
 					{ tag: "md:checkitem", data: { phase: "open", checked } },
-					"none",
+					{ style: "none" },
 				);
 				ctx.cursor += ctx.peek(1, 5) === " " ? 5 : 4;
 				return tokens as Token<ListData>[];

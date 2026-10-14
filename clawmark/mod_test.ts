@@ -95,6 +95,16 @@ Deno.test("ordered list", () => {
 	);
 });
 
+Deno.test("ordered list starting past 1", () => {
+	assertEquals(toHtml("4. four\n5. five"), '<ol start="4"><li>four</li><li>five</li></ol>');
+	assertEquals(toHtml("1. one"), "<ol><li>one</li></ol>");
+	// A list split by a blank line is two lists, each with its own start.
+	assertEquals(
+		toHtml("1. one\n\n7. seven"),
+		'<ol><li>one</li></ol><ol start="7"><li>seven</li></ol>',
+	);
+});
+
 Deno.test("checklist", () => {
 	assertEquals(
 		toHtml("- [ ] todo\n- [x] done"),

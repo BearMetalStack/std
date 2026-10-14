@@ -391,12 +391,11 @@ export function docxWriter(options: DocxWriteOptions = {}): WriteProfile {
 			const outer = ctx.style.list;
 			const reuse = outer !== undefined && outer.kind === kind;
 			const numId = reuse ? outer.id! : mintNum(ctx, kind);
+			const level = outer === undefined ? 0 : outer.level + 1;
+			if (kind === "ordered") setStart(ctx, numId, level, node);
 			return {
 				kind: "style",
-				style: {
-					blockRole: "list",
-					list: { kind, level: outer === undefined ? 0 : outer.level + 1, id: numId },
-				},
+				style: { blockRole: "list", list: { kind, level, id: numId } },
 			};
 		}),
 
@@ -671,6 +670,25 @@ function mintNum(ctx: EmitContext, kind: "ordered" | "unordered"): string {
 	const numId = String(list.length + 1);
 	list.push({ numId, kind });
 	return numId;
+}
+
+/**
+ * A nested list of the same kind shares its parent's `w:num`, and a start
+ * override applies to every list at that level of the num - so the first
+ * list to reach a level decides its start for the rest.
+ */
+function setStart(ctx: EmitContext, numId: string, level: number, node: Node): void {
+	const instance = numbering(ctx).find((entry) => entry.numId === numId)!;
+	const start = (node.data as { start?: number }).start ?? 1;
+	instance.starts ??= new Map();
+	const existing = instance.starts.get(level);
+	if (existing === undefined) instance.starts.set(level, start);
+	else if (existing !== start) {
+		ctx.warn(
+			`docx: nested ordered list starting at ${start} shares numbering with one starting at ${existing}; it will start at ${existing}`,
+			node,
+		);
+	}
 }
 
 const CHECK_GLYPH = { on: "☒ ", off: "☐ " };

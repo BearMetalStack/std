@@ -231,7 +231,10 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 
 		// ---- lists ---------------------------------------------------------
 
-		out("md:orderedlist").to(wrap("ol")),
+		out("md:orderedlist").to((node, ctx) => {
+			const start = data(node).start;
+			return wrap("ol", start === undefined ? {} : { start: String(start) })(node, ctx);
+		}),
 		out("md:unorderedlist").to((node, ctx) => ({
 			kind: "element",
 			el: ctx.el(

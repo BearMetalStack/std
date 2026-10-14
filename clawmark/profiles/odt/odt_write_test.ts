@@ -110,6 +110,12 @@ Deno.test("odt write: identical formatting shares one automatic style", () => {
 	assertEquals(content.split("<style:style").length - 1, 1);
 });
 
+Deno.test("odt write: an ordered list's start goes on its first item", () => {
+	const content = write("5. a\n6. b")["content.xml"];
+	assertStringIncludes(content, '<text:list-item text:start-value="5">');
+	assertEquals(content.split("<text:list-item text:start-value").length - 1, 1);
+});
+
 Deno.test("odt write: nested lists of different kinds get their own list style", () => {
 	const content = write("- a\n\n1. one")["content.xml"];
 	assertStringIncludes(content, '<text:list-style style:name="L1">');

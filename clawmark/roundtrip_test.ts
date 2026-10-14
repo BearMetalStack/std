@@ -60,11 +60,11 @@ Deno.test("lossy: `_a_` normalizes to `*a*`", () => {
 	assertHtmlStable("_b_");
 });
 
-Deno.test("lossy: ordered lists renumber from 1", () => {
-	// orderedListRule.validate calls discardBuffer(), so the author's digits
-	// never reach the tree in the first place.
-	assertRoundTrip("3. a\n4. b", "1. a\n2. b");
-	assertHtmlStable("3. a\n4. b");
+Deno.test("lossy: ordered lists count up from their first number", () => {
+	assertBoth("3. a\n4. b");
+	// Only the first number survives - as in HTML's `<ol start>`.
+	assertRoundTrip("3. a\n9. b", "3. a\n4. b");
+	assertHtmlStable("3. a\n9. b");
 });
 
 Deno.test("lossy: a soft wrap collapses to a space", () => {
