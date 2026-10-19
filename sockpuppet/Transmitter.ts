@@ -46,7 +46,7 @@ export default class Transmitter {
 			}
 
 			for (const callback of channel.middleware) {
-				callback(packet);
+				if (callback(packet) === false) return;
 			}
 
 			for (const callback of channel.callbacks) {
