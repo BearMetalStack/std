@@ -6,6 +6,29 @@ import {
 	type SchemaShape,
 } from "@bearmetal/forge";
 import type { MigrationOp } from "./ops.ts";
+import type { Dialect } from "../lib/SqlBuilder.ts";
+
+type Statement = { sql: string; params: unknown[] };
+
+/**
+ * SQLite's column affinities for the Postgres types below. SQLite has no
+ * UUID, BOOLEAN or JSONB, so those are stored as TEXT, INTEGER (0/1) and TEXT
+ * (serialized JSON) respectively.
+ */
+const sqliteTypes: Record<string, string> = {
+	UUID: "TEXT",
+	TEXT: "TEXT",
+	INTEGER: "INTEGER",
+	NUMERIC: "REAL",
+	BOOLEAN: "INTEGER",
+	JSONB: "TEXT",
+};
+
+/** The column type for a schema in the given dialect. */
+export function schemaToSqlType(schema: Schema<unknown>, dialect: Dialect = "postgres"): string {
+	const pg = schemaToPostgresType(schema);
+	return dialect === "sqlite" ? sqliteTypes[pg] ?? "TEXT" : pg;
+}
 
 export function schemaToPostgresType(schema: Schema<unknown>): string {
 	const json = schema.toJSONSchema();
@@ -34,12 +57,13 @@ function buildCreateTable(
 	schema: ObjectSchema<SchemaShape>,
 	primaryKey?: string | string[],
 	indexes?: Array<{ columns: string[]; unique?: boolean; name?: string }>,
-): Array<{ sql: string; params: unknown[] }> {
+	dialect: Dialect = "postgres",
+): Statement[] {
 	const required = new Set(schema.toJSONSchema().required ?? []);
 	const pkCols = primaryKey ? (Array.isArray(primaryKey) ? primaryKey : [primaryKey]) : [];
 
 	const cols = Object.entries(schema.shape).map(([col, fieldSchema]) => {
-		const pgType = schemaToPostgresType(fieldSchema);
+		const pgType = schemaToSqlType(fieldSchema, dialect);
 		const notNull = required.has(col) || pkCols.includes(col) ? " NOT NULL" : "";
 		const pk = pkCols.length === 1 && pkCols[0] === col ? " PRIMARY KEY" : "";
 		return `  ${col} ${pgType}${notNull}${pk}`;
@@ -68,17 +92,24 @@ function buildCreateTable(
 
 export function opToStatements(
 	op: MigrationOp,
-): Array<{ sql: string; params: unknown[] }> {
+	dialect: Dialect = "postgres",
+): Statement[] {
 	switch (op.kind) {
 		case "createTable":
-			return buildCreateTable(op.table, op.schema, op.primaryKey, op.indexes);
+			return buildCreateTable(op.table, op.schema, op.primaryKey, op.indexes, dialect);
 
 		case "dropTable":
 			return [{ sql: `DROP TABLE IF EXISTS ${op.table}`, params: [] }];
 
 		case "addColumn": {
-			const pgType = schemaToPostgresType(op.schema);
+			const pgType = schemaToSqlType(op.schema, dialect);
 			const notNull = isNullable(op.schema) ? "" : " NOT NULL";
+			if (notNull && dialect === "sqlite") {
+				throw new Error(
+					`SQLite cannot add the NOT NULL column "${op.table}.${op.column}" to an existing table ` +
+						`without a default. Make it optional, or add it with m.raw() and a DEFAULT.`,
+				);
+			}
 			return [{
 				sql: `ALTER TABLE ${op.table} ADD COLUMN ${op.column} ${pgType}${notNull}`,
 				params: [],
@@ -98,6 +129,12 @@ export function opToStatements(
 			}];
 
 		case "retypeColumn": {
+			if (dialect === "sqlite") {
+				throw new Error(
+					`SQLite cannot change the type of "${op.table}.${op.column}" in place. ` +
+						`Rebuild the table with m.raw() instead.`,
+				);
+			}
 			const pgType = schemaToPostgresType(op.schema);
 			const using = op.using ? ` USING ${op.using(op.column)}` : "";
 			return [{

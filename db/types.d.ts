@@ -62,6 +62,12 @@ type ConnFromENV = {
 export type PostgresOptions = {
 	poolSize?: number;
 };
+export type SqliteOptions = {
+	/** Path to the database file, or `":memory:"`. */
+	path: string;
+	/** Milliseconds to wait on a locked database before failing. Defaults to 5000; `0` disables. */
+	busyTimeout?: number;
+};
 export type KVOptions = {
 	KV: true;
 };

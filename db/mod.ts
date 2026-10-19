@@ -1,6 +1,6 @@
 import type { ObjectSchema, SchemaShape } from "@bearmetal/forge";
 import { createService, createServiceToken, Module, type ServiceToken } from "@bearmetal/router";
-import { KVConnector, PostgresConnector } from "@connectors";
+import { KVConnector, PostgresConnector, SqliteConnector } from "@connectors";
 import { schemaHash } from "@lib/hash.ts";
 import type { Migration, MigrationResult } from "@migrations";
 import { m } from "@migrations";
@@ -8,6 +8,7 @@ import type {
 	DBOptions,
 	PostgresOptions,
 	Queryable,
+	SqliteOptions,
 	TableIdentifier,
 	TableRegistry,
 } from "./types.d.ts";
@@ -15,9 +16,9 @@ import { isProd } from "@bearmetal/miscellanea/environment";
 
 export { type Infer, ObjectSchema, s, type SchemaShape } from "@bearmetal/forge";
 export { m, type Migration, type MigrationOp, type MigrationResult } from "@migrations";
-export type { TableRegistry } from "./types.d.ts";
+export type { SqliteOptions, TableRegistry } from "./types.d.ts";
 
-type ProviderType = "postgres" | "kv";
+type ProviderType = "postgres" | "kv" | "sqlite";
 
 export type DBServiceActions = {
 	table<K extends keyof TableRegistry>(identifier: K): Queryable<TableRegistry[K]>;
@@ -49,14 +50,21 @@ export function dbModule(
 	config?: { migrations?: Migration[] },
 ): Module;
 export function dbModule(
+	type: "sqlite",
+	opts: SqliteOptions,
+	config?: { migrations?: Migration[] },
+): Module;
+export function dbModule(
 	type: ProviderType,
-	opts: DBOptions,
+	opts: DBOptions | SqliteOptions,
 	config?: { migrations?: Migration[] },
 ): Module {
 	const migrations: Migration[] = [...(config?.migrations ?? [])];
 	const conn = type === "postgres"
 		? new PostgresConnector(opts as DBOptions<PostgresOptions>)
-		: new KVConnector(opts);
+		: type === "sqlite"
+		? new SqliteConnector(opts as SqliteOptions)
+		: new KVConnector(opts as DBOptions);
 
 	const mod = new Module().provides(
 		dbToken,
