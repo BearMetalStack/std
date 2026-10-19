@@ -65,26 +65,152 @@ export interface MakeCommonProps<Extra = never> extends CustomProps {
 	[key: `aria-${string}`]: string | boolean | undefined;
 }
 
-export type EventProps = {
-	[K in keyof HTMLElementEventMap as `on${Capitalize<K>}`]?: (
-		e: HTMLElementEventMap[K],
-	) => void;
+/**
+ * An event as a handler on `Current` receives it: `currentTarget` is always
+ * `Current`, and `target` is whatever `Target` says it can be.
+ *
+ * ```ts
+ * const save = (e: TargetedEvent<HTMLFormElement, SubmitEvent>) => {
+ * 	e.preventDefault();
+ * 	new FormData(e.currentTarget);
+ * };
+ * ```
+ */
+export type TargetedEvent<
+	Current extends EventTarget = EventTarget,
+	Ev extends Event = Event,
+	Target extends EventTarget | null = Current,
+> =
+	& Omit<Ev, "currentTarget" | "target">
+	& {
+		readonly currentTarget: Current;
+		readonly target: Target;
+	};
+
+/** A listener for one event type. */
+export type EventHandler<Ev extends Event = Event> = (e: Ev) => void;
+
+/** The event names and payloads an element of type `E` dispatches. */
+export type EventMapFor<E extends Element> = E extends HTMLVideoElement ? HTMLVideoElementEventMap
+	: E extends HTMLMediaElement ? HTMLMediaElementEventMap
+	: E extends HTMLBodyElement ? HTMLBodyElementEventMap
+	: E extends HTMLFrameSetElement ? HTMLFrameSetElementEventMap
+	: E extends SVGElement ? SVGElementEventMap
+	: E extends HTMLElement ? HTMLElementEventMap
+	: ElementEventMap;
+
+type NonBubblingEvent =
+	| "abort"
+	| "beforetoggle"
+	| "blur"
+	| "cancel"
+	| "canplay"
+	| "canplaythrough"
+	| "close"
+	| "contextlost"
+	| "contextrestored"
+	| "durationchange"
+	| "emptied"
+	| "ended"
+	| "error"
+	| "focus"
+	| "invalid"
+	| "load"
+	| "loadeddata"
+	| "loadedmetadata"
+	| "loadstart"
+	| "mouseenter"
+	| "mouseleave"
+	| "pause"
+	| "play"
+	| "playing"
+	| "pointerenter"
+	| "pointerleave"
+	| "progress"
+	| "ratechange"
+	| "resize"
+	| "scroll"
+	| "scrollend"
+	| "seeked"
+	| "seeking"
+	| "stalled"
+	| "suspend"
+	| "timeupdate"
+	| "toggle"
+	| "volumechange"
+	| "waiting";
+
+type VoidElement =
+	| HTMLAreaElement
+	| HTMLBaseElement
+	| HTMLBRElement
+	| HTMLEmbedElement
+	| HTMLHRElement
+	| HTMLImageElement
+	| HTMLInputElement
+	| HTMLLinkElement
+	| HTMLMetaElement
+	| HTMLSourceElement
+	| HTMLTableColElement
+	| HTMLTrackElement;
+
+/**
+ * The events whose `target` is guaranteed to be the element the handler is on.
+ *
+ * Anything that bubbles can arrive from a descendant, so a `click` on a
+ * `<button>` may well have a `<span>` for its target. What is left: events
+ * that do not bubble, every event on an element that has no element children,
+ * and the events only an element of this kind dispatches (`submit` on a form —
+ * forms do not nest; `input`/`change` on a form control).
+ */
+export type SelfTargetedEvent<E extends Element> =
+	| NonBubblingEvent
+	| (E extends VoidElement | HTMLTextAreaElement ? keyof EventMapFor<E> : never)
+	| (E extends HTMLFormElement ? "submit" | "reset" | "formdata" : never)
+	| (E extends HTMLSelectElement ? "input" | "change" | "beforeinput" : never);
+
+/**
+ * The event a handler for `K` on an element of type `E` receives.
+ *
+ * ```ts
+ * const onSubmit = (e: ElementEvent<HTMLFormElement, "submit">) => {
+ * 	e.target; // HTMLFormElement
+ * 	e.submitter; // HTMLElement | null
+ * };
+ * ```
+ */
+export type ElementEvent<
+	E extends Element,
+	K extends keyof EventMapFor<E>,
+> = EventMapFor<E>[K] extends infer Ev extends Event
+	? TargetedEvent<E, Ev, K extends SelfTargetedEvent<E> ? E : EventTarget | null>
+	: never;
+
+/** The `on*` handler props of an element of type `E`. */
+export type EventProps<E extends Element = HTMLElement> = {
+	[K in keyof EventMapFor<E> & string as `on${Capitalize<K>}`]?: EventHandler<
+		ElementEvent<E, K>
+	>;
 };
 
-export type MakeBaseProps<Extra = never> = MakeCommonProps<Extra> & EventProps;
+export type MakeBaseProps<Extra = never, E extends Element = HTMLElement> =
+	& MakeCommonProps<Extra>
+	& EventProps<E>;
 
-export type MakeHtmlProps<Extra = never> = MakeBaseProps<Extra> & {
-	lang?: string | Extra;
-};
+export type MakeHtmlProps<Extra = never, E extends Element = HTMLHtmlElement> =
+	& MakeBaseProps<Extra, E>
+	& {
+		lang?: string | Extra;
+	};
 
-export interface MakeAnchorProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeAnchorProps<Extra = never> extends MakeBaseProps<Extra, HTMLAnchorElement> {
 	href?: string | Extra;
 	target?: string | Extra;
 	rel?: string | Extra;
 	download?: string | Extra;
 }
 
-export interface MakeButtonProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeButtonProps<Extra = never> extends MakeBaseProps<Extra, HTMLButtonElement> {
 	type?: "button" | "submit" | "reset";
 	disabled?: boolean | Extra;
 	name?: string | Extra;
@@ -93,7 +219,7 @@ export interface MakeButtonProps<Extra = never> extends MakeBaseProps<Extra> {
 	popovertargetaction?: "hide" | "show" | "toggle" | Extra;
 }
 
-export interface MakeInputProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeInputProps<Extra = never> extends MakeBaseProps<Extra, HTMLInputElement> {
 	type?: string | Extra;
 	value?: string | Extra;
 	placeholder?: string | Extra;
@@ -116,7 +242,8 @@ export interface MakeInputProps<Extra = never> extends MakeBaseProps<Extra> {
 	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
 
-export interface MakeTextareaProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeTextareaProps<Extra = never>
+	extends MakeBaseProps<Extra, HTMLTextAreaElement> {
 	placeholder?: string | Extra;
 	disabled?: boolean | Extra;
 	required?: boolean | Extra;
@@ -131,7 +258,7 @@ export interface MakeTextareaProps<Extra = never> extends MakeBaseProps<Extra> {
 	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
 
-export interface MakeSelectProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeSelectProps<Extra = never> extends MakeBaseProps<Extra, HTMLSelectElement> {
 	disabled?: boolean | Extra;
 	required?: boolean | Extra;
 	multiple?: boolean | Extra;
@@ -142,13 +269,13 @@ export interface MakeSelectProps<Extra = never> extends MakeBaseProps<Extra> {
 	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
 
-export interface MakeOptionProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeOptionProps<Extra = never> extends MakeBaseProps<Extra, HTMLOptionElement> {
 	value?: string | Extra;
 	disabled?: boolean | Extra;
 	selected?: boolean | Extra;
 }
 
-export interface MakeFormProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeFormProps<Extra = never> extends MakeBaseProps<Extra, HTMLFormElement> {
 	action?: string | Extra;
 	method?: string | Extra;
 	enctype?: string | Extra;
@@ -156,7 +283,7 @@ export interface MakeFormProps<Extra = never> extends MakeBaseProps<Extra> {
 	autocomplete?: "off" | "on" | Extra;
 }
 
-export interface MakeImgProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeImgProps<Extra = never> extends MakeBaseProps<Extra, HTMLImageElement> {
 	src?: string | Extra;
 	alt?: string | Extra;
 	width?: number | string | Extra;
@@ -167,7 +294,7 @@ export interface MakeImgProps<Extra = never> extends MakeBaseProps<Extra> {
 	fetchPriority?: "high" | "low" | "auto" | Extra;
 }
 
-export interface MakeVideoProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeVideoProps<Extra = never> extends MakeBaseProps<Extra, HTMLVideoElement> {
 	src?: string | Extra;
 	controls?: boolean | Extra;
 	autoplay?: boolean | Extra;
@@ -178,7 +305,7 @@ export interface MakeVideoProps<Extra = never> extends MakeBaseProps<Extra> {
 	height?: number | string | Extra;
 }
 
-export interface MakeAudioProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeAudioProps<Extra = never> extends MakeBaseProps<Extra, HTMLAudioElement> {
 	src?: string | Extra;
 	controls?: boolean | Extra;
 	autoplay?: boolean | Extra;
@@ -186,14 +313,14 @@ export interface MakeAudioProps<Extra = never> extends MakeBaseProps<Extra> {
 	muted?: boolean | Extra;
 }
 
-export interface MakeSourceProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeSourceProps<Extra = never> extends MakeBaseProps<Extra, HTMLSourceElement> {
 	src?: string | Extra;
 	type?: string | Extra;
 	srcset?: string | Extra;
 	media?: string | Extra;
 }
 
-export interface MakeIframeProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeIframeProps<Extra = never> extends MakeBaseProps<Extra, HTMLIFrameElement> {
 	src?: string | Extra;
 	width?: number | string | Extra;
 	height?: number | string | Extra;
@@ -202,7 +329,7 @@ export interface MakeIframeProps<Extra = never> extends MakeBaseProps<Extra> {
 	sandbox?: string | Extra;
 }
 
-export interface MakeLinkProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeLinkProps<Extra = never> extends MakeBaseProps<Extra, HTMLLinkElement> {
 	href?: string | Extra;
 	rel?: string | Extra;
 	type?: string | Extra;
@@ -211,14 +338,14 @@ export interface MakeLinkProps<Extra = never> extends MakeBaseProps<Extra> {
 	crossorigin?: string | boolean | Extra;
 }
 
-export interface MakeMetaProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeMetaProps<Extra = never> extends MakeBaseProps<Extra, HTMLMetaElement> {
 	name?: string | Extra;
 	content?: string | Extra;
 	charset?: string | Extra;
 	"http-equiv"?: string | Extra;
 }
 
-export interface MakeScriptProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeScriptProps<Extra = never> extends MakeBaseProps<Extra, HTMLScriptElement> {
 	src?: string | Extra;
 	type?: string | Extra;
 	async?: boolean | Extra;
@@ -226,39 +353,40 @@ export interface MakeScriptProps<Extra = never> extends MakeBaseProps<Extra> {
 	crossorigin?: string | Extra;
 }
 
-export interface MakeTdProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeTdProps<Extra = never> extends MakeBaseProps<Extra, HTMLTableCellElement> {
 	colspan?: number | Extra;
 	rowspan?: number | Extra;
 }
 
-export interface MakeThProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeThProps<Extra = never> extends MakeBaseProps<Extra, HTMLTableCellElement> {
 	colspan?: number | Extra;
 	rowspan?: number | Extra;
 	scope?: string | Extra;
 }
 
-export interface MakeColProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeColProps<Extra = never> extends MakeBaseProps<Extra, HTMLTableColElement> {
 	span?: number | Extra;
 }
 
-export interface MakeLabelProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeLabelProps<Extra = never> extends MakeBaseProps<Extra, HTMLLabelElement> {
 	for?: string | Extra;
 }
 
-export interface MakeDetailsProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeDetailsProps<Extra = never> extends MakeBaseProps<Extra, HTMLDetailsElement> {
 	open?: boolean | Extra;
 }
 
-export interface MakeDialogProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeDialogProps<Extra = never> extends MakeBaseProps<Extra, HTMLDialogElement> {
 	open?: boolean | Extra;
 }
 
-export interface MakeProgressProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeProgressProps<Extra = never>
+	extends MakeBaseProps<Extra, HTMLProgressElement> {
 	value?: number | Extra;
 	max?: number | Extra;
 }
 
-export interface MakeMeterProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeMeterProps<Extra = never> extends MakeBaseProps<Extra, HTMLMeterElement> {
 	value?: number | Extra;
 	min?: number | Extra;
 	max?: number | Extra;
@@ -267,11 +395,12 @@ export interface MakeMeterProps<Extra = never> extends MakeBaseProps<Extra> {
 	optimum?: number | Extra;
 }
 
-export interface MakeFieldsetProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeFieldsetProps<Extra = never>
+	extends MakeBaseProps<Extra, HTMLFieldSetElement> {
 	disabled?: boolean | Extra;
 }
 
-export interface MakeTrackProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeTrackProps<Extra = never> extends MakeBaseProps<Extra, HTMLTrackElement> {
 	src?: string | Extra;
 	kind?: string | Extra;
 	srclang?: string | Extra;
@@ -279,118 +408,118 @@ export interface MakeTrackProps<Extra = never> extends MakeBaseProps<Extra> {
 	default?: boolean | Extra;
 }
 
-export interface MakeCanvasProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeCanvasProps<Extra = never> extends MakeBaseProps<Extra, HTMLCanvasElement> {
 	width?: number | Extra;
 	height?: number | Extra;
 }
 
-export interface MakeOlProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeOlProps<Extra = never> extends MakeBaseProps<Extra, HTMLOListElement> {
 	reversed?: boolean | Extra;
 	start?: number | Extra;
 	type?: string | Extra;
 }
 
-export interface MakeSlotProps<Extra = never> extends MakeBaseProps<Extra> {
+export interface MakeSlotProps<Extra = never> extends MakeBaseProps<Extra, HTMLSlotElement> {
 	name?: string | Extra;
 }
 
 export type MakeIntrinsicElements<Extra = never> = {
-	div: MakeBaseProps<Extra>;
-	span: MakeBaseProps<Extra>;
-	p: MakeBaseProps<Extra>;
-	section: MakeBaseProps<Extra>;
-	article: MakeBaseProps<Extra>;
-	aside: MakeBaseProps<Extra>;
-	main: MakeBaseProps<Extra>;
-	header: MakeBaseProps<Extra>;
-	footer: MakeBaseProps<Extra>;
-	nav: MakeBaseProps<Extra>;
-	h1: MakeBaseProps<Extra>;
-	h2: MakeBaseProps<Extra>;
-	h3: MakeBaseProps<Extra>;
-	h4: MakeBaseProps<Extra>;
-	h5: MakeBaseProps<Extra>;
-	h6: MakeBaseProps<Extra>;
-	ul: MakeBaseProps<Extra>;
+	div: MakeBaseProps<Extra, HTMLElementTagNameMap["div"]>;
+	span: MakeBaseProps<Extra, HTMLElementTagNameMap["span"]>;
+	p: MakeBaseProps<Extra, HTMLElementTagNameMap["p"]>;
+	section: MakeBaseProps<Extra, HTMLElementTagNameMap["section"]>;
+	article: MakeBaseProps<Extra, HTMLElementTagNameMap["article"]>;
+	aside: MakeBaseProps<Extra, HTMLElementTagNameMap["aside"]>;
+	main: MakeBaseProps<Extra, HTMLElementTagNameMap["main"]>;
+	header: MakeBaseProps<Extra, HTMLElementTagNameMap["header"]>;
+	footer: MakeBaseProps<Extra, HTMLElementTagNameMap["footer"]>;
+	nav: MakeBaseProps<Extra, HTMLElementTagNameMap["nav"]>;
+	h1: MakeBaseProps<Extra, HTMLElementTagNameMap["h1"]>;
+	h2: MakeBaseProps<Extra, HTMLElementTagNameMap["h2"]>;
+	h3: MakeBaseProps<Extra, HTMLElementTagNameMap["h3"]>;
+	h4: MakeBaseProps<Extra, HTMLElementTagNameMap["h4"]>;
+	h5: MakeBaseProps<Extra, HTMLElementTagNameMap["h5"]>;
+	h6: MakeBaseProps<Extra, HTMLElementTagNameMap["h6"]>;
+	ul: MakeBaseProps<Extra, HTMLElementTagNameMap["ul"]>;
 	ol: MakeOlProps<Extra>;
-	li: MakeBaseProps<Extra>;
-	dl: MakeBaseProps<Extra>;
-	dt: MakeBaseProps<Extra>;
-	dd: MakeBaseProps<Extra>;
-	figure: MakeBaseProps<Extra>;
-	figcaption: MakeBaseProps<Extra>;
-	blockquote: MakeBaseProps<Extra>;
-	pre: MakeBaseProps<Extra>;
-	code: MakeBaseProps<Extra>;
-	kbd: MakeBaseProps<Extra>;
-	samp: MakeBaseProps<Extra>;
-	var: MakeBaseProps<Extra>;
-	strong: MakeBaseProps<Extra>;
-	em: MakeBaseProps<Extra>;
-	small: MakeBaseProps<Extra>;
-	mark: MakeBaseProps<Extra>;
-	del: MakeBaseProps<Extra>;
-	ins: MakeBaseProps<Extra>;
-	sub: MakeBaseProps<Extra>;
-	sup: MakeBaseProps<Extra>;
-	abbr: MakeBaseProps<Extra>;
-	cite: MakeBaseProps<Extra>;
-	q: MakeBaseProps<Extra>;
-	time: MakeBaseProps<Extra>;
-	address: MakeBaseProps<Extra>;
-	hr: MakeBaseProps<Extra>;
-	br: MakeBaseProps<Extra>;
-	wbr: MakeBaseProps<Extra>;
-	summary: MakeBaseProps<Extra>;
+	li: MakeBaseProps<Extra, HTMLElementTagNameMap["li"]>;
+	dl: MakeBaseProps<Extra, HTMLElementTagNameMap["dl"]>;
+	dt: MakeBaseProps<Extra, HTMLElementTagNameMap["dt"]>;
+	dd: MakeBaseProps<Extra, HTMLElementTagNameMap["dd"]>;
+	figure: MakeBaseProps<Extra, HTMLElementTagNameMap["figure"]>;
+	figcaption: MakeBaseProps<Extra, HTMLElementTagNameMap["figcaption"]>;
+	blockquote: MakeBaseProps<Extra, HTMLElementTagNameMap["blockquote"]>;
+	pre: MakeBaseProps<Extra, HTMLElementTagNameMap["pre"]>;
+	code: MakeBaseProps<Extra, HTMLElementTagNameMap["code"]>;
+	kbd: MakeBaseProps<Extra, HTMLElementTagNameMap["kbd"]>;
+	samp: MakeBaseProps<Extra, HTMLElementTagNameMap["samp"]>;
+	var: MakeBaseProps<Extra, HTMLElementTagNameMap["var"]>;
+	strong: MakeBaseProps<Extra, HTMLElementTagNameMap["strong"]>;
+	em: MakeBaseProps<Extra, HTMLElementTagNameMap["em"]>;
+	small: MakeBaseProps<Extra, HTMLElementTagNameMap["small"]>;
+	mark: MakeBaseProps<Extra, HTMLElementTagNameMap["mark"]>;
+	del: MakeBaseProps<Extra, HTMLElementTagNameMap["del"]>;
+	ins: MakeBaseProps<Extra, HTMLElementTagNameMap["ins"]>;
+	sub: MakeBaseProps<Extra, HTMLElementTagNameMap["sub"]>;
+	sup: MakeBaseProps<Extra, HTMLElementTagNameMap["sup"]>;
+	abbr: MakeBaseProps<Extra, HTMLElementTagNameMap["abbr"]>;
+	cite: MakeBaseProps<Extra, HTMLElementTagNameMap["cite"]>;
+	q: MakeBaseProps<Extra, HTMLElementTagNameMap["q"]>;
+	time: MakeBaseProps<Extra, HTMLElementTagNameMap["time"]>;
+	address: MakeBaseProps<Extra, HTMLElementTagNameMap["address"]>;
+	hr: MakeBaseProps<Extra, HTMLElementTagNameMap["hr"]>;
+	br: MakeBaseProps<Extra, HTMLElementTagNameMap["br"]>;
+	wbr: MakeBaseProps<Extra, HTMLElementTagNameMap["wbr"]>;
+	summary: MakeBaseProps<Extra, HTMLElementTagNameMap["summary"]>;
 	a: MakeAnchorProps<Extra>;
 	button: MakeButtonProps<Extra>;
 	input: MakeInputProps<Extra>;
 	textarea: MakeTextareaProps<Extra>;
 	select: MakeSelectProps<Extra>;
 	option: MakeOptionProps<Extra>;
-	optgroup: MakeBaseProps<Extra>;
+	optgroup: MakeBaseProps<Extra, HTMLElementTagNameMap["optgroup"]>;
 	form: MakeFormProps<Extra>;
 	label: MakeLabelProps<Extra>;
 	fieldset: MakeFieldsetProps<Extra>;
-	legend: MakeBaseProps<Extra>;
+	legend: MakeBaseProps<Extra, HTMLElementTagNameMap["legend"]>;
 	details: MakeDetailsProps<Extra>;
 	dialog: MakeDialogProps<Extra>;
 	img: MakeImgProps<Extra>;
 	video: MakeVideoProps<Extra>;
 	audio: MakeAudioProps<Extra>;
 	source: MakeSourceProps<Extra>;
-	picture: MakeBaseProps<Extra>;
+	picture: MakeBaseProps<Extra, HTMLElementTagNameMap["picture"]>;
 	iframe: MakeIframeProps<Extra>;
 	canvas: MakeCanvasProps<Extra>;
 	track: MakeTrackProps<Extra>;
-	embed: MakeBaseProps<Extra>;
-	object: MakeBaseProps<Extra>;
-	table: MakeBaseProps<Extra>;
-	thead: MakeBaseProps<Extra>;
-	tbody: MakeBaseProps<Extra>;
-	tfoot: MakeBaseProps<Extra>;
-	tr: MakeBaseProps<Extra>;
+	embed: MakeBaseProps<Extra, HTMLElementTagNameMap["embed"]>;
+	object: MakeBaseProps<Extra, HTMLElementTagNameMap["object"]>;
+	table: MakeBaseProps<Extra, HTMLElementTagNameMap["table"]>;
+	thead: MakeBaseProps<Extra, HTMLElementTagNameMap["thead"]>;
+	tbody: MakeBaseProps<Extra, HTMLElementTagNameMap["tbody"]>;
+	tfoot: MakeBaseProps<Extra, HTMLElementTagNameMap["tfoot"]>;
+	tr: MakeBaseProps<Extra, HTMLElementTagNameMap["tr"]>;
 	td: MakeTdProps<Extra>;
 	th: MakeThProps<Extra>;
-	colgroup: MakeBaseProps<Extra>;
+	colgroup: MakeBaseProps<Extra, HTMLElementTagNameMap["colgroup"]>;
 	col: MakeColProps<Extra>;
-	caption: MakeBaseProps<Extra>;
-	head: MakeBaseProps<Extra>;
-	body: MakeBaseProps<Extra>;
-	html: MakeHtmlProps<Extra>;
-	title: MakeBaseProps<Extra>;
+	caption: MakeBaseProps<Extra, HTMLElementTagNameMap["caption"]>;
+	head: MakeBaseProps<Extra, HTMLElementTagNameMap["head"]>;
+	body: MakeBaseProps<Extra, HTMLElementTagNameMap["body"]>;
+	html: MakeHtmlProps<Extra, HTMLElementTagNameMap["html"]>;
+	title: MakeBaseProps<Extra, HTMLElementTagNameMap["title"]>;
 	link: MakeLinkProps<Extra>;
 	meta: MakeMetaProps<Extra>;
 	script: MakeScriptProps<Extra>;
-	style: MakeBaseProps<Extra>;
-	base: MakeBaseProps<Extra>;
+	style: MakeBaseProps<Extra, HTMLElementTagNameMap["style"]>;
+	base: MakeBaseProps<Extra, HTMLElementTagNameMap["base"]>;
 	slot: MakeSlotProps<Extra>;
-	template: MakeBaseProps<Extra>;
-	noscript: MakeBaseProps<Extra>;
+	template: MakeBaseProps<Extra, HTMLElementTagNameMap["template"]>;
+	noscript: MakeBaseProps<Extra, HTMLElementTagNameMap["noscript"]>;
 	progress: MakeProgressProps<Extra>;
 	meter: MakeMeterProps<Extra>;
-	map: MakeBaseProps<Extra>;
-	area: MakeBaseProps<Extra>;
+	map: MakeBaseProps<Extra, HTMLElementTagNameMap["map"]>;
+	area: MakeBaseProps<Extra, HTMLElementTagNameMap["area"]>;
 	// deno-lint-ignore no-explicit-any
 	[tag: string]: any;
 };

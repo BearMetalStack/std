@@ -1,10 +1,15 @@
 // deno-lint-ignore-file no-namespace
 import type {
+	ElementEvent as MakeElementEvent,
+	EventHandler as MakeEventHandler,
+	EventMapFor,
+	EventProps as MakeEventProps,
 	MakeBaseProps,
 	MakeChild,
 	MakeChildren,
 	MakeIntrinsicElements,
 	MakeStyleObject,
+	TargetedEvent as MakeTargetedEvent,
 } from "./lib/types.ts";
 import type { BMC } from "./lib/bmc.ts";
 
@@ -56,7 +61,43 @@ export namespace JSX {
 	export type Element = globalThis.Element | globalThis.DocumentFragment;
 	export type Child = MakeChild<SignalLike>;
 	export type Children = MakeChildren<SignalLike>;
-	export type BaseProps = MakeBaseProps<SignalLike>;
+	/** The props every element takes, with handlers typed for an element of type `E`. */
+	export type BaseProps<E extends globalThis.Element = HTMLElement> = MakeBaseProps<SignalLike, E>;
+	/**
+	 * An event whose `currentTarget` is `Current` and whose `target` is `Target`
+	 * (`Current` unless given).
+	 *
+	 * ```tsx
+	 * const save = (e: JSX.TargetedEvent<HTMLFormElement, SubmitEvent>) => {
+	 * 	e.preventDefault();
+	 * 	new FormData(e.target);
+	 * };
+	 * <form onSubmit={save} />;
+	 * ```
+	 */
+	export type TargetedEvent<
+		Current extends EventTarget = EventTarget,
+		Ev extends Event = Event,
+		Target extends EventTarget | null = Current,
+	> = MakeTargetedEvent<Current, Ev, Target>;
+	/** A listener for one event type. */
+	export type EventHandler<Ev extends Event = Event> = MakeEventHandler<Ev>;
+	/**
+	 * Exactly the event `on<K>` on an element of type `E` receives — for pulling
+	 * a handler out of the JSX without restating it.
+	 *
+	 * ```tsx
+	 * const onInput = (e: JSX.ElementEvent<HTMLInputElement, "input">) => {
+	 * 	query.set(e.target.value);
+	 * };
+	 * ```
+	 */
+	export type ElementEvent<
+		E extends globalThis.Element,
+		K extends keyof EventMapFor<E>,
+	> = MakeElementEvent<E, K>;
+	/** The `on*` handler props of an element of type `E`. */
+	export type EventProps<E extends globalThis.Element = HTMLElement> = MakeEventProps<E>;
 	/** The object form of the `style` prop. */
 	export type StyleObject = MakeStyleObject<SignalLike>;
 	/**
