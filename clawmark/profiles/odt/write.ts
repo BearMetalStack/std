@@ -492,7 +492,12 @@ const CHECK_GLYPH = { on: "☒ ", off: "☐ " };
  * nested list appended as a *sibling* of that paragraph rather than inside it.
  */
 function emitListItem(node: Node, parent: XmlElement, ctx: EmitContext): void {
-	const item = ctx.el("text:list-item");
+	const list = ctx.ancestors[ctx.ancestors.length - 1];
+	const start = (list?.data as { start?: number } | undefined)?.start;
+	const item = ctx.el(
+		"text:list-item",
+		start !== undefined && list.children[0] === node ? { "text:start-value": start } : {},
+	);
 	append(parent, item);
 
 	const p = ctx.el("text:p", { "text:style-name": "Standard" });

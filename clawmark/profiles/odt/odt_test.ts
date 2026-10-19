@@ -41,6 +41,9 @@ const AUTOMATIC = `<office:automatic-styles>
 		<text:list-level-style-bullet text:level="1"/>
 		<text:list-level-style-number text:level="2"/>
 	</text:list-style>
+	<text:list-style style:name="L5">
+		<text:list-level-style-number text:level="1" text:start-value="6"/>
+	</text:list-style>
 </office:automatic-styles>`;
 
 function content(body: string): string {
@@ -149,6 +152,20 @@ Deno.test("odt: a numbered list style makes an ordered list", () => {
 		`<text:list-item><text:p>a</text:p></text:list-item>` +
 		`<text:list-item><text:p>b</text:p></text:list-item></text:list>`;
 	assertEquals(run(body), "1. a\n2. b");
+});
+
+Deno.test("odt: a list style's start-value becomes the list's start", () => {
+	const body = `<text:list text:style-name="L5">` +
+		`<text:list-item><text:p>a</text:p></text:list-item>` +
+		`<text:list-item><text:p>b</text:p></text:list-item></text:list>`;
+	assertEquals(run(body), "6. a\n7. b");
+});
+
+Deno.test("odt: an item's start-value beats the style's", () => {
+	const body = `<text:list text:style-name="L5">` +
+		`<text:list-item text:start-value="2"><text:p>a</text:p></text:list-item>` +
+		`<text:list-item><text:p>b</text:p></text:list-item></text:list>`;
+	assertEquals(run(body), "2. a\n3. b");
 });
 
 Deno.test("odt: a deep numbered level does not turn a bulleted list ordered", () => {

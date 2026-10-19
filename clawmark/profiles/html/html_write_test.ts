@@ -41,6 +41,7 @@ const CORPUS: [string, string][] = [
 	["line break", "one\\\ntwo\n"],
 	["blockquote", "> quoted line\n> second\n"],
 	["ordered list", "1. one\n2. two\n"],
+	["ordered list with a start", "3. three\n4. four\n"],
 	["unordered list", "- one\n- two\n"],
 	["nested list", "- one\n  - deep\n"],
 	["checklist", "- [x] done\n- [ ] todo\n"],

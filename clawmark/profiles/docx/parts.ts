@@ -481,6 +481,11 @@ export function docxStyle(name: string, styles: DocumentStyles): string {
 export interface NumberingInstance {
 	numId: string;
 	kind: "ordered" | "unordered";
+	/**
+	 * First number per nesting level, for the levels this instance has seen.
+	 * Absent or 1 needs no override.
+	 */
+	starts?: Map<number, number>;
 }
 
 const ORDERED_FORMATS = ["decimal", "lowerLetter", "lowerRoman"];
@@ -514,11 +519,17 @@ function levels(kind: "ordered" | "unordered"): string {
  * restarting it; markdown lists always restart.
  */
 export function numberingPart(instances: readonly NumberingInstance[]): string {
-	const nums = instances.map((instance) =>
-		`\t<w:num w:numId="${instance.numId}"><w:abstractNumId w:val="${
+	const nums = instances.map((instance) => {
+		const overrides = [...(instance.starts ?? [])]
+			.filter(([, start]) => start !== 1)
+			.map(([level, start]) =>
+				`<w:lvlOverride w:ilvl="${level}"><w:startOverride w:val="${start}"/></w:lvlOverride>`
+			)
+			.join("");
+		return `\t<w:num w:numId="${instance.numId}"><w:abstractNumId w:val="${
 			instance.kind === "ordered" ? 1 : 0
-		}"/></w:num>`
-	).join("\n");
+		}"/>${overrides}</w:num>`;
+	}).join("\n");
 	return `${XML_DECL}<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
 \t<w:abstractNum w:abstractNumId="0">
 ${levels("unordered")}

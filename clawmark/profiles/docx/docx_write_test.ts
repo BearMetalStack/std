@@ -27,7 +27,7 @@ function round(md: string): string {
  * The write direction must not lose anything the tree already holds, so the
  * target is the engine's *own* fixed point rather than the source text.
  * Comparing against the input instead would fold in the forward engine's known
- * lossiness (`_a_` -> `*a*`, ordinal discarding, the `---`-at-EOF quirk) and
+ * lossiness (`_a_` -> `*a*`, ordinals after the first, the `---`-at-EOF quirk) and
  * blame the writer for it - see the README's round-trip table.
  */
 function assertStable(md: string) {
@@ -77,6 +77,9 @@ Deno.test("docx write: lists", () => {
 	assertStable("- a\n- b");
 	assertStable("- a\n- b\n  - nested");
 	assertStable("1. one\n2. two");
+	assertStable("4. four\n5. five");
+	assertStable("2. a\n  7. b\n  8. c\n3. d");
+	assertStable("1. a\n\n9. b");
 });
 
 Deno.test("docx write: table", () => {
@@ -164,6 +167,15 @@ Deno.test("docx write: each list mints its own numbering instance", () => {
 	assertStringIncludes(
 		parts["word/numbering.xml"],
 		'<w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>',
+	);
+});
+
+Deno.test("docx write: an ordered list's start becomes a start override", () => {
+	const numbering = write("1. a\n\n5. b\n  3. c")["word/numbering.xml"];
+	assertStringIncludes(numbering, '<w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>');
+	assertStringIncludes(
+		numbering,
+		'<w:num w:numId="2"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="5"/></w:lvlOverride><w:lvlOverride w:ilvl="1"><w:startOverride w:val="3"/></w:lvlOverride></w:num>',
 	);
 });
 

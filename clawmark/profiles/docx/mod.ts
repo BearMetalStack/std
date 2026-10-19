@@ -32,6 +32,7 @@ import {
 	descendants,
 	DOCX_NS,
 	docxNumbering,
+	docxNumberingStarts,
 	docxRelationships,
 	docxStyleResolver,
 	docxStyleTable,
@@ -57,6 +58,35 @@ export interface DocxParts {
 const CONSUMED = "docx:consumed";
 const CODE_CONSUMED = "docx:code-consumed";
 const QUOTE_CONSUMED = "docx:quote-consumed";
+const COUNTERS = "docx:list-counters";
+
+/**
+ * The next number per level of each `w:num`, across the whole document: Word
+ * continues a list's count wherever its `numId` reappears, even after
+ * unrelated paragraphs, so a run's first number depends on every earlier run.
+ */
+function counters(ctx: MatchContext): Map<string, Map<number, number>> {
+	let map = ctx.state.get(COUNTERS) as Map<string, Map<number, number>> | undefined;
+	if (!map) ctx.state.set(COUNTERS, map = new Map());
+	return map;
+}
+
+/** Advances `numId`'s count at `level` and returns the number it shows. */
+function nextNumber(
+	ctx: MatchContext,
+	starts: Map<string, Map<number, number>>,
+	numId: string,
+	level: number,
+): number {
+	const all = counters(ctx);
+	let levels = all.get(numId);
+	if (!levels) all.set(numId, levels = new Map());
+	const number = levels.get(level) ?? starts.get(numId)?.get(level) ?? 1;
+	levels.set(level, number + 1);
+	// A deeper level restarts each time this one advances.
+	for (const deeper of levels.keys()) if (deeper > level) levels.delete(deeper);
+	return number;
+}
 
 /** Marks paragraphs a list matcher has already swallowed. */
 function consumed(ctx: MatchContext): Set<XmlElement> {
@@ -71,21 +101,34 @@ function consumed(ctx: MatchContext): Set<XmlElement> {
  * paragraph claims the whole run, builds the nesting from the ilvl sequence,
  * and marks the rest consumed so the crawler skips them.
  */
-function buildList(el: XmlElement): (parent: Node, ctx: MatchContext) => void {
+function buildList(
+	el: XmlElement,
+	starts: Map<string, Map<number, number>>,
+): (parent: Node, ctx: MatchContext) => void {
 	return (parent, matchCtx) => {
 		const seen = consumed(matchCtx);
 		const siblings = siblingParagraphs(el);
 		const start = siblings.indexOf(el);
 
 		// Collect the maximal run of list paragraphs starting here.
-		const run: { element: XmlElement; level: number; kind: "ordered" | "unordered" }[] = [];
+		const run: {
+			element: XmlElement;
+			level: number;
+			kind: "ordered" | "unordered";
+			id: string;
+		}[] = [];
 		for (let i = start; i < siblings.length; i++) {
 			const style = matchCtx.styleOf(siblings[i]);
 			if (!style.list) break;
+			// Adjacent lists are told apart only by numId: a different one back
+			// at the run's own level is the next list, not more of this one.
+			const head = run[0];
+			if (head && style.list.level <= head.level && (style.list.id ?? "") !== head.id) break;
 			run.push({
 				element: siblings[i],
 				level: style.list.level,
 				kind: style.list.kind === "check" ? "unordered" : style.list.kind,
+				id: style.list.id ?? "",
 			});
 		}
 		if (run.length === 0) return;
@@ -96,12 +139,14 @@ function buildList(el: XmlElement): (parent: Node, ctx: MatchContext) => void {
 		for (const entry of run) {
 			while (stack.length > 0 && stack[stack.length - 1].level > entry.level) stack.pop();
 
+			const number = nextNumber(matchCtx, starts, entry.id, entry.level);
 			let top = stack[stack.length - 1];
 			if (!top || top.level < entry.level) {
 				const host = top ? top.node.children[top.node.children.length - 1] ?? top.node : parent;
+				const ordered = entry.kind === "ordered";
 				const list: Node = {
-					tag: entry.kind === "ordered" ? "md:orderedlist" : "md:unorderedlist",
-					data: { phase: "open" },
+					tag: ordered ? "md:orderedlist" : "md:unorderedlist",
+					data: ordered && number !== 1 ? { phase: "open", start: number } : { phase: "open" },
 					children: [],
 					parent: host,
 				};
@@ -125,6 +170,7 @@ function buildList(el: XmlElement): (parent: Node, ctx: MatchContext) => void {
 /** A profile that turns WordprocessingML back into markdown. */
 export function docxProfile(parts: DocxParts = {}): Profile {
 	const numbering = docxNumbering(parts.numbering);
+	const starts = docxNumberingStarts(parts.numbering);
 	const rels = docxRelationships(parts.rels);
 	const table = docxStyleTable(parts.styles);
 	const footnoteRoot = parseIfString(parts.footnotes);
@@ -179,7 +225,7 @@ export function docxProfile(parts: DocxParts = {}): Profile {
 		// Lists: the first paragraph of a run claims all of them.
 		w("w:p").whereStyle((s) => s.list !== undefined).to((el) => ({
 			kind: "custom",
-			run: buildList(el),
+			run: buildList(el, starts),
 		})),
 
 		w("w:p").whereStyle((s) => s.blockRole === "heading").wrap(

@@ -180,17 +180,29 @@ export function odtStyleTable(...sources: (string | XmlElement | undefined)[]): 
 /** Per-level list kinds, keyed by list style name then `text:level`. */
 export type OdtListStyles = Map<string, Map<number, "ordered" | "unordered">>;
 
-function collectListStyles(root: XmlElement, out: OdtListStyles): void {
+/** Per-level first numbers, keyed like {@link OdtListStyles}; 1 is omitted. */
+type OdtListStarts = Map<string, Map<number, number>>;
+
+function collectListStyles(
+	root: XmlElement,
+	out: OdtListStyles,
+	starts: OdtListStarts = new Map(),
+): void {
 	for (const el of descendants(root, "list-style")) {
 		const name = lookupAttr(el, "name");
 		if (!name) continue;
 		const levels = new Map<number, "ordered" | "unordered">();
+		const levelStarts = new Map<number, number>();
 		for (const child of el.children) {
 			if (child.kind !== "element" || !child.name.startsWith("list-level-style")) continue;
 			const level = Number(lookupAttr(child, "level") ?? "1");
-			levels.set(level, child.name === "list-level-style-number" ? "ordered" : "unordered");
+			const ordered = child.name === "list-level-style-number";
+			levels.set(level, ordered ? "ordered" : "unordered");
+			const start = Number(lookupAttr(child, "start-value"));
+			if (ordered && Number.isInteger(start) && start !== 1) levelStarts.set(level, start);
 		}
 		out.set(name, levels);
+		starts.set(name, levelStarts);
 	}
 }
 
@@ -256,13 +268,14 @@ export function odtProfile(parts: OdtParts = {}): Profile {
 		},
 	};
 	const listStyles: OdtListStyles = new Map();
+	const listStarts: OdtListStarts = new Map();
 	/** Note bodies harvested at their reference, emitted after the body. */
 	const noteBodies: { id: string; body: XmlElement }[] = [];
 	for (const source of [parts.styles, parts.content]) {
 		const root = parseIfString(source);
 		if (!root) continue;
 		addDefs(styleDefsFrom(root));
-		collectListStyles(root, listStyles);
+		collectListStyles(root, listStyles, listStarts);
 	}
 
 	const t = (tag: string | string[]) => on(tag, ODT_NS);
@@ -410,10 +423,24 @@ export function odtProfile(parts: OdtParts = {}): Profile {
 			const depth = ctx.ancestors.filter((a) => a.name === "list").length + 1;
 			const levels = name ? listStyles.get(name) : undefined;
 			const kind = levels?.get(depth) ?? levels?.get(1) ?? "unordered";
+			if (kind !== "ordered") {
+				return { kind: "wrap", tag: "md:unorderedlist", data: { phase: "open" } };
+			}
+
+			// An item's own start-value overrides the style's; only the first
+			// item's can become the list's start.
+			const first = el.children.find((c): c is XmlElement =>
+				c.kind === "element" && (c.name === "list-item" || c.name === "list-header")
+			);
+			const own = first ? Number(ctx.attr("start-value", first)) : NaN;
+			const levelStarts = name ? listStarts.get(name) : undefined;
+			const start = Number.isInteger(own)
+				? own
+				: levelStarts?.get(depth) ?? levelStarts?.get(1) ?? 1;
 			return {
 				kind: "wrap",
-				tag: kind === "ordered" ? "md:orderedlist" : "md:unorderedlist",
-				data: { phase: "open" },
+				tag: "md:orderedlist",
+				data: start === 1 ? { phase: "open" } : { phase: "open", start },
 			};
 		}),
 		t("text:list-item").wrap("md:listitem", { phase: "open" }),

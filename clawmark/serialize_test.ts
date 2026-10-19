@@ -103,12 +103,17 @@ Deno.test("serialize: flat unordered list", () => assertStable("- a\n- b"));
 
 Deno.test("serialize: nested unordered list", () => assertStable("- a\n  - b\n- c"));
 
-Deno.test("serialize: ordered list renumbers from 1", () => {
+Deno.test("serialize: ordered list keeps its starting number", () => {
 	assertStable("1. a\n2. b");
-	// Ordinals never reach the tree - orderedListRule.validate discards the
-	// digits - so an author's `3.` cannot be recovered.
-	assertStable("3. a\n4. b", "1. a\n2. b");
+	assertStable("3. a\n4. b");
+	assertStable("0. a\n1. b");
+	// Only the first number is kept; the rest count up from it.
+	assertStable("3. a\n3. b", "3. a\n4. b");
 	assertHtmlStable("3. a\n4. b");
+});
+
+Deno.test("serialize: nested ordered list keeps its own start", () => {
+	assertStable("2. a\n  5. b\n  6. c\n3. d");
 });
 
 Deno.test("serialize: checklist", () => assertStable("- [x] done\n- [ ] todo"));

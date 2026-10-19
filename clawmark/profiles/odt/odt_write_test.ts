@@ -63,6 +63,9 @@ Deno.test("odt write: lists", () => {
 	assertStable("- a\n- b");
 	assertStable("- a\n- b\n  - nested");
 	assertStable("1. one\n2. two");
+	assertStable("4. four\n5. five");
+	assertStable("2. a\n  7. b\n  8. c\n3. d");
+	assertStable("1. a\n\n9. b");
 });
 
 Deno.test("odt write: table", () => {
@@ -108,6 +111,12 @@ Deno.test("odt write: identical formatting shares one automatic style", () => {
 	// Two bold spans, one definition.
 	assertEquals(content.split('text:style-name="T1"').length - 1, 2);
 	assertEquals(content.split("<style:style").length - 1, 1);
+});
+
+Deno.test("odt write: an ordered list's start goes on its first item", () => {
+	const content = write("5. a\n6. b")["content.xml"];
+	assertStringIncludes(content, '<text:list-item text:start-value="5">');
+	assertEquals(content.split("<text:list-item text:start-value").length - 1, 1);
 });
 
 Deno.test("odt write: nested lists of different kinds get their own list style", () => {
