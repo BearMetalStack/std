@@ -11,7 +11,7 @@ export interface TableRegistry {
 		discord_id?: string;
 		github_id?: string;
 	};
-	bma_sessions: { token: string; data?: string };
+	bma_sessions: { token: string; data?: string; user_id?: string };
 	bma_passkeys: {
 		credential_id: string;
 		user_id: string;
