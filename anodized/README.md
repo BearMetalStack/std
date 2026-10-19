@@ -3,9 +3,9 @@
 [![License: MIT](https://badger.bear-metal.dev/?label=License&value=MIT&extra=&labelColor=label-light&valueColor=info-invert&extraColor=&variant=)](https://opensource.org/licenses/MIT)
 [![JSR](https://badger.bear-metal.dev/?label=jsr&value=%40bearmetal%2Fanodized&valueColor=info)](https://jsr.io/@bearmetal/anodized)
 
-A small immediate-mode canvas on WebGPU, for charts, diagrams and node graphs. Each frame you hand
-it coordinates, sizes, connections and content; it fits the curves, routes the connectors, lays out
-the text and paints one frame buffer. Zero dependencies.
+A small immediate-mode canvas on WebGPU, with a WebGL2 fallback, for charts, diagrams and node
+graphs. Each frame you hand it coordinates, sizes, connections and content; it fits the curves,
+routes the connectors, lays out the text and paints one frame buffer. Zero dependencies.
 
 ```ts
 import { createAnodized, loadFont } from "@bearmetal/anodized";
@@ -258,7 +258,7 @@ Pass the same object every frame. Each image is uploaded to the GPU once, the fi
 drawn. An image that goes unused for 120 frames has its upload freed. If its pixels change, for
 example a `<video>` frame or a canvas you painted into, call `a.invalidateImage(src)`.
 
-- In a browser, anything WebGPU can copy from works: `ImageBitmap`, a loaded `<img>`, `<canvas>`,
+- In a browser, anything the GPU can upload works: `ImageBitmap`, a loaded `<img>`, `<canvas>`,
   `OffscreenCanvas`, `<video>`, `VideoFrame`. `loadImage(urlOrBytes)` returns an `ImageBitmap`
   decoded by the browser, so any format it supports is fine.
 - Raw pixels, `{ width, height, pixels }` with straight-alpha RGBA, work everywhere. A `Snapshot`
@@ -284,7 +284,25 @@ stays sharp at any zoom.
 - Arbitrary fills use stencil-then-cover; convex shapes skip the stencil.
 - Image fills paint the same cover pass with a texture. The image's own edges clip the geometry, so
   MSAA antialiases them like any other edge.
-- WebGPU is the only backend today. The `Backend` interface is where a WebGL2 fallback would go.
+- Two backends paint the same geometry the same way: WebGPU, and WebGL2 as a fallback (MSAA
+  renderbuffers resolved with a blit). Output differs only in how each GPU antialiases edges.
+
+### Choosing a backend
+
+`createAnodized()` and `createHeadless()` take `backend: "auto" | "webgpu" | "webgl2"`. `"auto"`,
+the default, uses WebGPU when the runtime offers an adapter and WebGL2 otherwise; passing `device`
+implies `"webgpu"`. `a.backend.name` says which one you got.
+
+```ts
+const a = await createAnodized(canvas, { backend: "webgl2" }); // force the fallback
+```
+
+- A WebGL2 context belongs to one canvas, and a canvas that has handed out a `webgpu` context can't
+  hand out a `webgl2` one. Let anodized pick before anything else calls `getContext()` on it.
+- Headless WebGL2 draws into an `OffscreenCanvas`, so it works in browsers and workers. Deno has
+  WebGPU but no WebGL, so on a server it is WebGPU or nothing.
+- A lost WebGL context is rebuilt when the browser restores it, and the canvas redraws. Image
+  uploads are dropped with it and come back the next time they are drawn.
 
 ## Example
 
@@ -292,4 +310,4 @@ stays sharp at any zoom.
 
 - `deno task snapshot` writes `flowchart.png` headless;
 - `deno task serve` serves an interactive version on `http://127.0.0.1:8123`, with draggable nodes,
-  wheel zoom and drag pan.
+  wheel zoom and drag pan. Add `?backend=webgl2` to force the fallback.

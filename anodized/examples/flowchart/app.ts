@@ -1,8 +1,12 @@
-import { createAnodized, loadFont } from "@bearmetal/anodized";
+import { type BackendPreference, createAnodized, loadFont } from "@bearmetal/anodized";
 import { scene } from "./scene.ts";
 
 const canvas = document.querySelector("canvas")!;
-const a = await createAnodized(canvas, { font: await loadFont("/Vera.ttf") });
+// `?backend=webgl2` forces the fallback.
+const backend =
+	(new URLSearchParams(location.search).get("backend") ?? "auto") as BackendPreference;
+const a = await createAnodized(canvas, { font: await loadFont("/Vera.ttf"), backend });
+document.title += ` (${a.backend.name})`;
 a.camera.pan(40, 40);
 a.viewport();
 a.loop((f) => scene(f, true));

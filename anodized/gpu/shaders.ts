@@ -58,3 +58,44 @@ fn fs(i: VOut) -> @location(0) vec4f {
 	return textureSample(src, smp, i.uv);
 }
 `;
+
+/** {@linkcode SHADER}'s vertex stage in GLSL ES 3.00, for the WebGL2 backend. */
+export const GLSL_VERTEX = /* glsl */ `#version 300 es
+uniform vec2 u_size;
+layout(location = 0) in vec2 a_pos;
+layout(location = 1) in vec4 a_color;
+layout(location = 2) in vec2 a_uv;
+out vec4 v_color;
+out vec2 v_uv;
+
+void main() {
+	gl_Position = vec4(a_pos.x / u_size.x * 2.0 - 1.0, 1.0 - a_pos.y / u_size.y * 2.0, 0.0, 1.0);
+	v_color = a_color;
+	v_uv = a_uv;
+}
+`;
+
+/** The flat-color fragment stage in GLSL ES 3.00. */
+export const GLSL_FRAGMENT = /* glsl */ `#version 300 es
+precision highp float;
+in vec4 v_color;
+in vec2 v_uv;
+out vec4 o_color;
+
+void main() {
+	o_color = v_color;
+}
+`;
+
+/** The image fragment stage in GLSL ES 3.00: a premultiplied texel times the color. */
+export const GLSL_FRAGMENT_IMAGE = /* glsl */ `#version 300 es
+precision highp float;
+uniform sampler2D u_tex;
+in vec4 v_color;
+in vec2 v_uv;
+out vec4 o_color;
+
+void main() {
+	o_color = texture(u_tex, v_uv) * v_color;
+}
+`;

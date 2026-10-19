@@ -10,6 +10,7 @@ import {
 import { MIP_SHADER, SHADER } from "./shaders.ts";
 import { imageSize, isRawImage } from "../image/source.ts";
 import { warnOnce } from "../core/warn.ts";
+import { premultiply, unpremultiply } from "./pixels.ts";
 
 const SAMPLES = 4;
 const STENCIL_FORMAT: GPUTextureFormat = "stencil8";
@@ -49,6 +50,7 @@ export async function createWebGPUBackend(device?: GPUDevice): Promise<WebGPUBac
 
 /** The WebGPU {@linkcode Backend}: stencil-then-cover fills and strokes, 4× MSAA. */
 export class WebGPUBackend implements Backend {
+	readonly name = "webgpu";
 	readonly device: GPUDevice;
 	readonly maxTextureSize: number;
 	#module: GPUShaderModule;
@@ -531,30 +533,5 @@ class WebGPUOffscreen implements Offscreen {
 		this.#att.destroy();
 		this.#target.destroy();
 		this.#readBuffer.destroy();
-	}
-}
-
-/** A premultiplied copy of straight-alpha RGBA bytes. */
-function premultiply(px: Uint8Array): Uint8Array {
-	const out = new Uint8Array(px);
-	for (let i = 0; i < out.length; i += 4) {
-		const a = out[i + 3];
-		if (a === 255) continue;
-		out[i] = Math.round((out[i] * a) / 255);
-		out[i + 1] = Math.round((out[i + 1] * a) / 255);
-		out[i + 2] = Math.round((out[i + 2] * a) / 255);
-	}
-	return out;
-}
-
-/** Converts premultiplied RGBA bytes to straight alpha in place. */
-export function unpremultiply(px: Uint8Array): void {
-	for (let i = 0; i < px.length; i += 4) {
-		const a = px[i + 3];
-		if (a === 0 || a === 255) continue;
-		const k = 255 / a;
-		px[i] = Math.min(255, Math.round(px[i] * k));
-		px[i + 1] = Math.min(255, Math.round(px[i + 1] * k));
-		px[i + 2] = Math.min(255, Math.round(px[i + 2] * k));
 	}
 }

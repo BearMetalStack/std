@@ -24,7 +24,8 @@ import { command, type DrawCommand, expandGrids, isImageFill, resolveStyle } fro
 import { commandBounds, Frame } from "./frame.ts";
 import { tessellate } from "./tessellate.ts";
 import type { Backend, Offscreen, Surface } from "../gpu/backend.ts";
-import { createWebGPUBackend } from "../gpu/webgpu.ts";
+import { createWebGPUBackend, hasWebGPU } from "../gpu/webgpu.ts";
+import { createWebGL2Backend, hasWebGL2 } from "../gpu/webgl.ts";
 import { Path } from "../geometry/path.ts";
 import type { Font } from "../text/ttf.ts";
 import { HandleManager, type HandleOverlay } from "../interact/handles.ts";
@@ -41,11 +42,19 @@ export interface AnodizedOptions {
 	background?: ColorInput;
 	/** Color of control handles. Default `"#2563eb"`. */
 	accent?: ColorInput;
-	/** Bring your own device instead of requesting one. */
+	/**
+	 * Which GPU API to draw with. `"auto"` (the default) uses WebGPU when the runtime offers an
+	 * adapter and falls back to WebGL2 otherwise. Passing a `device` implies `"webgpu"`.
+	 */
+	backend?: BackendPreference;
+	/** Bring your own WebGPU device instead of requesting one. */
 	device?: GPUDevice;
 	/** Device pixels per CSS pixel. Defaults to `devicePixelRatio` in a browser, `1` otherwise. */
 	pixelRatio?: number;
 }
+
+/** Which GPU API an instance draws with; see {@linkcode AnodizedOptions.backend}. */
+export type BackendPreference = "auto" | "webgpu" | "webgl2";
 
 /** Options for {@linkcode createHeadless}. */
 export interface HeadlessOptions extends AnodizedOptions {
@@ -124,6 +133,13 @@ export class Anodized {
 			canvas.dispatchEvent(new CustomEvent(ANODE_CLICK, { detail, bubbles: true }));
 		};
 		this.#detach = this.#input.attach(canvas);
+		const restored = () => this.invalidate();
+		canvas.addEventListener("webglcontextrestored", restored);
+		const detachInput = this.#detach;
+		this.#detach = () => {
+			detachInput();
+			canvas.removeEventListener("webglcontextrestored", restored);
+		};
 		canvas.style.touchAction = "none";
 		if (typeof ResizeObserver !== "undefined") {
 			this.#resizeObserver = new ResizeObserver(() => {
@@ -472,12 +488,42 @@ function isElement(c: unknown): c is HTMLCanvasElement {
 	return typeof HTMLCanvasElement !== "undefined" && c instanceof HTMLCanvasElement;
 }
 
-/** Creates an instance drawing into a canvas. Throws when WebGPU is unavailable. */
+/**
+ * Picks the backend for {@linkcode AnodizedOptions.backend}. WebGL2 contexts belong to a canvas, so
+ * this must run before anything calls `getContext()` on `canvas`.
+ */
+async function chooseBackend(
+	canvas: HTMLCanvasElement | OffscreenCanvas | undefined,
+	opts: AnodizedOptions,
+): Promise<Backend> {
+	const want = opts.device ? "webgpu" : opts.backend ?? "auto";
+	if (want === "webgpu") return await createWebGPUBackend(opts.device);
+	if (want === "webgl2") return createWebGL2Backend(canvas);
+	let reason: unknown = new Error("anodized: WebGPU is not available in this runtime");
+	if (hasWebGPU()) {
+		try {
+			return await createWebGPUBackend();
+		} catch (e) {
+			reason = e;
+		}
+	}
+	if (!hasWebGL2()) {
+		throw new Error("anodized: neither WebGPU nor WebGL2 is available in this runtime", {
+			cause: reason,
+		});
+	}
+	return createWebGL2Backend(canvas);
+}
+
+/**
+ * Creates an instance drawing into a canvas, with WebGPU when it is available and WebGL2
+ * otherwise (see {@linkcode AnodizedOptions.backend}). Throws when neither is.
+ */
 export async function createAnodized(
 	canvas: HTMLCanvasElement | OffscreenCanvas,
 	opts: AnodizedOptions = {},
 ): Promise<Anodized> {
-	const backend = await createWebGPUBackend(opts.device);
+	const backend = await chooseBackend(canvas, opts);
 	const pr = opts.pixelRatio ?? globalThis.devicePixelRatio ?? 1;
 	const el = isElement(canvas);
 	const w = el ? canvas.clientWidth || canvas.width : canvas.width / pr;
@@ -487,11 +533,11 @@ export async function createAnodized(
 
 /**
  * Creates an instance with no canvas, for servers and workers. Deno exposes WebGPU without
- * flags, so this works from a plain `deno run`. Render with `frame()` then `read()`, or use
- * `snapshot()`.
+ * flags, so this works from a plain `deno run`; in a browser without WebGPU it falls back to
+ * WebGL2 on an `OffscreenCanvas`. Render with `frame()` then `read()`, or use `snapshot()`.
  */
 export async function createHeadless(opts: HeadlessOptions): Promise<Anodized> {
-	const backend = await createWebGPUBackend(opts.device);
+	const backend = await chooseBackend(undefined, opts);
 	return new Anodized(
 		backend,
 		new Camera(opts.width, opts.height, opts.pixelRatio ?? 1),

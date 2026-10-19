@@ -1,6 +1,6 @@
 /**
  * @module
- * BearMetal Anodized — a small immediate-mode canvas on WebGPU for charts, diagrams and node
+ * BearMetal Anodized — a small immediate-mode canvas on WebGPU (with a WebGL2 fallback) for charts, diagrams and node
  * graphs. Give it coordinates, sizes, connections and content each frame; it fits curves, routes
  * connectors, lays out text, handles opt-in drag/resize handles and zooms without limit. Render
  * to a canvas, or headless (Deno has WebGPU unflagged) with `snapshot()` for PNGs.
@@ -33,3 +33,4 @@ export { decodePng } from "./image/png.ts";
 export { loadImage } from "./image/load.ts";
 export { fitImage, imageSize } from "./image/source.ts";
 export { createWebGPUBackend, hasWebGPU, WebGPUBackend } from "./gpu/webgpu.ts";
+export { createWebGL2Backend, hasWebGL2, WebGL2Backend } from "./gpu/webgl.ts";

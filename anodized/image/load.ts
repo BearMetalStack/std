@@ -1,10 +1,12 @@
 import type { ImageSource } from "../types.ts";
 import { decodePng } from "./png.ts";
 
-/** `true` when this runtime can decode images itself and hand them to WebGPU (browsers). */
+/** `true` when this runtime can decode images itself and hand them to the GPU (browsers). */
 function canUploadBitmaps(): boolean {
-	return typeof createImageBitmap === "function" && typeof GPUQueue !== "undefined" &&
-		typeof GPUQueue.prototype.copyExternalImageToTexture === "function";
+	if (typeof createImageBitmap !== "function") return false;
+	return (typeof GPUQueue !== "undefined" &&
+		typeof GPUQueue.prototype.copyExternalImageToTexture === "function") ||
+		typeof WebGL2RenderingContext !== "undefined";
 }
 
 /**

@@ -498,7 +498,7 @@ export type { Font, Frame };
 export type { Anodized } from "./core/anodized.ts";
 export type { Camera } from "./core/camera.ts";
 export type { Path } from "./geometry/path.ts";
-export type { AnodizedOptions, HeadlessOptions } from "./core/anodized.ts";
+export type { AnodizedOptions, BackendPreference, HeadlessOptions } from "./core/anodized.ts";
 export type { Transform } from "./core/camera.ts";
 export type { LinearScale } from "./core/scale.ts";
 export type { Verb } from "./geometry/path.ts";

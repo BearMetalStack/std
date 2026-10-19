@@ -52,10 +52,12 @@ export interface Offscreen {
 }
 
 /**
- * What a renderer has to provide. WebGPU is the only implementation today; the interface is the
- * seam a WebGL2 fallback would plug into.
+ * What a renderer has to provide. WebGPU is the primary implementation; WebGL2 is the fallback for
+ * browsers without it.
  */
 export interface Backend {
+	/** Which API draws the frames, e.g. `"webgpu"` or `"webgl2"`. */
+	readonly name: string;
 	/** Largest texture side this device supports. */
 	readonly maxTextureSize: number;
 	createSurface(canvas: HTMLCanvasElement | OffscreenCanvas): Surface;
