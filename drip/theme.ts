@@ -11,7 +11,6 @@ import { deepMerge } from "@bearmetal/miscellanea";
 import type { Theme } from "./types.ts";
 
 const THEME_SUFFIX = ".theme.json";
-const DEFAULTS_THEME = "_defaults";
 
 let defaultsPromise: Promise<Theme> | undefined;
 
@@ -25,14 +24,8 @@ let defaultsPromise: Promise<Theme> | undefined;
  * the compliant stylesheets would render against nothing.
  */
 export async function loadDefaultTokens(): Promise<Theme> {
-	defaultsPromise ??= (async () => {
-		const url = new URL(`./themes/${DEFAULTS_THEME}${THEME_SUFFIX}`, import.meta.url);
-		const res = await fetch(url);
-		if (!res.ok) {
-			throw new Error(`Drip: could not read the defaults layer (${res.status} ${res.statusText})`);
-		}
-		return await res.json() as Theme;
-	})();
+	defaultsPromise ??= import("./themes/_defaults.theme.json", { with: { type: "json" } })
+		.then((mod) => mod.default as Theme);
 	return await defaultsPromise;
 }
 
@@ -45,15 +38,26 @@ export async function withDefaultTokens(theme: Theme): Promise<Theme> {
 	return deepMerge(defaults as Record<string, unknown>, theme as Record<string, unknown>) as Theme;
 }
 
+/**
+ * BearMetal's bundled themes, as literal JSON imports rather than files read
+ * beside this module. A published package is fetched over HTTP and a
+ * `deno compile` binary only embeds what the module graph reaches, so reading
+ * `./themes/*.json` at runtime fails in exactly the places a theme matters most.
+ */
+const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
+	bearmetal: () => import("./themes/bearmetal.theme.json", { with: { type: "json" } }),
+	foxfire: () => import("./themes/foxfire.theme.json", { with: { type: "json" } }),
+	hazelthorn: () => import("./themes/hazelthorn.theme.json", { with: { type: "json" } }),
+	monochrome: () => import("./themes/monochrome.theme.json", { with: { type: "json" } }),
+	pride: () => import("./themes/pride.theme.json", { with: { type: "json" } }),
+};
+
+/** Names of the themes that ship with drip. */
+export const builtinThemeNames: string[] = Object.keys(builtinThemes);
+
 async function loadBuiltinTheme(name: string): Promise<Theme | undefined> {
-	try {
-		const url = new URL(`./themes/${name}${THEME_SUFFIX}`, import.meta.url);
-		const res = await fetch(url);
-		if (!res.ok) return undefined;
-		return await res.json() as Theme;
-	} catch {
-		return undefined;
-	}
+	const load = Object.hasOwn(builtinThemes, name) ? builtinThemes[name] : undefined;
+	return load ? (await load()).default as Theme : undefined;
 }
 
 async function loadCustomTheme(name: string): Promise<Theme | undefined> {
