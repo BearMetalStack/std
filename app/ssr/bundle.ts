@@ -21,6 +21,14 @@ export type BundleOutput = {
 	styles: string;
 };
 
+/** Overrides for what {@linkcode bundleEntrypoints} infers from the environment. */
+export type BundleOptions = {
+	/** Minify the output. Defaults to on outside dev. */
+	minify?: boolean;
+	/** Inline source maps. Defaults to on in dev. */
+	sourcemap?: boolean;
+};
+
 /**
  * Members that exist only to serve a render, and must not reach a browser.
  *
@@ -42,7 +50,11 @@ const serverOnlyNames = ["serverInit", "stylesheet"];
  * Entry outputs are named after their entrypoint's basename, so callers can map
  * an output back to the entrypoint that produced it.
  */
-export async function bundleEntrypoints(entrypoints: string[]): Promise<BundleOutput> {
+export async function bundleEntrypoints(
+	entrypoints: string[],
+	options: BundleOptions = {},
+): Promise<BundleOutput> {
+	const dev = isDev();
 	const scripts = new Map<string, string>();
 	if (entrypoints.length === 0) return { scripts, styles: "" };
 
@@ -52,8 +64,8 @@ export async function bundleEntrypoints(entrypoints: string[]): Promise<BundleOu
 		codeSplitting: true,
 		platform: "browser",
 		outputDir: "scripts",
-		minify: !isDev(),
-		sourcemap: isDev() ? "inline" : undefined,
+		minify: options.minify ?? !dev,
+		sourcemap: (options.sourcemap ?? dev) ? "inline" : undefined,
 	});
 
 	let styles = "";

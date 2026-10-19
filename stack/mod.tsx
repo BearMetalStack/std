@@ -28,6 +28,7 @@ import {
 	serveMap,
 } from "./components.ts";
 import { devStack } from "./dev.tsx";
+import { prebuiltStack } from "./prebuilt.tsx";
 import {
 	cache,
 	componentHeadTags,
@@ -38,6 +39,7 @@ import {
 } from "./endpoint.tsx";
 
 export * from "./optimization/fonts/google.tsx";
+export type { PrebuiltManifest } from "./build.ts";
 export type * from "./types.ts";
 export { componentDirs, defaultBundleName } from "./components.ts";
 export { componentsEndpoint } from "./endpoint.tsx";
@@ -61,6 +63,22 @@ export interface StackOptions {
 	 * Defaults to `components/`, then `src/components/`.
 	 */
 	dir?: string;
+	/**
+	 * A directory written by `buildStack` from `@bearmetal/stack/build`.
+	 *
+	 * Outside dev, the stack serves that instead of bundling at startup, and
+	 * never looks for a components directory — which is what lets an app run
+	 * from a `deno compile` binary. Embed it with `--include`, and pass a
+	 * `file:` URL built from `import.meta.url` so it resolves inside the binary.
+	 */
+	prebuilt?: URL;
+	/**
+	 * Imports the components server-side when serving a prebuilt bundle.
+	 *
+	 * Pass `() => import("./dist/components/server.ts")` — a literal specifier,
+	 * so `deno compile` sees the import and embeds every component with it.
+	 */
+	register?: () => Promise<unknown>;
 }
 
 /**
@@ -87,6 +105,7 @@ export function createStack(options: StackOptions | ImportFn = {}): Module {
 	const opts: StackOptions = typeof options === "function" ? { import: options } : options;
 	const importModule: ImportFn = opts.import ?? ((specifier) => import(specifier));
 	if (isDev()) return devStack(opts.dir, importModule);
+	if (opts.prebuilt) return prebuiltStack(opts.prebuilt, opts.register);
 
 	/** Bundles keyed by the name they are served under at the components endpoint. */
 	let compBundle: Map<string, string> = new Map();

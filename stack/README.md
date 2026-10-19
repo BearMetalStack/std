@@ -67,6 +67,28 @@ Drop a `components/manifest.ts` in to take over the list explicitly, and
 are collected server-side and served alongside as `/@bearmetal/components/index.css`, so the first
 paint is styled without waiting for the bundle.
 
+### `deno compile`
+
+A compiled binary carries no bundler, so build the components ahead of time with
+`@bearmetal/stack/build` and point the stack at the output:
+
+```ts
+// scripts/build.ts
+import { buildStack } from "@bearmetal/stack/build";
+await buildStack({ outDir: "dist/components" });
+
+// main.ts
+router.use(createStack({
+	prebuilt: new URL("./dist/components/", import.meta.url),
+	register: () => import("./dist/components/server.ts"),
+}));
+```
+
+`buildStack` writes the bundle, the component CSS, a `manifest.json`, and a `server.ts` that imports
+every component. `register` has to be a literal `import()` so `deno compile` follows it and embeds
+the components. Compile with `--include dist`. The prebuilt directory is only used outside dev, so
+`deno task dev` keeps hot replacement.
+
 ### Database
 
 Currently, only the Postgres database connector is available. By default, it reads the standard
