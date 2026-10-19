@@ -70,9 +70,13 @@ function requestClose(connString: string) {
 }
 
 function requestConnection(connString: string) {
-	if (connections.has(connString)) return connections.get(connString)!.acquire();
+	const existing = connections.get(connString);
+	if (existing && existing.socket.readyState <= WebSocket.OPEN) return existing.acquire();
 	const conn = new WebsocketClient(connString);
 	connections.set(connString, conn);
+	conn.socket.addEventListener("close", () => {
+		if (connections.get(connString) === conn) connections.delete(connString);
+	});
 	return conn.acquire();
 }
 
@@ -108,7 +112,7 @@ export class Sockpuppet {
 	private messageQueue: MessageEvent<any>[] = [];
 
 	constructor(path: string, onConnect?: () => void, options?: PuppetOptions) {
-		if (!isFullUrl(path)) path = `${globalThis.location.host}${path}`;
+		path = socketUrl(path);
 		this.socketClient = requestConnection(path);
 		this.socket = this.socketClient.socket;
 
@@ -131,6 +135,12 @@ export class Sockpuppet {
 		this.keepAlive = options?.keepAlive ?? this.keepAlive;
 
 		this.socket.addEventListener("message", this.handleMessage);
+		this.socket.addEventListener("close", () => {
+			clearTimeout(this.initialPing);
+			this.socketReady = false;
+			this.callbacks.get("disconnect")?.forEach((cb) => cb("disconnected"));
+			this.channels.forEach((channel) => channel.execLeaveListeners());
+		});
 
 		if (this.keepAlive) {
 			this.initialPing = setTimeout(
@@ -293,6 +303,24 @@ export class Sockpuppet {
 	};
 }
 
-const isFullUrl = (url: string) =>
-	/(wss?|https?):\/\/.+\.(io|com|org|net)(\/.*)?/i.test(url) ||
-	url.includes("localhost");
+/**
+ * Resolves what the constructor was given into a WebSocket URL.
+ *
+ * A full `ws(s)://` URL is used as is and `http(s)://` is swapped for its
+ * socket scheme. Anything else is a path on the page's own host, over `wss:`
+ * when the page itself is served over https.
+ */
+export function socketUrl(
+	path: string,
+	location: Location | undefined = globalThis.location,
+): string {
+	if (/^wss?:\/\//i.test(path)) return path;
+	if (/^https?:\/\//i.test(path)) return path.replace(/^http/i, "ws");
+	if (!location) {
+		throw new Error(
+			`Sockpuppet: "${path}" is not a full URL and there is no page to resolve it against.`,
+		);
+	}
+	const scheme = location.protocol === "https:" ? "wss:" : "ws:";
+	return `${scheme}//${location.host}${path.startsWith("/") ? "" : "/"}${path}`;
+}

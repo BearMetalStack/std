@@ -1,2 +1,2 @@
-export { Sockpuppet } from "./Sockpuppet.ts";
+export { socketUrl, Sockpuppet } from "./Sockpuppet.ts";
 export type * from "./types.ts";

@@ -13,6 +13,14 @@ export interface QueryState {
 	offsetCount?: number;
 }
 
+/** The SQL dialects the builders emit. They differ only in how a parameter is written. */
+export type Dialect = "postgres" | "sqlite";
+
+/** `$1` for Postgres, `?1` for SQLite — both numbered, so a param can be referenced by position. */
+function placeholder(dialect: Dialect, n: number): string {
+	return dialect === "sqlite" ? `?${n}` : `$${n}`;
+}
+
 export function emptyState(): QueryState {
 	return {
 		table: "",
@@ -26,6 +34,13 @@ export function emptyState(): QueryState {
 
 export function buildPostgresSQL(
 	state: QueryState,
+): { sql: string; params: unknown[] } {
+	return buildSelectSQL(state, "postgres");
+}
+
+export function buildSelectSQL(
+	state: QueryState,
+	dialect: Dialect,
 ): { sql: string; params: unknown[] } {
 	const params: unknown[] = [];
 	const fields = state.fields.length > 0 ? state.fields.join(", ") : "*";
@@ -41,7 +56,7 @@ export function buildPostgresSQL(
 	if (state.conditions.length > 0) {
 		const clauses = state.conditions.map(([col, val]) => {
 			params.push(val);
-			return `${col} = $${params.length}`;
+			return `${col} = ${placeholder(dialect, params.length)}`;
 		});
 		sql += ` WHERE ${clauses.join(" AND ")}`;
 	}
@@ -59,12 +74,12 @@ export function buildPostgresSQL(
 
 	if (state.limitCount !== undefined) {
 		params.push(state.limitCount);
-		sql += ` LIMIT $${params.length}`;
+		sql += ` LIMIT ${placeholder(dialect, params.length)}`;
 	}
 
 	if (state.offsetCount !== undefined) {
 		params.push(state.offsetCount);
-		sql += ` OFFSET $${params.length}`;
+		sql += ` OFFSET ${placeholder(dialect, params.length)}`;
 	}
 
 	return { sql, params };
@@ -73,13 +88,20 @@ export function buildPostgresSQL(
 export function buildPostgresDeleteSQL(
 	state: QueryState,
 ): { sql: string; params: unknown[] } {
+	return buildDeleteSQL(state, "postgres");
+}
+
+export function buildDeleteSQL(
+	state: QueryState,
+	dialect: Dialect,
+): { sql: string; params: unknown[] } {
 	const params: unknown[] = [];
 	let sql = `DELETE FROM ${state.table}`;
 
 	if (state.conditions.length > 0) {
 		const clauses = state.conditions.map(([col, val]) => {
 			params.push(val);
-			return `${col} = $${params.length}`;
+			return `${col} = ${placeholder(dialect, params.length)}`;
 		});
 		sql += ` WHERE ${clauses.join(" AND ")}`;
 	}
@@ -92,9 +114,18 @@ export function buildPostgresUpsertSQL(
 	data: Record<string, unknown>,
 	conflictOn?: string[],
 ): { sql: string; params: unknown[] } {
+	return buildUpsertSQL(state, data, conflictOn, "postgres");
+}
+
+export function buildUpsertSQL(
+	state: QueryState,
+	data: Record<string, unknown>,
+	conflictOn: string[] | undefined,
+	dialect: Dialect,
+): { sql: string; params: unknown[] } {
 	const columns = Object.keys(data);
 	const params = Object.values(data);
-	const placeholders = params.map((_, i) => `$${i + 1}`).join(", ");
+	const placeholders = params.map((_, i) => placeholder(dialect, i + 1)).join(", ");
 
 	let sql = `INSERT INTO ${state.table} (${columns.join(", ")}) VALUES (${placeholders})`;
 

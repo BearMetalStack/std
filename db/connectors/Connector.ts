@@ -1,8 +1,8 @@
-import type { DBOptions, Queryable, TableIdentifier } from "../types.d.ts";
+import type { DBOptions, Queryable, SqliteOptions, TableIdentifier } from "../types.d.ts";
 import type { Migration, MigrationResult } from "@migrations";
 
 export abstract class Connector implements Queryable {
-	constructor(protected opts: DBOptions) {}
+	constructor(protected opts: DBOptions | SqliteOptions) {}
 
 	abstract select<F extends string>(fields: F[]): Queryable<Pick<Record<string, unknown>, F>>;
 	abstract where(condition: unknown): Queryable;

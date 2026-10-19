@@ -58,6 +58,30 @@ export interface MakeCommonProps<Extra = never> extends CustomProps {
 	hidden?: boolean | Extra;
 	popover?: boolean | "manual" | "hint" | "auto" | Extra;
 	draggable?: boolean | "true" | "false" | Extra;
+	/** A boolean attribute: `true` adds it, `false` leaves it off. */
+	autofocus?: boolean | Extra;
+	/**
+	 * An enumerated attribute, not a boolean one — `spellcheck="false"` turns it
+	 * off, while a bare or absent `spellcheck` leaves the browser's default. So
+	 * it takes the strings, which is what the runtime writes through.
+	 */
+	spellcheck?: "true" | "false" | Extra;
+	inputmode?:
+		| "none"
+		| "text"
+		| "decimal"
+		| "numeric"
+		| "tel"
+		| "search"
+		| "email"
+		| "url"
+		| Extra;
+	enterkeyhint?: "enter" | "done" | "go" | "next" | "previous" | "search" | "send" | Extra;
+	autocapitalize?: "off" | "none" | "on" | "sentences" | "words" | "characters" | Extra;
+	lang?: string | Extra;
+	dir?: "ltr" | "rtl" | "auto" | Extra;
+	translate?: "yes" | "no" | Extra;
+	inert?: boolean | Extra;
 	children?: MakeChildren<Extra>;
 	$raw?: boolean;
 	ref?: string;
@@ -207,7 +231,10 @@ export interface MakeAnchorProps<Extra = never> extends MakeBaseProps<Extra, HTM
 	href?: string | Extra;
 	target?: string | Extra;
 	rel?: string | Extra;
-	download?: string | Extra;
+	/** `true` for a bare `download`; a string suggests the saved file's name. */
+	download?: boolean | string | Extra;
+	hreflang?: string | Extra;
+	referrerpolicy?: string | Extra;
 }
 
 export interface MakeButtonProps<Extra = never> extends MakeBaseProps<Extra, HTMLButtonElement> {
@@ -226,13 +253,18 @@ export interface MakeInputProps<Extra = never> extends MakeBaseProps<Extra, HTML
 	disabled?: boolean | Extra;
 	checked?: boolean | Extra;
 	required?: boolean | Extra;
-	min?: string | Extra;
-	max?: string | Extra;
-	step?: string | Extra;
+	min?: string | number | Extra;
+	max?: string | number | Extra;
+	step?: string | number | Extra;
 	name?: string | Extra;
 	readonly?: boolean | Extra;
 	multiple?: boolean | Extra;
 	accept?: string | Extra;
+	pattern?: string | Extra;
+	size?: number | Extra;
+	list?: string | Extra;
+	form?: string | Extra;
+	capture?: "user" | "environment" | Extra;
 	popovertarget?: string | Extra;
 	popovertargetaction?: "hide" | "show" | "toggle" | Extra;
 	autocomplete?: "off" | "on" | string | Extra;
@@ -249,9 +281,10 @@ export interface MakeTextareaProps<Extra = never>
 	required?: boolean | Extra;
 	rows?: number | Extra;
 	cols?: number | Extra;
+	wrap?: "hard" | "soft" | "off" | Extra;
 	readonly?: boolean | Extra;
 	name?: string | Extra;
-	autocomplete?: "off" | "on" | Extra;
+	autocomplete?: "off" | "on" | string | Extra;
 	maxlength?: number | Extra;
 	minlength?: number | Extra;
 	$bind?: Extra extends never ? never : WritableSignalLike;
@@ -264,7 +297,7 @@ export interface MakeSelectProps<Extra = never> extends MakeBaseProps<Extra, HTM
 	multiple?: boolean | Extra;
 	name?: string | Extra;
 	value?: string | Extra;
-	autocomplete?: "off" | "on" | Extra;
+	autocomplete?: "off" | "on" | string | Extra;
 	$bind?: Extra extends never ? never : WritableSignalLike;
 	$type?: Extra extends never ? never : (raw: string | boolean) => unknown;
 }
@@ -280,7 +313,7 @@ export interface MakeFormProps<Extra = never> extends MakeBaseProps<Extra, HTMLF
 	method?: string | Extra;
 	enctype?: string | Extra;
 	novalidate?: boolean | Extra;
-	autocomplete?: "off" | "on" | Extra;
+	autocomplete?: "off" | "on" | string | Extra;
 }
 
 export interface MakeImgProps<Extra = never> extends MakeBaseProps<Extra, HTMLImageElement> {

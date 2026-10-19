@@ -22,7 +22,7 @@ import { hasHeadContributors, headContributions } from "./head.ts";
 import { renderToTree, serializeTree } from "./render.ts";
 import type { RenderContextState } from "./context.ts";
 
-export { bundleEntrypoints, type BundleOutput } from "./bundle.ts";
+export { bundleEntrypoints, type BundleOptions, type BundleOutput } from "./bundle.ts";
 export { mirrorStripped, type StripOptions, type StrippedTree } from "./prestrip.ts";
 export { stripServerCode } from "./stripServer.ts";
 export {

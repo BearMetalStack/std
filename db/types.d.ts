@@ -11,7 +11,7 @@ export interface TableRegistry {
 		discord_id?: string;
 		github_id?: string;
 	};
-	bma_sessions: { token: string; data?: string };
+	bma_sessions: { token: string; data?: string; user_id?: string };
 	bma_passkeys: {
 		credential_id: string;
 		user_id: string;
@@ -61,6 +61,12 @@ type ConnFromENV = {
 };
 export type PostgresOptions = {
 	poolSize?: number;
+};
+export type SqliteOptions = {
+	/** Path to the database file, or `":memory:"`. */
+	path: string;
+	/** Milliseconds to wait on a locked database before failing. Defaults to 5000; `0` disables. */
+	busyTimeout?: number;
 };
 export type KVOptions = {
 	KV: true;

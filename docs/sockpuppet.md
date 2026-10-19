@@ -99,6 +99,19 @@ sockpuppetModule("/_ws", {
 });
 ```
 
+### Access control
+
+`authorize` runs before a socket is upgraded. Return something truthy to accept it — that value is
+kept as `client.meta` — or `false`/`null`/`undefined` to refuse with a `401`. `canJoin` decides each
+channel join. Both may be async.
+
+```ts
+sockpuppetModule("/ws", {
+	authorize: async (req) => await sessionFrom(req), // e.g. read the auth cookie
+	canJoin: (client, channelId) => !channelId.startsWith("admin:") || isAdmin(client.meta),
+});
+```
+
 ---
 
 ## SocketServer :: direct usage
@@ -157,11 +170,23 @@ server.onDisconnect((clientId) => {
 ### use() :: channel middleware
 
 Registers a `packetCallback` that runs before any channel listener. The first argument is a regex
-string matched against channel names at creation time.
+string matched against channel names at creation time. Return `false` to drop the packet — neither
+the channel's listeners nor the other clients will see it.
 
 ```ts
 server.use("^room:", (packet) => {
 	logPacket(packet);
+});
+```
+
+### onJoin()
+
+Called after a client joins a channel. Send that client alone a backlog with `to()`'s third
+argument:
+
+```ts
+server.onJoin((client, channelId) => {
+	if (channelId === "log") server.to("log", { backlog: recentLines }, client.id);
 });
 ```
 
@@ -189,14 +214,15 @@ import { Sockpuppet } from "@bearmetal/sockpuppet/client";
 new Sockpuppet(path, onConnect?, options?)
 ```
 
-| Argument            | Type         | Description                                                                           |
-| ------------------- | ------------ | ------------------------------------------------------------------------------------- |
-| `path`              | `string`     | WebSocket URL or path. A bare path like `"/_ws"` is resolved against `location.host`. |
-| `onConnect`         | `() => void` | Called when the socket opens. Join channels here.                                     |
-| `options.keepAlive` | `boolean`    | Send periodic pongs to prevent idle disconnection. Defaults to `true`.                |
+| Argument            | Type         | Description                                                                                                |
+| ------------------- | ------------ | ---------------------------------------------------------------------------------------------------------- |
+| `path`              | `string`     | WebSocket URL or path. A bare path like `"/_ws"` is resolved against the page, over `wss:` on https pages. |
+| `onConnect`         | `() => void` | Called when the socket opens. Join channels here.                                                          |
+| `options.keepAlive` | `boolean`    | Send periodic pongs to prevent idle disconnection. Defaults to `true`.                                     |
 
 WebSocket connections are pooled by URL -- multiple `Sockpuppet` instances pointing at the same path
-share one underlying socket.
+share one underlying socket. A closed socket leaves the pool, and `onDisconnect` callbacks fire, so
+a new `Sockpuppet` for the same URL reconnects.
 
 ### joinChannel / leaveChannel
 

@@ -1,7 +1,7 @@
 import Channel from "./Channel.ts";
 import Client from "./Client.ts";
 import Sender from "./Sender.ts";
-import type { disconnectCallback, packetCallback } from "./types.ts";
+import type { disconnectCallback, joinCallback, packetCallback } from "./types.ts";
 import { Packet } from "./Packet.ts";
 
 export default class EventEmitter {
@@ -73,6 +73,7 @@ export default class EventEmitter {
 		if (!channel!.listeners.get(clientId)) channel.listeners.set(clientId, client.socket);
 		client.socket.send(`joined ${channelId}`);
 		this.refreshChannels();
+		this.joinCallbacks.forEach((cb) => cb(client, channelId));
 	};
 
 	public removeClientFromChannel = (channelId: string, clientId: string): void => {
@@ -103,6 +104,10 @@ export default class EventEmitter {
 
 	public connectCallbacks: (packetCallback)[] = [];
 	public onConnect = (callback: packetCallback): number => this.connectCallbacks.push(callback);
+
+	public joinCallbacks: joinCallback[] = [];
+	/** Called after a client joins a channel — the place to send it a backlog with `to(channelId, msg, client.id)`. */
+	public onJoin = (callback: joinCallback): number => this.joinCallbacks.push(callback);
 
 	public disconnectCallbacks: disconnectCallback[] = [];
 	public onDisconnect = (callback: disconnectCallback): number =>

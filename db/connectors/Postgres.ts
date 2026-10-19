@@ -17,6 +17,7 @@ function resolveIdentifier(id: TableIdentifier): string {
 }
 
 export class PostgresConnector extends Connector {
+	declare protected opts: DBOptions<PostgresOptions>;
 	#pool: Pool;
 	#state: QueryState;
 
