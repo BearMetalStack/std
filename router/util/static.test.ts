@@ -33,7 +33,7 @@ describe("resolveStaticFile path containment", () => {
 
 	it("should refuse a path that climbs out of the directory", async () => {
 		const res = await resolveStaticFile(served, "/assets", "/assets/../secret.txt", false, false);
-		assertEquals(res.status, 404);
+		assertEquals(res?.status, 404);
 	});
 
 	it("should refuse percent-encoded dot segments", async () => {
@@ -44,7 +44,7 @@ describe("resolveStaticFile path containment", () => {
 			false,
 			false,
 		);
-		assertEquals(res.status, 404);
+		assertEquals(res?.status, 404);
 	});
 
 	it("should refuse a sibling directory sharing the served prefix", async () => {
@@ -55,12 +55,12 @@ describe("resolveStaticFile path containment", () => {
 			false,
 			false,
 		);
-		assertEquals(res.status, 404);
+		assertEquals(res?.status, 404);
 	});
 
 	it("should refuse traversal in spa mode rather than serving the shell", async () => {
 		const res = await resolveStaticFile(served, "/assets", "/assets/../secret.txt", true, false);
-		assertEquals(res.status, 404);
+		assertEquals(res?.status, 404);
 	});
 
 	it("should still resolve dot segments that stay inside the directory", async () => {
@@ -71,7 +71,7 @@ describe("resolveStaticFile path containment", () => {
 			false,
 			false,
 		);
-		assertEquals(await res.text(), "app bundle");
+		assertEquals(await res!.text(), "app bundle");
 	});
 
 	it("should still serve ordinary nested paths", async () => {
@@ -82,11 +82,11 @@ describe("resolveStaticFile path containment", () => {
 			false,
 			false,
 		);
-		assertEquals(await res.text(), "deep file");
+		assertEquals(await res!.text(), "deep file");
 	});
 
 	it("should still fall back to the spa shell for unknown in-tree routes", async () => {
 		const res = await resolveStaticFile(served, "/assets", "/assets/some/view", true, false);
-		assertEquals(await res.text(), "<html>shell</html>");
+		assertEquals(await res!.text(), "<html>shell</html>");
 	});
 });

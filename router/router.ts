@@ -6,7 +6,7 @@ import {
 	NotFound,
 	NotImplemented,
 } from "@/util/response.ts";
-import { resolveStaticFile, toDirectoryUrl } from "@/util/static.ts";
+import { resolveStaticFile, type StaticFileCache, toDirectoryUrl } from "@/util/static.ts";
 import { styleAlias, styles, stylizer } from "./logstyles.ts";
 import { FormDataSchema, QuerySchema, RawBodySchema, SchemaError } from "./schema.ts";
 import {
@@ -289,7 +289,10 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 		const middlewareStack: AnyHandler[] = matchingRoutes.flatMap((r) =>
 			(r.config.handlers[_use] ?? []).concat(r.config.handlers[method] ?? [])
 		).concat([
-			() => matchingRoutes.length > 0 ? MethodNotAllowed() : NotFound(),
+			() =>
+				matchingRoutes.length > 0 && !matchingRoutes.some((r) => r.config.handlers[method])
+					? MethodNotAllowed()
+					: NotFound(),
 		]);
 
 		const rawParams: Record<string, string | undefined> = matchingRoutes.reduce(
@@ -398,6 +401,16 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 	 * the directory should be located relative to the module rather than the
 	 * working directory, which is what keeps assets reachable from a
 	 * `deno compile` binary that embedded them.
+	 *
+	 * With `fallthrough`, a request that matches no file calls `next()` instead
+	 * of answering 404, so later routes and middleware get a turn.
+	 *
+	 * With `cache`, file contents are kept in an in-memory `Map` after their
+	 * first read. The cache is **unbounded**: it never evicts and never clears
+	 * itself, so every distinct file served stays resident for the life of the
+	 * process and later changes on disk are not seen. Only use it for a
+	 * directory whose size you know. It is ignored entirely in dev
+	 * (`BEARMETAL_ENV=dev`), so files are always read fresh there.
 	 */
 	serveDirectory(
 		dir: string | URL,
@@ -408,12 +421,18 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			spa = false,
 			queryable = false,
 			favicon,
+			fallthrough = false,
+			cache = false,
 		}: {
 			showIndex?: boolean;
 			flatten?: boolean | RegExp;
 			spa?: boolean;
 			queryable?: boolean;
 			favicon?: string;
+			/** Call `next()` instead of answering 404 when no file matches. */
+			fallthrough?: boolean;
+			/** Keep file contents in an unbounded in-memory cache. Skipped in dev. */
+			cache?: boolean;
 		} = {},
 	): void {
 		let dirSpec: string | URL = dir;
@@ -438,11 +457,15 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 			});
 		}
 
-		this.route(root + "*").get((ctx) => {
+		const fileCache: StaticFileCache | undefined = cache && !isDev() ? new Map() : undefined;
+
+		this.route(root + "*").get(async (ctx, next) => {
 			const path = favicon && ctx.url.pathname.endsWith("favicon.ico")
 				? ctx.url.pathname.replace("favicon.ico", favicon.replace(/^\//, ""))
 				: ctx.url.pathname;
-			return resolveStaticFile(effectiveDir, root, path, spa, showIndex);
+			const res = await resolveStaticFile(effectiveDir, root, path, spa, showIndex, fileCache);
+			if (res) return res;
+			return fallthrough ? next() : NotFound();
 		});
 	}
 }

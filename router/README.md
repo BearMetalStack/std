@@ -603,6 +603,21 @@ router.serveDirectory(new URL("./public/", import.meta.url), "/url-root");
 Path strings are resolved against `Deno.cwd()`, so `'dirname'`, `'./dirname'` and `'/abs/dirname'`
 all keep their usual meanings.
 
+```ts
+// Hand misses to the next handler instead of answering 404 - lets a directory
+// share a prefix with regular routes
+router.serveDirectory("public", "/", { fallthrough: true });
+
+// Keep file contents in memory after the first read
+router.serveDirectory("public", "/assets", { cache: true });
+```
+
+**The `cache` option is unbounded.** It is a plain in-memory `Map` that never evicts and never
+clears itself: every distinct file served stays resident for the life of the process, and changes to
+a file on disk are not seen until a restart. Use it only for a directory whose size you know. In dev
+(`BEARMETAL_ENV=dev`, the default when unset) the cache is skipped entirely and files are always
+read fresh.
+
 ### File-based Routing
 
 **Note:** _This is an experimental feature and may change in the future. Currently, JSR does not

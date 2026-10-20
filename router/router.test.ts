@@ -431,6 +431,110 @@ describe("Router", () => {
 		});
 	});
 
+	describe("Static Serving Options", () => {
+		let dir: string;
+		const get = (path: string) => router.handle(new Request(`http://localhost${path}`), {} as any);
+
+		beforeEach(async () => {
+			dir = await Deno.makeTempDir();
+			await Deno.writeTextFile(dir + "/app.js", "v1");
+			for (const name of ["a.woff2", "a.woff", "a.ttf", "a.otf", "a.ico", "a.webp"]) {
+				await Deno.writeFile(dir + "/" + name, new Uint8Array([0]));
+			}
+		});
+
+		afterEach(async () => {
+			await Deno.remove(dir, { recursive: true });
+		});
+
+		it("should send content types for fonts, icons and webp", async () => {
+			router.serveDirectory(dir, "/assets");
+			const expected: Record<string, string> = {
+				"a.woff2": "font/woff2",
+				"a.woff": "font/woff",
+				"a.ttf": "font/ttf",
+				"a.otf": "font/otf",
+				"a.ico": "image/x-icon",
+				"a.webp": "image/webp",
+			};
+			for (const [name, type] of Object.entries(expected)) {
+				const res = await get(`/assets/${name}`);
+				await res.body?.cancel();
+				assertEquals(res.headers.get("Content-Type"), type);
+			}
+		});
+
+		it("should call next() on a miss with fallthrough", async () => {
+			router.serveDirectory(dir, "/", { fallthrough: true });
+			router.route("/page").get(() => new Response("page"));
+
+			assertEquals(await (await get("/app.js")).text(), "v1");
+			assertEquals(await (await get("/page")).text(), "page");
+		});
+
+		it("should answer 404 rather than 405 when fallthrough reaches the end", async () => {
+			router.serveDirectory(dir, "/assets", { fallthrough: true });
+
+			const res = await get("/assets/missing.js");
+			assertEquals(res.status, 404);
+		});
+
+		it("should 404 a miss without fallthrough", async () => {
+			router.serveDirectory(dir, "/assets");
+			router.use(() => new Response("reached"));
+
+			const res = await get("/assets/missing.js");
+			assertEquals(res.status, 404);
+		});
+
+		const envGranted =
+			Deno.permissions.querySync({ name: "env", variable: "BEARMETAL_ENV" }).state ===
+				"granted";
+
+		const withEnv = async (value: string | undefined, fn: () => Promise<void>) => {
+			if (!envGranted) return fn();
+			const previous = Deno.env.get("BEARMETAL_ENV");
+			if (value === undefined) Deno.env.delete("BEARMETAL_ENV");
+			else Deno.env.set("BEARMETAL_ENV", value);
+			try {
+				await fn();
+			} finally {
+				if (previous === undefined) Deno.env.delete("BEARMETAL_ENV");
+				else Deno.env.set("BEARMETAL_ENV", previous);
+			}
+		};
+
+		it("should serve cached contents after the file changes", () =>
+			withEnv("prod", async () => {
+				router.serveDirectory(dir, "/assets", { cache: true });
+
+				assertEquals(await (await get("/assets/app.js")).text(), "v1");
+				await Deno.writeTextFile(dir + "/app.js", "v2");
+				assertEquals(await (await get("/assets/app.js")).text(), "v1");
+			}));
+
+		it("should read fresh without the cache option", async () => {
+			router.serveDirectory(dir, "/assets");
+
+			assertEquals(await (await get("/assets/app.js")).text(), "v1");
+			await Deno.writeTextFile(dir + "/app.js", "v2");
+			assertEquals(await (await get("/assets/app.js")).text(), "v2");
+		});
+
+		it({
+			name: "should skip the cache in dev",
+			ignore: !envGranted,
+			fn: () =>
+				withEnv("dev", async () => {
+					router.serveDirectory(dir, "/assets", { cache: true });
+
+					assertEquals(await (await get("/assets/app.js")).text(), "v1");
+					await Deno.writeTextFile(dir + "/app.js", "v2");
+					assertEquals(await (await get("/assets/app.js")).text(), "v2");
+				}),
+		});
+	});
+
 	describe("onError", () => {
 		const boom = () => {
 			throw new Error("kaboom");

@@ -18,6 +18,20 @@ export function getContentTypeByExtension(extension?: string) {
 			return "image/gif";
 		case "svg":
 			return "image/svg+xml";
+		case "webp":
+			return "image/webp";
+		case "ico":
+			return "image/x-icon";
+		case "woff":
+			return "font/woff";
+		case "woff2":
+			return "font/woff2";
+		case "ttf":
+			return "font/ttf";
+		case "otf":
+			return "font/otf";
+		case "eot":
+			return "application/vnd.ms-fontobject";
 		case "txt":
 		case "md":
 			return "text/plain";

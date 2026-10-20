@@ -46,8 +46,24 @@ function childUrl(dir: URL, subPath: string): URL | null {
 	return url.href.startsWith(dir.href) ? url : null;
 }
 
-export async function fileResponse(path: string | URL): Promise<Response> {
-	const file = await Deno.readFile(path);
+/**
+ * In-memory store of file contents keyed by resolved `file:` URL href.
+ *
+ * Unbounded: entries are never evicted, so every distinct file served stays in
+ * memory for the life of the process, and changes on disk are not picked up.
+ */
+export type StaticFileCache = Map<string, Uint8Array<ArrayBuffer>>;
+
+export async function fileResponse(
+	path: string | URL,
+	cache?: StaticFileCache,
+): Promise<Response> {
+	const key = path instanceof URL ? path.href : path;
+	let file = cache?.get(key);
+	if (!file) {
+		file = await Deno.readFile(path);
+		cache?.set(key, file);
+	}
 	const ext = (path instanceof URL ? path.pathname : path).split(".").at(-1);
 	return new Response(file, {
 		headers: {
@@ -57,36 +73,43 @@ export async function fileResponse(path: string | URL): Promise<Response> {
 	});
 }
 
+/**
+ * Resolves `pathname` to a file under `dir`, or null when nothing matches -
+ * the caller decides whether a miss is a 404 or falls through to the next
+ * handler. A path escaping `dir` is answered with a 404 outright and never
+ * falls through.
+ */
 export async function resolveStaticFile(
 	dir: string | URL,
 	root: string,
 	pathname: string,
 	spa: boolean,
 	showIndex: boolean,
-): Promise<Response> {
+	cache?: StaticFileCache,
+): Promise<Response | null> {
 	const dirUrl = toDirectoryUrl(dir);
 	const relative = pathname.replace(new RegExp("^" + root), "").trim();
 	const target = childUrl(dirUrl, relative);
 	if (!target) return NotFound();
 
-	const served = await tryServeFile(target, spa, showIndex);
+	const served = await tryServeFile(target, spa, showIndex, cache);
 	if (served) return served;
 
 	if (spa) {
 		const flattened = childUrl(dirUrl, pathname.split("/").pop()!);
 		if (flattened && flattened.href !== target.href) {
-			const asset = await tryServeFile(flattened, spa, showIndex);
+			const asset = await tryServeFile(flattened, spa, showIndex, cache);
 			if (asset) return asset;
 		}
 		try {
-			return await fileResponse(new URL("index.html", dirUrl));
+			return await fileResponse(new URL("index.html", dirUrl), cache);
 		} catch (e) {
-			if (e instanceof Deno.errors.NotFound) return NotFound();
+			if (e instanceof Deno.errors.NotFound) return null;
 			throw e;
 		}
 	}
 
-	return NotFound();
+	return null;
 }
 
 /** Serves the file (or its directory index) at `url`, or null if it doesn't resolve to one. */
@@ -94,18 +117,20 @@ async function tryServeFile(
 	url: URL,
 	spa: boolean,
 	showIndex: boolean,
+	cache?: StaticFileCache,
 ): Promise<Response | null> {
+	if (cache?.has(url.href)) return fileResponse(url, cache);
 	let resolved = url;
 	try {
 		const fileInfo = await Deno.stat(resolved);
 		if (fileInfo.isDirectory) {
-			if (!showIndex && !spa) return NotFound();
+			if (!showIndex && !spa) return null;
 			resolved = new URL(
 				"index.html",
 				resolved.pathname.endsWith("/") ? resolved : new URL(resolved.href + "/"),
 			);
 		}
-		return await fileResponse(resolved);
+		return await fileResponse(resolved, cache);
 	} catch (error) {
 		if (error instanceof Deno.errors.NotFound) return null;
 		throw error;
