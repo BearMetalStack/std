@@ -645,4 +645,69 @@ describe("Router", () => {
 			assertEquals(segments, []);
 		});
 	});
+
+	describe("Raw bodies", () => {
+		// Bytes that aren't UTF-8, so a text round trip would change them.
+		const bytes = new Uint8Array([0xff, 0xfe, 0x00, 0x80, 0x41]);
+
+		it("hands the body over as the exact bytes sent", async () => {
+			let got: Uint8Array | undefined;
+			router.route("/hook").post(s.raw(), (ctx) => {
+				got = ctx.body;
+				return new Response("ok");
+			});
+			const res = await router.handle(
+				new Request("http://localhost/hook", { method: "POST", body: bytes }),
+				{} as any,
+			);
+			await res.body?.cancel();
+			assertEquals(res.status, 200);
+			assertEquals(got, bytes);
+		});
+
+		it("gives an empty body as no bytes", async () => {
+			let got: Uint8Array | undefined;
+			router.route("/hook").post(s.raw(), (ctx) => {
+				got = ctx.body;
+				return new Response("ok");
+			});
+			const res = await router.handle(
+				new Request("http://localhost/hook", { method: "POST" }),
+				{} as any,
+			);
+			await res.body?.cancel();
+			assertEquals(got, new Uint8Array(0));
+		});
+
+		it("answers 413 past maxBytes, by content-length or by what arrives", async () => {
+			let called = false;
+			router.route("/hook").post(s.raw({ maxBytes: 4 }), () => {
+				called = true;
+				return new Response("ok");
+			});
+			const declared = await router.handle(
+				new Request("http://localhost/hook", { method: "POST", body: bytes }),
+				{} as any,
+			);
+			await declared.body?.cancel();
+			assertEquals(declared.status, 413);
+
+			// A stream has no content-length; reading stops once it's too big.
+			let pulls = 0;
+			const endless = new ReadableStream<Uint8Array>({
+				pull(controller) {
+					pulls++;
+					controller.enqueue(new Uint8Array(3));
+				},
+			});
+			const streamed = await router.handle(
+				new Request("http://localhost/hook", { method: "POST", body: endless }),
+				{} as any,
+			);
+			await streamed.body?.cancel();
+			assertEquals(streamed.status, 413);
+			assertEquals(pulls < 5, true);
+			assertEquals(called, false);
+		});
+	});
 });

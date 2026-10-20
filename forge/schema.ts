@@ -44,7 +44,11 @@ export interface JSONSchema {
 	maxItems?: number;
 	propertyNames?: JSONSchema;
 	/** Signals to the router how to source the value for this schema */
-	"x-content-type"?: "multipart/form-data" | "application/x-www-form-urlencoded" | "query";
+	"x-content-type"?:
+		| "multipart/form-data"
+		| "application/x-www-form-urlencoded"
+		| "query"
+		| "application/octet-stream";
 }
 
 // ─── Error ────────────────────────────────────────────────────────────────────
@@ -975,6 +979,54 @@ export class FormDataSchema<S extends SchemaShape> extends Schema<InferShape<S>>
 	}
 }
 
+// ─── Raw body ─────────────────────────────────────────────────────────────────
+
+/** The default `maxBytes` for `s.raw()`: 1 MiB. */
+export const DEFAULT_RAW_MAX_BYTES = 1024 * 1024;
+
+/**
+ * The request body, untouched, as bytes. For bodies that must be read exactly
+ * as sent, such as webhooks whose signatures cover the raw bytes.
+ */
+export class RawBodySchema extends Schema<Uint8Array> {
+	/** Marker used by the router to read the body as bytes, up to `maxBytes`. */
+	readonly _isRaw = true as const;
+
+	constructor(
+		/** The router answers 413 Content Too Large for a body bigger than this. */
+		readonly maxBytes: number = DEFAULT_RAW_MAX_BYTES,
+		protected readonly description?: string,
+	) {
+		super();
+		if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) {
+			throw new RangeError("maxBytes must be a whole number of bytes");
+		}
+	}
+
+	_parse(value: unknown, path: (string | number)[]): ParseResult<Uint8Array> {
+		if (!(value instanceof Uint8Array)) {
+			return fail(path, `Expected bytes, got ${value === null ? "null" : typeof value}`);
+		}
+		if (value.byteLength > this.maxBytes) {
+			return fail(path, `Expected at most ${this.maxBytes} bytes, got ${value.byteLength}`);
+		}
+		return { success: true, data: value };
+	}
+
+	toJSONSchema(): JSONSchema {
+		return {
+			type: "string",
+			format: "binary",
+			"x-content-type": "application/octet-stream",
+			...(this.description ? { description: this.description } : {}),
+		};
+	}
+
+	describe(description: string): RawBodySchema {
+		return new RawBodySchema(this.maxBytes, description);
+	}
+}
+
 // ─── Query params ─────────────────────────────────────────────────────────────
 
 export class QuerySchema<S extends SchemaShape> extends Schema<InferShape<S>> {
@@ -1061,6 +1113,11 @@ export const s = {
 	formData: <S extends SchemaShape>(shape: S): FormDataSchema<S> => new FormDataSchema(shape),
 	query: <S extends SchemaShape>(shape: S): QuerySchema<S> => new QuerySchema(shape),
 	file: (): FileSchema => new FileSchema(),
+	/**
+	 * The body as raw bytes (`Uint8Array`), not parsed. The router stops reading
+	 * and answers 413 past `maxBytes` (default 1 MiB).
+	 */
+	raw: (opts: { maxBytes?: number } = {}): RawBodySchema => new RawBodySchema(opts.maxBytes),
 	/** Shorthand for `f.string().uuid()`. */
 	uuid: (): StringSchema => new StringSchema([{ kind: "uuid" }]),
 	/**

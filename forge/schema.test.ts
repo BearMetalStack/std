@@ -452,6 +452,33 @@ describe("s.nullable()", () => {
 	});
 });
 
+// ─── s.raw() ──────────────────────────────────────────────────────────────────
+
+describe("s.raw()", () => {
+	it("accepts bytes within maxBytes", () => {
+		const bytes = new Uint8Array([1, 2, 3]);
+		assertEquals(ok(s.raw({ maxBytes: 3 }), bytes), bytes);
+		assertEquals(s.raw().maxBytes, 1024 * 1024);
+	});
+
+	it("rejects anything else, and bytes past maxBytes", () => {
+		assertEquals(fail(s.raw(), "text"), ["Expected bytes, got string"]);
+		assertEquals(fail(s.raw({ maxBytes: 2 }), new Uint8Array(3)), [
+			"Expected at most 2 bytes, got 3",
+		]);
+		assertThrows(() => s.raw({ maxBytes: -1 }), RangeError);
+	});
+
+	it(".toJSONSchema() describes binary content", () => {
+		assertEquals(s.raw().describe("A webhook body").toJSONSchema(), {
+			type: "string",
+			format: "binary",
+			"x-content-type": "application/octet-stream",
+			description: "A webhook body",
+		});
+	});
+});
+
 // ─── s.formData() ─────────────────────────────────────────────────────────────
 
 describe("s.formData()", () => {

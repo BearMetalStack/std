@@ -9,7 +9,7 @@
  */
 // deno-lint-ignore-file no-explicit-any
 
-import { FormDataSchema, QuerySchema, type Schema, SchemaError } from "../schema.ts";
+import { FormDataSchema, QuerySchema, RawBodySchema, type Schema, SchemaError } from "../schema.ts";
 import { buildPath, readResponseBody, toFormData, toSearchParams } from "./encode.ts";
 import type {
 	AnyController,
@@ -153,6 +153,10 @@ async function callEndpoint(
 				: toFormData(def.input.shape, rawInput as Record<string, unknown>);
 			assertValidInput(def.input, form, label, def.method);
 			body = form;
+		} else if (def.input instanceof RawBodySchema) {
+			const bytes = assertValidInput(def.input, rawInput, label, def.method) as Uint8Array;
+			body = bytes as Uint8Array<ArrayBuffer>;
+			if (!headers.has("content-type")) headers.set("content-type", "application/octet-stream");
 		} else {
 			const parsed = assertValidInput(def.input, rawInput, label, def.method);
 			body = JSON.stringify(parsed);

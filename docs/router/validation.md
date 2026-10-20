@@ -34,11 +34,12 @@ The schema argument is only available on the configurator form. The
 
 The schema's **class** decides which part of the request is read — not the HTTP method:
 
-| Schema              | Source                 | Notes                            |
-| ------------------- | ---------------------- | -------------------------------- |
-| `s.query({...})`    | `url.searchParams`     | result still lands on `ctx.body` |
-| `s.formData({...})` | `await req.formData()` | supports `s.file()`              |
-| anything else       | `await req.json()`     |                                  |
+| Schema              | Source                 | Notes                                    |
+| ------------------- | ---------------------- | ---------------------------------------- |
+| `s.query({...})`    | `url.searchParams`     | result still lands on `ctx.body`         |
+| `s.formData({...})` | `await req.formData()` | supports `s.file()`                      |
+| `s.raw()`           | the body's bytes       | `Uint8Array`, capped at `maxBytes` (413) |
+| anything else       | `await req.json()`     |                                          |
 
 This means a `GET` with an `s.object()` schema will try to read a JSON body, and a `POST` with an
 `s.query()` schema will read the query string. Match the schema to where the data actually is.
@@ -85,6 +86,27 @@ router.route("/upload").post(
 ```
 
 As with query strings, a single value is unwrapped and repeated keys become an array.
+
+### Raw bytes
+
+```ts
+router.route("/webhooks/github").post(
+	s.raw({ maxBytes: 512 * 1024 }),
+	async (ctx) => {
+		ctx.body; // Uint8Array: exactly what was sent
+		if (!await validSignature(ctx.body, ctx.request.headers)) return Unauthorized();
+		return Ok();
+	},
+);
+```
+
+`s.raw()` hands over the body untouched, for when the bytes themselves matter: a webhook whose
+signature covers them, or a body that isn't text. Every other schema, and a route with none, decodes
+the body as UTF-8 text first, which changes bytes that aren't valid UTF-8.
+
+The router stops reading as soon as the body passes `maxBytes` (1 MiB by default) and answers **413
+Content Too Large**, so a public endpoint can't be made to buffer an unbounded body. A
+`content-length` that is already too large is refused without reading anything.
 
 ## One schema per method
 

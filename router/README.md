@@ -260,24 +260,25 @@ issue.
 
 #### Schema types
 
-| Factory              | TypeScript type     | Notes                                                   |
-| -------------------- | ------------------- | ------------------------------------------------------- |
-| `s.string()`         | `string`            |                                                         |
-| `s.number()`         | `number`            |                                                         |
-| `s.boolean()`        | `boolean`           |                                                         |
-| `s.literal(value)`   | `typeof value`      | exact match                                             |
-| `s.enum("a", "b")`   | `"a" \| "b"`        | string enum                                             |
-| `s.object({ … })`    | `{ … }`             | nested schemas                                          |
-| `s.array(schema)`    | `T[]`               |                                                         |
-| `s.union(a, b)`      | `A \| B`            | first-match                                             |
-| `s.optional(schema)` | `T \| undefined`    | also `.optional()` on any schema                        |
-| `s.nullable(schema)` | `T \| null`         | also `.nullable()` on any schema                        |
-| `s.formData({ … })`  | `{ … }`             | parses `multipart/form-data`                            |
-| `s.query({ … })`     | `{ … }`             | parses URL query parameters into `ctx.body`             |
-| `s.file()`           | `File`              | for use inside `s.formData()`                           |
-| `s.record(values)`   | `Record<string, T>` | dictionary; `s.record(keys, values)` checks keys too    |
-| `s.json()`           | `unknown`           | "it's JSON, I'll validate it"; empty body → `undefined` |
-| `s.uuid()`           | `string`            | shorthand for `s.string().uuid()`                       |
+| Factory               | TypeScript type     | Notes                                                   |
+| --------------------- | ------------------- | ------------------------------------------------------- |
+| `s.string()`          | `string`            |                                                         |
+| `s.number()`          | `number`            |                                                         |
+| `s.boolean()`         | `boolean`           |                                                         |
+| `s.literal(value)`    | `typeof value`      | exact match                                             |
+| `s.enum("a", "b")`    | `"a" \| "b"`        | string enum                                             |
+| `s.object({ … })`     | `{ … }`             | nested schemas                                          |
+| `s.array(schema)`     | `T[]`               |                                                         |
+| `s.union(a, b)`       | `A \| B`            | first-match                                             |
+| `s.optional(schema)`  | `T \| undefined`    | also `.optional()` on any schema                        |
+| `s.nullable(schema)`  | `T \| null`         | also `.nullable()` on any schema                        |
+| `s.formData({ … })`   | `{ … }`             | parses `multipart/form-data`                            |
+| `s.query({ … })`      | `{ … }`             | parses URL query parameters into `ctx.body`             |
+| `s.file()`            | `File`              | for use inside `s.formData()`                           |
+| `s.raw({ maxBytes })` | `Uint8Array`        | the body's exact bytes; 413 past `maxBytes` (1 MiB)     |
+| `s.record(values)`    | `Record<string, T>` | dictionary; `s.record(keys, values)` checks keys too    |
+| `s.json()`            | `unknown`           | "it's JSON, I'll validate it"; empty body → `undefined` |
+| `s.uuid()`            | `string`            | shorthand for `s.string().uuid()`                       |
 
 A schema route reads the body as JSON. An empty body is parsed as `undefined`, so `s.json()` and
 `.optional()` schemas accept a request with no body; a required schema still answers 400.
@@ -360,6 +361,20 @@ router.route("/upload")
 	.post(Upload, (ctx) => {
 		const { title, file, count } = ctx.body;
 		return new Response(`Uploaded ${file.name}`);
+	});
+```
+
+#### Raw bytes
+
+Use `s.raw()` when the exact bytes matter, such as a webhook whose signature covers them. Every
+other schema decodes the body as text first. The router reads at most `maxBytes` (1 MiB by default)
+and answers 413 Content Too Large past that.
+
+```ts
+router.route("/webhooks/twitch")
+	.post(s.raw({ maxBytes: 64 * 1024 }), (ctx) => {
+		const body: Uint8Array = ctx.body;
+		return new Response(null, { status: 204 });
 	});
 ```
 

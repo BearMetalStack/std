@@ -1,5 +1,6 @@
 import {
 	BadRequest,
+	ContentTooLarge,
 	InternalError,
 	MethodNotAllowed,
 	NotFound,
@@ -7,7 +8,7 @@ import {
 } from "@/util/response.ts";
 import { resolveStaticFile, toDirectoryUrl } from "@/util/static.ts";
 import { styleAlias, styles, stylizer } from "./logstyles.ts";
-import { FormDataSchema, QuerySchema, SchemaError } from "./schema.ts";
+import { FormDataSchema, QuerySchema, RawBodySchema, SchemaError } from "./schema.ts";
 import {
 	_use,
 	type AnyHandler,
@@ -268,6 +269,12 @@ export class Router<TState extends StateType = {}> extends Module<TState> {
 				body = schema.parse(url.searchParams);
 			} else if (schema instanceof FormDataSchema) {
 				body = schema.parse(await req.formData());
+			} else if (schema instanceof RawBodySchema) {
+				const bytes = await readBytes(req, schema.maxBytes);
+				if (!bytes) {
+					return ContentTooLarge(`The body may be at most ${schema.maxBytes} bytes`);
+				}
+				body = schema.parse(bytes);
 			} else if (schema) {
 				const text = await req.text();
 				body = schema.parse(text.trim() ? JSON.parse(text) : undefined);
@@ -479,3 +486,36 @@ function splitSegments(raw: string | undefined): string[] {
 }
 
 export default Router;
+
+/**
+ * Reads a request body as bytes, giving up as soon as it passes `max`. Resolves
+ * to `undefined` when it's too big, without reading the rest.
+ */
+async function readBytes(req: Request, max: number): Promise<Uint8Array | undefined> {
+	const declared = Number(req.headers.get("content-length"));
+	if (Number.isFinite(declared) && declared > max) {
+		await req.body?.cancel();
+		return undefined;
+	}
+	if (!req.body) return new Uint8Array(0);
+	const chunks: Uint8Array[] = [];
+	let size = 0;
+	const reader = req.body.getReader();
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		size += value.byteLength;
+		if (size > max) {
+			await reader.cancel();
+			return undefined;
+		}
+		chunks.push(value);
+	}
+	const bytes = new Uint8Array(size);
+	let offset = 0;
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return bytes;
+}

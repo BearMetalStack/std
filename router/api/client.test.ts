@@ -298,3 +298,32 @@ describe("client configuration", () => {
 		assertEquals(url, "https://example.test/v1/users/1");
 	});
 });
+
+describe("raw bodies", () => {
+	it("sends bytes exactly as given, and the controller gets them back", async () => {
+		const api = defineApi()
+			.route("/upload", "upload")
+			.post(s.raw({ maxBytes: 16 }), s.array(s.number()))
+			.build();
+		const module = createApiModule(api, {
+			upload: { post: (ctx) => Ok([...ctx.input]) },
+		});
+		const router = new Router();
+		router.use(module);
+		const client = createClient(api, {
+			baseUrl: "http://localhost",
+			fetch: (req) => router.handle(req, {} as any),
+		});
+
+		const result = await client.upload().post(new Uint8Array([0xff, 0x00, 0x80]));
+		assertEquals(result.status, 200);
+		if (result.status !== 200) throw new Error("unreachable");
+		assertEquals(result.data, [0xff, 0x00, 0x80]);
+
+		await assertRejects(
+			() => client.upload().post(new Uint8Array(17)),
+			ApiContractError,
+			"at most 16 bytes",
+		);
+	});
+});

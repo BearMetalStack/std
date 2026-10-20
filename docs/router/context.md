@@ -39,11 +39,12 @@ method. Register a schema and `body` becomes that schema's inferred output type,
 
 Which part of the request it comes from depends on the schema's class, not the HTTP method:
 
-| Schema              | Source                 |
-| ------------------- | ---------------------- |
-| `s.query({...})`    | `url.searchParams`     |
-| `s.formData({...})` | `await req.formData()` |
-| anything else       | `await req.json()`     |
+| Schema              | Source                              |
+| ------------------- | ----------------------------------- |
+| `s.query({...})`    | `url.searchParams`                  |
+| `s.formData({...})` | `await req.formData()`              |
+| `s.raw()`           | the body's bytes, as a `Uint8Array` |
+| anything else       | `await req.json()`                  |
 
 See [Request validation](./validation).
 
