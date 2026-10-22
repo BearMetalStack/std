@@ -358,8 +358,23 @@ export interface Snapshot extends RawImage {
 export interface ViewportOptions {
 	/** Zoom around the cursor with the wheel. Default `true`. */
 	wheelZoom?: boolean;
-	/** Pan by dragging empty space. Default `true`. */
+	/** Pan by dragging empty space. Default `true`. `false` is the same as `panButtons: 0`. */
 	dragPan?: boolean;
+	/**
+	 * Which buttons pan when dragged, as `MouseEvent.buttons` bits: 1 primary, 2 secondary,
+	 * 4 middle. The primary button only pans from empty space; the others pan from anywhere.
+	 * Default `1`.
+	 */
+	panButtons?: number;
+	/**
+	 * What a plain wheel does. `"zoom"` (the default) zooms. `"pan"` scrolls the view, which suits
+	 * trackpads; Ctrl/Meta+wheel, and trackpad pinches, still zoom.
+	 */
+	wheel?: "zoom" | "pan";
+	/** Smallest allowed `camera.scale`. */
+	minZoom?: number;
+	/** Largest allowed `camera.scale`. */
+	maxZoom?: number;
 }
 
 /** What kind of call drew a clickable object. */
@@ -400,8 +415,16 @@ export interface HitResult {
 	screenY: number;
 }
 
+/** Modifier keys held during an input. */
+export interface Modifiers {
+	shift: boolean;
+	ctrl: boolean;
+	alt: boolean;
+	meta: boolean;
+}
+
 /** `detail` of an `anode:click` event. */
-export interface AnodeClickDetail extends HitResult {
+export interface AnodeClickDetail extends HitResult, Modifiers {
 	/** `MouseEvent.button`: 0 primary, 1 middle, 2 secondary. */
 	button: number;
 }
@@ -466,7 +489,7 @@ export interface LineHitResult {
 }
 
 /** `detail` of an `anode:lineclick` event. */
-export interface AnodeLineClickDetail extends LineHitResult {
+export interface AnodeLineClickDetail extends LineHitResult, Modifiers {
 	/** `MouseEvent.button`: 0 primary, 1 middle, 2 secondary. */
 	button: number;
 }

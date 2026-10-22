@@ -87,6 +87,44 @@ against its real outline (ellipses and diamonds included). It carries `id`, `kin
 passed as `data`. `x`/`y` are the world point; `screenX`/`screenY` are canvas pixels.
 `a.hitTest(screenX, screenY)` gives the same answer on demand, headless too.
 
+Clicks also carry the modifier keys held at the time (`shift`, `ctrl`, `alt`, `meta`). To draw your
+own right-click menu, turn the browser's off with `createAnodized(canvas, { contextMenu: false })`
+(or `a.contextMenu = false`) and handle clicks with `button: 2`.
+
+### Raw input
+
+For interactions anodized doesn't do itself (dragging a wire out of a port, marquee selection,
+space-drag panning), the draw callback can read the frame's pointer state as `f.input`:
+
+```ts
+a.loop((f) => {
+	const input = f.input; // null in snapshots
+	if (input && input.pressedButtons & Buttons.primary && input.shift) {
+		startMarquee(input.x, input.y);
+	}
+});
+```
+
+It has the screen position and movement (`x`, `y`, `dx`, `dy`), every held button as
+`MouseEvent.buttons` bits (`buttons`), the buttons that went down or up this frame
+(`pressedButtons`, `releasedButtons`), modifier keys, and both wheel axes.
+
+### Viewport controls
+
+`a.viewport()` turns on wheel zoom around the cursor and drag-to-pan on empty space. Options:
+
+| option       | default  | meaning                                                                      |
+| ------------ | -------- | ---------------------------------------------------------------------------- |
+| `panButtons` | `1`      | buttons that pan when dragged (bits: 1 primary, 2 secondary, 4 middle)       |
+| `wheel`      | `"zoom"` | `"pan"` scrolls with the wheel or trackpad; Ctrl/Meta+wheel and pinches zoom |
+| `minZoom`    | none     | smallest `camera.scale`                                                      |
+| `maxZoom`    | none     | largest `camera.scale`                                                       |
+| `wheelZoom`  | `true`   | zoom with the wheel at all                                                   |
+| `dragPan`    | `true`   | `false` is shorthand for `panButtons: 0`                                     |
+
+Only the primary button refuses to start a pan on top of an object, so `panButtons: 4` (middle drag)
+leaves left-drag on empty space free for a selection box.
+
 ### Clicking lines
 
 When the topmost thing under a click is a clickable line, `anode:lineclick` fires **instead of**
@@ -198,10 +236,11 @@ Everything under `@bearmetal/anodized/solvers` is a pure function, so it is usab
 
 ## Zoom has no built-in limit
 
-The camera stores zoom as `log2(scale)`, so it never overflows. All tessellation happens on the CPU
-in float64, relative to the camera, and is clipped to the viewport before narrowing to float32 for
-the GPU. Curves are flattened to a quarter-pixel tolerance at whatever zoom you are at, and a curve
-whose hull is off-screen collapses to a few points.
+Unless you set `minZoom`/`maxZoom` on the viewport, the camera stores zoom as `log2(scale)`, so it
+never overflows. All tessellation happens on the CPU in float64, relative to the camera, and is
+clipped to the viewport before narrowing to float32 for the GPU. Curves are flattened to a
+quarter-pixel tolerance at whatever zoom you are at, and a curve whose hull is off-screen collapses
+to a few points.
 
 That leaves one real limit: the float64 precision of your own coordinates. An offset of 2⁻⁶⁰ means
 something near zero but nothing near 10⁵.

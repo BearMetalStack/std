@@ -28,6 +28,7 @@ import { Path } from "../geometry/path.ts";
 import type { Font } from "../text/ttf.ts";
 import { layoutText, measureText, type TextLayout, textPath } from "../text/layout.ts";
 import type { HandleManager, HitMeta } from "../interact/handles.ts";
+import type { InputState } from "../interact/input.ts";
 import { areaPath, curvePath } from "../solvers/curves.ts";
 import type { NodeGeometry } from "../solvers/anchors.ts";
 import {
@@ -54,6 +55,8 @@ export interface FrameContext {
 	dt?: number;
 	/** Asks for another frame after this one. */
 	requestFrame?: () => void;
+	/** This frame's pointer input, when drawing live on a canvas. */
+	input?: InputState;
 }
 
 interface Connection {
@@ -127,6 +130,16 @@ export class Frame {
 	 */
 	requestFrame(): void {
 		this.#ctx.requestFrame?.();
+	}
+
+	/**
+	 * This frame's raw pointer input in screen (CSS pixel) coordinates: held buttons and the ones
+	 * that went down or up this frame, modifier keys, movement and wheel. `null` in snapshots and
+	 * headless frames. Use it for interactions anodized doesn't handle itself, like dragging a wire
+	 * out of a port or a marquee selection.
+	 */
+	get input(): Readonly<InputState> | null {
+		return this.#ctx.input ?? null;
 	}
 
 	/**

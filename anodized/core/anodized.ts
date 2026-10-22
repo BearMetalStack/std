@@ -51,6 +51,11 @@ export interface AnodizedOptions {
 	device?: GPUDevice;
 	/** Device pixels per CSS pixel. Defaults to `devicePixelRatio` in a browser, `1` otherwise. */
 	pixelRatio?: number;
+	/**
+	 * Whether right-clicking the canvas opens the browser's context menu. Default `true`; set
+	 * `false` to draw your own menu from `anode:click` events with `button: 2`.
+	 */
+	contextMenu?: boolean;
 }
 
 /** Which GPU API an instance draws with; see {@linkcode AnodizedOptions.backend}. */
@@ -112,24 +117,34 @@ export class Anodized {
 		this.accent = opts.accent ?? "#2563eb";
 		if (canvas) {
 			this.#surface = backend.createSurface(canvas);
-			if (isElement(canvas)) this.#attachDom(canvas);
+			if (isElement(canvas)) this.#attachDom(canvas, opts.contextMenu ?? true);
 		} else {
 			const t = camera.transform();
 			this.#offscreen = backend.createOffscreen(t.width, t.height);
 		}
 	}
 
-	#attachDom(canvas: HTMLCanvasElement): void {
+	/** Whether right-clicking the canvas opens the browser's context menu. */
+	get contextMenu(): boolean {
+		return this.#input?.contextMenu ?? true;
+	}
+
+	set contextMenu(on: boolean) {
+		if (this.#input) this.#input.contextMenu = on;
+	}
+
+	#attachDom(canvas: HTMLCanvasElement, contextMenu: boolean): void {
 		this.#input = new PointerInput();
+		this.#input.contextMenu = contextMenu;
 		this.#input.onChange = () => this.invalidate();
-		this.#input.onClick = ({ button, x, y }) => {
+		this.#input.onClick = ({ x, y, ...rest }) => {
 			const line = this.#handles.hitTestLine(x, y);
 			if (line && line.z > this.#handles.shapeZ(x, y)) {
-				const detail: AnodeLineClickDetail = { ...this.hitTestLine(x, y), button };
+				const detail: AnodeLineClickDetail = { ...this.hitTestLine(x, y), ...rest };
 				canvas.dispatchEvent(new CustomEvent(ANODE_LINE_CLICK, { detail, bubbles: true }));
 				return;
 			}
-			const detail: AnodeClickDetail = { ...this.hitTest(x, y), button };
+			const detail: AnodeClickDetail = { ...this.hitTest(x, y), ...rest };
 			canvas.dispatchEvent(new CustomEvent(ANODE_CLICK, { detail, bubbles: true }));
 		};
 		this.#detach = this.#input.attach(canvas);
@@ -156,6 +171,7 @@ export class Anodized {
 	/** Turns on the wheel-zoom/drag-pan controller, or off with `false`. */
 	viewport(opts: ViewportOptions | false = {}): this {
 		this.#viewport = opts === false ? null : new ViewportController(opts);
+		this.#viewport?.clamp(this.camera);
 		return this;
 	}
 
@@ -461,6 +477,7 @@ export class Anodized {
 			time,
 			dt,
 			requestFrame: live ? () => this.#frameRequested = true : undefined,
+			input: input ?? undefined,
 		}, pointer);
 		draw(frame);
 		const cmds = frame.finish();

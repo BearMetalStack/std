@@ -23,6 +23,7 @@ export * from "./types.ts";
 export { Anodized, createAnodized, createHeadless } from "./core/anodized.ts";
 export { Camera } from "./core/camera.ts";
 export { Frame } from "./core/frame.ts";
+export { buttonBit, Buttons, type InputState } from "./interact/input.ts";
 export { parseColor } from "./core/color.ts";
 export { linearScale, niceStep, niceTicks } from "./core/scale.ts";
 export { Path } from "./geometry/path.ts";

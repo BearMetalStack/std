@@ -91,6 +91,11 @@ export class HandleManager {
 	active: { id: string; part: HandlePart; wx: number; wy: number; rect: Rect } | null = null;
 	#regions: Region[] = [];
 	#lines: LineRegion[] = [];
+	/**
+	 * The last finished frame's objects. Hit tests read these, so asking from inside a draw
+	 * callback (while the current frame is still being recorded) sees what is on screen.
+	 */
+	#shown: { regions: Region[]; lines: LineRegion[] } = { regions: [], lines: [] };
 	#z = 0;
 	#input: InputState | null = null;
 	#camera: Camera | null = null;
@@ -154,6 +159,7 @@ export class HandleManager {
 	end(): { overlays: HandleOverlay[]; cursor: string } {
 		const input = this.#input;
 		if (input?.released) this.active = null;
+		this.#shown = { regions: this.#regions, lines: this.#lines };
 		const picked = input?.inside ? this.#pick(input.x, input.y) : null;
 		this.hot = picked && { id: picked.id, part: picked.part };
 		const overlays: HandleOverlay[] = [];
@@ -196,7 +202,7 @@ export class HandleManager {
 		const cam = this.#camera;
 		if (!cam) return undefined;
 		let best: LineHit | null = null;
-		for (const r of this.#lines) {
+		for (const r of this.#shown.lines) {
 			const h = hitLine(r, cam, sx, sy);
 			if (!h) continue;
 			if (!best || r.z > best.region.z || (r.z === best.region.z && h.distance < best.distance)) {
@@ -211,14 +217,15 @@ export class HandleManager {
 		return this.#pick(sx, sy)?.region.z ?? -Infinity;
 	}
 
-	/** The topmost region and part under a screen point, from the most recent frame. */
+	/** The topmost region and part under a screen point, from the most recent finished frame. */
 	#pick(sx: number, sy: number): { id: string; part: HandlePart; region: Region } | null {
 		const cam = this.#camera;
 		if (!cam) return null;
 		const [wx, wy] = cam.screenToWorld(sx, sy);
 		const half = this.handleSize / 2 + 2;
-		for (let i = this.#regions.length - 1; i >= 0; i--) {
-			const r = this.#regions[i];
+		const regions = this.#shown.regions;
+		for (let i = regions.length - 1; i >= 0; i--) {
+			const r = regions[i];
 			if (r.handles?.resize) {
 				for (const [part, fx, fy] of RESIZE_PARTS) {
 					const [hx, hy] = cam.worldToScreen(r.rect.x + r.rect.w * fx, r.rect.y + r.rect.h * fy);
