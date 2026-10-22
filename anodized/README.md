@@ -330,7 +330,9 @@ stays sharp at any zoom.
 
 `createAnodized()` and `createHeadless()` take `backend: "auto" | "webgpu" | "webgl2"`. `"auto"`,
 the default, uses WebGPU when the runtime offers an adapter and WebGL2 otherwise; passing `device`
-implies `"webgpu"`. `a.backend.name` says which one you got.
+implies `"webgpu"`. `a.backend.name` says which one you got. Browsers without a usable GPU for
+WebGPU may still offer a software adapter (SwiftShader) while WebGL2 runs on the real GPU; `"auto"`
+takes WebGL2 in that case, since the software path is many times slower.
 
 ```ts
 const a = await createAnodized(canvas, { backend: "webgl2" }); // force the fallback

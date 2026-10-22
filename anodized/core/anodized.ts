@@ -24,7 +24,7 @@ import { command, type DrawCommand, expandGrids, isImageFill, resolveStyle } fro
 import { commandBounds, Frame } from "./frame.ts";
 import { tessellate } from "./tessellate.ts";
 import type { Backend, Offscreen, Surface } from "../gpu/backend.ts";
-import { createWebGPUBackend, hasWebGPU } from "../gpu/webgpu.ts";
+import { createWebGPUBackend, hasWebGPU, isFallbackAdapter } from "../gpu/webgpu.ts";
 import { createWebGL2Backend, hasWebGL2 } from "../gpu/webgl.ts";
 import { Path } from "../geometry/path.ts";
 import type { Font } from "../text/ttf.ts";
@@ -44,7 +44,8 @@ export interface AnodizedOptions {
 	accent?: ColorInput;
 	/**
 	 * Which GPU API to draw with. `"auto"` (the default) uses WebGPU when the runtime offers an
-	 * adapter and falls back to WebGL2 otherwise. Passing a `device` implies `"webgpu"`.
+	 * adapter and falls back to WebGL2 otherwise, or when the only adapter is a software fallback
+	 * (like SwiftShader) and WebGL2 is available. Passing a `device` implies `"webgpu"`.
 	 */
 	backend?: BackendPreference;
 	/** Bring your own WebGPU device instead of requesting one. */
@@ -519,7 +520,12 @@ async function chooseBackend(
 	let reason: unknown = new Error("anodized: WebGPU is not available in this runtime");
 	if (hasWebGPU()) {
 		try {
-			return await createWebGPUBackend();
+			const adapter = await navigator.gpu.requestAdapter();
+			// A software WebGPU adapter is far slower than WebGL2 on a real GPU, so take WebGL2 then.
+			if (adapter && !(isFallbackAdapter(adapter) && hasWebGL2())) {
+				return await createWebGPUBackend(undefined, adapter);
+			}
+			if (!adapter) reason = new Error("anodized: no WebGPU adapter available");
 		} catch (e) {
 			reason = e;
 		}

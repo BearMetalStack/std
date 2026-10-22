@@ -37,15 +37,31 @@ export function hasWebGPU(): boolean {
 	return typeof navigator !== "undefined" && "gpu" in navigator && !!navigator.gpu;
 }
 
-/** Requests an adapter and device and wraps them in a {@linkcode Backend}. */
-export async function createWebGPUBackend(device?: GPUDevice): Promise<WebGPUBackend> {
+/**
+ * Requests an adapter (unless given one) and a device, and wraps them in a
+ * {@linkcode Backend}.
+ */
+export async function createWebGPUBackend(
+	device?: GPUDevice,
+	adapter?: GPUAdapter,
+): Promise<WebGPUBackend> {
 	if (device) return new WebGPUBackend(device, false);
-	{
-		if (!hasWebGPU()) throw new Error("anodized: WebGPU is not available in this runtime");
-		const adapter = await navigator.gpu.requestAdapter();
-		if (!adapter) throw new Error("anodized: no WebGPU adapter available");
-		return new WebGPUBackend(await adapter.requestDevice());
-	}
+	if (!hasWebGPU()) throw new Error("anodized: WebGPU is not available in this runtime");
+	adapter ??= (await navigator.gpu.requestAdapter()) ?? undefined;
+	if (!adapter) throw new Error("anodized: no WebGPU adapter available");
+	return new WebGPUBackend(await adapter.requestDevice());
+}
+
+/**
+ * Whether an adapter is a software fallback (such as SwiftShader), which browsers hand out when
+ * there is no usable GPU for WebGPU even though WebGL may still have one.
+ */
+export function isFallbackAdapter(adapter: GPUAdapter): boolean {
+	const a = adapter as GPUAdapter & {
+		isFallbackAdapter?: boolean;
+		info?: { isFallbackAdapter?: boolean };
+	};
+	return !!(a.info?.isFallbackAdapter ?? a.isFallbackAdapter);
 }
 
 /** The WebGPU {@linkcode Backend}: stencil-then-cover fills and strokes, 4× MSAA. */

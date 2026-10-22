@@ -33,5 +33,5 @@ export { encodePng } from "./snapshot/png.ts";
 export { decodePng } from "./image/png.ts";
 export { loadImage } from "./image/load.ts";
 export { fitImage, imageSize } from "./image/source.ts";
-export { createWebGPUBackend, hasWebGPU, WebGPUBackend } from "./gpu/webgpu.ts";
+export { createWebGPUBackend, hasWebGPU, isFallbackAdapter, WebGPUBackend } from "./gpu/webgpu.ts";
 export { createWebGL2Backend, hasWebGL2, WebGL2Backend } from "./gpu/webgl.ts";
