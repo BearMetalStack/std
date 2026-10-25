@@ -1,0 +1,29 @@
+{
+	"name": "@bearmetal/gutenbearg",
+	"description": "Documentation sites for BearMetal: page templates, content blocks and the reading chrome around them",
+	"version": "0.0.1",
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts",
+		"./templates": "./templates/mod.ts",
+		"./blocks": "./blocks/mod.tsx",
+		"./module": "./module.tsx"
+	},
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx"
+	},
+	"tasks": {
+		"dev": "deno test --watch -R",
+		"test": "deno test -R",
+		"example": "deno task --cwd=examples/bramble dev",
+		"bm:icons": {
+			"description": "Rebuilds assets/icons.svg from the Phosphor sheet in webbies",
+			"command": "deno run -RW tools/icons.ts"
+		}
+	},
+	"publish": {
+		"exclude": ["tools", "examples"]
+	},
+	"license": "MIT"
+}

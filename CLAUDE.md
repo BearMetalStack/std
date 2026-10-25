@@ -298,6 +298,11 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
 - **`auth/`**, **`sockpuppet/`** (WebSocket channels), **`devproxy/`**, **`drip/`**
   (theme/stylesheet generation), **`webbies/`** (UI component library) — feature packages, each a
   router `Module` or standalone toolset following the same conventions.
+- **`gutenbearg/`** — documentation sites (a VitePress replacement): page templates (home, doc,
+  changelog, 404/draft) in three shells (`trail`, `shelves`, `den`), content blocks, a vanilla
+  client script, and `gutenbeargModule()` serving it all (claims `@bearmetal/gutenbearg`). Content
+  is hand-composed from blocks for now; markdown via `clawmark` and static output via `diecast` are
+  the planned next pass, and `types.ts` is the seam they plug into.
 - **`stack/`** — purely the `deno create jsr:@bearmetal/stack` scaffolding CLI/wizard that assembles
   a new app from the other packages (optional db/auth/dev-proxy modules). It owns none of the SSR or
   client-bundling machinery — that's `app/ssr`/`app/serve` — only the wizard itself and its own
