@@ -1,7 +1,7 @@
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import { Animations, BMDripBase } from "@bearmetal/drip/ssr";
-import type { PageContent, PageContext, ResolvedPage } from "../types.ts";
-import { allPages } from "../site.ts";
+import type { Page, PageContext } from "../types.ts";
+import { latestPages, sectionOf } from "../site.ts";
 import { CLIENT, LOGO, STYLESHEET } from "./assets.ts";
 import { LAYOUTS } from "./chrome.tsx";
 import { type Measured, UNMEASURED } from "./measure.ts";
@@ -11,20 +11,18 @@ const THEME_BOOT =
 
 /** What the client layer reads out of the page: the search index, glossary and route facts. */
 function ClientData({ ctx, written }: { ctx: PageContext; written: boolean }): JSX.Element {
-	const icons = Object.fromEntries(ctx.site.nav.map((s) => [s.id, s.icon]));
 	const data = {
 		base: ctx.base,
 		route: ctx.route,
 		written,
-		pages: allPages(ctx.site).map((p) => ({
-			route: p.route,
-			title: p.title,
-			section: p.section,
-			package: p.package,
-			icon: icons[p.section],
+		pages: latestPages(ctx.content).map(({ page, scope }) => ({
+			route: page.route,
+			title: page.title,
+			section: sectionOf(scope, page.route)?.title ?? "",
+			package: scope.kind === "package" ? scope.package.name : undefined,
+			icon: sectionOf(scope, page.route)?.icon ?? "book-open",
 		})),
-		packages: ctx.site.packages.map((p) => ({ id: p.id, name: p.name })),
-		glossary: ctx.site.glossary,
+		glossary: ctx.content.glossary,
 	};
 	return (
 		<script type="application/json" id="gb-data" $raw>
@@ -47,7 +45,8 @@ export function Document(
 		children?: JSX.Children;
 	},
 ): JSX.Element {
-	const full = title === ctx.site.name ? title : `${title} · ${ctx.site.name}`;
+	const name = ctx.content.site.name;
+	const full = title === name ? title : `${title} · ${name}`;
 	return (
 		<html lang="en" data-theme="dark">
 			<head>
@@ -57,7 +56,7 @@ export function Document(
 				{description && <meta name="description" content={description} />}
 				<link rel="icon" href={LOGO} />
 				<script $raw>{THEME_BOOT}</script>
-				<BMDripBase theme={ctx.site.theme} />
+				<BMDripBase theme={ctx.content.site.theme} />
 				<Animations />
 				<link rel="stylesheet" href={STYLESHEET} />
 				<script type="module" src={CLIENT}></script>
@@ -72,16 +71,15 @@ export function Document(
 
 /** Header, sidebar, main column and right rail around `children`, in the context's layout. */
 export function Shell(
-	{ ctx, page, content, measured = UNMEASURED, children }: {
+	{ ctx, page, measured = UNMEASURED, children }: {
 		ctx: PageContext;
-		page?: ResolvedPage;
-		content?: PageContent;
+		page?: Page;
 		measured?: Measured;
 		children?: JSX.Children;
 	},
 ): JSX.Element {
 	const { header: Header, side: Side, aside: Aside } = LAYOUTS[ctx.layout];
-	const props = { ctx, page, content, measured };
+	const props = { ctx, page, measured };
 	return (
 		<>
 			<Header {...props} />
@@ -90,7 +88,7 @@ export function Shell(
 					<Side {...props} />
 				</aside>
 				<main class="gb-main">{children}</main>
-				<aside class="gb-aside">{content && <Aside {...props} />}</aside>
+				<aside class="gb-aside">{page && <Aside {...props} />}</aside>
 			</div>
 		</>
 	);

@@ -1,94 +1,75 @@
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
-import type { DocContent, Frontmatter, PageContext, ResolvedPage } from "../types.ts";
-import { href, prevNext, toneOf } from "../site.ts";
+import type { Page, PageContext } from "../types.ts";
+import { firstPage, href, prevNext, sectionOf, toneOf } from "../site.ts";
 import { Badge, Icon, Prose } from "../blocks/mod.tsx";
 import { Document, Shell } from "./document.tsx";
 import { measure } from "./measure.ts";
 
-/**
- * Shown when the reader picked an older version: either a reminder, or — when the page's `since`
- * is newer than that version — a warning that the page does not exist there.
- */
-export function VersionBanner(
-	{ ctx, frontmatter }: { ctx: PageContext; frontmatter: Frontmatter },
-): JSX.Element | null {
-	const latest = ctx.site.versions[0];
-	if (!latest || ctx.version === latest) return null;
-	const missing = frontmatter.since !== undefined &&
-		compareVersions(frontmatter.since, ctx.version) > 0;
+/** Shown on an older version: a reminder, and a link to this page (or the start) in the latest. */
+export function VersionBanner({ ctx, page }: { ctx: PageContext; page: Page }): JSX.Element | null {
+	const scope = ctx.scope;
+	if (scope?.kind !== "package" || scope.version.latest) return null;
+	const latest = scope.package.versions[0];
+	const same = latest.sections.find((s) => s.slug === page.section)?.pages.find((p) =>
+		p.slug === page.slug
+	);
+	const target = same ?? firstPage(latest);
 	return (
-		<div class={missing ? "gb-verbanner missing sq" : "gb-verbanner sq"}>
+		<div class="gb-verbanner sq">
 			<Icon name="clock-counter-clockwise" />
 			<span>
-				{missing
-					? (
-						<>
-							This page was added in <b>v{frontmatter.since}</b>{" "}
-							and doesn’t exist in v{ctx.version}.
-						</>
-					)
-					: (
-						<>
-							You’re reading the <b>v{ctx.version}</b>{" "}
-							docs. Details may differ from the latest release.
-						</>
-					)}
+				You’re reading the <b>v{scope.version.version}</b> docs. {same
+					? "Details may differ from the latest release."
+					: "This page is gone in the latest release."}
 			</span>
-			<a href={`?v=${latest}`}>Go to v{latest}</a>
+			{target && <a href={href(ctx, target.route)}>Go to v{latest.version}</a>}
 		</div>
 	);
 }
 
-function compareVersions(a: string, b: string): number {
-	const pa = a.split(".").map(Number);
-	const pb = b.split(".").map(Number);
-	for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-		const d = (pa[i] ?? 0) - (pb[i] ?? 0);
-		if (d) return d;
-	}
-	return 0;
-}
-
 /** Eyebrow, title, lede and the status/since/reading-time facts. */
 export function PageHeader(
-	{ ctx, frontmatter: fm, minutes }: {
+	{ ctx, page, title, description, minutes }: {
 		ctx: PageContext;
-		frontmatter: Frontmatter;
+		page?: Page;
+		title: string;
+		description?: string;
 		minutes: number;
 	},
 ): JSX.Element {
-	const sec = ctx.site.nav.find((s) => s.id === ctx.route.split("/")[0]);
-	const pkg = ctx.site.packages.find((p) => p.id === fm.package);
+	const scope = ctx.scope;
+	const section = scope && page ? sectionOf(scope, page.route) : undefined;
+	const fm = page?.frontmatter;
 	return (
 		<header class="gb-pagehead">
-			<VersionBanner ctx={ctx} frontmatter={fm} />
-			{sec && (
+			{page && <VersionBanner ctx={ctx} page={page} />}
+			{section && (
 				<div class="gb-eyebrow">
-					<Icon name={sec.icon} />
-					{sec.label}
-					{pkg && (
+					<Icon name={section.icon} />
+					{section.title}
+					{scope?.kind === "package" && (
 						<>
 							<span>·</span>
-							<code>{pkg.name}</code>
+							<code>{scope.package.name}</code>
 						</>
 					)}
 				</div>
 			)}
-			<h1>{fm.title}</h1>
-			{fm.description && <p class="gb-lede">{fm.description}</p>}
+			<h1>{title}</h1>
+			{description && <p class="gb-lede">{description}</p>}
 			<div class="gb-facts">
-				{fm.status && <Badge tone={toneOf(fm.status)}>{fm.status}</Badge>}
-				{fm.since && (
+				{fm?.status && <Badge tone={toneOf(fm.status)}>{fm.status}</Badge>}
+				{page?.addedIn && (
 					<span>
 						<Icon name="tag" />
-						since v{fm.since}
+						since v{page.addedIn}
 					</span>
 				)}
 				<span>
 					<Icon name="clock" />
 					{minutes} min read
 				</span>
-				{fm.updated && (
+				{fm?.updated && (
 					<span>
 						<Icon name="calendar-blank" />
 						{fm.updated}
@@ -99,9 +80,9 @@ export function PageHeader(
 	);
 }
 
-/** The end cap and previous/next cards. */
+/** The end cap and previous/next cards, within the page's scope. */
 export function PrevNext({ ctx }: { ctx: PageContext }): JSX.Element {
-	const { prev, next } = prevNext(ctx.site, ctx.route);
+	const { prev, next } = ctx.scope ? prevNext(ctx.scope, ctx.route) : {};
 	return (
 		<footer class="gb-foot">
 			<div class="gb-endcap">
@@ -137,17 +118,20 @@ export function PrevNext({ ctx }: { ctx: PageContext }): JSX.Element {
 }
 
 /** A guide or reference page: header, body, previous/next, inside the shell. */
-export function DocTemplate(
-	{ ctx, page, content }: { ctx: PageContext; page?: ResolvedPage; content: DocContent },
-): JSX.Element {
-	const body = <Prose>{content.body()}</Prose>;
+export function DocTemplate({ ctx, page }: { ctx: PageContext; page: Page }): JSX.Element {
+	const body = <Prose>{page.body()}</Prose>;
 	const measured = measure(body);
-	const fm = content.frontmatter;
 	return (
-		<Document ctx={ctx} title={fm.title} description={fm.description} written>
-			<Shell ctx={ctx} page={page} content={content} measured={measured}>
+		<Document ctx={ctx} title={page.title} description={page.frontmatter.description} written>
+			<Shell ctx={ctx} page={page} measured={measured}>
 				<article class="gb-article">
-					<PageHeader ctx={ctx} frontmatter={fm} minutes={measured.minutes} />
+					<PageHeader
+						ctx={ctx}
+						page={page}
+						title={page.title}
+						description={page.frontmatter.description}
+						minutes={measured.minutes}
+					/>
 					{body}
 					<PrevNext ctx={ctx} />
 				</article>

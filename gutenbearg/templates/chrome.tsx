@@ -7,28 +7,69 @@
  */
 
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
-import type { Frontmatter, PageContent, PageContext, ResolvedPage, ShellLayout } from "../types.ts";
-import { allPages, href, routeOf, toneOf } from "../site.ts";
+import type { Page, PageContext, Section, ShellLayout } from "../types.ts";
+import { firstPage, href, packageRoute, pagesOf, sectionOf, sectionsOf, toneOf } from "../site.ts";
 import { Badge, Icon, Term } from "../blocks/mod.tsx";
-import { LOGO, LOGO_ANIMATED } from "./assets.ts";
+import { LOGO } from "./assets.ts";
 import { type Measured, outline } from "./measure.ts";
 
 /** What every piece of chrome is handed. */
 export interface ChromeProps {
 	ctx: PageContext;
-	/** The navigation entry for this route, written or not. */
-	page?: ResolvedPage;
-	/** The page's content, when it is written. */
-	content?: PageContent;
+	/** The page being read, when the route is one. */
+	page?: Page;
 	measured: Measured;
 }
 
-export { LOGO, LOGO_ANIMATED };
+/** The sections the sidebar lists: the scope's, or the guides when there is no scope. */
+function sidebarSections(ctx: PageContext): Section[] {
+	return ctx.scope ? sectionsOf(ctx.scope) : ctx.content.guides;
+}
 
-const sectionOf = (ctx: PageContext) => ctx.site.nav.find((s) => s.id === ctx.route.split("/")[0]);
-const firstRoute = (s: { id: string; pages: { slug: string }[] }) =>
-	routeOf(s.id, s.pages[0]?.slug ?? "");
-const minutesOf = (p: ResolvedPage) => p.minutes ?? 3;
+function currentSection(ctx: PageContext): Section | undefined {
+	const sections = sidebarSections(ctx);
+	return (ctx.scope && sectionOf(ctx.scope, ctx.route)) ?? sections[0];
+}
+
+/** A top-level destination: the guides, each package, the changelog. */
+interface Area {
+	id: string;
+	label: string;
+	route: string;
+	on: boolean;
+}
+
+function areas(ctx: PageContext): Area[] {
+	const out: Area[] = [];
+	const guides = firstPage(ctx.content.guides);
+	if (guides) {
+		out.push({
+			id: "guides",
+			label: "Guides",
+			route: guides.route,
+			on: ctx.scope?.kind === "guides",
+		});
+	}
+	for (const pkg of ctx.content.packages) {
+		const route = packageRoute(pkg);
+		if (!route) continue;
+		out.push({
+			id: pkg.id,
+			label: pkg.name,
+			route,
+			on: ctx.scope?.kind === "package" && ctx.scope.package.id === pkg.id,
+		});
+	}
+	if (ctx.content.routes.has("changelog")) {
+		out.push({
+			id: "changelog",
+			label: "Changelog",
+			route: "changelog",
+			on: ctx.route === "changelog" || ctx.route.endsWith("/changelog"),
+		});
+	}
+	return out;
+}
 
 // ─── Shared header pieces ─────────────────────────────────────────────────────
 
@@ -36,7 +77,7 @@ function Logo({ ctx }: { ctx: PageContext }): JSX.Element {
 	return (
 		<a class="gb-logo" href={href(ctx, "")}>
 			<img src={LOGO} alt="" />
-			<b>{ctx.site.name}</b>
+			<b>{ctx.content.site.name}</b>
 		</a>
 	);
 }
@@ -74,9 +115,9 @@ function ThemeButton(): JSX.Element {
 }
 
 function RepoButton({ ctx }: { ctx: PageContext }): JSX.Element | null {
-	if (!ctx.site.repository) return null;
+	if (!ctx.content.site.repository) return null;
 	return (
-		<a class="gb-icon-btn" aria-label="Repository" href={ctx.site.repository}>
+		<a class="gb-icon-btn" aria-label="Repository" href={ctx.content.site.repository}>
 			<Icon name="github-logo" />
 		</a>
 	);
@@ -95,20 +136,31 @@ function Search(
 	);
 }
 
-function VersionMenu({ ctx }: { ctx: PageContext }): JSX.Element {
+/** The versions of the package being read; each links to this page in that version, or its start. */
+function VersionMenu({ ctx, page }: ChromeProps): JSX.Element | null {
+	const scope = ctx.scope;
+	if (scope?.kind !== "package" || scope.package.versions.length < 2) return null;
+	const target = (v: typeof scope.version) => {
+		const same = page &&
+			v.sections.find((s) => s.slug === page.section)?.pages.find((p) => p.slug === page.slug);
+		return (same ?? firstPage(v))?.route ?? "";
+	};
 	return (
-		<Menu class="gb-ver" align="right" label={<span>v{ctx.version}</span>}>
-			{ctx.site.versions.map((v, i) => (
-				<a class={v === ctx.version ? "gb-pop-item on" : "gb-pop-item"} href={`?v=${v}`}>
-					<span>v{v}</span>
-					{i === 0 && <Badge tone="success">latest</Badge>}
+		<Menu class="gb-ver" align="right" label={<span>v{scope.version.version}</span>}>
+			{scope.package.versions.map((v) => (
+				<a
+					class={v === scope.version ? "gb-pop-item on" : "gb-pop-item"}
+					href={href(ctx, target(v))}
+				>
+					<span>v{v.version}</span>
+					{v.latest && <Badge tone="success">latest</Badge>}
 				</a>
 			))}
 		</Menu>
 	);
 }
 
-function Progress({ page }: { page?: ResolvedPage }): JSX.Element | null {
+function Progress({ page }: { page?: Page }): JSX.Element | null {
 	if (!page) return null;
 	return (
 		<div class="gb-progress">
@@ -119,60 +171,73 @@ function Progress({ page }: { page?: ResolvedPage }): JSX.Element | null {
 
 // ─── Headers ──────────────────────────────────────────────────────────────────
 
-function HeaderTrail({ ctx, page }: ChromeProps): JSX.Element {
-	const sec = sectionOf(ctx);
+function HeaderTrail(props: ChromeProps): JSX.Element {
+	const { ctx, page } = props;
+	const all = areas(ctx);
+	const area = all.find((a) => a.on);
+	const sections = sidebarSections(ctx);
+	const sec = ctx.scope && currentSection(ctx);
 	return (
 		<header class="gb-header">
 			<Logo ctx={ctx} />
 			<nav class="gb-crumbs">
-				{!sec && ctx.site.nav.map((s) => <a href={href(ctx, firstRoute(s))}>{s.label}</a>)}
-				{sec && (
+				{!area && all.map((a) => <a href={href(ctx, a.route)}>{a.label}</a>)}
+				{area && (
+					<>
+						<span class="gb-sep">/</span>
+						<Menu label={area.label}>
+							{all.map((a) => (
+								<a class={a.on ? "gb-pop-item on" : "gb-pop-item"} href={href(ctx, a.route)}>
+									<span>{a.label}</span>
+								</a>
+							))}
+						</Menu>
+					</>
+				)}
+				{sec && sections.length > 1 && (
 					<>
 						<span class="gb-sep">/</span>
 						<Menu
 							label={
 								<>
 									<Icon name={sec.icon} />
-									{sec.label}
+									{sec.title}
 								</>
 							}
 						>
-							{ctx.site.nav.map((s) => (
+							{sections.map((s) => (
 								<a
-									class={s.id === sec.id ? "gb-pop-item on" : "gb-pop-item"}
-									href={href(ctx, firstRoute(s))}
+									class={s === sec ? "gb-pop-item on" : "gb-pop-item"}
+									href={href(ctx, s.pages[0].route)}
 								>
 									<Icon name={s.icon} />
-									<span>{s.label}</span>
+									<span>{s.title}</span>
 									<small>{s.pages.length}</small>
 								</a>
 							))}
 						</Menu>
-						{page && sec.pages.length > 1 && (
-							<>
-								<span class="gb-sep">/</span>
-								<Menu label={page.title} width="16rem">
-									{sec.pages.map((p) => {
-										const r = routeOf(sec.id, p.slug);
-										return (
-											<a
-												class={r === page.route ? "gb-pop-item on" : "gb-pop-item"}
-												href={href(ctx, r)}
-												data-gb-route={r}
-											>
-												<span>{p.title}</span>
-												<Icon name="check" class="gb-seen" />
-											</a>
-										);
-									})}
-								</Menu>
-							</>
-						)}
+					</>
+				)}
+				{page && sec && sec.pages.length > 1 && (
+					<>
+						<span class="gb-sep">/</span>
+						<Menu label={page.title} width="16rem">
+							{sec.pages.map((p) => (
+								<a
+									class={p.route === page.route ? "gb-pop-item on" : "gb-pop-item"}
+									href={href(ctx, p.route)}
+									data-gb-route={p.route}
+								>
+									<span>{p.title}</span>
+									<Icon name="check" class="gb-seen" />
+								</a>
+							))}
+						</Menu>
 					</>
 				)}
 			</nav>
 			<Search />
-			<VersionMenu ctx={ctx} />
+			<VersionMenu {...props} />
 			<ThemeButton />
 			<RepoButton ctx={ctx} />
 			<Progress page={page} />
@@ -180,66 +245,66 @@ function HeaderTrail({ ctx, page }: ChromeProps): JSX.Element {
 	);
 }
 
-function HeaderShelves({ ctx, page }: ChromeProps): JSX.Element {
-	const section = ctx.route.split("/")[0];
-	const tabs: [string, string][] = [["learn", "Guides"], ["reference", "API"], [
-		"changelog",
-		"Changelog",
-	]];
-	const known = tabs.filter(([id]) => ctx.site.nav.some((s) => s.id === id));
+function HeaderShelves(props: ChromeProps): JSX.Element {
+	const { ctx, page } = props;
+	const all = areas(ctx);
+	const scopePkg = ctx.scope?.kind === "package" ? ctx.scope.package : undefined;
 	return (
 		<header class="gb-header">
 			<Logo ctx={ctx} />
-			<Menu
-				class="gb-pkg"
-				width="20rem"
-				label={
-					<>
-						<Icon name="cube" />
-						<span class="mono" data-gb-pkg-label>All packages</span>
-					</>
-				}
-			>
-				<button type="button" class="gb-pop-item on" data-gb-pkg="">
-					<Icon name="stack" />
-					<span>All packages</span>
-				</button>
-				{ctx.site.packages.map((p) => (
-					<button type="button" class="gb-pop-item" data-gb-pkg={p.id} data-gb-pkg-name={p.name}>
-						<Icon name="cube" />
-						<span class="mono">{p.name}</span>
-						<small class="mono">{p.version}</small>
-						<Badge tone={toneOf(p.status)}>{p.status}</Badge>
-					</button>
-				))}
-			</Menu>
+			{ctx.content.packages.length > 0 && (
+				<Menu
+					class="gb-pkg"
+					width="20rem"
+					label={
+						<>
+							<Icon name="cube" />
+							<span class="mono">{scopePkg?.name ?? "Packages"}</span>
+							{scopePkg?.status && <Badge tone={toneOf(scopePkg.status)}>{scopePkg.status}</Badge>}
+						</>
+					}
+				>
+					{ctx.content.packages.map((p) => {
+						const route = packageRoute(p);
+						if (!route) return null;
+						return (
+							<a
+								class={p === scopePkg ? "gb-pop-item on" : "gb-pop-item"}
+								href={href(ctx, route)}
+							>
+								<Icon name="cube" />
+								<span class="mono">{p.name}</span>
+								{p.versions[0]?.version && <small class="mono">{p.versions[0].version}</small>}
+								{p.status && <Badge tone={toneOf(p.status)}>{p.status}</Badge>}
+							</a>
+						);
+					})}
+				</Menu>
+			)}
 			<nav class="gb-tabs">
-				{known.map(([id, label]) => {
-					const s = ctx.site.nav.find((x) => x.id === id)!;
-					return <a href={href(ctx, firstRoute(s))} class={section === id ? "on" : ""}>{label}</a>;
-				})}
+				{all.filter((a) => a.id === "guides" || a.id === "changelog").map((a) => (
+					<a href={href(ctx, a.route)} class={a.on ? "on" : ""}>{a.label}</a>
+				))}
 			</nav>
 			<span class="gb-grow"></span>
 			<Search />
-			<VersionMenu ctx={ctx} />
+			<VersionMenu {...props} />
 			<ThemeButton />
 			<Progress page={page} />
 		</header>
 	);
 }
 
-function HeaderDen({ ctx, page }: ChromeProps): JSX.Element {
-	const section = ctx.route.split("/")[0];
+function HeaderDen(props: ChromeProps): JSX.Element {
+	const { ctx, page } = props;
 	return (
 		<header class="gb-header den">
 			<Logo ctx={ctx} />
 			<nav class="gb-links">
-				{ctx.site.nav.map((s) => (
-					<a class={section === s.id ? "on" : ""} href={href(ctx, firstRoute(s))}>{s.label}</a>
-				))}
+				{areas(ctx).map((a) => <a class={a.on ? "on" : ""} href={href(ctx, a.route)}>{a.label}</a>)}
 			</nav>
 			<Search wide placeholder="Sniff around the docs…" />
-			<VersionMenu ctx={ctx} />
+			<VersionMenu {...props} />
 			<ThemeButton />
 			<RepoButton ctx={ctx} />
 			<div class="gb-den-line gradient ember animate"></div>
@@ -250,18 +315,21 @@ function HeaderDen({ ctx, page }: ChromeProps): JSX.Element {
 
 // ─── Sidebars ─────────────────────────────────────────────────────────────────
 
-function SideTrail({ ctx, measured }: ChromeProps): JSX.Element {
-	const sec = sectionOf(ctx) ?? ctx.site.nav[0];
-	const pages = allPages(ctx.site).filter((p) => p.section === sec.id);
+function SideTrail({ ctx, measured }: ChromeProps): JSX.Element | null {
+	const sections = sidebarSections(ctx);
+	const sec = currentSection(ctx);
+	if (!sec) return null;
 	return (
 		<div class="gb-trail">
-			<div class="gb-seg sq" role="tablist">
-				{ctx.site.nav.map((s) => (
-					<a href={href(ctx, firstRoute(s))} class={s.id === sec.id ? "on sq" : "sq"}>{s.label}</a>
-				))}
-			</div>
+			{sections.length > 1 && (
+				<div class="gb-seg sq" role="tablist">
+					{sections.map((s) => (
+						<a href={href(ctx, s.pages[0].route)} class={s === sec ? "on sq" : "sq"}>{s.title}</a>
+					))}
+				</div>
+			)}
 			<ol class="gb-stations">
-				{pages.map((p) => {
+				{sec.pages.map((p) => {
 					const cur = ctx.route === p.route;
 					return (
 						<li class={cur ? "cur" : ""} data-gb-route={p.route}>
@@ -270,9 +338,7 @@ function SideTrail({ ctx, measured }: ChromeProps): JSX.Element {
 									{!cur && <Icon name="check" />}
 								</span>
 								<span class="gb-st-title">{p.title}</span>
-								{p.isNew
-									? <Badge tone="brand">new</Badge>
-									: <small>{cur && measured.minutes ? measured.minutes : minutesOf(p)}m</small>}
+								{p.frontmatter.new ? <Badge tone="brand">new</Badge> : <small>{p.minutes}m</small>}
 							</a>
 							{cur && measured.headings.length > 0 && (
 								<ul class="gb-sub">
@@ -287,12 +353,12 @@ function SideTrail({ ctx, measured }: ChromeProps): JSX.Element {
 					);
 				})}
 			</ol>
-			<div class="gb-trail-foot" data-gb-meter={pages.map((p) => p.route).join(" ")}>
+			<div class="gb-trail-foot" data-gb-meter={sec.pages.map((p) => p.route).join(" ")}>
 				<div class="gb-meter">
 					<i></i>
 				</div>
 				<small>
-					<span data-gb-meter-count>0</span> of {pages.length} read in {sec.label}
+					<span data-gb-meter-count>0</span> of {sec.pages.length} read in {sec.title}
 				</small>
 			</div>
 		</div>
@@ -300,43 +366,35 @@ function SideTrail({ ctx, measured }: ChromeProps): JSX.Element {
 }
 
 function SideShelves({ ctx }: ChromeProps): JSX.Element {
-	const pages = allPages(ctx.site);
 	return (
 		<div class="gb-shelves" data-gb-shelves>
 			<label class="gb-filter sq">
 				<Icon name="funnel-simple" />
 				<input type="search" placeholder="Filter pages" aria-label="Filter pages" data-gb-filter />
 			</label>
-			<button type="button" class="gb-scope" data-gb-scope hidden>
-				Showing <b class="mono"></b>
-				<Icon name="x" />
-			</button>
-			{ctx.site.shelves.map((sh) => {
-				const items = pages.filter((p) => p.shelf === sh.id);
-				if (!items.length) return null;
-				return (
-					<details class="gb-shelf" open>
-						<summary class="gb-shelf-h">
-							<Icon name={sh.icon} />
-							<span>{sh.label}</span>
-							<small>{items.length}</small>
-							<Icon name="caret-down" class="gb-caret" />
-						</summary>
-						<ul>
-							{items.map((p) => (
-								<li data-gb-package={p.package ?? ""} data-gb-title={p.title.toLowerCase()}>
-									<a href={href(ctx, p.route)} class={ctx.route === p.route ? "on sq" : "sq"}>
-										<span>{p.title}</span>
-										{p.isNew && <i class="gb-new" title="New"></i>}
-										{p.status && <Badge tone={toneOf(p.status)}>{p.status}</Badge>}
-										{p.package && <small class="mono gb-pkg-hint">{p.package}</small>}
-									</a>
-								</li>
-							))}
-						</ul>
-					</details>
-				);
-			})}
+			{sidebarSections(ctx).map((sh) => (
+				<details class="gb-shelf" open>
+					<summary class="gb-shelf-h">
+						<Icon name={sh.icon} />
+						<span>{sh.title}</span>
+						<small>{sh.pages.length}</small>
+						<Icon name="caret-down" class="gb-caret" />
+					</summary>
+					<ul>
+						{sh.pages.map((p) => (
+							<li data-gb-title={p.title.toLowerCase()}>
+								<a href={href(ctx, p.route)} class={ctx.route === p.route ? "on sq" : "sq"}>
+									<span>{p.title}</span>
+									{p.frontmatter.new && <i class="gb-new" title="New"></i>}
+									{p.frontmatter.status && (
+										<Badge tone={toneOf(p.frontmatter.status)}>{p.frontmatter.status}</Badge>
+									)}
+								</a>
+							</li>
+						))}
+					</ul>
+				</details>
+			))}
 			<div class="gb-empty" data-gb-filter-empty hidden>
 				<Icon name="paw-print" />
 				<span>No pages match.</span>
@@ -345,12 +403,13 @@ function SideShelves({ ctx }: ChromeProps): JSX.Element {
 	);
 }
 
-function SideDen({ ctx, page, content }: ChromeProps): JSX.Element {
-	const pages = allPages(ctx.site);
+function SideDen({ ctx, page }: ChromeProps): JSX.Element {
+	const sections = sidebarSections(ctx);
+	const sec = currentSection(ctx);
+	const pages = ctx.scope ? pagesOf(ctx.scope) : [];
 	const idx = pages.findIndex((p) => p.route === ctx.route);
 	const after = idx < 0 ? [] : pages.slice(idx + 1);
 	const next = after[0];
-	const section = ctx.route.split("/")[0];
 	return (
 		<div class="gb-den">
 			<div class="gb-recent" data-gb-recent hidden>
@@ -360,20 +419,19 @@ function SideDen({ ctx, page, content }: ChromeProps): JSX.Element {
 				</h4>
 				<div></div>
 			</div>
-			{ctx.site.nav.map((s) => (
-				<details class="gb-den-sec" open={s.id === section || s.id !== "changelog"}>
+			{sections.map((s) => (
+				<details class="gb-den-sec" open={s === sec || sections.length <= 4}>
 					<summary>
 						<Icon name="caret-right" class="gb-caret" />
 						<Icon name={s.icon} />
-						{s.label}
+						{s.title}
 					</summary>
 					<ul>
 						{s.pages.map((p) => {
-							const r = routeOf(s.id, p.slug);
-							const cur = r === ctx.route;
+							const cur = p.route === ctx.route;
 							return (
-								<li data-gb-route={r}>
-									<a href={href(ctx, r)} class={cur ? "on" : ""}>
+								<li data-gb-route={p.route}>
+									<a href={href(ctx, p.route)} class={cur ? "on" : ""}>
 										{cur ? <Icon name="paw-print-fill" class="gb-paw" /> : <i class="gb-tick"></i>}
 										<span>{p.title}</span>
 										{!cur && <Icon name="check" class="gb-seen" />}
@@ -384,18 +442,18 @@ function SideDen({ ctx, page, content }: ChromeProps): JSX.Element {
 					</ul>
 				</details>
 			))}
-			{next && page && content && (
+			{next && page && (
 				<a
 					class="gb-upnext gradient-border border-ember animate sq"
 					href={href(ctx, next.route)}
 					data-gb-upnext={JSON.stringify(
-						after.map((p) => ({ route: p.route, title: p.title, minutes: minutesOf(p) })),
+						after.map((p) => ({ route: p.route, title: p.title, minutes: p.minutes })),
 					)}
 				>
 					<small>Up next</small>
 					<b>{next.title}</b>
 					<span>
-						<span data-gb-upnext-minutes>{minutesOf(next)}</span> min read
+						<span data-gb-upnext-minutes>{next.minutes}</span> min read
 						<Icon name="arrow-right" />
 					</span>
 				</a>
@@ -457,7 +515,7 @@ function AsideToc({ ctx, measured }: ChromeProps): JSX.Element | null {
 					<div class="gb-chips">
 						{measured.terms.map((id) => (
 							<Term id={id}>
-								<span class="gb-chip sq">{ctx.site.glossary[id]?.term ?? id}</span>
+								<span class="gb-chip sq">{ctx.content.glossary[id]?.term ?? id}</span>
 							</Term>
 						))}
 					</div>
@@ -495,22 +553,21 @@ function AsidePaws(props: ChromeProps): JSX.Element | null {
 }
 
 /** "Edit this page" and the updated date. */
-export function AsideMeta({ ctx, content }: ChromeProps): JSX.Element | null {
-	if (!content) return null;
-	const fm: Frontmatter = content.frontmatter;
-	const edit = ctx.site.editBase && content.file ? ctx.site.editBase + content.file : undefined;
+export function AsideMeta({ ctx, page }: ChromeProps): JSX.Element | null {
+	if (!page) return null;
+	const editBase = ctx.content.site.editBase;
 	return (
 		<div class="gb-meta">
-			{edit && (
-				<a href={edit}>
+			{editBase && (
+				<a href={editBase + page.file}>
 					<Icon name="pencil-simple" />
 					Edit this page
 				</a>
 			)}
-			{fm.updated && (
+			{page.frontmatter.updated && (
 				<span>
 					<Icon name="clock-counter-clockwise" />
-					Updated {fm.updated}
+					Updated {page.frontmatter.updated}
 				</span>
 			)}
 		</div>

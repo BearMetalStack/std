@@ -7,18 +7,20 @@
 		"./types": "./types.ts",
 		"./templates": "./templates/mod.ts",
 		"./blocks": "./blocks/mod.tsx",
-		"./module": "./module.tsx"
+		"./module": "./module.tsx",
+		"./build": "./build.ts",
+		"./cli": "./cli.ts"
 	},
 	"compilerOptions": {
 		"jsx": "react-jsx",
 		"jsxImportSource": "@bearmetal/jsx"
 	},
 	"tasks": {
-		"dev": "deno test --watch -R",
-		"test": "deno test -R",
+		"dev": "deno test --watch -RW",
+		"test": "deno test -RW",
 		"example": "deno task --cwd=examples/bramble dev",
 		"bm:icons": {
-			"description": "Rebuilds assets/icons.svg from the Phosphor sheet in webbies",
+			"description": "Copies the Phosphor regular and fill sheets in from webbies",
 			"command": "deno run -RW tools/icons.ts"
 		}
 	},

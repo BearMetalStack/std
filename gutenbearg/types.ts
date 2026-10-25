@@ -2,11 +2,11 @@
  * @module
  * Public types for `@bearmetal/gutenbearg`.
  *
- * Everything a template renders arrives as one of these: a {@linkcode SiteConfig} describing the
- * whole site (navigation, packages, versions, glossary), and per page either a
- * {@linkcode DocContent}, a {@linkcode ChangelogContent} or the {@linkcode HomeContent}. The
- * frontmatter interfaces are shaped after the YAML a markdown page will carry once content is
- * read from files, so a parsed page drops straight into them.
+ * A site is a {@linkcode SiteContent}: the home page, cross-package guides, packages with their
+ * versions, a glossary and releases. {@linkcode loadContent} builds one from a directory of
+ * markdown, where the file system is the only manifest — order comes from `0016-` prefixes, icons
+ * from `[icon]` in section names, versions from directories. Each page's place in the site is a
+ * {@linkcode Scope}, and every URL the site answers is a key of {@linkcode SiteContent.routes}.
  */
 
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
@@ -23,12 +23,12 @@ export type Status = "stable" | "beta" | "alpha" | "deprecated";
 export type Tone = "success" | "info" | "warn" | "danger" | "brand" | "neutral";
 
 /**
- * The three shells the design ships, each a header, sidebar and right rail that belong together:
+ * The three shells, each a header, sidebar and right rail that belong together:
  *
  * - `trail` — breadcrumbs that are menus of siblings, the current section as a line of stations,
  *   and a clickable page map with time left.
- * - `shelves` — navigation by intent, a package switcher that scopes the site, a filterable
- *   sidebar and a TOC that fills as each section is read.
+ * - `shelves` — sections as shelves with a live filter, a package switcher, and a TOC that fills
+ *   as each section is read.
  * - `den` — the playful one: recently read pages, an Up next card and a paw-print trail.
  */
 export type ShellLayout = "trail" | "shelves" | "den";
@@ -38,57 +38,7 @@ export type ChangeType = "added" | "changed" | "fixed" | "deprecated" | "breakin
 
 // ─── Site ─────────────────────────────────────────────────────────────────────
 
-/** A package the site documents. */
-export interface PackageInfo {
-	/** Short id used in frontmatter (`package: core`) and filters. */
-	id: string;
-	/** Published name, e.g. `@bearmetal/router`. */
-	name: string;
-	version: string;
-	status: Status;
-	/** Where the package's tile on the home page leads. Defaults to its first page. */
-	href?: string;
-}
-
-/** A sidebar group in the `shelves` layout, collecting pages by intent rather than section. */
-export interface Shelf {
-	id: string;
-	label: string;
-	icon: IconName;
-}
-
-/** A page's place in the navigation. It need not be written yet — see {@linkcode DocContent}. */
-export interface NavPage {
-	/** Path segment under its section. Empty for a section's only page. */
-	slug: string;
-	title: string;
-	/** {@linkcode Shelf} id. */
-	shelf?: string;
-	/** {@linkcode PackageInfo} id. */
-	package?: string;
-	status?: Status;
-	/** Marks the page as recently added in the navigation. */
-	isNew?: boolean;
-	/** Reading-time estimate for a page with no content yet. Written pages measure their own. */
-	minutes?: number;
-}
-
-/** A top-level section: `learn`, `reference`, `changelog`. */
-export interface NavSection {
-	id: string;
-	label: string;
-	icon: IconName;
-	pages: NavPage[];
-}
-
-/** One term a page can link with {@linkcode Term}. */
-export interface GlossaryEntry {
-	term: string;
-	definition: string;
-	href: string;
-}
-
-/** Everything about a site that is not one page. */
+/** Site-wide settings, from the `site:` block of the content root's `index.md`. */
 export interface SiteConfig {
 	/** Shown beside the logo and in `<title>`. */
 	name: string;
@@ -96,73 +46,107 @@ export interface SiteConfig {
 	layout?: ShellLayout;
 	/** Repository link in the header. */
 	repository?: string;
-	/** Prefix for "Edit this page" links; the page's `file` is appended. */
+	/** Prefix for source links on ```` ```signature [path] ```` blocks; the path is appended. */
+	sourceBase?: string;
+	/** Prefix for "Edit this page" links; a page's path within the content root is appended. */
 	editBase?: string;
-	/** Documented versions, newest first. */
-	versions: string[];
-	packages: PackageInfo[];
-	shelves: Shelf[];
-	nav: NavSection[];
-	/** Keyed by the id content refers to them by (`<Term id="signal">`). */
-	glossary: Record<string, GlossaryEntry>;
 	/** Theme for drip; defaults to the project's own. */
 	theme?: string;
 }
 
-// ─── Pages ────────────────────────────────────────────────────────────────────
-
-/** A content page's frontmatter. */
+/** A page's frontmatter. Anything else in the block is kept and ignored. */
 export interface Frontmatter {
-	title: string;
+	title?: string;
 	/** The lede under the title. */
 	description?: string;
-	/** {@linkcode PackageInfo} id the page belongs to. */
-	package?: string;
 	status?: Status;
-	/** Version the page's subject first appeared in. Older versions get a "doesn't exist" banner. */
-	since?: string;
 	/** Display date of the last change. */
 	updated?: string;
-	/** Source path the `signature` block links to. */
-	source?: string;
+	/** Marks the page as recently added in the navigation. */
+	new?: boolean;
+	/** Renders the page as "still hibernating" rather than its body. */
+	draft?: boolean;
+	/** Drops the page from this version on (versioned packages only). */
+	removed?: boolean;
+	[key: string]: unknown;
 }
 
-/**
- * A written documentation page.
- *
- * `body` is a function because the runtime builds real nodes and a node can only be placed once:
- * each render calls it for a fresh tree. Headings, reading time and the glossary terms a page
- * uses are all measured from that tree, so they never drift from the content.
- */
-export interface DocContent {
-	kind: "doc";
+/** One written page, as it sits in one version of one scope. */
+export interface Page {
+	/** Identity within its section: the file name without its number and `.md`. */
+	slug: string;
+	title: string;
+	/** URL path without a leading slash, e.g. `router/reference/signal`. */
+	route: string;
+	/** Owning section's slug. */
+	section: string;
 	frontmatter: Frontmatter;
-	/** Source file, relative to {@linkcode SiteConfig.editBase}. */
-	file?: string;
+	/** Path of the source file relative to the content root. */
+	file: string;
+	/** Sort key from the file name; unnumbered files sort last. */
+	order: number;
+	/** First version this page appears in, for versioned packages. */
+	addedIn?: string;
+	/** Estimated reading time. */
+	minutes: number;
+	/** A fresh tree for every call; a node can only be placed once. */
 	body: () => JSX.Element;
+}
+
+/** A directory of pages, in order. */
+export interface Section {
+	slug: string;
+	title: string;
+	icon: IconName;
+	order: number;
+	description?: string;
+	pages: Page[];
+}
+
+/** One version of a package: its resolved sections after inheritance. */
+export interface PackageVersion {
+	/** As the directory names it; empty for an unversioned package. */
+	version: string;
+	latest: boolean;
+	/** Route prefix: `router` for the latest, `router/v0.8` for older ones. */
+	base: string;
+	sections: Section[];
+}
+
+/** A documented package. */
+export interface PackageInfo {
+	/** The directory name, used in URLs. */
+	id: string;
+	/** Published name, e.g. `@bearmetal/router`. Defaults to the id. */
+	name: string;
+	status?: Status;
+	description?: string;
+	/** Newest first. */
+	versions: PackageVersion[];
+}
+
+/** One term a page links with `[[id]]`. */
+export interface GlossaryEntry {
+	term: string;
+	definition: string;
+	/** Where "Read more" goes; omitted when the entry names no page. */
+	href?: string;
 }
 
 /** One change in a {@linkcode Release}. */
 export interface Change {
 	type: ChangeType;
-	/** {@linkcode PackageInfo} id. */
-	package?: string;
-	text: JSX.Element;
+	/** Inline rendering of the change, without its type prefix. */
+	text: () => JSX.Element;
 }
 
-/** One version's entry in the changelog. */
+/** One version's entry in a package's changelog. */
 export interface Release {
+	/** {@linkcode PackageInfo.id}. */
+	package: string;
 	version: string;
-	date: string;
+	date?: string;
 	changes: Change[];
-}
-
-/** The changelog page: frontmatter plus releases, newest first. */
-export interface ChangelogContent {
-	kind: "changelog";
-	frontmatter: Frontmatter;
-	file?: string;
-	releases: () => Release[];
 }
 
 /** A hero call to action. */
@@ -173,52 +157,68 @@ export interface Action {
 
 /** The home page's frontmatter. */
 export interface HomeFrontmatter {
-	/** Large gradient wordmark. */
+	/** Large gradient wordmark. Defaults to the site name. */
 	name: string;
 	/** Headline under the wordmark. */
-	text: string;
-	tagline: string;
+	text?: string;
+	tagline?: string;
 	/** Small badge above the wordmark, e.g. `v0.9.2 · beta`. */
 	badge?: string;
-	primary: Action;
+	primary?: Action;
 	secondary?: Action;
 }
 
 /** The landing page. Its `body` renders between the hero and the package tiles. */
 export interface HomeContent {
-	kind: "home";
 	frontmatter: HomeFrontmatter;
 	body?: () => JSX.Element;
 }
 
-/** Anything a route can resolve to. */
-export type PageContent = DocContent | ChangelogContent;
+/** Where a page lives, which decides the sidebar, breadcrumbs and previous/next. */
+export type Scope =
+	| { kind: "guides"; sections: Section[] }
+	| { kind: "package"; package: PackageInfo; version: PackageVersion };
 
-/** A whole site: config, the landing page, and written pages keyed by route (`learn/reactivity`). */
+/** What a route resolves to. */
+export type RouteTarget =
+	| { kind: "home" }
+	| { kind: "page"; page: Page; scope: Scope }
+	| { kind: "changelog"; package?: PackageInfo };
+
+/** A problem found while loading content. Loading never throws for content mistakes. */
+export interface Diagnostic {
+	level: "warn" | "error";
+	/** Path relative to the content root. */
+	file: string;
+	message: string;
+}
+
+/** A whole site, ready to render. */
 export interface SiteContent {
 	site: SiteConfig;
 	home: HomeContent;
-	pages: Record<string, PageContent>;
+	guides: Section[];
+	packages: PackageInfo[];
+	glossary: Record<string, GlossaryEntry>;
+	/** Every package's releases, newest first. */
+	releases: Release[];
+	/** Every URL the site serves, without a leading slash; `""` is the home page. */
+	routes: Map<string, RouteTarget>;
+	diagnostics: Diagnostic[];
+	/** Every icon the content names, for the sprite sheet. */
+	icons: Set<string>;
 }
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
-/** A {@linkcode NavPage} with where it lives filled in. */
-export interface ResolvedPage extends NavPage {
-	/** Section id. */
-	section: string;
-	/** Route without a leading slash, e.g. `learn/reactivity`. */
-	route: string;
-}
-
 /** What every template receives about the request it is rendering. */
 export interface PageContext {
-	site: SiteConfig;
+	content: SiteContent;
 	/** Route without a leading slash; empty for the home page. */
 	route: string;
 	layout: ShellLayout;
-	/** The version being read; the newest unless the reader picked another. */
-	version: string;
 	/** Prefix for every link the templates emit, without a trailing slash. Empty at the root. */
 	base: string;
+	/** The page's scope; absent on the home and changelog pages. */
+	scope?: Scope;
 }

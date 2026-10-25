@@ -30,12 +30,19 @@ export function Prose(
 
 /**
  * A section heading with a hover anchor. Level 2 headings are what the table of contents, page
- * map and trail list; `id` defaults to the slugged text.
+ * map and trail list. `text` is the plain heading text for those lists and the default `id`; it
+ * defaults to `children` when that is a string.
  */
 export function Heading(
-	{ level = 2, id, children }: { level?: 2 | 3; id?: string; children: string },
+	{ level = 2, id, text, children }: {
+		level?: 2 | 3;
+		id?: string;
+		text?: string;
+		children: JSX.Children;
+	},
 ): JSX.Element {
-	const anchor = id ?? slugify(children);
+	const plain = text ?? (typeof children === "string" ? children : "");
+	const anchor = id ?? slugify(plain);
 	const body = (
 		<>
 			{children}
@@ -43,8 +50,8 @@ export function Heading(
 		</>
 	);
 	return level === 2
-		? <h2 id={anchor} data-text={children}>{body}</h2>
-		: <h3 id={anchor} data-text={children}>{body}</h3>;
+		? <h2 id={anchor} data-text={plain}>{body}</h2>
+		: <h3 id={anchor} data-text={plain}>{body}</h3>;
 }
 
 /** `## text` */

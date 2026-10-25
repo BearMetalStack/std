@@ -367,6 +367,7 @@ body {
 }
 .gb-side,
 .gb-aside {
+	overflow-x: hidden;
 	position: sticky;
 	top: var(--nav-height);
 	height: calc(100vh - var(--nav-height));
@@ -2122,4 +2123,15 @@ body {
 	.gb-pn {
 		grid-template-columns: 1fr;
 	}
+}
+
+.gb-shelf a .gb-badge {
+	flex: none;
+	font-size: 0.7rem;
+}
+.gb-rel li {
+	display: block;
+}
+.gb-rel li > .gb-badge {
+	margin-right: var(--space-2);
 }

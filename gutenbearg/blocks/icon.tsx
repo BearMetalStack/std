@@ -7,7 +7,7 @@ export const ICON_SHEET = `${ASSET_BASE}/icons.svg`;
 
 /** A symbol from the sprite sheet, sized to the text around it. */
 export function Icon(
-	{ name, class: className }: { name: IconName; class?: string },
+	{ name, class: className }: { name: IconName | (string & Record<never, never>); class?: string },
 ): JSX.Element {
 	return (
 		<svg class={className ? `gb-icon ${className}` : "gb-icon"} aria-hidden="true">

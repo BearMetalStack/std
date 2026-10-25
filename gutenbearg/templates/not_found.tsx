@@ -1,28 +1,25 @@
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
-import type { PageContext, ResolvedPage } from "../types.ts";
-import { href, nearby } from "../site.ts";
+import type { Page, PageContext } from "../types.ts";
+import { href, nearby, sectionOf } from "../site.ts";
 import { Icon } from "../blocks/mod.tsx";
 import { LOGO } from "./assets.ts";
 import { Document, Shell } from "./document.tsx";
 
 /**
- * Two pages in one. A route nobody planned is a 404; a route that is in the navigation but not
- * written yet is a draft that is "still hibernating". Both suggest the closest written pages.
+ * Two pages in one. A route nobody wrote is a 404; a page marked `draft: true` is "still
+ * hibernating", in place in the navigation. Both suggest the closest written pages.
  */
 export function NotFoundTemplate(
-	{ ctx, planned, written }: {
-		ctx: PageContext;
-		/** The navigation entry, when the route is planned but unwritten. */
-		planned?: ResolvedPage;
-		/** Whether a route has content, to pick suggestions from. */
-		written: (route: string) => boolean;
-	},
+	{ ctx, draft }: { ctx: PageContext; draft?: Page },
 ): JSX.Element {
-	const near = nearby(ctx.site, ctx.route, written);
-	const icon = (section: string) => ctx.site.nav.find((s) => s.id === section)?.icon ?? "book-open";
+	const near = nearby(ctx.content, ctx.route);
+	const iconOf = (page: Page) => {
+		const target = ctx.content.routes.get(page.route);
+		return (target?.kind === "page" && sectionOf(target.scope, page.route)?.icon) || "book-open";
+	};
 	return (
-		<Document ctx={ctx} title={planned ? planned.title : "Not found"}>
-			<Shell ctx={ctx} page={planned}>
+		<Document ctx={ctx} title={draft ? draft.title : "Not found"}>
+			<Shell ctx={ctx} page={draft}>
 				<article class="gb-article gb-404">
 					<div class="gb-404-art">
 						<img src={LOGO} alt="" />
@@ -32,10 +29,10 @@ export function NotFoundTemplate(
 							<i>z</i>
 						</span>
 					</div>
-					<p class="gb-404-code mono">{planned ? "draft" : "404"} · /{ctx.route}</p>
-					<h1>{planned ? `“${planned.title}” is still hibernating` : "This page wandered off"}</h1>
+					<p class="gb-404-code mono">{draft ? "draft" : "404"} · /{ctx.route}</p>
+					<h1>{draft ? `“${draft.title}” is still hibernating` : "This page wandered off"}</h1>
 					<p class="gb-lede">
-						{planned
+						{draft
 							? "It’s on the map but hasn’t been written yet. These cover nearby ground:"
 							: "We checked under every rock. It may have moved, or the link was mistyped. Try one of these:"}
 					</p>
@@ -53,7 +50,7 @@ export function NotFoundTemplate(
 						{near.map((p) => (
 							<li>
 								<a href={href(ctx, p.route)} class="sq">
-									<Icon name={icon(p.section)} />
+									<Icon name={iconOf(p)} />
 									<b>{p.title}</b>
 									<small>{p.route}</small>
 									<Icon name="arrow-right" />

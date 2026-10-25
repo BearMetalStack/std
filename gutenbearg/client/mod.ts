@@ -8,7 +8,9 @@
 interface ClientPage {
 	route: string;
 	title: string;
+	/** Section title. */
 	section: string;
+	/** Package name, for package pages. */
 	package?: string;
 	icon: string;
 }
@@ -18,7 +20,6 @@ interface ClientData {
 	route: string;
 	written: boolean;
 	pages: ClientPage[];
-	packages: { id: string; name: string }[];
 	glossary: Record<string, { term: string; definition: string; href: string }>;
 }
 
@@ -168,7 +169,7 @@ for (const box of $$("[data-gb-search]")) {
 					{ href: link(p.route) },
 					icon(p.icon),
 					el("span", {}, p.title),
-					el("small", {}, p.section),
+					el("small", {}, p.package ?? p.section),
 				)
 			);
 		const terms = Object.entries(data.glossary)
@@ -219,24 +220,18 @@ document.addEventListener("keydown", (e) => {
 	input.focus();
 });
 
-// ─── Package scope (shelves) ──────────────────────────────────────────────────
+// ─── Shelf filter ─────────────────────────────────────────────────────────────
 
 const shelves = $("[data-gb-shelves]");
 if (shelves) {
 	const filter = $<HTMLInputElement>("[data-gb-filter]", shelves)!;
-	const scope = $("[data-gb-scope]", shelves)!;
-	const label = $("[data-gb-pkg-label]");
-	let pkg = store.get<string>("pkg", "");
-	if (!data.packages.some((p) => p.id === pkg)) pkg = "";
-
 	const apply = () => {
 		const q = filter.value.trim().toLowerCase();
 		let shown = 0;
 		for (const shelf of $$<HTMLDetailsElement>(".gb-shelf", shelves)) {
 			let here = 0;
 			for (const li of $$("li", shelf)) {
-				const ok = (!pkg || !li.dataset.gbPackage || li.dataset.gbPackage === pkg) &&
-					li.dataset.gbTitle!.includes(q);
+				const ok = li.dataset.gbTitle!.includes(q);
 				li.hidden = !ok;
 				if (ok) here++;
 			}
@@ -247,26 +242,8 @@ if (shelves) {
 			shown += here;
 		}
 		$("[data-gb-filter-empty]", shelves)!.hidden = shown > 0;
-		const name = data.packages.find((p) => p.id === pkg)?.name;
-		scope.hidden = !name;
-		$("b", scope)!.textContent = name ?? "";
-		if (label) label.textContent = name ?? "All packages";
-		shelves.toggleAttribute("data-gb-pkg-scoped", !!pkg);
-		for (const item of $$("[data-gb-pkg]")) {
-			item.classList.toggle("on", item.dataset.gbPkg === pkg);
-		}
 	};
-	const choose = (id: string) => {
-		pkg = id;
-		store.set("pkg", id);
-		apply();
-	};
-	for (const item of $$("[data-gb-pkg]")) {
-		item.addEventListener("click", () => choose(item.dataset.gbPkg!));
-	}
-	scope.addEventListener("click", () => choose(""));
 	filter.addEventListener("input", apply);
-	apply();
 }
 
 // ─── Code ─────────────────────────────────────────────────────────────────────

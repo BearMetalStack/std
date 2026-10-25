@@ -1,64 +1,59 @@
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import { renderToString } from "@bearmetal/app/ssr";
-import type { PageContext, ShellLayout, SiteContent } from "../types.ts";
-import { content } from "../examples/bramble/content/mod.ts";
+import type { PageContext, ShellLayout } from "../types.ts";
+import { loadContent } from "../content/load.ts";
 import { renderRoute } from "./mod.ts";
 
-const ctx = (route: string, layout: ShellLayout = "trail", version = "0.9"): PageContext => ({
-	site: content.site,
-	route,
-	layout,
-	version,
-	base: "",
-});
+const content = await loadContent(
+	new URL("../examples/bramble/.bearmetal/gutenbearg", import.meta.url).pathname,
+);
 
-const render = async (site: SiteContent, c: PageContext) => {
-	const { status, view } = renderRoute(site, c);
+const render = async (route: string, layout: ShellLayout = "trail") => {
+	const ctx: PageContext = { content, route, layout, base: "" };
+	const { status, view } = renderRoute(ctx);
 	return { status, html: await renderToString(view) };
 };
 
+Deno.test("the example loads without problems", () => {
+	assertEquals(content.diagnostics, []);
+});
+
 Deno.test("each kind of route renders with the right status", async () => {
-	assertEquals((await render(content, ctx(""))).status, 200);
-	assertEquals((await render(content, ctx("learn/reactivity"))).status, 200);
-	assertEquals((await render(content, ctx("changelog"))).status, 200);
-	const draft = await render(content, ctx("learn/routing"));
-	assertEquals(draft.status, 404);
+	assertEquals((await render("")).status, 200);
+	assertEquals((await render("core/learn/reactivity")).status, 200);
+	assertEquals((await render("changelog")).status, 200);
+	assertEquals((await render("core/changelog")).status, 200);
+	const draft = await render("guides/start-here/deploying");
+	assertEquals(draft.status, 200);
 	assertStringIncludes(draft.html, "still hibernating");
-	const missing = await render(content, ctx("nowhere/at-all"));
+	const missing = await render("nowhere/at-all");
 	assertEquals(missing.status, 404);
 	assertStringIncludes(missing.html, "This page wandered off");
 });
 
-Deno.test("the outline is measured from the body", async () => {
-	const { html } = await render(content, ctx("learn/reactivity", "shelves"));
+Deno.test("every layout renders every route", async () => {
+	for (const layout of ["trail", "shelves", "den"] as const) {
+		for (const route of content.routes.keys()) {
+			const { html } = await render(route, layout);
+			assertStringIncludes(html, `layout-${layout}`);
+		}
+	}
+});
+
+Deno.test("the outline and terms are measured from the body", async () => {
+	const { html } = await render("core/learn/reactivity", "shelves");
 	for (const id of ["the-mental-model", "derived-values", "common-pitfalls"]) {
 		assertStringIncludes(html, `data-gb-heading="${id}"`);
 	}
 	assertStringIncludes(html, "Terms on this page");
 });
 
-Deno.test("every layout renders every written page", async () => {
-	for (const layout of ["trail", "shelves", "den"] as const) {
-		for (const route of Object.keys(content.pages)) {
-			const { html } = await render(content, ctx(route, layout));
-			assertStringIncludes(html, `layout-${layout}`);
-		}
-	}
-});
-
-Deno.test("an older version warns when the page didn't exist yet", async () => {
-	const old = await render(content, ctx("reference/signal", "trail", "0.8"));
-	assertStringIncludes(old.html, "You’re reading the <b>v0.8</b>");
-	const site = { ...content, site: { ...content.site, versions: ["0.9", "0.5"] } };
-	const { html } = await render(site, {
-		...ctx("reference/signal", "trail", "0.5"),
-		site: site.site,
-	});
-	assertStringIncludes(html, "doesn’t exist in v0.5");
-});
-
-Deno.test("diagram edges with labels split into nodes", async () => {
-	const { html } = await render(content, ctx("learn/reactivity"));
-	assertStringIncludes(html, "<em>write</em>");
-	assert(!html.includes("-[write]"));
+Deno.test("older versions get a banner and a version menu", async () => {
+	const { html } = await render("core/v0.8/reference/signal");
+	assertStringIncludes(html, "You’re reading the <b>v0.8</b>");
+	assertStringIncludes(html, 'href="/core/reference/signal">Go to v0.9');
+	const gone = await render("core/v0.8/reference/create-signal");
+	assertStringIncludes(gone.html, "This page is gone in the latest release.");
+	const latest = await render("core/reference/signal");
+	assertStringIncludes(latest.html, 'href="/core/v0.8/reference/signal"');
 });

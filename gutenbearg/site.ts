@@ -1,60 +1,83 @@
-import type { PageContext, ResolvedPage, SiteConfig, Status, Tone } from "./types.ts";
-
-/** Route of a page within its section: `section` or `section/slug`. */
-export function routeOf(section: string, slug: string): string {
-	return slug ? `${section}/${slug}` : section;
-}
-
-/** Every page in navigation order, with its section and route filled in. */
-export function allPages(site: SiteConfig): ResolvedPage[] {
-	return site.nav.flatMap((s) =>
-		s.pages.map((p) => ({ ...p, section: s.id, route: routeOf(s.id, p.slug) }))
-	);
-}
-
-/** The navigation entry for `route`, if there is one. */
-export function findPage(site: SiteConfig, route: string): ResolvedPage | undefined {
-	return allPages(site).find((p) => p.route === route);
-}
+import type {
+	PackageInfo,
+	PackageVersion,
+	Page,
+	PageContext,
+	Scope,
+	Section,
+	SiteContent,
+	Status,
+	Tone,
+} from "./types.ts";
 
 /** An absolute link to `route` under the context's base. */
 export function href(ctx: Pick<PageContext, "base">, route: string): string {
 	return `${ctx.base}/${route}`;
 }
 
-/** The pages either side of `route` in navigation order. */
-export function prevNext(
-	site: SiteConfig,
-	route: string,
-): { prev?: ResolvedPage; next?: ResolvedPage } {
-	const pages = allPages(site);
+/** The sections a scope's sidebar lists. */
+export function sectionsOf(scope: Scope): Section[] {
+	return scope.kind === "guides" ? scope.sections : scope.version.sections;
+}
+
+/** Every page in a scope, in reading order. */
+export function pagesOf(scope: Scope): Page[] {
+	return sectionsOf(scope).flatMap((s) => s.pages);
+}
+
+/** The first page of a section, scope or package version, or `undefined` when it has none. */
+export function firstPage(of: Section | PackageVersion | Section[]): Page | undefined {
+	const sections = Array.isArray(of) ? of : "pages" in of ? [of] : of.sections;
+	return sections.find((s) => s.pages.length)?.pages[0];
+}
+
+/** Where a package's link goes: its latest version's first page. */
+export function packageRoute(pkg: PackageInfo): string | undefined {
+	return pkg.versions[0] && firstPage(pkg.versions[0])?.route;
+}
+
+/** The pages either side of `route` in its scope. */
+export function prevNext(scope: Scope, route: string): { prev?: Page; next?: Page } {
+	const pages = pagesOf(scope);
 	const i = pages.findIndex((p) => p.route === route);
 	if (i < 0) return {};
 	return { prev: pages[i - 1], next: pages[i + 1] };
 }
 
+/** The section of `scope` holding `route`. */
+export function sectionOf(scope: Scope, route: string): Section | undefined {
+	return sectionsOf(scope).find((s) => s.pages.some((p) => p.route === route));
+}
+
+/** Every page of the latest documentation: guides and each package's newest version. */
+export function latestPages(content: SiteContent): { page: Page; scope: Scope }[] {
+	const out: { page: Page; scope: Scope }[] = [];
+	const guides: Scope = { kind: "guides", sections: content.guides };
+	for (const page of pagesOf(guides)) out.push({ page, scope: guides });
+	for (const pkg of content.packages) {
+		const version = pkg.versions[0];
+		if (!version) continue;
+		const scope: Scope = { kind: "package", package: pkg, version };
+		for (const page of pagesOf(scope)) out.push({ page, scope });
+	}
+	return out;
+}
+
 /**
- * Up to `count` written pages that look like `route`, for a 404. Scores by how many of the
- * route's words appear in a candidate, with a nudge toward the same section.
+ * Up to `count` latest pages that look like `route`, for a 404. Scores by how many of the route's
+ * words appear in a candidate.
  */
-export function nearby(
-	site: SiteConfig,
-	route: string,
-	written: (route: string) => boolean,
-	count = 3,
-): ResolvedPage[] {
+export function nearby(content: SiteContent, route: string, count = 3): Page[] {
 	const words = route.toLowerCase().split(/[/-]/).filter(Boolean);
-	const section = route.split("/")[0];
-	return allPages(site)
-		.filter((p) => p.route !== route && written(p.route))
-		.map((p) => {
-			const hay = (p.route + p.title).toLowerCase();
-			const hits = words.filter((w) => hay.includes(w.slice(0, 4))).length;
-			return { p, score: hits + (p.section === section ? 0.5 : 0) };
+	return latestPages(content)
+		.filter(({ page }) => page.route !== route && !page.frontmatter.draft)
+		.map(({ page }) => {
+			const hay = (page.route + page.title).toLowerCase();
+			return { page, score: words.filter((w) => hay.includes(w.slice(0, 4))).length };
 		})
 		.sort((a, b) => b.score - a.score)
 		.slice(0, count)
-		.map(({ p }) => p);
+		.map(({ page }) => page);
 }
 
 /** The badge tone a status reads as. */

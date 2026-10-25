@@ -298,11 +298,15 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
 - **`auth/`**, **`sockpuppet/`** (WebSocket channels), **`devproxy/`**, **`drip/`**
   (theme/stylesheet generation), **`webbies/`** (UI component library) — feature packages, each a
   router `Module` or standalone toolset following the same conventions.
-- **`gutenbearg/`** — documentation sites (a VitePress replacement): page templates (home, doc,
-  changelog, 404/draft) in three shells (`trail`, `shelves`, `den`), content blocks, a vanilla
-  client script, and `gutenbeargModule()` serving it all (claims `@bearmetal/gutenbearg`). Content
-  is hand-composed from blocks for now; markdown via `clawmark` and static output via `diecast` are
-  the planned next pass, and `types.ts` is the seam they plug into.
+- **`gutenbearg/`** — documentation sites (a VitePress replacement). Content is markdown under
+  `.bearmetal/gutenbearg/`, and the file system is the only manifest: `NNNN-` prefixes order entries
+  (spaced by 16, so inserts halve a gap), `[icon]` in a section's name gives its icon, and
+  `packages/<pkg>/<version>/` directories **inherit** from older versions (`removed: true`
+  tombstones a page). `content/load.ts` builds the route table, and every page is a literal route,
+  so diecast builds the site with no manifest (`build.ts`). Markdown goes through clawmark's
+  `rules/extra/docs.ts`, and `content/render.tsx` maps the tree onto the blocks in `blocks/`. Three
+  shells (`trail`, `shelves`, `den`) live in `templates/chrome.tsx`. `gutenbeargModule()` claims
+  `@bearmetal/gutenbearg`. `cli.ts` handles dev/build/check plus `new`/`reindex`/`cut`.
 - **`stack/`** — purely the `deno create jsr:@bearmetal/stack` scaffolding CLI/wizard that assembles
   a new app from the other packages (optional db/auth/dev-proxy modules). It owns none of the SSR or
   client-bundling machinery — that's `app/ssr`/`app/serve` — only the wizard itself and its own
