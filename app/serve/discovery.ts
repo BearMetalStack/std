@@ -46,7 +46,7 @@ export interface Resolved {
 	entrypoints: Entrypoint[];
 	/** `@components` manifest sources, imported for their `@define` side effects so components register server-side. */
 	sideEffects: string[];
-	/** Temp directory holding the synthesized combined entry. */
+	/** Temp directory holding the synthesized combined entry, unless it was written to {@linkcode ResolveOptions.synthesizeIn}. */
 	tempDir?: string;
 	/** Candidate keys with a `@components` manifest. Diagnostic only - every one is unioned into the combined bundle regardless of route. */
 	componentManifestKeys: Set<string>;
@@ -89,44 +89,58 @@ function relativeTo(root: string, entryPath: string): string {
 	return entryPath.slice(root.length).replace(/^\//, "");
 }
 
+/** Where {@linkcode resolveEntrypoints} reads from and writes to. */
+export interface ResolveOptions {
+	/**
+	 * Layout-identical copies to bundle from instead of the originals, by
+	 * convention. Each defaults to the original directory.
+	 */
+	mirrors?: { components?: string | null; app?: string | null; pages?: string | null };
+	/**
+	 * Writes the combined entry into this directory, with relative imports, and
+	 * only when its content changed — for the dev server, which serves one
+	 * directory as a tree of separate modules. Every mirror must sit inside it.
+	 */
+	synthesizeIn?: string;
+}
+
 /**
  * Works out what the one combined bundle entry should import, and which
  * `@components`/`@pages` candidate keys exist.
  *
- * `componentsDir` is where the components really are, and is what the server
- * imports for `@define` side effects; `mirroredComponentsRoot` is the
- * layout-identical stripped mirror the bundler reads instead (they're the
- * same directory only when nothing was stripped). `@app`/`@pages` have no
- * server-only code to strip, so they bundle straight from their real paths.
+ * The directories are where the code really is, and `@components` is what the
+ * server imports for `@define` side effects. The entry imports from
+ * `options.mirrors` instead where given: the stripped copies the bundler is
+ * allowed to see.
  */
 export async function resolveEntrypoints(
 	componentsDir: string | null,
 	appDir: string | null,
 	pagesDir: string | null,
-	mirroredComponentsRoot: string | null = componentsDir,
+	options: ResolveOptions = {},
 ): Promise<Resolved> {
 	const componentManifestKeys = new Set<string>();
 	const pageKeys = new Set<string>();
 	const imports: string[] = [];
 	const sideEffects: string[] = [];
-	const mirrorRoot = mirroredComponentsRoot ?? componentsDir;
+	const mirrors = options.mirrors ?? {};
+
+	/** The path the entry imports for `rel` under `dir`, read from its mirror when there is one. */
+	const bundled = (dir: string, mirror: string | null | undefined, rel: string) =>
+		joinPath(mirror ?? dir, rel);
 
 	if (componentsDir) {
-		const manifests: { key: string; source: string; mirrored: string }[] = [];
+		const manifests: { key: string; source: string; rel: string }[] = [];
 		for await (const entry of walkDir(componentsDir)) {
 			if (!entry.isFile || !manifestSuffixRx.test(entry.name)) continue;
 			const rel = relativeTo(componentsDir, entry.path);
-			manifests.push({
-				key: rel.replace(manifestSuffixRx, ""),
-				source: entry.path,
-				mirrored: joinPath(mirrorRoot!, rel),
-			});
+			manifests.push({ key: rel.replace(manifestSuffixRx, ""), source: entry.path, rel });
 		}
 
 		if (manifests.length > 0) {
 			for (const manifest of manifests) {
 				componentManifestKeys.add(manifest.key);
-				imports.push(await fileUrl(manifest.mirrored));
+				imports.push(bundled(componentsDir, mirrors.components, manifest.rel));
 				sideEffects.push(await fileUrl(manifest.source));
 			}
 		} else {
@@ -137,7 +151,7 @@ export async function resolveEntrypoints(
 				if (manifestSuffixRx.test(entry.name)) continue;
 				if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
 				const rel = relativeTo(componentsDir, entry.path);
-				imports.push(await fileUrl(joinPath(mirrorRoot!, rel)));
+				imports.push(bundled(componentsDir, mirrors.components, rel));
 				sideEffects.push(await fileUrl(entry.path));
 			}
 		}
@@ -147,7 +161,7 @@ export async function resolveEntrypoints(
 		for await (const entry of walkDir(appDir)) {
 			if (!entry.isFile) continue;
 			if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
-			imports.push(await fileUrl(entry.path));
+			imports.push(bundled(appDir, mirrors.app, relativeTo(appDir, entry.path)));
 		}
 	}
 
@@ -157,7 +171,7 @@ export async function resolveEntrypoints(
 			if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
 			const rel = relativeTo(pagesDir, entry.path);
 			pageKeys.add(rel.replace(scriptSuffixRx, ""));
-			imports.push(await fileUrl(entry.path));
+			imports.push(bundled(pagesDir, mirrors.pages, rel));
 		}
 	}
 
@@ -165,15 +179,23 @@ export async function resolveEntrypoints(
 		return { entrypoints: [], sideEffects, componentManifestKeys, pageKeys };
 	}
 
-	const tempDir = await Deno.makeTempDir();
+	const tempDir = options.synthesizeIn ? undefined : await Deno.makeTempDir();
+	const dir = options.synthesizeIn ?? tempDir!;
 	// Named distinctly: outputs are keyed by entrypoint basename, and a bare
 	// `index.ts` would collide with `@bearmetal/app/signals`'s own index.ts.
-	const synthesized = joinPath(tempDir, "bearmetal-app.ts");
-	const lines = imports.map((url) => `import "${url}";`);
+	const synthesized = joinPath(dir, "bearmetal-app.ts");
+	const lines: string[] = [];
+	for (const path of imports) {
+		const real = await Deno.realPath(path);
+		const spec = options.synthesizeIn ? `./${relativeTo(dir, path)}` : `file://${real}`;
+		lines.push(`import ${JSON.stringify(spec)};`);
+	}
 	if (pageKeys.size > 0) {
 		lines.push(`import { dispatch } from "@bearmetal/app";`, "dispatch();");
 	}
-	await Deno.writeTextFile(synthesized, lines.join("\n"));
+	const content = lines.join("\n") + "\n";
+	const current = await Deno.readTextFile(synthesized).catch(() => null);
+	if (current !== content) await Deno.writeTextFile(synthesized, content);
 
 	return {
 		entrypoints: [{ path: synthesized, output: "bearmetal-app.js", served: defaultBundleName }],

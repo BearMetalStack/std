@@ -91,6 +91,34 @@ Deno.test("@pages files are keyed by path and the entry ends with a dispatch() c
 	}
 });
 
+Deno.test("synthesizeIn writes a relative entry into the dev root, and only when it changed", async () => {
+	const root = await tempTree({
+		"components/counter.tsx": `export const a = 1;`,
+		"app/stores/users.ts": `export const b = 1;`,
+	});
+	const source = await tempTree({ "counter.tsx": `export const a = 1;` });
+	try {
+		const options = {
+			mirrors: { components: joinPath(root, "components"), app: joinPath(root, "app") },
+			synthesizeIn: root,
+		};
+		const app = joinPath(root, "app");
+		const resolved = await resolveEntrypoints(source, app, null, options);
+		assertEquals(resolved.tempDir, undefined);
+		assertEquals(resolved.entrypoints[0].path, joinPath(root, "bearmetal-app.ts"));
+
+		const entry = await Deno.readTextFile(resolved.entrypoints[0].path);
+		assertStringIncludes(entry, `import "./components/counter.tsx";`);
+		assertStringIncludes(entry, `import "./app/stores/users.ts";`);
+
+		const { mtime } = await Deno.stat(resolved.entrypoints[0].path);
+		await resolveEntrypoints(source, app, null, options);
+		assertEquals((await Deno.stat(resolved.entrypoints[0].path)).mtime, mtime);
+	} finally {
+		await cleanup(root, source);
+	}
+});
+
 Deno.test("nothing to bundle when no directory has anything in it", async () => {
 	const resolved = await resolveEntrypoints(null, null, null);
 	assertEquals(resolved.entrypoints.length, 0);

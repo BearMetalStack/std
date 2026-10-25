@@ -151,7 +151,9 @@ export function appModule(options: AppModuleOptions | ImportFn = {}): Module {
 		 */
 		const build = async () => {
 			await stripped?.refresh();
-			resolved = await resolveEntrypoints(componentsDir, appDir, pagesDir, stripped?.root ?? null);
+			resolved = await resolveEntrypoints(componentsDir, appDir, pagesDir, {
+				mirrors: { components: stripped?.root },
+			});
 
 			if (synthesized && synthesized !== resolved.tempDir) {
 				await Deno.remove(synthesized, { recursive: true }).catch(() => {});
