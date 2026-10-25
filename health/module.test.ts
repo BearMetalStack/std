@@ -250,3 +250,25 @@ Deno.test("sources pointing at nothing are warned about once", async () => {
 	assertStringIncludes(relevant[0], "rps →");
 	assertStringIncludes(relevant[0], "q →");
 });
+
+Deno.test("several metrics stream over one connection as named events", async () => {
+	const router = routerWith(undefined, { track: true });
+	const res = await get(router, "/@bearmetal/health/m?stream&names=uptime,rps");
+	const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
+	let text = "";
+	while (!(text.includes("event: uptime") && text.includes("event: rps"))) {
+		text += (await reader.read()).value;
+	}
+	await reader.cancel();
+	assertEquals((await get(router, "/@bearmetal/health/m?stream&names=uptime,nope")).status, 404);
+});
+
+Deno.test("the client script revalidates by ETag", async () => {
+	const router = routerWith(manifest);
+	const first = await get(router, "/@bearmetal/health/assets/client.js");
+	const etag = first.headers.get("etag")!;
+	await first.body?.cancel();
+	assert(etag);
+	const again = await get(router, "/@bearmetal/health/assets/client.js", { "if-none-match": etag });
+	assertEquals(again.status, 304);
+});

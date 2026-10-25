@@ -32,14 +32,14 @@ header p { margin: 0; color: var(--bmh-muted); }
 .meta { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .5rem; font-size: .85rem; }
 .meta a { color: var(--bmh-accent); }
 .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
-.grid > [data-size="m"] { grid-column: span 2; }
-.grid > [data-size="l"] { grid-column: 1 / -1; }
-@media (max-width: 560px) { .grid > [data-size] { grid-column: auto; } }
+.grid [data-size="m"] { grid-column: span 2; }
+.grid [data-size="l"] { grid-column: 1 / -1; }
+@media (max-width: 560px) { .grid [data-size] { grid-column: auto; } }
 `;
 
 function moduleMarkup(m: DashModule, token: string | undefined): string {
 	const tokenAttr = token ? ` token="${escapeHtml(token)}"` : "";
-	return `<bmh-feed data-size="${m.size ?? "s"}"${tokenAttr}><bmh-module config="${
+	return `<bmh-feed${tokenAttr}><bmh-module data-size="${m.size ?? "s"}" config="${
 		escapeHtml(JSON.stringify(m))
 	}"></bmh-module></bmh-feed>`;
 }

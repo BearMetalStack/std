@@ -35,6 +35,9 @@ export const DASHBOARD_PATH = `${HEALTH_BASE}/dashboard`;
 /** Where the standalone dashboard's client script is served. */
 export const CLIENT_SCRIPT_PATH = `${HEALTH_BASE}/assets/client.js`;
 
+/** Where the built-in metrics live. `GET` it with `?stream&names=a,b` to stream several at once. */
+export const METRICS_PATH = `${HEALTH_BASE}/m`;
+
 /** Environment variable the token defaults to. */
 export const TOKEN_ENV = "BEARMETAL_HEALTH_TOKEN";
 
@@ -71,13 +74,23 @@ const METRICS = [
  * Each answers a plain GET with its static payload, and streams with `?stream`.
  */
 export const builtin: Readonly<Record<BuiltinMetric, string>> = Object.fromEntries(
-	METRICS.map((m) => [m, `${HEALTH_BASE}/m/${m}`]),
+	METRICS.map((m) => [m, `${METRICS_PATH}/${m}`]),
 ) as Record<BuiltinMetric, string>;
 
 /** The path a user handler registered under `key` is served at. */
 export function handlerPath(key: `/${string}`): string {
 	return `${HEALTH_BASE}/x${key}`;
 }
+
+/** FNV-1a over the bundle, so the ETag changes whenever `bm:embed` does. */
+const CLIENT_ETAG = (() => {
+	let h = 0x811c9dc5;
+	for (let i = 0; i < clientScript.length; i++) {
+		h ^= clientScript.charCodeAt(i);
+		h = Math.imul(h, 0x01000193);
+	}
+	return `"${(h >>> 0).toString(36)}"`;
+})();
 
 function isBuiltin(name: string | undefined): name is BuiltinMetric {
 	return (METRICS as readonly string[]).includes(name ?? "");
@@ -141,7 +154,8 @@ export class HealthModule extends TrustedModule {
 		this.absoluteRoute(HEALTH_BASE).get(() =>
 			noStore(new Response("ok", { headers: { "x-bearmetal-health": VERSION } }))
 		);
-		this.absoluteRoute(`${HEALTH_BASE}/m/:metric`).get(this.#gate(this.#metric));
+		this.absoluteRoute(METRICS_PATH).get(this.#gate(this.#mux));
+		this.absoluteRoute(`${METRICS_PATH}/:metric`).get(this.#gate(this.#metric));
 
 		for (const [key, handler] of Object.entries(opts.handlers ?? {})) {
 			if (!key.startsWith("/")) {
@@ -152,9 +166,13 @@ export class HealthModule extends TrustedModule {
 
 		if (manifest) {
 			this.absoluteRoute(DASHBOARD_PATH).get(this.#gate(this.#dashboard));
-			this.absoluteRoute(CLIENT_SCRIPT_PATH).get(() => {
+			this.absoluteRoute(CLIENT_SCRIPT_PATH).get((ctx) => {
+				const headers = { ETag: CLIENT_ETAG, "Cache-Control": "no-cache" };
+				if (ctx.request.headers.get("if-none-match") === CLIENT_ETAG) {
+					return new Response(null, { status: 304, headers });
+				}
 				const res = Script(clientScript);
-				res.headers.set("Cache-Control", "public, max-age=3600");
+				for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
 				return res;
 			});
 		}
@@ -230,6 +248,28 @@ export class HealthModule extends TrustedModule {
 			}, { signal: ctx.request.signal });
 		}
 		return noStore(Ok(this.tracker.snapshot(name)));
+	};
+
+	/**
+	 * Streams several metrics over one connection, each as an event named after the metric.
+	 * Browsers allow six HTTP/1.1 connections per origin, so a dashboard with an EventSource per
+	 * module would starve its own polling.
+	 */
+	#mux: RouterHandler = (ctx) => {
+		const names = (ctx.query.names ?? "").split(",").filter(Boolean);
+		const bad = names.filter((n) => !isBuiltin(n) || !this.tracker.enabled(n));
+		if (!names.length || bad.length) {
+			return NotFound(`Not tracked: ${bad.join(", ") || "(no names given)"}`);
+		}
+		return sseResponse((send) => {
+			const ids = (names as BuiltinMetric[]).map((name) => {
+				const { every, events } = this.tracker.stream(name);
+				const tick = () => events().forEach((e) => send(e, name));
+				tick();
+				return setInterval(tick, every);
+			});
+			return () => ids.forEach(clearInterval);
+		}, { signal: ctx.request.signal });
 	};
 
 	#dashboard: RouterHandler = async (ctx) => {

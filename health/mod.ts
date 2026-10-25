@@ -15,6 +15,7 @@ export {
 	HEALTH_BASE,
 	HealthModule,
 	healthModule,
+	METRICS_PATH,
 	TOKEN_ENV,
 	VERSION,
 } from "./module.ts";

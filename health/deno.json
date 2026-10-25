@@ -6,15 +6,24 @@
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts",
-		"./schema": "./schema.ts"
+		"./schema": "./schema.ts",
+		"./components": "./components/mod.ts",
+		"./reduce": "./reduce.ts"
 	},
 	"tasks": {
 		"dev": "deno test -P=test --watch",
-		"test": "deno test -P=test"
+		"test": "deno test -P=test",
+		"bm:embed": {
+			"description": "Re-bundles the dashboard components into client/embedded.ts",
+			"command": "deno run -A client/embed.ts"
+		}
 	},
 	"permissions": {
 		"test": {
-			"env": ["BEARMETAL_ENV", "BEARMETAL_HEALTH_TOKEN"],
+			"env": [
+				"BEARMETAL_ENV",
+				"BEARMETAL_HEALTH_TOKEN"
+			],
 			"read": true
 		}
 	},
@@ -22,5 +31,11 @@
 		"jsx": "react-jsx",
 		"jsxImportSource": "@bearmetal/jsx",
 		"jsxImportSourceTypes": "@bearmetal/jsx"
+	},
+	"publish": {
+		"exclude": [
+			"client/embed.ts",
+			"client/entry.ts"
+		]
 	}
 }
