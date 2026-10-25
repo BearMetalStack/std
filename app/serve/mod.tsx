@@ -24,12 +24,11 @@ import {
 	mirrorStripped,
 } from "../ssr/mod.ts";
 import { getAllStylesheets } from "../define.ts";
-import { type Module, Script, Style, TrustedModule } from "@bearmetal/router";
+import { type Module, Script, Style } from "@bearmetal/router";
 import { isDev } from "@bearmetal/miscellanea/environment";
 import {
 	appJsxImportSource,
 	defaultBundleName,
-	type Entrypoint,
 	findAppDir,
 	findComponentsDir,
 	findPagesDir,
@@ -38,19 +37,22 @@ import {
 	resolveEntrypoints,
 	serveMap,
 } from "./discovery.ts";
-import { resolveForRoute } from "./routeResolution.ts";
+import {
+	AppModule,
+	cache,
+	componentHeadTags,
+	componentsEndpoint,
+	fingerprint,
+	type ImportFn,
+	pageDispatchHead,
+	stylesheetName,
+} from "./endpoint.tsx";
+import { prebuiltApp } from "./prebuilt.tsx";
 
 export * from "./discovery.ts";
 export * from "./routeResolution.ts";
-
-/** URL prefix that the component bundle and shared chunks are served under. */
-export const componentsEndpoint = "/@bearmetal/components";
-
-/** Served name of the stylesheet holding every component's CSS. */
-const stylesheetName = `${defaultBundleName}.css`;
-
-/** Loads a module for its `@define` side effects. */
-export type ImportFn = (specifier: string) => Promise<unknown>;
+export { componentsEndpoint, type ImportFn, type RouteKeys } from "./endpoint.tsx";
+export type { PrebuiltManifest } from "./build.ts";
 
 /** How {@linkcode appModule} finds and serves an app's client code. */
 export interface AppModuleOptions {
@@ -68,13 +70,22 @@ export interface AppModuleOptions {
 	appDir?: string;
 	/** Where per-route orchestration lives. Defaults to `pages/`, then `src/pages/`. */
 	pagesDir?: string;
-}
-
-/** Serves the client bundle at the reserved `/@bearmetal/components` endpoint. */
-class AppModule extends TrustedModule {
-	constructor() {
-		super("@bearmetal/components");
-	}
+	/**
+	 * A directory written by `buildApp` from `@bearmetal/app/build`.
+	 *
+	 * Outside dev, the module serves that instead of bundling at startup, and
+	 * never looks for `@components`/`@app`/`@pages` — which is what lets an app
+	 * run from a `deno compile` binary. Embed it with `--include`, and pass a
+	 * `file:` URL built from `import.meta.url` so it resolves inside the binary.
+	 */
+	prebuilt?: URL;
+	/**
+	 * Imports the components server-side when serving a prebuilt client.
+	 *
+	 * Pass `() => import("./dist/client/server.ts")` — a literal specifier, so
+	 * `deno compile` sees the import and embeds every component with it.
+	 */
+	register?: () => Promise<unknown>;
 }
 
 /**
@@ -93,10 +104,13 @@ class AppModule extends TrustedModule {
  * `<script>` that `Page()` puts in every `<head>`, plus a per-route
  * `<meta name="bm-page">` dispatch tag for pages whose route resolves to a
  * `@pages` module.
+ *
+ * Outside dev, `prebuilt` serves a client built ahead of time instead.
  */
 export function appModule(options: AppModuleOptions | ImportFn = {}): Module {
 	const opts: AppModuleOptions = typeof options === "function" ? { import: options } : options;
 	const importModule: ImportFn = opts.import ?? ((specifier) => import(specifier));
+	if (!isDev() && opts.prebuilt) return prebuiltApp(opts.prebuilt, opts.register);
 
 	const bus = new EventTarget();
 	/** Bundles keyed by the name they are served under at the components endpoint. */
@@ -111,8 +125,6 @@ export function appModule(options: AppModuleOptions | ImportFn = {}): Module {
 		pageKeys: new Set(),
 	};
 
-	// Claims the `/@bearmetal/components` namespace, which the router reserves.
-	// The class name is what the router reports, so it is declared rather than anonymous.
 	const mod = new AppModule();
 
 	mod.onStart(async () => {
@@ -188,8 +200,15 @@ export function appModule(options: AppModuleOptions | ImportFn = {}): Module {
 			return;
 		}
 
-		contributeHead(() => headTags(resolved.entrypoints));
-		contributeRouteHead(routeMeta);
+		contributeHead(() => [
+			...componentHeadTags(
+				compStyles,
+				version,
+				resolved.entrypoints.some((e) => e.served === defaultBundleName),
+			),
+			...(isDev() ? [<script $raw>{reloadScript}</script>] : []),
+		]);
+		contributeRouteHead(pageDispatchHead(() => resolved));
 
 		const watchedDirs = [componentsDir, appDir, pagesDir].filter((d): d is string => d !== null);
 
@@ -217,49 +236,6 @@ export function appModule(options: AppModuleOptions | ImportFn = {}): Module {
 			if (script === undefined) return await next();
 			return cache(Script(script));
 		});
-
-	/** The default bundle is the only one referenced; shared chunks are pulled in by the entry that imports them. */
-	function headTags(entrypoints: Entrypoint[]) {
-		const tags = [];
-		if (compStyles) {
-			tags.push(
-				<link rel="stylesheet" href={`${componentsEndpoint}/${stylesheetName}?v=${version}`} />,
-			);
-		}
-		if (entrypoints.some((e) => e.served === defaultBundleName)) {
-			tags.push(
-				<script
-					type="module"
-					src={`${componentsEndpoint}/${defaultBundleName}?v=${version}`}
-				/>,
-			);
-		}
-		if (isDev()) tags.push(<script $raw>{reloadScript}</script>);
-		return tags;
-	}
-
-	/** Said once per unresolved route, however many times it renders. */
-	const warnedRoutes = new Set<string>();
-
-	/** Resolves the `@pages` dispatch key for the matched route, if any. */
-	function routeMeta(route: string | undefined) {
-		if (!route) return null;
-		const resolution = resolveForRoute(route, resolved.pageKeys, resolved.componentManifestKeys);
-
-		if (
-			isDev() && resolved.componentManifestKeys.size > 0 && !resolution.componentManifest &&
-			!warnedRoutes.has(route)
-		) {
-			warnedRoutes.add(route);
-			console.warn(
-				`No @components manifest resolves for route "${route}", and no main.manifest.ts ` +
-					"fallback exists either — add @components/main.manifest.ts.",
-			);
-		}
-
-		if (!resolution.page) return null;
-		return <meta name="bm-page" content={resolution.page} />;
-	}
 
 	if (isDev()) {
 		mod.route("/__event/reload")
@@ -296,28 +272,6 @@ export function appModule(options: AppModuleOptions | ImportFn = {}): Module {
 	}
 
 	return mod;
-}
-
-/**
- * The bundle URL carries a content hash, so the answer can be cached forever.
- * In dev it must not be cached at all — the URL is the same across a rebuild
- * whenever the hash happens not to change.
- */
-function cache(res: Response): Response {
-	res.headers.set(
-		"Cache-Control",
-		isDev() ? "no-store" : "public, max-age=31536000, immutable",
-	);
-	return res;
-}
-
-/** Short content hash, enough to bust a cache when the bundle moves. */
-async function fingerprint(...parts: string[]): Promise<string> {
-	const data = new TextEncoder().encode(parts.join(" "));
-	const digest = await crypto.subtle.digest("SHA-256", data);
-	return [...new Uint8Array(digest).slice(0, 6)]
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
 }
 
 /**
