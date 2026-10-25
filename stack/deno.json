@@ -5,8 +5,7 @@
 	"exports": {
 		".": "./mod.tsx",
 		"./create": "./create.ts",
-		"./types": "./types.ts",
-		"./build": "./build.ts"
+		"./types": "./types.ts"
 	},
 	"tasks": {
 		"dev": "deno test --watch",

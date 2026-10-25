@@ -56,6 +56,8 @@ export const templateNames: readonly string[] = Object.keys(templates);
 export function denoJson(_projectName: string, packages: Set<string>): string {
 	const imports: DenoConfig["imports"] = {
 		"@components/": "./components/",
+		"@app/": "./app/",
+		"@pages/": "./pages/",
 		"@views/": "./views/",
 	};
 	packages.forEach((pkg) => {
