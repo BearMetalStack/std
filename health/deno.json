@@ -1,0 +1,26 @@
+{
+	"name": "@bearmetal/health",
+	"description": "Health checks, request metrics, and a dashboard manifest for BearMetal apps",
+	"version": "0.1.0",
+	"license": "MIT",
+	"exports": {
+		".": "./mod.ts",
+		"./types": "./types.ts",
+		"./schema": "./schema.ts"
+	},
+	"tasks": {
+		"dev": "deno test -P=test --watch",
+		"test": "deno test -P=test"
+	},
+	"permissions": {
+		"test": {
+			"env": ["BEARMETAL_ENV", "BEARMETAL_HEALTH_TOKEN"],
+			"read": true
+		}
+	},
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx",
+		"jsxImportSourceTypes": "@bearmetal/jsx"
+	}
+}
