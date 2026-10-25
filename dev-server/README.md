@@ -56,9 +56,16 @@ router.route("/").get(Page(() => (
 A component the server rendered is replaced like any other, starting from the `@state` it hydrated
 with. Stylesheets the layout links from the dev server's mount are swapped in place.
 
-`@bearmetal/stack` uses this in dev: `createStack()` serves its components directory through the dev
-server rather than bundling it, and a changed component is replaced in the page and on the server.
-See its docs.
+`appModule()` from `@bearmetal/app/serve` uses this in dev when handed `appDevServer`:
+
+```ts
+router.use(appModule({ devServer: appDevServer }));
+```
+
+It serves the app's `components/`, `app/` and `pages/` through the dev server rather than bundling
+them, and a changed component is replaced in the page and on the server. `@bearmetal/app` defines
+the contract (`DevServerFactory`) rather than importing this package, since this package already
+depends on it.
 
 ## Embedding
 

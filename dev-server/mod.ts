@@ -13,6 +13,7 @@ import { devServerModule } from "./module.ts";
 
 export { devServerModule } from "./module.ts";
 export { devServerSourceUrl } from "./client.ts";
+export { appDevServer } from "./app.ts";
 export type * from "./types.ts";
 
 /**
