@@ -127,7 +127,7 @@ function rawFragment(markup: string): DocumentFragment {
 // -- props --
 
 function applyProp(el: HTMLElement, key: string, val: unknown) {
-	if (isPixelable(key, val)) {
+	if (isPixelable(el, key, val)) {
 		val = val + "px";
 	}
 	if (key === "class") {
@@ -271,9 +271,11 @@ function applyStyle(el: Element, val: unknown, trackEach: boolean): void {
 	}
 }
 
-function isPixelable(key: string, val: unknown): boolean {
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+function isPixelable(el: Element, key: string, val: unknown): boolean {
 	const pixelables = ["width", "height"];
-	return typeof val === "number" && pixelables.includes(key);
+	return typeof val === "number" && pixelables.includes(key) && el.namespaceURI !== SVG_NAMESPACE;
 }
 
 function isFormControl(el: Element): boolean {
@@ -308,30 +310,49 @@ function isCheckable(type: unknown): boolean {
 	return type === "checkbox" || type === "radio";
 }
 
+/**
+ * The tags built in the SVG namespace. `a`, `script`, `style` and `title` exist
+ * in both; with no parent to look at (children are built first), they stay HTML.
+ */
+const SVG_TAGS: ReadonlySet<string> = new Set([
+	"svg",
+	"g",
+	"defs",
+	"symbol",
+	"use",
+	"switch",
+	"image",
+	"foreignObject",
+	"view",
+	"desc",
+	"metadata",
+	"circle",
+	"ellipse",
+	"line",
+	"path",
+	"polygon",
+	"polyline",
+	"rect",
+	"text",
+	"tspan",
+	"textPath",
+	"linearGradient",
+	"radialGradient",
+	"stop",
+	"pattern",
+	"clipPath",
+	"mask",
+	"marker",
+	"filter",
+	"animate",
+	"animateMotion",
+	"animateTransform",
+	"set",
+	"mpath",
+]);
+
 function isTagSVG(tag: string): boolean {
-	return [
-		"svg",
-		"g",
-		"circle",
-		"rect",
-		"path",
-		"ellipse",
-		"line",
-		"text",
-		"polygon",
-		"polyline",
-		"defs",
-		"tspan",
-		"textPath",
-		"animate",
-		"animateTransform",
-		"set",
-		"use",
-		"linearGradient",
-		"radialGradient",
-		"filter",
-	]
-		.includes(tag) || Boolean(tag.match(/^(fe)/));
+	return SVG_TAGS.has(tag) || /^fe[A-Z]/.test(tag);
 }
 
 function coerceBindValue(
@@ -726,7 +747,7 @@ export function jsx(
 	}
 
 	if (isTagSVG(tag)) {
-		const svgEl = document.createElementNS("http://www.w3.org/2000/svg", tag);
+		const svgEl = document.createElementNS(SVG_NAMESPACE, tag);
 		applyProps(svgEl as unknown as HTMLElement, rest);
 		appendFlatChildren(svgEl, flat, raw);
 		return svgEl;

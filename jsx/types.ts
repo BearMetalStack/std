@@ -9,6 +9,7 @@ import type {
 	MakeChildren,
 	MakeIntrinsicElements,
 	MakeStyleObject,
+	MakeSvgProps,
 	TargetedEvent as MakeTargetedEvent,
 } from "./lib/types.ts";
 import type { BMC } from "./lib/bmc.ts";
@@ -63,6 +64,11 @@ export namespace JSX {
 	export type Children = MakeChildren<SignalLike>;
 	/** The props every element takes, with handlers typed for an element of type `E`. */
 	export type BaseProps<E extends globalThis.Element = HTMLElement> = MakeBaseProps<SignalLike, E>;
+	/**
+	 * The props every SVG element takes, presentation attributes included, with
+	 * handlers typed for an element of type `E`.
+	 */
+	export type SvgProps<E extends SVGElement = SVGElement> = MakeSvgProps<SignalLike, E>;
 	/**
 	 * An event whose `currentTarget` is `Current` and whose `target` is `Target`
 	 * (`Current` unless given).
