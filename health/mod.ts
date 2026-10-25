@@ -7,18 +7,19 @@
  * module's data from the source it names.
  */
 
+export { HealthModule, healthModule, TOKEN_ENV, VERSION } from "./module.ts";
 export {
 	builtin,
 	CLIENT_SCRIPT_PATH,
 	DASHBOARD_PATH,
 	handlerPath,
 	HEALTH_BASE,
-	HealthModule,
-	healthModule,
+	isBuiltin,
+	METRICS,
 	METRICS_PATH,
-	TOKEN_ENV,
-	VERSION,
-} from "./module.ts";
+} from "./paths.ts";
+export { formatValue } from "./format.ts";
+export { headline, type Level, levelOf, reduce } from "./reduce.ts";
 export {
 	DEFAULT_LATENCY_BUCKETS,
 	type MetricPayload,

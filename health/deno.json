@@ -8,7 +8,9 @@
 		"./types": "./types.ts",
 		"./schema": "./schema.ts",
 		"./components": "./components/mod.ts",
-		"./reduce": "./reduce.ts"
+		"./reduce": "./reduce.ts",
+		"./paths": "./paths.ts",
+		"./format": "./format.ts"
 	},
 	"tasks": {
 		"dev": "deno test -P=test --watch",
