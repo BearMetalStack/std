@@ -48,11 +48,13 @@ import {
 	stylesheetName,
 } from "./endpoint.tsx";
 import { prebuiltApp } from "./prebuilt.tsx";
+import { devApp, type DevServerFactory } from "./dev.tsx";
 
 export * from "./discovery.ts";
 export * from "./routeResolution.ts";
 export { componentsEndpoint, type ImportFn, type RouteKeys } from "./endpoint.tsx";
 export type { PrebuiltManifest } from "./build.ts";
+export type { DevServerFactory, DevServerHook, DevServerHookOptions } from "./dev.tsx";
 
 /** How {@linkcode appModule} finds and serves an app's client code. */
 export interface AppModuleOptions {
@@ -86,6 +88,17 @@ export interface AppModuleOptions {
 	 * `deno compile` sees the import and embeds every component with it.
 	 */
 	register?: () => Promise<unknown>;
+	/**
+	 * The dev server to serve the client through in dev, unbundled.
+	 *
+	 * Pass `appDevServer` from `@bearmetal/dev-server`. A changed component is
+	 * then replaced in the page and on the server without a reload. Without
+	 * one, dev rebuilds the bundle on a change and reloads the page. Keep the
+	 * components directory out of `deno run --watch`
+	 * (`--watch-exclude=components`) either way, or every edit restarts the
+	 * server first.
+	 */
+	devServer?: DevServerFactory;
 }
 
 /**
@@ -105,11 +118,13 @@ export interface AppModuleOptions {
  * `<meta name="bm-page">` dispatch tag for pages whose route resolves to a
  * `@pages` module.
  *
+ * In dev, `devServer` serves everything unbundled with hot replacement.
  * Outside dev, `prebuilt` serves a client built ahead of time instead.
  */
 export function appModule(options: AppModuleOptions | ImportFn = {}): Module {
 	const opts: AppModuleOptions = typeof options === "function" ? { import: options } : options;
 	const importModule: ImportFn = opts.import ?? ((specifier) => import(specifier));
+	if (isDev() && opts.devServer) return devApp(opts, importModule, opts.devServer);
 	if (!isDev() && opts.prebuilt) return prebuiltApp(opts.prebuilt, opts.register);
 
 	const bus = new EventTarget();
