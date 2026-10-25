@@ -86,6 +86,18 @@ export interface StripOptions {
 	 * mirrored file importing a local alias fails to bundle.
 	 */
 	imports?: Record<string, string>;
+	/**
+	 * Directory to mirror into, created if missing, instead of a fresh temp
+	 * directory. `dispose()` deletes it all the same.
+	 */
+	target?: string;
+	/**
+	 * Other trees mirrored alongside this one, source directory to copy
+	 * directory. An import reaching into one — relative or through an alias —
+	 * is pointed at its copy rather than its original, so trees served side by
+	 * side share one copy of each module.
+	 */
+	siblings?: Record<string, string>;
 }
 
 /** Members that exist only to serve a render, and must not reach a browser. */
@@ -127,9 +139,6 @@ function resolveRelative(specifier: string, fromFile: string): string | null {
 
 /**
  * `to` as a specifier relative to the file `from`.
- *
- * An alias that names a file inside the tree is made relative rather than
- * absolute, so it lands on the stripped copy and not on the original.
  */
 function relativeSpecifier(from: string, to: string): string {
 	const fromParts = directoryOf(from).split("/");
@@ -154,25 +163,37 @@ function relativeSpecifier(from: string, to: string): string {
  * makes the same fix that already applies to relative imports apply here
  * too, since a config file placed in the mirror is never consulted (the same
  * reason the JSX pragma below exists rather than a `compilerOptions` copy).
- * An alias that names a file inside the tree is made relative instead, so it
- * reaches the stripped copy rather than the original.
+ *
+ * Whatever the specifier, a target inside a mirrored tree — this one or a
+ * sibling — is pointed at its copy, relative to `outFile`, so the stripped
+ * copy is what loads and not the original.
  */
 function rewriteEscapingImports(
 	src: string,
 	sourceFile: string,
-	sourceRoot: string,
+	outFile: string,
+	trees: ReadonlyArray<readonly [source: string, copy: string]>,
 	imports: Record<string, string> = {},
 ): string {
 	const edits: Array<[number, number, string]> = [];
 	const aliases = Object.entries(imports).sort(([a], [b]) => b.length - a.length);
+	const [ownSource] = trees[0];
+
+	const copyOf = (path: string): string | null => {
+		for (const [source, copy] of trees) {
+			if (path.startsWith(source + "/")) return copy + path.slice(source.length);
+		}
+		return null;
+	};
 
 	for (const [start, end] of specifierRanges(src)) {
 		const specifier = src.slice(start, end);
 
 		const resolved = resolveRelative(specifier, sourceFile);
 		if (resolved !== null) {
-			if (resolved.startsWith(sourceRoot + "/")) continue;
-			edits.push([start, end, `file://${resolved}`]);
+			if (resolved.startsWith(ownSource + "/")) continue;
+			const copy = copyOf(resolved);
+			edits.push([start, end, copy ? relativeSpecifier(outFile, copy) : `file://${resolved}`]);
 			continue;
 		}
 
@@ -182,11 +203,8 @@ function rewriteEscapingImports(
 		const targetPath = target.startsWith("file://")
 			? decodeURIComponent(new URL(target).pathname)
 			: null;
-		edits.push([
-			start,
-			end,
-			targetPath?.startsWith(sourceRoot + "/") ? relativeSpecifier(sourceFile, targetPath) : target,
-		]);
+		const copy = targetPath ? copyOf(targetPath) : null;
+		edits.push([start, end, copy ? relativeSpecifier(outFile, copy) : target]);
 	}
 
 	let result = src;
@@ -197,7 +215,8 @@ function rewriteEscapingImports(
 }
 
 /**
- * Mirrors `sourceRoot` into a temporary directory, stripped.
+ * Mirrors `sourceRoot` into a temporary directory, or `options.target`,
+ * stripped.
  *
  * Every file is copied, not only the ones that changed: a relative import
  * between two files in the tree has to land on the copy, and it only does if
@@ -208,7 +227,13 @@ export async function mirrorStripped(
 	options: StripOptions = {},
 ): Promise<StrippedTree> {
 	const root = await Deno.realPath(sourceRoot);
-	const target = await Deno.makeTempDir({ prefix: "bearmetal-strip-" });
+	const target = options.target ?? await Deno.makeTempDir({ prefix: "bearmetal-strip-" });
+	if (options.target) await Deno.mkdir(target, { recursive: true });
+	const trees: Array<[string, string]> = [[root, target]];
+	for (const [source, copy] of Object.entries(options.siblings ?? {})) {
+		const real = await Deno.realPath(source).catch(() => null);
+		if (real) trees.push([real, copy]);
+	}
 	const names = options.names ?? DEFAULT_NAMES;
 	const pragma = options.jsxImportSource
 		? `/** @jsxRuntime automatic */\n/** @jsxImportSource ${options.jsxImportSource} */\n`
@@ -244,7 +269,7 @@ export async function mirrorStripped(
 
 			const source = await Deno.readTextFile(path);
 			const stripped = stripServerCode(source, { names, prefixes: options.prefixes });
-			const rewritten = rewriteEscapingImports(stripped, path, root, options.imports);
+			const rewritten = rewriteEscapingImports(stripped, path, out, trees, options.imports);
 			const needsPragma = JSX_EXTENSIONS.some((ext) => path.endsWith(ext));
 			await write(out, needsPragma ? pragma + rewritten : rewritten);
 		}

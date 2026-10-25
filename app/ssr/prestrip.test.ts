@@ -103,6 +103,29 @@ Deno.test("an alias naming a file inside the tree lands on the stripped copy", a
 	await Deno.remove(root, { recursive: true });
 });
 
+Deno.test("an import into a sibling tree lands on the sibling's copy", async () => {
+	const project = await tree({
+		"components/card.tsx":
+			`import { a } from "@app/stores/users.ts";\nimport { b } from "../app/stores/users.ts";\n`,
+		"app/stores/users.ts": "export const a = 1, b = 2;\n",
+	});
+	const real = await Deno.realPath(project);
+	const staging = await Deno.makeTempDir();
+	const mirror = await mirrorStripped(`${project}/components`, {
+		target: `${staging}/components`,
+		siblings: { [`${project}/app`]: `${staging}/app` },
+		imports: { "@app/": `file://${real}/app/` },
+	});
+	const copied = await Deno.readTextFile(`${staging}/components/card.tsx`);
+
+	assertEquals(mirror.root, `${staging}/components`);
+	assertEquals(copied.match(/"\.\.\/app\/stores\/users\.ts"/g)?.length, 2);
+
+	await mirror.dispose();
+	await Deno.remove(staging, { recursive: true });
+	await Deno.remove(project, { recursive: true });
+});
+
 Deno.test("an unrelated bare specifier is left alone when no alias matches", async () => {
 	const root = await tree({
 		"card.tsx": `import { z } from "@bearmetal/app";\n`,
