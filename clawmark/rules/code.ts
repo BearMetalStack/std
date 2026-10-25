@@ -1,7 +1,14 @@
 import type { LexerContext, Rule } from "../types.ts";
 import { appendLeaf, textFallback } from "./helpers.ts";
 
-type CodeData = { value: string; lang?: string };
+type CodeData = { value: string; lang?: string; label?: string; meta?: string };
+
+/**
+ * A fence's info string: ```` ```lang [label] {meta} ````. The label names the block (a file name,
+ * a tab in a group); meta is passed through untouched for whatever renders it. Both need a
+ * language in front, so a first line that merely starts with `[` stays code.
+ */
+const INFO = /^([A-Za-z0-9_+#.-]+)(?:[ \t]+\[([^\]\n]*)\])?(?:[ \t]+\{([^}\n]*)\})?[ \t]*$/;
 
 /**
  * Unlike v1 (which flips a lexer-wide `isInCodeBlock`/`isInCode` flag and
@@ -36,11 +43,15 @@ export const codeBlockRule: Rule<CodeData> = {
 		// content. Split it off when the first line is a bare language token.
 		const nl = content.indexOf("\n");
 		const first = nl < 0 ? "" : content.slice(0, nl);
-		const lang = /^[A-Za-z0-9_+#.-]+$/.test(first) ? first : undefined;
-		const body = lang ? content.slice(nl + 1) : content;
+		const info = INFO.exec(first);
+		const body = info ? content.slice(nl + 1) : content;
 		// drop a single leading/trailing newline the way fenced blocks read visually
 		const value = body.replace(/^\n/, "").replace(/\n$/, "");
-		return { tag: "md:codeblock", data: lang ? { value, lang } : { value } };
+		const data: CodeData = { value };
+		if (info) data.lang = info[1];
+		if (info?.[2] !== undefined) data.label = info[2];
+		if (info?.[3] !== undefined) data.meta = info[3];
+		return { tag: "md:codeblock", data };
 	},
 
 	tree: (token, ctx) => appendLeaf(ctx, "md:codeblock", token.data),
@@ -75,7 +86,11 @@ export const codeBlockRule: Rule<CodeData> = {
 		// block closes early on re-lex.
 		const longest = Math.max(0, ...(value.match(/`+/g) ?? []).map((r) => r.length));
 		const fence = "`".repeat(Math.max(3, longest + 1));
-		return `${fence}${node.data.lang ?? ""}\n${value}\n${fence}`;
+		const { lang, label, meta } = node.data;
+		let info = lang ?? "";
+		if (lang && label !== undefined) info += ` [${label}]`;
+		if (lang && meta !== undefined) info += ` {${meta}}`;
+		return `${fence}${info}\n${value}\n${fence}`;
 	},
 };
 

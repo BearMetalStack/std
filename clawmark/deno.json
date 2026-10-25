@@ -5,6 +5,7 @@
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts",
+		"./frontmatter": "./frontmatter.ts",
 		"./xml": "./xml/mod.ts",
 		"./crawl": "./crawl.ts",
 		"./serialize": "./serialize.ts",

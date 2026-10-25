@@ -45,6 +45,15 @@ export * from "./format.ts";
 export * from "./css.ts";
 export * from "./dsl.ts";
 export { htmlProfile } from "./profiles/html/mod.ts";
+export {
+	FrontmatterError,
+	parseDocument,
+	parseYaml,
+	splitFrontmatter,
+	stringifyFrontmatter,
+	stringifyYaml,
+} from "./frontmatter.ts";
+export type { Frontmatter, YamlValue } from "./frontmatter.ts";
 export type { HtmlProfileOptions } from "./profiles/html/mod.ts";
 
 /**

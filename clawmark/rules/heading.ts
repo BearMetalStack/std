@@ -1,7 +1,7 @@
 import type { Rule } from "../types.ts";
-import { closeNode, openNode } from "./helpers.ts";
+import { closeNode, escapeHtml, openNode } from "./helpers.ts";
 
-type HeadingData = { level: number; phase: "open" | "close" };
+type HeadingData = { level: number; phase: "open" | "close"; id?: string };
 
 export const headingRule: Rule<HeadingData> = {
 	id: "md:heading",
@@ -30,7 +30,8 @@ export const headingRule: Rule<HeadingData> = {
 	},
 
 	renderOpen(node) {
-		return `<h${node.data.level}>`;
+		const id = node.data.id ? ` id="${escapeHtml(node.data.id)}"` : "";
+		return `<h${node.data.level}${id}>`;
 	},
 	renderClose(node) {
 		return `</h${node.data.level}>`;

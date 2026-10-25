@@ -217,3 +217,17 @@ export function tocRule(options: TocOptions = {}): AnyRule {
 	};
 	return rule as AnyRule;
 }
+
+export {
+	COMPONENT_TAG,
+	CONTAINER_TAG,
+	CONTAINER_TITLE_TAG,
+	containerRules,
+	docsRules,
+	headingIdsRule,
+	inlineComponentRule,
+	slugifyHeading,
+	WIKILINK_TAG,
+	wikiLinkRule,
+} from "./docs.ts";
+export type { ComponentData, ContainerData, WikiLinkData } from "./docs.ts";
