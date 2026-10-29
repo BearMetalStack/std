@@ -56,10 +56,16 @@ deno task workspace:check              # deno check + deno lint each package in 
 deno task workspace:manifest           # list all packages at their current published version
 deno task workspace:map-dependencies   # print the internal @bearmetal/* dependency graph
 deno task workspace:bump-versions      # bump versions for packages changed since last bump
-deno task workspace:publish            # bump + publish all packages to JSR, in dependency order
+deno task workspace:publish            # bump, then `deno publish` at the root (orders by deps itself)
 deno task bm:drip                      # regenerate Drip theme CSS/completions
 deno task docs:dev                     # VitePress docs site (docs/)
 ```
+
+`workspace:bump-versions` prompts only on a terminal. To decide bumps non-interactively, inspect
+with `--plan` (or `--plan --json`: changed packages, commits since each tag, a suggested bump), then
+pass `--bump=<pkg>=<patch|minor|major|dev|dev:NAME|retag|skip|X.Y.Z>` per package, plus optionally
+`--default=<bump>` for the rest. Every changed package must be covered or nothing is written. It
+commits, tags, and pushes tags, so the no-commit-on-main rule applies.
 
 `workspace:check` is the CI gate: it exits non-zero if any package fails and takes `--filter=<pkg>`
 (repeatable), `--no-lint`, `--fmt`, and `--concurrency=N`. Pass these directly
