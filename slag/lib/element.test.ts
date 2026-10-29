@@ -177,6 +177,41 @@ Deno.test("events capture, target, and bubble through the tree", () => {
 	assertEquals(seen, ["capture", "target"], "a non-bubbling event still captures");
 });
 
+Deno.test("events bubble from a target with no listeners of its own", () => {
+	const document = new SlagDocument();
+	const outer = document.createElement("div");
+	document.body.appendChild(outer);
+	const inner = document.createElement("span");
+	const text = document.createTextNode("hi");
+	outer.append(inner, text);
+
+	const seen: unknown[] = [];
+	outer.addEventListener("ping", (event) => seen.push(event.target));
+	document.addEventListener("ping", (event) => seen.push(event.currentTarget));
+
+	inner.dispatchEvent(new Event("ping", { bubbles: true }));
+	text.dispatchEvent(new Event("ping", { bubbles: true }));
+	assertEquals(seen, [inner, document, text, document]);
+
+	const clicks: unknown[] = [];
+	document.body.addEventListener("click", (event) => clicks.push(event.target));
+	inner.click();
+	assertEquals(clicks, [inner]);
+});
+
+Deno.test("dispatch leaves no listener behind on the target", () => {
+	const document = new SlagDocument();
+	const outer = document.createElement("div");
+	const inner = document.createElement("span");
+	outer.appendChild(inner);
+
+	let hits = 0;
+	outer.addEventListener("ping", () => hits++);
+	inner.dispatchEvent(new Event("ping", { bubbles: true }));
+	inner.dispatchEvent(new Event("ping"));
+	assertEquals(hits, 1, "a non-bubbling event does not reach the parent");
+});
+
 Deno.test("stopPropagation halts the walk", () => {
 	const document = new SlagDocument();
 	const outer = document.createElement("div");

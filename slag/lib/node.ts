@@ -23,6 +23,9 @@ function isElement(node: SlagNode): node is SlagElement {
 	return node.nodeType === NodeType.ELEMENT_NODE;
 }
 
+/** Registered for the length of a dispatch so Deno's no-listener fast path never fires. */
+const forceDispatch = (): void => {};
+
 /** Walks to the top of `start`'s tree, hopping shadow root → host when composed. */
 function rootOf(start: SlagNode, composed: boolean): SlagNode {
 	let node = start;
@@ -52,6 +55,12 @@ function rootOf(start: SlagNode, composed: boolean): SlagNode {
  * exposing those two members is therefore all Slag has to do to get real event
  * propagation; there is no hand-rolled dispatch here on purpose.
  *
+ * Almost: `dispatchEvent` has a fast path that returns early when the *target*
+ * has no listener for the event's type, without walking its ancestors — so an
+ * event fired at a node nobody listens on directly would never bubble. The
+ * {@linkcode SlagNode.dispatchEvent} override below defeats that fast path and
+ * otherwise defers to the built-in algorithm.
+ *
  * The one thing that does not carry over: a `composed` event will not cross a
  * shadow boundary, because Deno tracks a shadow root's host in an internal slot
  * Slag cannot populate. Events dispatched inside a shadow root stop at the root.
@@ -75,6 +84,21 @@ export abstract class SlagNode extends EventTarget {
 	parentNode: SlagNode | null = null;
 	childNodes: SlagNode[] = [];
 	ownerDocument: SlagDocument | null = null;
+
+	// -- events --
+
+	/**
+	 * Dispatches `event` through the full capture/target/bubble path, even when
+	 * this node has no listener of its own for `event.type`.
+	 */
+	override dispatchEvent(event: Event): boolean {
+		this.addEventListener(event.type, forceDispatch);
+		try {
+			return super.dispatchEvent(event);
+		} finally {
+			this.removeEventListener(event.type, forceDispatch);
+		}
+	}
 
 	// -- navigation --
 
