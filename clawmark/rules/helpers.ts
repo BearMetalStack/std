@@ -106,11 +106,14 @@ export function inlineOnly(rules: readonly AnyRule[]): AnyRule[] {
  * Nothing about `source` can actually start a second paragraph - it has no
  * blank lines - but every child's own paragraph is still flattened in case
  * one somehow appears, rather than only ever looking at the first.
+ *
+ * `offset` is where `source` sits in the document being lexed, so the spans
+ * of what it produces point into the document rather than into `source`.
  */
-export function parseInline(source: string, rules: readonly AnyRule[]): Node[] {
+export function parseInline(source: string, rules: readonly AnyRule[], offset = 0): Node[] {
 	if (source === "") return [];
 	const pool = rules as AnyRule[];
-	const tokens = new Lexer(source, pool).tokenize();
+	const tokens = new Lexer(source, pool, { offset }).tokenize();
 	const root = new TreeBuilder(pool).build(tokens);
 	return root.children.flatMap((child) =>
 		child.tag === "core:paragraph" ? child.children : [child]

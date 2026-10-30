@@ -104,6 +104,16 @@ function alignOf(cell: XmlElement): "l" | "c" | "r" {
 	return "l";
 }
 
+/** A row's cells, trimmed, each with where its text starts in `line`. */
+function splitCells(line: string): { text: string; start: number }[] {
+	let pos = line.startsWith("|") ? 1 : 0;
+	return line.replace(/^\|/, "").replace(/\|$/, "").split("|").map((raw) => {
+		const start = pos + raw.length - raw.trimStart().length;
+		pos += raw.length + 1;
+		return { text: raw.trim(), start };
+	});
+}
+
 export function createTableRules(): AnyRule[] {
 	let renderState: { head: boolean; columnAlign?: ("l" | "c" | "r")[] } | null = null;
 
@@ -114,7 +124,9 @@ export function createTableRules(): AnyRule[] {
 
 		tokenize(ctx) {
 			const cLine = ctx.currentLine;
-			const cells = cLine.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+			const split = splitCells(cLine);
+			const cells = split.map((cell) => cell.text);
+			const lineEnd = ctx.cursor + cLine.length;
 			const tokens: Token[] = [];
 
 			if (ctx.currentBlock !== "md:table") {
@@ -139,12 +151,25 @@ export function createTableRules(): AnyRule[] {
 				// legal inside it - a link, an image, emphasis, code, but never a
 				// heading or a nested table.
 				const cellRules = inlineOnly(ctx.rules);
-				tokens.push({ tag: "md:tablerow", data: { phase: "open" } });
-				cells.forEach((text, index) => {
-					const children = parseInline(text, cellRules);
-					tokens.push({ tag: "md:tablecell", data: { index, children } });
+				tokens.push({
+					tag: "md:tablerow",
+					data: { phase: "open" },
+					span: { start: ctx.cursor, end: ctx.cursor },
 				});
-				tokens.push({ tag: "md:tablerow", data: { phase: "close" } });
+				split.forEach(({ text, start }, index) => {
+					const at = ctx.cursor + start;
+					const children = parseInline(text, cellRules, ctx.offset + at);
+					tokens.push({
+						tag: "md:tablecell",
+						data: { index, children },
+						span: { start: at, end: at + text.length },
+					});
+				});
+				tokens.push({
+					tag: "md:tablerow",
+					data: { phase: "close" },
+					span: { start: lineEnd, end: lineEnd },
+				});
 			}
 
 			ctx.cursor += cLine.length - 1;

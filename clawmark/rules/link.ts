@@ -40,6 +40,7 @@ export const linkRule: Rule<LinkData> = {
 		const closeBracket = isLinkStart(ctx);
 		if (closeBracket === null) return textFallback<LinkData>("[");
 		const linkTextRaw = ctx.peek(closeBracket - 1, 1);
+		const textStart = ctx.offset + ctx.cursor + 1;
 		const rest = ctx.toNextSubstring(")", closeBracket + 2);
 		if (!rest) return textFallback<LinkData>("[");
 		const { href, title } = rest.match(HREF_RX)?.groups ?? { href: "#", title: undefined };
@@ -48,7 +49,7 @@ export const linkRule: Rule<LinkData> = {
 		// disallows it too); excluding md:link here is what makes that hold -
 		// an inner `[...]` just falls through to plain text.
 		const rules = inlineOnly(ctx.rules).filter((rule) => rule.id !== "md:link");
-		const children = parseInline(linkTextRaw, rules);
+		const children = parseInline(linkTextRaw, rules, textStart);
 		const data: LinkToken = { href, title, text: flattenInline(children), children };
 		return { tag: "md:link", data } as unknown as Token<LinkData>;
 	},

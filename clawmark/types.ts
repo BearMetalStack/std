@@ -20,9 +20,28 @@ export type Identifier = string;
 export type TokenIdentifier = `${Namespace}:${Identifier}`;
 export type Char = string;
 
+/**
+ * A half-open range `[start, end)` of character offsets into the source the
+ * lexer read. That is the source after preparse rules ran, which is the
+ * original whenever none rewrote it.
+ */
+export interface Span {
+	start: number;
+	end: number;
+}
+
 export interface Token<T = Record<string, unknown>> {
 	tag: TokenIdentifier;
 	data: T;
+	/**
+	 * Where the token was read. The lexer stamps every token it emits: a
+	 * rule's tokens get the range its `tokenize` call consumed, and the
+	 * paragraph and block boundaries the lexer inserts itself are zero-width.
+	 * A rule that emits several tokens from one call can set its own, narrower
+	 * spans (as cursor positions, like everything else on `LexerContext`),
+	 * which the lexer keeps.
+	 */
+	span?: Span;
 }
 
 export interface Node<T = Record<string, unknown>> {
@@ -30,6 +49,12 @@ export interface Node<T = Record<string, unknown>> {
 	data: T;
 	children: Node[];
 	parent?: Node;
+	/**
+	 * Where the node was read: from the start of the token that created it to
+	 * the end of the token that closed it. Absent on nodes no token produced,
+	 * such as those built from XML or by a postparse rule.
+	 */
+	span?: Span;
 }
 
 /**
@@ -59,6 +84,12 @@ export interface LexerContext {
 	toNextSubstring(sub: string, offset?: number): string;
 	readonly lineStart: number;
 	cursor: number;
+	/**
+	 * Where `input` starts in the document: nonzero inside a nested parse of a
+	 * slice (link text, a table cell). `offset + cursor` is the document
+	 * position, which is what to pass `parseInline` as its own offset.
+	 */
+	readonly offset: number;
 	readonly currentLine: string;
 	readonly previousToken: Token;
 

@@ -39,6 +39,8 @@ export class Lexer {
 	#cursor = 0;
 	#lineStart = 0;
 	#buffer: string[] = [];
+	#bufferStart = 0;
+	#offset: number;
 	#tokens: Token[] = [];
 	#previousToken: Token = BOF_TOKEN;
 	#openBlocks: OpenBlock[] = [];
@@ -46,8 +48,14 @@ export class Lexer {
 	#rules: AnyRule[];
 	#ctx: LexerContext;
 
-	constructor(input: string, rules: AnyRule[]) {
+	/**
+	 * `options.offset` is added to every span, for a lexer reading a slice of
+	 * a larger source (link text, a table cell) whose spans should point into
+	 * the whole.
+	 */
+	constructor(input: string, rules: AnyRule[], options: { offset?: number } = {}) {
 		this.#input = input;
+		this.#offset = options.offset ?? 0;
 		this.#rules = rules;
 		for (const rule of rules) {
 			const list = this.#byTrigger.get(rule.trigger) ?? [];
@@ -85,6 +93,9 @@ export class Lexer {
 			set cursor(value: number) {
 				self.#cursor = value;
 			},
+			get offset() {
+				return self.#offset;
+			},
 			get currentLine() {
 				return self.#currentLine();
 			},
@@ -118,19 +129,31 @@ export class Lexer {
 		return this.#input.slice(start, i + sub.length);
 	}
 
+	#pushText(text: string) {
+		if (this.#buffer.length === 0) this.#bufferStart = this.#cursor;
+		this.#buffer.push(text);
+	}
+
 	#currentLine(): string {
 		const lineEnd = this.#input.indexOf("\n", this.#cursor);
 		return this.#input.slice(this.#lineStart, lineEnd < 0 ? this.#input.length : lineEnd);
 	}
 
-	#emit(token: Token) {
+	#emit(raw: Token, start = this.#cursor, end = start) {
+		const local = raw.span ?? { start, end };
+		const span = { start: this.#offset + local.start, end: this.#offset + local.end };
+		const token = { ...raw, span };
 		this.#tokens.push(token);
 		this.#previousToken = token;
 	}
 
 	#flush() {
 		if (this.#buffer.length === 0) return;
-		this.#emit({ tag: "core:text", data: { value: this.#buffer.join("") } });
+		this.#emit(
+			{ tag: "core:text", data: { value: this.#buffer.join("") } },
+			this.#bufferStart,
+			this.#cursor,
+		);
 		this.#buffer = [];
 	}
 
@@ -169,7 +192,7 @@ export class Lexer {
 			this.#cursor++;
 			this.#lineStart++;
 			if (this.#cursor + 2 <= this.#input.length) {
-				this.#emit({ tag: "core:paragraph", data: { phase: "open" } });
+				this.#emit({ tag: "core:paragraph", data: { phase: "open" } }, this.#cursor + 1);
 			}
 		} else if (this.#openBlocks.length === 0 && /^\n[^\n]/.test(next2)) {
 			// Soft-wrap only applies to plain paragraph text. Inside a
@@ -177,7 +200,7 @@ export class Lexer {
 			// its own marker rule that decides what happens next, so
 			// inserting a space here would just leak into whatever that
 			// line's content ends up being.
-			this.#buffer.push(" ");
+			this.#pushText(" ");
 		}
 	}
 
@@ -192,12 +215,13 @@ export class Lexer {
 				const rule = this.#matchRule(ch);
 				if (rule) {
 					this.#flush();
+					const start = this.#cursor;
 					const result = rule.tokenize(this.#ctx);
 					for (const token of Array.isArray(result) ? result : [result]) {
-						this.#emit(token);
+						this.#emit(token, start, this.#cursor + 1);
 					}
 				} else {
-					this.#buffer.push(ch);
+					this.#pushText(ch);
 				}
 			}
 			this.#cursor++;

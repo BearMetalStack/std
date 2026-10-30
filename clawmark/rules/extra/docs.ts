@@ -39,7 +39,7 @@ export type ContainerData = {
 
 type ContainerToken = ContainerData & { titleNodes: Node[]; body: Node[] };
 
-const OPENER = /^:::[ \t]*([A-Za-z][\w-]*)[ \t]*(.*?)[ \t]*$/;
+const OPENER = /^:::[ \t]*([A-Za-z][\w-]*)[ \t]*(.*?)[ \t]*$/d;
 const CLOSER = /^:::[ \t]*$/;
 const FENCE = /^(`{3,}|~{3,})/;
 
@@ -48,10 +48,10 @@ const FENCE = /^(`{3,}|~{3,})/;
  * closing `:::` line, and the source between. Nested openers need their own closer, and lines
  * inside fenced code are never read as either. An unclosed container runs to the end of input.
  */
-function scanContainer(ctx: LexerContext): { inner: string; end: number } {
+function scanContainer(ctx: LexerContext): { inner: string; start: number; end: number } {
 	const input = ctx.input;
 	let pos = input.indexOf("\n", ctx.lineStart);
-	if (pos < 0) return { inner: "", end: input.length - 1 };
+	if (pos < 0) return { inner: "", start: input.length, end: input.length - 1 };
 	const start = pos + 1;
 	let depth = 1;
 	let fence: string | null = null;
@@ -66,18 +66,22 @@ function scanContainer(ctx: LexerContext): { inner: string; end: number } {
 		} else if (f) fence = f[1];
 		else if (OPENER.test(line)) depth++;
 		else if (CLOSER.test(line) && --depth === 0) {
-			return { inner: input.slice(start, Math.max(start, lineStart - 1)), end: lineEnd - 1 };
+			return {
+				inner: input.slice(start, Math.max(start, lineStart - 1)),
+				start,
+				end: lineEnd - 1,
+			};
 		}
 		if (lineEnd >= input.length) break;
 		pos = lineEnd;
 	}
-	return { inner: input.slice(start), end: input.length - 1 };
+	return { inner: input.slice(start), start, end: input.length - 1 };
 }
 
-function parseBlocks(source: string, rules: readonly AnyRule[]): Node[] {
+function parseBlocks(source: string, rules: readonly AnyRule[], offset: number): Node[] {
 	if (!source.trim()) return [];
 	const pool = rules as AnyRule[];
-	return new TreeBuilder(pool).build(new Lexer(source, pool).tokenize()).children;
+	return new TreeBuilder(pool).build(new Lexer(source, pool, { offset }).tokenize()).children;
 }
 
 function adopt(parent: Node, children: Node[]): void {
@@ -98,16 +102,18 @@ export function containerRules(): AnyRule[] {
 		trigger: ":",
 		validate: (ctx) => ctx.cursor === ctx.lineStart && OPENER.test(ctx.currentLine),
 		tokenize(ctx) {
-			const [, kind, title] = OPENER.exec(ctx.currentLine)!;
-			const { inner, end } = scanContainer(ctx);
+			const opener = OPENER.exec(ctx.currentLine)!;
+			const [, kind, title] = opener;
+			const titleAt = ctx.offset + ctx.lineStart + opener.indices![2]![0];
+			const { inner, start, end } = scanContainer(ctx);
 			ctx.cursor = end;
 			return {
 				tag: CONTAINER_TAG,
 				data: {
 					kind,
 					title,
-					titleNodes: parseInline(title, inlineOnly(ctx.rules)),
-					body: parseBlocks(inner, ctx.rules),
+					titleNodes: parseInline(title, inlineOnly(ctx.rules), titleAt),
+					body: parseBlocks(inner, ctx.rules, ctx.offset + start),
 				},
 			};
 		},
