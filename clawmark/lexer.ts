@@ -7,13 +7,18 @@ interface OpenBlock {
 }
 
 /**
- * Sentinel returned by `peek`/`toNextSubstring` helpers when a lookahead
- * runs past the end of input. Inherited from v1 (webbies/lib/md/lexer.ts),
- * which compares against the literal string `"eof"` all over its rule
- * bodies - kept identical here so rules ported from v1 keep working
- * unmodified.
+ * Sentinel returned by `peek` when the lookahead starts at or past the end of
+ * input. Inherited from v1 (webbies/lib/md/lexer.ts), which compares against
+ * the literal string `"eof"` in its rule bodies. A lookahead that runs past
+ * the end but starts inside it returns the characters that are there.
  */
 const EOF = "eof";
+
+/** `peek` over `input` from `start`: what is there, or {@link EOF} when nothing is. */
+export function peekAt(input: string, start: number, length: number): string {
+	if (length > 0 && start >= input.length) return EOF;
+	return input.slice(start, start + length);
+}
 
 /**
  * Rule-driven replacement for v1's monolithic `MarkdownLexer`. v1 hardcodes
@@ -103,8 +108,7 @@ export class Lexer {
 	}
 
 	#peek(length: number, offset = 0): string {
-		if (this.#cursor + offset + length > this.#input.length) return EOF;
-		return this.#input.slice(this.#cursor + offset, this.#cursor + offset + length);
+		return peekAt(this.#input, this.#cursor + offset, length);
 	}
 
 	#toNextSubstring(sub: string, offset = 0): string {
@@ -156,7 +160,7 @@ export class Lexer {
 		}
 
 		const next2 = this.#peek(2);
-		if (next2 === "\n\n" || next2 === EOF) {
+		if (next2 === "\n\n" || this.#cursor + 2 > this.#input.length) {
 			while (this.#openBlocks.length > 0) {
 				const block = this.#openBlocks.pop()!;
 				this.#emit({ tag: block.tag, data: { phase: "close" } });
@@ -164,7 +168,7 @@ export class Lexer {
 			this.#emit({ tag: "core:paragraph", data: { phase: "close" } });
 			this.#cursor++;
 			this.#lineStart++;
-			if (this.#peek(2) !== EOF) {
+			if (this.#cursor + 2 <= this.#input.length) {
 				this.#emit({ tag: "core:paragraph", data: { phase: "open" } });
 			}
 		} else if (this.#openBlocks.length === 0 && /^\n[^\n]/.test(next2)) {

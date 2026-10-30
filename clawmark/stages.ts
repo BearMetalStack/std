@@ -14,6 +14,7 @@ import type {
 	PreparseRule,
 	StagedRule,
 } from "./types.ts";
+import { peekAt } from "./lexer.ts";
 
 /** A rule array sorted into its stages, each in registration order. */
 export interface SplitRules {
@@ -54,10 +55,7 @@ export function preparse(input: string, rules: readonly StagedRule[]): string {
 	let lineStart = 0;
 	const ctx: PreparseContext = {
 		input,
-		peek: (length, offset = 0) => {
-			const start = cursor + offset;
-			return start + length > input.length ? "eof" : input.slice(start, start + length);
-		},
+		peek: (length, offset = 0) => peekAt(input, cursor + offset, length),
 		toNextSubstring: (sub, offset = 0) => {
 			const start = cursor + offset;
 			const i = input.indexOf(sub, start);

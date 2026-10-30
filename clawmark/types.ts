@@ -50,6 +50,11 @@ export interface Node<T = Record<string, unknown>> {
 export interface LexerContext {
 	/** The whole source being lexed, for a rule that parses ahead on its own. */
 	readonly input: string;
+	/**
+	 * Up to `length` characters starting `offset` past the cursor. Near the end
+	 * of input this is whatever remains, which may be shorter than `length`;
+	 * only a lookahead starting at or past the end returns the sentinel `"eof"`.
+	 */
 	peek(length: number, offset?: number): string;
 	toNextSubstring(sub: string, offset?: number): string;
 	readonly lineStart: number;
@@ -233,6 +238,7 @@ export type RuleStage = "preparse" | "parse" | "postparse";
  */
 export interface PreparseContext {
 	readonly input: string;
+	/** Same contract as {@link LexerContext.peek}. */
 	peek(length: number, offset?: number): string;
 	toNextSubstring(sub: string, offset?: number): string;
 	readonly lineStart: number;

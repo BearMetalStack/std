@@ -18,7 +18,7 @@ import { TreeBuilder } from "../../tree.ts";
 import { appendLeaf, escapeHtml, inlineOnly, parseInline } from "../helpers.ts";
 import { addBlockTags } from "../paragraph.ts";
 
-/** Up to `length` characters from the cursor; `peek` returns "eof" when the input is shorter. */
+/** Up to `length` characters from the cursor, `""` (not `peek`'s `"eof"`) at the end. */
 function ahead(ctx: LexerContext, length: number): string {
 	return ctx.input.slice(ctx.cursor, ctx.cursor + length);
 }
