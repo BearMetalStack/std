@@ -1,4 +1,4 @@
-import type { AnyRule, Char, LexerContext, Token, TokenIdentifier } from "./types.ts";
+import type { AnyRule, Char, LexerContext, SourceBlock, Token, TokenIdentifier } from "./types.ts";
 import { BOF_TOKEN } from "./types.ts";
 
 interface OpenBlock {
@@ -241,4 +241,25 @@ export class Lexer {
 
 		return this.#tokens;
 	}
+}
+
+/** The lexer's top-level blocks in `source`; see `splitBlocks` in mod.ts. */
+export function lexBlocks(source: string, rules: AnyRule[]): SourceBlock[] {
+	const blocks: SourceBlock[] = [];
+	let start: number | undefined;
+	for (const token of new Lexer(source, rules).tokenize()) {
+		if (token.tag !== "core:paragraph" || !token.span) continue;
+		if ((token.data as { phase: string }).phase === "open") {
+			start = token.span.start;
+			continue;
+		}
+		if (start === undefined) continue;
+		let from = start;
+		let to = token.span.end;
+		start = undefined;
+		while (from < to && source[from] === "\n") from++;
+		while (to > from && source[to - 1] === "\n") to--;
+		if (to > from) blocks.push({ text: source.slice(from, to), start: from, end: to });
+	}
+	return blocks;
 }

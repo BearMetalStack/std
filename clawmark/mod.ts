@@ -8,10 +8,17 @@
  * footnotes, code, hr) behavior possible.
  */
 
-import type { EngineRule, Node, Profile, SerializeOptions, StagedRule } from "./types.ts";
+import type {
+	EngineRule,
+	Node,
+	Profile,
+	SerializeOptions,
+	SourceBlock,
+	StagedRule,
+} from "./types.ts";
 import type { WriteProfile, WriteResult } from "./types.ts";
 import type { XmlElement } from "./xml/types.ts";
-import { Lexer } from "./lexer.ts";
+import { lexBlocks, Lexer } from "./lexer.ts";
 import { TreeBuilder } from "./tree.ts";
 import { Renderer } from "./render.ts";
 import { MarkdownSerializer } from "./serialize.ts";
@@ -67,6 +74,20 @@ export function parse(input: string, rules: StagedRule[] = defaultRules()): Node
 	const stages = splitStages(rules);
 	const tokens = new Lexer(preparse(input, stages.preparse), stages.parse).tokenize();
 	return postparse(new TreeBuilder(stages.parse).build(tokens), stages.postparse);
+}
+
+/**
+ * Every top-level block in `source`, in document order, as the lexer sees them.
+ *
+ * A blank line closes every open block, so most boundaries are just `\n\n` -
+ * but not inside a construct a rule consumes whole (a fenced code block holding
+ * a blank line), and not at a "blank" line carrying spaces. Reading the lexer's
+ * own paragraph boundaries rather than splitting text keeps the two in
+ * agreement. Ranges exclude the newlines around a block. Preparse rules are
+ * skipped, so ranges point into `source` itself.
+ */
+export function splitBlocks(source: string, rules: StagedRule[] = defaultRules()): SourceBlock[] {
+	return lexBlocks(source, splitStages(rules).parse);
 }
 
 /** Parses and renders `input` straight to an HTML string. */

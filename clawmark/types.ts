@@ -30,6 +30,11 @@ export interface Span {
 	end: number;
 }
 
+/** One top-level block's source, and where it sits in the document. */
+export interface SourceBlock extends Span {
+	text: string;
+}
+
 export interface Token<T = Record<string, unknown>> {
 	tag: TokenIdentifier;
 	data: T;
