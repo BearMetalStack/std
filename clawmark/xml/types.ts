@@ -110,3 +110,16 @@ export interface XmlParseError {
 
 /** Root element name used for the synthetic document node. */
 export const DOCUMENT_NAME = "#document";
+
+/** What `xmlToDom` built. */
+export interface XmlDomResult {
+	fragment: DocumentFragment;
+	/** Which element each written `XmlElement` became. */
+	map: WeakMap<XmlElement, Element>;
+}
+
+/** Options for `xmlToDom`. */
+export interface XmlToDomOptions {
+	/** Called for each element after its attributes are set, before its children are built. */
+	onElement?: (el: Element, node: XmlElement) => void;
+}

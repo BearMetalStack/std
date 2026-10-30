@@ -1,5 +1,63 @@
-import type { XmlElement, XmlNode } from "./types.ts";
+import type { XmlDomResult, XmlElement, XmlNode, XmlToDomOptions } from "./types.ts";
 import { DOCUMENT_NAME } from "./types.ts";
+
+/**
+ * Builds `XmlElement` trees into live DOM - the mirror of {@link fromDom}.
+ *
+ * Elements are created directly rather than serialized and re-parsed, so the
+ * returned `map` keeps the correspondence between what was written and what
+ * appeared, and nothing here needs an HTML parser: it runs as-is against
+ * `@bearmetal/slag`. An element with a namespace is created in it. A document
+ * root (as `parseXml` returns, or `fromDom`) contributes only its children.
+ * Processing instructions and doctypes are skipped.
+ */
+export function xmlToDom(
+	nodes: XmlNode | readonly XmlNode[],
+	doc: Document = globalThis.document,
+	options: XmlToDomOptions = {},
+): XmlDomResult {
+	if (!doc) throw new Error("xmlToDom requires a Document (no `document` in this environment)");
+	const map = new WeakMap<XmlElement, Element>();
+	const fragment = doc.createDocumentFragment();
+	const list = Array.isArray(nodes) ? nodes : [nodes as XmlNode];
+	for (const node of list) {
+		if (node.kind === "element" && node.name === DOCUMENT_NAME) {
+			for (const child of node.children) build(child, fragment, doc, map, options);
+		} else {
+			build(node, fragment, doc, map, options);
+		}
+	}
+	return { fragment, map };
+}
+
+function build(
+	node: XmlNode,
+	parent: Node,
+	doc: Document,
+	map: WeakMap<XmlElement, Element>,
+	options: XmlToDomOptions,
+): void {
+	switch (node.kind) {
+		case "element": {
+			const el = node.ns ? doc.createElementNS(node.ns, node.qname) : doc.createElement(node.qname);
+			for (const [name, value] of node.attrs) el.setAttribute(name, value);
+			options.onElement?.(el, node);
+			for (const child of node.children) build(child, el, doc, map, options);
+			map.set(node, el);
+			parent.appendChild(el);
+			return;
+		}
+		case "text":
+		case "cdata":
+			parent.appendChild(doc.createTextNode(node.value));
+			return;
+		case "comment":
+			parent.appendChild(doc.createComment(node.value));
+			return;
+		default:
+			return;
+	}
+}
 
 /**
  * Adapts a live DOM node into an `XmlElement` tree.
