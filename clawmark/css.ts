@@ -421,6 +421,18 @@ export interface ToCssOptions {
 	classPrefix?: string;
 	/** Indent for declarations. Default one tab. */
 	indent?: string;
+	/**
+	 * A selector every rule is nested under, e.g. `".editor"` to emit
+	 * `.editor .title { ... }`, so an export's styles can dress an on-screen
+	 * surface without leaking onto the rest of the page.
+	 */
+	scope?: string;
+	/**
+	 * Keeps a declaration when it returns true. Styles carry print geometry
+	 * (a title page's space above, page breaks) that an on-screen surface
+	 * usually wants to leave out. A style left with no declarations is skipped.
+	 */
+	filter?: (property: string, value: string, style: string) => boolean;
 }
 
 /**
@@ -433,15 +445,18 @@ export interface ToCssOptions {
 export function toCss(styles: DocumentStyles, options: ToCssOptions = {}): string {
 	const prefix = options.classPrefix ?? "";
 	const indent = options.indent ?? "\t";
+	const scope = options.scope ? `${options.scope} ` : "";
+	const filter = options.filter;
 	const rules: string[] = [];
 
 	for (const [name] of styles.entries) {
-		const declarations = declarationsFor(styles.resolve(name));
+		let declarations = declarationsFor(styles.resolve(name));
+		if (filter) declarations = declarations.filter(([p, v]) => filter(p, v, name));
 		if (declarations.length === 0) continue;
 		const body = declarations
 			.map(([property, value]) => `${indent}${property}: ${value};`)
 			.join("\n");
-		rules.push(`.${prefix}${styles.classFor(name)} {\n${body}\n}`);
+		rules.push(`${scope}.${prefix}${styles.classFor(name)} {\n${body}\n}`);
 	}
 
 	return rules.length === 0 ? "" : rules.join("\n\n") + "\n";

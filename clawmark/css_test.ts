@@ -221,3 +221,19 @@ Deno.test("css: CSS layered over an object definition merges", () => {
 	// ...and the stylesheet's appearance is layered on top.
 	assertEquals(block.fontStyle, "italic");
 });
+
+Deno.test("css: toCss nests every rule under a scope", () => {
+	const styles = createDocumentStyles().fromCss(".title { font-size: 24pt }");
+	assertEquals(toCss(styles, { scope: ".editor" }), ".editor .title {\n\tfont-size: 24pt;\n}\n");
+});
+
+Deno.test("css: toCss filters declarations, skipping styles left empty", () => {
+	const styles = createDocumentStyles().fromCss(`
+		.title { margin-top: 3in; font-size: 24pt }
+		.chapter { break-before: page }
+	`);
+	const screen = toCss(styles, {
+		filter: (property) => property !== "margin-top" && !property.startsWith("break-"),
+	});
+	assertEquals(screen, ".title {\n\tfont-size: 24pt;\n}\n");
+});
