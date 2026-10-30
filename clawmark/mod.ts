@@ -28,6 +28,8 @@ import type { HtmlProfileOptions } from "./profiles/html/mod.ts";
 export * from "./types.ts";
 export { defaultRules } from "./rules/mod.ts";
 export { postparse, preparse, splitStages } from "./stages.ts";
+export { traceRules } from "./trace.ts";
+export type { RuleTrace } from "./trace.ts";
 export type { SplitRules } from "./stages.ts";
 // A rule pack that introduces its own block construct has to declare it, or the
 // lexer's automatic paragraph wrapper stays put and every writer emits the
