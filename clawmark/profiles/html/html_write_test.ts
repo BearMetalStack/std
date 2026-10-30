@@ -12,7 +12,8 @@ import { pageBreakRules } from "../../rules/extra/mod.ts";
 import { addBlockTags } from "../../rules/paragraph.ts";
 import type { AnyRule, Node, WriteProfile } from "../../types.ts";
 import { htmlWriter } from "./mod.ts";
-import { renderWith } from "../../write.ts";
+import { MarkupWriter, renderWith } from "../../write.ts";
+import { serializeXml } from "../../xml/serialize.ts";
 
 function write(md: string, profile: WriteProfile = htmlWriter()): Record<string, string> {
 	return markdownWith(md, profile, defaultRules()).parts;
@@ -327,4 +328,14 @@ Deno.test("html write: xhtml fragments never get an xml declaration", () => {
 	// fragment meant for embedding elsewhere must never carry one.
 	const fragment = html("hi\n", htmlWriter({ output: "xhtml" }));
 	assertEquals(fragment.startsWith("<?xml"), false);
+});
+
+Deno.test("html write: body() is the tree write() assembles", () => {
+	const md = "# Title\n\nsome **bold** text";
+	const profile = htmlWriter({ document: "fragment", stylesheet: "none" });
+	const nodes = new MarkupWriter(profile).body(parse(md));
+	assertEquals(
+		nodes.map((n) => serializeXml(n, "html")).join(""),
+		write(md, profile)["index.html"],
+	);
 });
