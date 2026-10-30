@@ -35,3 +35,47 @@ Deno.test("html read: xhtml input round-trips htmlWriter's own xhtml output", ()
 		toMarkdown(fromHtml(written)),
 	);
 });
+
+Deno.test("html: a span that formats in CSS keeps its formatting", () => {
+	assertEquals(htmlToMarkdown('<p><span style="font-weight:700">x</span> y</p>'), "**x** y\n");
+	assertEquals(htmlToMarkdown('<p><span style="font-style:italic">x</span></p>'), "*x*\n");
+	assertEquals(
+		htmlToMarkdown('<p><span style="text-decoration:line-through">x</span></p>'),
+		"~~x~~\n",
+	);
+	assertEquals(
+		htmlToMarkdown('<p><span style="text-decoration:underline">x</span></p>'),
+		"++x++\n",
+	);
+});
+
+Deno.test("html: a styled span adds only what is not already in effect", () => {
+	assertEquals(
+		htmlToMarkdown('<p><b>a <span style="font-weight:bold">b</span></b></p>'),
+		"**a b**\n",
+	);
+	assertEquals(
+		htmlToMarkdown(
+			'<p><span style="font-weight:700">a <span style="font-weight:700">b</span></span></p>',
+		),
+		"**a b**\n",
+	);
+});
+
+Deno.test("html: Google Docs' not-bold wrapper does not bold the paste", () => {
+	const paste = '<b style="font-weight:normal" id="docs-internal-guid-1">' +
+		'<p><span style="font-weight:700">x</span> y</p></b>';
+	assertEquals(htmlToMarkdown(paste), "**x** y\n");
+});
+
+Deno.test("html: a block's trailing filler <br> is dropped, a real one kept", () => {
+	assertEquals(htmlToMarkdown("<p>a<br></p><p>b</p>"), "a\n\nb\n");
+	assertEquals(htmlToMarkdown("<p>a<br>\n</p>"), "a\n");
+	assertEquals(htmlToMarkdown("<p><b>a<br></b></p>"), "**a**\n");
+	assertEquals(htmlToMarkdown("<p>a<br>b</p>"), "a\\\nb\n");
+	assertEquals(htmlToMarkdown("<p><b>a<br></b>b</p>"), "**a\\\n**b\n");
+});
+
+Deno.test("html: keepTrailingBreaks keeps a block's trailing <br>", () => {
+	assertEquals(htmlToMarkdown("<p>a<br></p>", { keepTrailingBreaks: true }), "a\\\n");
+});

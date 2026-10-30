@@ -70,7 +70,10 @@ export function htmlStyleResolver(options: HtmlStyleOptions = {}): StyleResolver
 				if (fontStyle) out.italic = /^(italic|oblique)/i.test(fontStyle);
 
 				const decoration = css.get("text-decoration") ?? css.get("text-decoration-line");
-				if (decoration) out.strike = /line-through/i.test(decoration);
+				if (decoration) {
+					out.strike = /line-through/i.test(decoration);
+					out.underline = /underline/i.test(decoration);
+				}
 
 				const family = css.get("font-family");
 				if (family) out.mono = MONO_RX.test(family);

@@ -14,10 +14,12 @@ import type { AnyReverseRule, Profile } from "../../types.ts";
 import { defaultRules } from "../../rules/mod.ts";
 import { htmlStyleResolver } from "./styles.ts";
 import type { HtmlStyleOptions } from "./styles.ts";
+import { fillerBreakRule, negatedFormatRule, styledSpanRule } from "./paste.ts";
 
 export { htmlStyleResolver, parseInlineStyle } from "./styles.ts";
 export type { HtmlStyleOptions } from "./styles.ts";
 export { htmlWriter } from "./write.ts";
+export { fillerBreakRule, negatedFormatRule, styledSpanRule } from "./paste.ts";
 export type { HtmlWriteOptions } from "./write.ts";
 
 /**
@@ -95,20 +97,30 @@ export interface HtmlProfileOptions extends HtmlStyleOptions {
 	 * genuinely XHTML source rather than assumed away.
 	 */
 	input?: "html" | "xhtml";
+	/**
+	 * Keep a `<br>` that ends its block. By default it is dropped as the
+	 * filler a contenteditable pads empty blocks with (see `fillerBreakRule`).
+	 */
+	keepTrailingBreaks?: boolean;
 }
 
 /** A profile that turns clawmark's own HTML output - and ordinary HTML - back into markdown. */
 export function htmlProfile(options: HtmlProfileOptions = {}): Profile {
+	const styles = htmlStyleResolver(options);
 	return {
 		name: "html",
 		parse: { mode: options.input === "xhtml" ? "xml" : "html" },
-		styles: htmlStyleResolver(options),
+		styles,
 		// Order is precedence. Caller rules first, then the real constructs,
 		// then the structural fallbacks - so a <span class="highlight"> is
-		// claimed by highlightRule before the blanket span unwrap sees it.
+		// claimed by highlightRule before the blanket span unwrap sees it, and a
+		// <b> that CSS made not bold is unwrapped before boldRule sees it.
 		rules: [
 			...(options.rules ?? []),
+			negatedFormatRule(styles),
+			...(options.keepTrailingBreaks ? [] : [fillerBreakRule]),
 			...defaultRules(),
+			styledSpanRule(styles),
 			...DROPPED.map(dropRule),
 			...TRANSPARENT.map(transparentRule),
 		],
