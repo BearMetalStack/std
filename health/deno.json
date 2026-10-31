@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/health",
 	"description": "Health checks, request metrics, and a dashboard manifest for BearMetal apps",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"license": "MIT",
 	"exports": {
 		".": "./mod.ts",

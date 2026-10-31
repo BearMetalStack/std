@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/anodized",
 	"description": "Immediate-mode WebGPU (or WebGL2) canvas for charts, diagrams and node graphs, with headless snapshots",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts",

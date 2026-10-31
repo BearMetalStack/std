@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/mcp",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "A zero-dependency Model Context Protocol server for Deno",
 	"exports": {
 		".": "./mod.ts",
