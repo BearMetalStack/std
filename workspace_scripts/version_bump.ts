@@ -435,6 +435,7 @@ if (import.meta.main) {
 		console.log(`  ✓ retagged ${tag}`);
 	}
 
+	await git(["push"]);
 	await git(["push", "--tags"]);
 
 	console.log("\ndone.");
