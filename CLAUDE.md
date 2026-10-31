@@ -56,7 +56,7 @@ deno task workspace:check              # deno check + deno lint each package in 
 deno task workspace:manifest           # list all packages at their current published version
 deno task workspace:map-dependencies   # print the internal @bearmetal/* dependency graph
 deno task workspace:bump-versions      # bump versions for packages changed since last bump
-deno task workspace:publish            # bump, then `deno publish` at the root (orders by deps itself)
+deno task workspace:publish            # bump, then `deno publish` each package in dependency order
 deno task bm:drip                      # regenerate Drip theme CSS/completions
 deno task docs:dev                     # VitePress docs site (docs/)
 deno task docs:gutenbearg              # gutenbearg docs site (.bearmetal/gutenbearg/), live reload
