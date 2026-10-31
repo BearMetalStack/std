@@ -8,7 +8,16 @@
 
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Page, PageContext, Section, ShellLayout } from "../types.ts";
-import { firstPage, href, packageRoute, pagesOf, sectionOf, sectionsOf, toneOf } from "../site.ts";
+import {
+	firstPage,
+	href,
+	packageRoute,
+	pagesOf,
+	releaseOf,
+	sectionOf,
+	sectionsOf,
+	toneOf,
+} from "../site.ts";
 import { Badge, Icon, Term } from "../blocks/mod.tsx";
 import { LOGO } from "./assets.ts";
 import { type Measured, outline } from "./measure.ts";
@@ -274,7 +283,7 @@ function HeaderShelves(props: ChromeProps): JSX.Element {
 							>
 								<Icon name="cube" />
 								<span class="mono">{p.name}</span>
-								{p.versions[0]?.version && <small class="mono">{p.versions[0].version}</small>}
+								{releaseOf(p) && <small class="mono">{releaseOf(p)}</small>}
 								{p.status && <Badge tone={toneOf(p.status)}>{p.status}</Badge>}
 							</a>
 						);
@@ -490,6 +499,7 @@ function AsideMinimap({ measured }: ChromeProps): JSX.Element | null {
 			<h4>Page map</h4>
 			<div class="gb-mini-wrap">
 				<div class="gb-mini-map sq">
+					<div class="gb-mini-track"></div>
 					<span class="gb-mini-win"></span>
 				</div>
 				<div class="gb-mini-labels">

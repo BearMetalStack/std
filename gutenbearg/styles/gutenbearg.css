@@ -565,65 +565,85 @@
 }
 .gb-mini-map {
 	position: relative;
-	height: 420px;
+	box-sizing: content-box;
+	height: 8rem;
+	max-height: calc(100vh - var(--gb-top) - 12rem);
 	cursor: pointer;
+	overflow: clip;
 	border-radius: var(--radius-lg);
 	background: var(--gb-code-bg);
-	padding: 0 6px;
 	border: 1px solid var(--color-border);
 }
-.gb-mini-map i {
+.gb-mini-track {
 	position: absolute;
-	left: 6px;
-	right: 6px;
-	border-radius: 1.5px;
-	background: var(--color-border-strong);
+	inset: 0 6px auto;
+	transition: transform .1s linear;
 }
-.gb-mini-map i.k-p,
+.gb-mini-map i {
+	--c: var(--color-border-strong);
+	position: absolute;
+	left: 0;
+	right: 0;
+	border-radius: 1px;
+	background: var(--c);
+}
+.gb-mini-map i:is(.k-p, .k-list, .k-step, .k-code, .k-table) {
+	background: repeating-linear-gradient(
+		to bottom,
+		var(--c) 0 calc(var(--line, 3px) * .55),
+		transparent 0 var(--line, 3px)
+	);
+}
+.gb-mini-map i:is(.k-p, .k-list, .k-step) {
+	right: 4px;
+	opacity: .7;
+}
 .gb-mini-map i.k-list {
-	right: 12px;
-	opacity: .6;
+	left: 4px;
 }
-.gb-mini-map i.k-h2 {
-	background: var(--color-text);
-	height: 3px !important;
-	right: 18px;
+.gb-mini-map i:is(.k-h1, .k-h2, .k-h3) {
+	--c: var(--color-text);
+	max-height: 3px;
+	min-width: 30%;
+}
+.gb-mini-map i.k-h1 {
+	max-height: 4px;
 }
 .gb-mini-map i.k-code {
-	background: var(--color-interactive-subtle);
-	left: 4px;
-	right: 4px;
+	--c: var(--color-interactive);
+	box-shadow: 0 0 0 1.5px color-mix(in oklch, var(--color-interactive) 18%, transparent);
+	opacity: .6;
 }
 .gb-mini-map i.k-diagram {
-	background: var(--color-accent);
+	--c: var(--color-accent);
 	opacity: .55;
 }
 .gb-mini-map i.k-table {
-	background: var(--color-bg-emphasis);
+	--c: var(--color-bg-emphasis);
+	outline: 1px solid var(--color-border-strong);
 }
 .gb-mini-map i.k-callout-tip {
-	background: var(--color-interactive);
+	--c: var(--color-interactive);
 }
 .gb-mini-map i.k-callout-warning {
-	background: var(--btn-warning-bg);
+	--c: var(--btn-warning-bg);
 }
 .gb-mini-map i.k-callout-danger {
-	background: var(--btn-danger-bg);
+	--c: var(--btn-danger-bg);
 }
 .gb-mini-map i.k-callout-info {
-	background: var(--btn-info-bg);
+	--c: var(--btn-info-bg);
 }
 .gb-mini-win {
 	position: absolute;
-	left: -3px;
-	right: -3px;
+	left: 0;
+	right: 0;
 	top: 0;
-	height: 14px;
 	border-radius: var(--radius-md);
 	border: 1.5px solid var(--color-interactive);
 	background: color-mix(in oklch, var(--color-interactive) 14%, transparent);
 	pointer-events: none;
-	transition: top .1s linear;
+	box-sizing: border-box;
 }
 .gb-mini-labels {
 	position: relative;
@@ -1236,12 +1256,13 @@
 	outline: none;
 }
 .gb-term-pop {
-	position: absolute;
+	position: fixed;
 	z-index: 20;
-	left: 50%;
-	bottom: calc(100% + 10px);
-	transform: translateX(-50%);
+	inset: auto;
+	margin: 0;
+	overflow: visible;
 	width: 17rem;
+	box-sizing: border-box;
 	display: grid;
 	gap: var(--space-2);
 	padding: var(--space-4);
@@ -1273,10 +1294,13 @@
 	font-weight: 700;
 	text-decoration: none;
 }
+.gb-term-pop.below {
+	--gb-pop-from: -4px;
+}
 @keyframes gb-pop {
 	from {
 		opacity: 0;
-		transform: translate(-50%, 4px);
+		transform: translateY(var(--gb-pop-from, 4px));
 	}
 }
 

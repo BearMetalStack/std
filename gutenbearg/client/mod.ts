@@ -292,22 +292,40 @@ for (const term of $$("[data-term]")) {
 	if (!g) continue;
 	let pop: HTMLElement | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	// The popover sits in the top layer, so tables and code blocks that scroll can't clip it.
+	const place = () => {
+		if (!pop) return;
+		const t = term.getBoundingClientRect();
+		const p = pop.getBoundingClientRect();
+		const left = Math.max(
+			8,
+			Math.min(innerWidth - p.width - 8, t.left + t.width / 2 - p.width / 2),
+		);
+		const above = t.top - p.height - 10;
+		pop.classList.toggle("below", above < 8);
+		pop.style.left = `${left}px`;
+		pop.style.top = `${above < 8 ? t.bottom + 10 : above}px`;
+	};
 	const show = () => {
 		clearTimeout(timer);
 		if (pop) return;
 		pop = el(
 			"span",
-			{ class: "gb-term-pop sq", role: "tooltip" },
+			{ class: "gb-term-pop sq", role: "tooltip", popover: "manual" },
 			el("span", { class: "gb-term-h" }, icon("book-bookmark"), g.term),
 			el("span", {}, g.definition),
 			el("a", { href: g.href }, "Read more ", icon("arrow-right")),
 		);
 		term.append(pop);
+		pop.showPopover?.();
+		place();
+		addEventListener("scroll", place, { passive: true, capture: true });
 	};
 	const hide = () => {
 		timer = setTimeout(() => {
 			pop?.remove();
 			pop = null;
+			removeEventListener("scroll", place, { capture: true });
 		}, 120);
 	};
 	term.addEventListener("mouseenter", show);
@@ -365,7 +383,7 @@ interface Geometry {
 	top: number;
 	height: number;
 	headings: { id: string; top: number }[];
-	blocks: { top: number; height: number; kind: string }[];
+	blocks: { top: number; height: number; kind: string; line: number; width: number }[];
 }
 
 function kindOf(node: HTMLElement): string {
@@ -375,29 +393,49 @@ function kindOf(node: HTMLElement): string {
 	return tag === "h2" || tag === "h3" ? tag : "p";
 }
 
+/** The height of one line of `node`'s text, or of one row for a table. */
+function lineOf(node: HTMLElement, kind: string): number {
+	if (kind === "table") {
+		const rows = $$("tr", node).length;
+		return rows ? node.getBoundingClientRect().height / rows : 0;
+	}
+	const text = kind === "code" ? $("pre", node) ?? node : node;
+	const lh = parseFloat(getComputedStyle(text).lineHeight);
+	return Number.isFinite(lh) ? lh : 0;
+}
+
 let geo: Geometry | null = null;
 
 function measure() {
 	if (!prose) return;
-	const box = prose.getBoundingClientRect();
+	const article = prose.parentElement!;
+	const box = article.getBoundingClientRect();
 	const top = box.top + scrollY;
 	const headings = $$("h2[id], .gb-steps h3[id]", prose).map((h) => ({
 		id: h.id,
 		top: h.getBoundingClientRect().top + scrollY,
 	}));
 	const blocks: Geometry["blocks"] = [];
-	for (const child of [...prose.children] as HTMLElement[]) {
-		const parts = child.matches(".gb-steps")
-			? [...child.children] as HTMLElement[]
-			: child.matches(".gb-cl")
+	const head = $(".gb-pagehead > h1", article);
+	const children = [...(head ? [head] : []), ...prose.children] as HTMLElement[];
+	for (const child of children) {
+		const parts = child.matches(".gb-steps, .gb-cl")
 			? [...child.children] as HTMLElement[]
 			: [child];
 		for (const part of parts) {
 			const r = part.getBoundingClientRect();
+			const kind = part === head
+				? "h1"
+				: part.parentElement === child && child.matches(".gb-steps")
+				? "step"
+				: kindOf(part);
+			const heading = /^h\d$/.test(kind);
 			blocks.push({
 				top: r.top + scrollY - top,
 				height: r.height,
-				kind: part.parentElement === child && child.matches(".gb-steps") ? "step" : kindOf(part),
+				kind,
+				line: heading ? 0 : lineOf(part, kind),
+				width: heading ? Math.min(1, (part.textContent?.length ?? 0) / 28) : 1,
 			});
 		}
 	}
@@ -415,33 +453,80 @@ function activeHeading(): string | null {
 }
 
 const minimap = $("[data-gb-minimap]");
+/** Page pixels to map pixels. Fixed, so the window is the same size on every page. */
+const MAP_SCALE = 1 / 8;
+
+/** The top of the reading area: the page scrolls under the sticky bars above it. */
+function readingTop(): number {
+	const aside = minimap?.closest<HTMLElement>(".gb-aside");
+	return aside ? parseFloat(getComputedStyle(aside).top) || 0 : 0;
+}
+
+/** How far the map's track is scrolled, for a page taller than the map can show. */
+function mapOffset(map: HTMLElement): number {
+	if (!geo) return 0;
+	const overflow = geo.height * MAP_SCALE - map.clientHeight;
+	if (overflow <= 0) return 0;
+	const visible = innerHeight - readingTop();
+	const through = (scrollY + readingTop() - geo.top) / Math.max(1, geo.height - visible);
+	return Math.max(0, Math.min(1, through)) * overflow;
+}
+
 function drawMinimap() {
 	if (!minimap || !geo) return;
 	const map = $(".gb-mini-map", minimap)!;
-	const scale = map.clientHeight / geo.height;
-	$$("i", map).forEach((i) => i.remove());
-	map.prepend(
+	const track = $(".gb-mini-track", map)!;
+	const room = parseFloat(getComputedStyle(map).maxHeight) || Infinity;
+	map.style.height = `${Math.min(room, geo.height * MAP_SCALE)}px`;
+	track.style.height = `${geo.height * MAP_SCALE}px`;
+	track.replaceChildren(
 		...geo.blocks.map((b) =>
 			el("i", {
 				class: `k-${b.kind}`,
-				style: `top:${b.top * scale}px;height:${Math.max(2, b.height * scale - 1.5)}px`,
+				style: [
+					`top:${b.top * MAP_SCALE}px`,
+					`height:${Math.max(1.5, b.height * MAP_SCALE)}px`,
+					b.width < 1 ? `width:${b.width * 100}%` : "",
+					b.line ? `--line:${Math.max(2, b.line * MAP_SCALE)}px` : "",
+				].join(";"),
 			})
 		),
 	);
 	const labels = $(".gb-mini-labels", minimap)!;
 	labels.classList.add("placed");
 	labels.style.height = `${map.clientHeight}px`;
-	for (const a of $$("a", labels)) {
-		const h = geo.headings.find((x) => x.id === a.dataset.gbHeading);
-		if (h) a.style.top = `${(h.top - geo.top) * scale}px`;
-	}
 	map.onclick = (e) => {
 		const r = map.getBoundingClientRect();
+		const y = (e.clientY - r.top + mapOffset(map)) / MAP_SCALE;
 		scrollTo({
-			top: geo!.top + (e.clientY - r.top) / scale - innerHeight / 2,
+			top: geo!.top + y - (innerHeight + readingTop()) / 2,
 			behavior: "smooth",
 		});
 	};
+}
+
+/** Moves the window, the track, and the heading labels to match the scroll position. */
+function placeMinimap() {
+	if (!minimap || !geo) return;
+	const map = $(".gb-mini-map", minimap)!;
+	const offset = mapOffset(map);
+	$(".gb-mini-track", map)!.style.transform = `translateY(${-offset}px)`;
+	const reading = readingTop();
+	const from = (scrollY + reading - geo.top) * MAP_SCALE - offset;
+	const to = (scrollY + innerHeight - geo.top) * MAP_SCALE - offset;
+	const top = Math.max(0, from);
+	const bottom = Math.min(map.clientHeight, to);
+	const win = $(".gb-mini-win", map)!;
+	win.hidden = bottom <= top;
+	win.style.top = `${top}px`;
+	win.style.height = `${bottom - top}px`;
+	for (const a of $$(".gb-mini-labels a", minimap)) {
+		const h = geo.headings.find((x) => x.id === a.dataset.gbHeading);
+		if (!h) continue;
+		const y = (h.top - geo.top) * MAP_SCALE - offset;
+		a.style.top = `${y}px`;
+		a.hidden = y < 0 || y > map.clientHeight;
+	}
 }
 
 const spine = $("[data-gb-spine]");
@@ -475,14 +560,7 @@ function onScroll() {
 	for (const a of $$("[data-gb-heading]")) a.classList.toggle("on", a.dataset.gbHeading === active);
 
 	if (minimap) {
-		const map = $(".gb-mini-map", minimap)!;
-		const scale = map.clientHeight / geo.height;
-		const win = $(".gb-mini-win", map)!;
-		const h = Math.max(14, innerHeight * scale);
-		win.style.height = `${h}px`;
-		win.style.top = `${
-			Math.min(map.clientHeight - h, Math.max(0, (scrollY + 80 - geo.top) * scale))
-		}px`;
+		placeMinimap();
 		const minutes = Number(minimap.dataset.minutes) || 1;
 		$("[data-gb-left]", minimap)!.textContent = progress > 0.98
 			? "Finished"

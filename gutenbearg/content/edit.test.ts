@@ -1,6 +1,14 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { join } from "@std/path";
-import { ContentEditError, cutVersion, newPage, newSection, reindex, resolveDir } from "./edit.ts";
+import {
+	ContentEditError,
+	copyForward,
+	cutVersion,
+	newPage,
+	newSection,
+	reindex,
+	resolveDir,
+} from "./edit.ts";
 import { fixture } from "./fixture_test_util.ts";
 
 async function names(dir: string): Promise<string[]> {
@@ -74,4 +82,63 @@ Deno.test("edit: sections and versions", async () => {
 	assertEquals(await names(join(root, "packages/core")), ["0.9", "1.0"]);
 	await assertRejects(() => cutVersion(root, "core", "1.0"), ContentEditError, "already exists");
 	await assertRejects(() => cutVersion(root, "nope", "1.0"), ContentEditError, "no package");
+});
+
+const workspace = (version: string) => ({
+	root: "/",
+	members: [{ name: "@x/core", version, dir: "/core" }],
+});
+
+Deno.test("edit: package shorthand writes into the current version", async () => {
+	const root = await fixture({
+		"packages/core/0.8/0000-[book-open]-learn/0000-a.md": "# A",
+		"packages/core/0.8/0000-[book-open]-learn/0016-b.md": "# B",
+	});
+	const ws = workspace("0.9.4");
+	const file = await newPage(root, "core/learn/c", { workspace: ws });
+	assertEquals(file, join(root, "packages/core/0.9/0000-[book-open]-learn/0032-c.md"));
+	const mid = await newPage(root, "core/learn/mid", { after: "a", workspace: ws });
+	assertEquals(mid.endsWith("0.9/0000-[book-open]-learn/0008-mid.md"), true);
+	await assertRejects(
+		() => newPage(root, "core/learn/b", { workspace: ws }),
+		ContentEditError,
+		"use `edit`",
+	);
+	const sec = await newSection(root, "core/api", { workspace: ws });
+	assertEquals(sec, join(root, "packages/core/0.9/0016-api"));
+	await assertRejects(
+		() => newPage(root, "core/learn/x", { workspace: null }),
+		ContentEditError,
+		"isn't linked",
+	);
+});
+
+Deno.test("edit: copyForward keeps names, then is a no-op", async () => {
+	const root = await fixture({
+		"packages/core/0.8/0016-[gear]-ref/0032-signal.md": "# Signal 0.8",
+		"packages/core/0.9/0016-[gear]-ref/0032-signal.md": "# Signal 0.9",
+		"packages/core/0.9/0016-[gear]-ref/0048-gone.md": "---\nremoved: true\n---\n",
+	});
+	const ws = workspace("1.0.0");
+	const first = await copyForward(root, "core/ref/signal", { workspace: ws });
+	assertEquals(first, {
+		file: join(root, "packages/core/1.0/0016-[gear]-ref/0032-signal.md"),
+		copied: true,
+	});
+	assertEquals(await Deno.readTextFile(first.file), "# Signal 0.9");
+	assertEquals((await copyForward(root, "core/ref/signal", { workspace: ws })).copied, false);
+	await assertRejects(
+		() => copyForward(root, "core/ref/gone", { workspace: ws }),
+		ContentEditError,
+		"removed in 0.9",
+	);
+	await assertRejects(
+		() => copyForward(root, "core/ref/nope", { workspace: ws }),
+		ContentEditError,
+		"new page",
+	);
+	// An older version is never read past the current one.
+	const old = await copyForward(root, "core/ref/signal", { workspace: workspace("0.8.1") });
+	assertEquals(old.copied, false);
+	assertEquals(old.file, join(root, "packages/core/0.8/0016-[gear]-ref/0032-signal.md"));
 });

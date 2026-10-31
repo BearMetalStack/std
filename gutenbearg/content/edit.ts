@@ -1,10 +1,22 @@
 /**
  * Changes to the content tree that keep its numbering intact: adding a page or section between
- * two others, respacing a directory, cutting a version. Paths in arguments are written in slugs
- * (`packages/core/0.9/reference/signal`), so nobody types a number to find a file.
+ * two others, respacing a directory, cutting a version, copying a page forward. Paths in arguments
+ * are written in slugs (`packages/core/0.9/reference/signal`), so nobody types a number to find a
+ * file. A path that starts with a package's id instead (`core/reference/signal`) means that
+ * package's current docs version, worked out from its `deno.json`.
  */
 
-import { join } from "@std/path";
+import { basename, dirname, join } from "@std/path";
+import { splitFrontmatter } from "@bearmetal/clawmark";
+import { VERSION_DIR } from "./load.ts";
+import {
+	compareVersions,
+	docsVersion,
+	findWorkspace,
+	linkPackage,
+	type VersionScheme,
+	type Workspace,
+} from "./workspace.ts";
 import {
 	between,
 	formatName,
@@ -23,17 +35,33 @@ export class ContentEditError extends Error {
 interface Entry {
 	name: string;
 	parsed: ParsedName;
+	/** The directory it was found in. */
+	dir: string;
 }
 
-async function entries(dir: string, kind: "page" | "section"): Promise<Entry[]> {
-	const out: Entry[] = [];
-	for await (const e of Deno.readDir(dir)) {
-		if (e.name.startsWith(".") || e.name === "index.md") continue;
-		if (kind === "page" ? e.isFile && e.name.endsWith(".md") : e.isDirectory) {
-			out.push({ name: e.name, parsed: parseName(e.name) });
+/**
+ * The entries of `dirs`, oldest first, merged by slug with the newest name winning: what a reader
+ * of the last one sees once inheritance is applied. Missing directories are skipped.
+ */
+async function entries(dirs: string | string[], kind: "page" | "section"): Promise<Entry[]> {
+	const bySlug = new Map<string, Entry>();
+	for (const dir of [dirs].flat()) {
+		try {
+			for await (const e of Deno.readDir(dir)) {
+				if (e.name.startsWith(".") || e.name === "index.md") continue;
+				if (kind === "page" ? e.isFile && e.name.endsWith(".md") : e.isDirectory) {
+					if (kind === "section" && VERSION_DIR.test(e.name)) continue;
+					const parsed = parseName(e.name);
+					bySlug.set(parsed.slug, { name: e.name, parsed, dir });
+				}
+			}
+		} catch (e) {
+			if (!(e instanceof Deno.errors.NotFound)) throw e;
 		}
 	}
-	return out.sort((a, b) => a.parsed.order - b.parsed.order || (a.name < b.name ? -1 : 1));
+	return [...bySlug.values()].sort((a, b) =>
+		a.parsed.order - b.parsed.order || (a.name < b.name ? -1 : 1)
+	);
 }
 
 /**
@@ -64,12 +92,14 @@ export interface Position {
  * throws unless `reindex` is set, in which case the directory is respaced first.
  */
 export async function numberFor(
-	dir: string,
+	dirs: string | string[],
 	kind: "page" | "section",
 	position: Position = {},
 	reindexIfFull = false,
 ): Promise<number> {
-	const list = (await entries(dir, kind)).filter((e) => e.parsed.numbered);
+	const layers = [dirs].flat();
+	const dir = layers.at(-1)!;
+	const list = (await entries(layers, kind)).filter((e) => e.parsed.numbered);
 	const index = (slug: string) => {
 		const i = list.findIndex((e) => e.parsed.slug === slug);
 		if (i < 0) throw new ContentEditError(`nothing named "${slug}" in ${dir}`);
@@ -90,6 +120,12 @@ export async function numberFor(
 	}
 	const n = between(low, high);
 	if (n !== null) return n;
+	if (layers.length > 1) {
+		throw new ContentEditError(
+			`no room between ${low ?? "the start"} and ${high} in ${dir}, and older versions share ` +
+				"its numbering; place it elsewhere, or reindex every version of it by hand",
+		);
+	}
 	if (!reindexIfFull) {
 		throw new ContentEditError(
 			`no room between ${
@@ -135,23 +171,143 @@ export async function reindex(
 	return moves;
 }
 
+/** A directory to write into, and the same directory in the versions it inherits from. */
+export interface Target {
+	/** Where new files go. May not exist yet; writing creates it. */
+	dir: string;
+	/** `dir` in every version up to it, oldest first, ending with `dir`. */
+	layers: string[];
+}
+
+/** Options for the generators that work out a package's current version. */
+export interface VersionOptions {
+	/** The workspace to link packages to; found from `root` when left out. */
+	workspace?: Workspace | null;
+}
+
+async function frontmatterOf(file: string): Promise<Record<string, unknown>> {
+	try {
+		return splitFrontmatter(await Deno.readTextFile(file)).data as Record<string, unknown>;
+	} catch (e) {
+		if (e instanceof Deno.errors.NotFound) return {};
+		throw e;
+	}
+}
+
 /**
- * Writes a stub page at `slugPath` (`guides/start-here/deploying`): the last segment is the new
- * page's slug, the rest names an existing section. Returns the file written.
+ * The docs version `pkg` is currently at: its workspace package's `deno.json` version, mapped by
+ * the site's `versioning` (major.minor by default).
+ */
+export async function currentVersion(
+	root: string,
+	pkg: string,
+	options: VersionOptions = {},
+): Promise<string> {
+	const site = (await frontmatterOf(join(root, "index.md"))).site as
+		| Record<string, unknown>
+		| undefined;
+	const meta = await frontmatterOf(join(root, "packages", pkg, "index.md"));
+	const workspace = options.workspace !== undefined
+		? options.workspace
+		: site?.workspace === false
+		? null
+		: await findWorkspace(root);
+	const source = linkPackage(workspace, pkg, meta.package ? String(meta.package) : undefined);
+	if (!source) {
+		throw new ContentEditError(
+			`"${pkg}" isn't linked to a workspace package; set \`package:\` in its index.md, or write ` +
+				`the version in the path (packages/${pkg}/<version>/…)`,
+		);
+	}
+	if (!source.version) throw new ContentEditError(`${source.name} has no version in its deno.json`);
+	return docsVersion(source.version, (site?.versioning as VersionScheme | undefined) ?? "minor");
+}
+
+/**
+ * The version directories of `pkg` a reader of its current version sees, oldest first, ending
+ * with the current one (which may not exist yet). An unversioned package is its own directory.
+ */
+async function versionLayers(
+	root: string,
+	pkg: string,
+	options: VersionOptions,
+): Promise<string[]> {
+	const base = join(root, "packages", pkg);
+	const names: string[] = [];
+	let sections = false;
+	try {
+		for await (const e of Deno.readDir(base)) {
+			if (!e.isDirectory || e.name === "changelog") continue;
+			if (VERSION_DIR.test(e.name)) names.push(e.name);
+			else sections = true;
+		}
+	} catch (e) {
+		if (e instanceof Deno.errors.NotFound) {
+			throw new ContentEditError(`no package "${pkg}" under ${join(root, "packages")}`);
+		}
+		throw e;
+	}
+	if (!names.length && sections) return [base];
+	const current = await currentVersion(root, pkg, options);
+	const older = names.filter((n) => compareVersions(n, current) < 0)
+		.sort(compareVersions);
+	const same = names.find((n) => compareVersions(n, current) === 0) ?? current;
+	return [...older, same].map((n) => join(base, n));
+}
+
+/**
+ * Resolves a slug path to the directory a generator writes into. `guides/…` and `packages/…`
+ * name real directories; `<pkg>/…` names the package's current version, where each segment is
+ * matched across the versions it inherits from and takes the newest name found, so a section
+ * copied forward keeps its number and icon.
+ */
+export async function resolveTarget(
+	root: string,
+	slugPath: string,
+	options: VersionOptions = {},
+): Promise<Target> {
+	const [first, ...rest] = slugPath.split("/").filter(Boolean);
+	if (!first || first === "guides" || first === "packages") {
+		const dir = await resolveDir(root, slugPath);
+		return { dir, layers: [dir] };
+	}
+	let layers = await versionLayers(root, first, options);
+	for (const seg of rest) {
+		const found = (await entries(layers, "section")).find((e) =>
+			e.name === seg || e.parsed.slug === seg
+		);
+		if (!found) {
+			throw new ContentEditError(`no section "${seg}" in ${first}'s current version`);
+		}
+		layers = layers.map((l) => join(l, found.name));
+	}
+	return { dir: layers.at(-1)!, layers };
+}
+
+/**
+ * Writes a stub page at `slugPath` (`guides/start-here/deploying`, or `core/learn/batching` for
+ * a package's current version): the last segment is the new page's slug, the rest names an
+ * existing section. Returns the file written.
  */
 export async function newPage(
 	root: string,
 	slugPath: string,
-	options: Position & { title?: string; reindex?: boolean } = {},
+	options: Position & VersionOptions & { title?: string; reindex?: boolean } = {},
 ): Promise<string> {
 	const parts = slugPath.split("/").filter(Boolean);
 	const slug = parts.pop();
 	if (!slug) throw new ContentEditError("give a path ending in the new page's slug");
-	const dir = await resolveDir(root, parts.join("/"));
-	if ((await entries(dir, "page")).some((e) => e.parsed.slug === slug)) {
-		throw new ContentEditError(`"${slug}" already exists in ${dir}`);
+	const { dir, layers } = await resolveTarget(root, parts.join("/"), options);
+	const existing = (await entries(layers, "page")).find((e) => e.parsed.slug === slug);
+	if (existing) {
+		throw new ContentEditError(
+			existing.dir === dir
+				? `"${slug}" already exists in ${dir}`
+				: `"${slug}" is inherited from ${existing.dir}; use \`edit\` to bring it forward`,
+		);
 	}
-	const n = await numberFor(dir, "page", options, options.reindex);
+	const n = await numberFor(layers, "page", options, options.reindex);
+	await Deno.mkdir(dir, { recursive: true });
 	const file = join(dir, formatName(n, slug, { ext: ".md" }));
 	const title = options.title ?? slug.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
 	await Deno.writeTextFile(file, `---\ndraft: true\n---\n\n# ${title}\n`, { createNew: true });
@@ -162,19 +318,61 @@ export async function newPage(
 export async function newSection(
 	root: string,
 	slugPath: string,
-	options: Position & { icon?: string; reindex?: boolean } = {},
+	options: Position & VersionOptions & { icon?: string; reindex?: boolean } = {},
 ): Promise<string> {
 	const parts = slugPath.split("/").filter(Boolean);
 	const slug = parts.pop();
 	if (!slug) throw new ContentEditError("give a path ending in the new section's slug");
-	const parent = await resolveDir(root, parts.join("/"));
-	if ((await entries(parent, "section")).some((e) => e.parsed.slug === slug)) {
+	const { dir: parent, layers } = await resolveTarget(root, parts.join("/"), options);
+	if ((await entries(layers, "section")).some((e) => e.parsed.slug === slug)) {
 		throw new ContentEditError(`"${slug}" already exists in ${parent}`);
 	}
-	const n = await numberFor(parent, "section", options, options.reindex);
+	const n = await numberFor(layers, "section", options, options.reindex);
 	const dir = join(parent, formatName(n, slug, { icon: options.icon }));
-	await Deno.mkdir(dir);
+	await Deno.mkdir(dir, { recursive: true });
 	return dir;
+}
+
+/** What {@linkcode copyForward} did. */
+export interface CopyResult {
+	file: string;
+	/** False when the page already lived in the current version. */
+	copied: boolean;
+}
+
+/**
+ * Brings a package page into its current version so it can be changed there without touching
+ * the versions before it: `core/reference/signal` copies the newest older copy of `signal` into
+ * the current version, under the same section and file names. Already there, it only says where.
+ */
+export async function copyForward(
+	root: string,
+	slugPath: string,
+	options: VersionOptions = {},
+): Promise<CopyResult> {
+	const parts = slugPath.split("/").filter(Boolean);
+	const slug = parts.pop();
+	if (!slug || parts.length < 2 || parts[0] === "guides" || parts[0] === "packages") {
+		throw new ContentEditError(
+			"give a package page as <package>/<section>/<page>; guides aren't versioned, so edit them in place",
+		);
+	}
+	const { dir, layers } = await resolveTarget(root, parts.join("/"), options);
+	const found = (await entries(layers, "page")).find((e) => e.parsed.slug === slug);
+	if (!found) {
+		throw new ContentEditError(
+			`no page "${slug}" in ${parts.join("/")}; use \`new page\` to add one`,
+		);
+	}
+	const from = join(found.dir, found.name);
+	if ((await frontmatterOf(from)).removed === true) {
+		throw new ContentEditError(`"${slug}" was removed in ${basename(dirname(found.dir))}`);
+	}
+	if (found.dir === dir) return { file: from, copied: false };
+	await Deno.mkdir(dir, { recursive: true });
+	const file = join(dir, found.name);
+	await Deno.copyFile(from, file);
+	return { file, copied: true };
 }
 
 /**

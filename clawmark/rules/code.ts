@@ -27,16 +27,66 @@ function consumeSpan(ctx: LexerContext, delimiter: string, openLen: number): str
 	return content;
 }
 
+/** The length of the run of `ch` starting at `at`. */
+function runAt(input: string, at: number, ch = "`"): number {
+	let n = 0;
+	while (input[at + n] === ch) n++;
+	return n;
+}
+
+/**
+ * The closing fence for a block opened by `n` backticks at `from`: a later line holding nothing but
+ * a run of at least `n` backticks. Returns where the content ends and the input after the fence.
+ */
+function closingFence(
+	input: string,
+	from: number,
+	n: number,
+): { end: number; after: number } | null {
+	const fence = new RegExp(`\\n[ \\t]*\`{${n},}[ \\t]*(?=\\n|$)`, "g");
+	fence.lastIndex = from;
+	const m = fence.exec(input);
+	return m ? { end: m.index, after: m.index + m[0].length } : null;
+}
+
+/**
+ * The matching close for an inline span opened by `n` backticks: the next run of exactly `n`.
+ * Returns the index of that run, or -1.
+ */
+function closingRun(input: string, from: number, n: number): number {
+	for (let i = from; i < input.length;) {
+		if (input[i] !== "`") {
+			i++;
+			continue;
+		}
+		const len = runAt(input, i);
+		if (len === n) return i;
+		i += len;
+	}
+	return -1;
+}
+
 export const codeBlockRule: Rule<CodeData> = {
 	id: "md:codeblock",
 	trigger: "`",
 	validate: (ctx) => ctx.peek(3) === "```" && ctx.cursor === ctx.lineStart,
 
 	tokenize(ctx) {
-		const content = consumeSpan(ctx, "```", 3);
+		// A fence of n backticks closes on a line of at least n, so a longer fence can hold a
+		// shorter one, the way `serialize` writes a block that contains backticks. A block with no
+		// closing line falls back to the next ``` anywhere, as fences always closed before.
+		const n = runAt(ctx.input, ctx.cursor);
+		const close = closingFence(ctx.input, ctx.cursor + n, n);
+		let content: string | null;
+		if (close) {
+			content = ctx.input.slice(ctx.cursor + n, close.end);
+			ctx.cursor = close.after - 1;
+		} else {
+			content = n === 3 ? consumeSpan(ctx, "```", 3) : null;
+		}
 		if (content === null) {
-			ctx.cursor += 2; // fallback: emit the 3 backticks as literal text
-			return textFallback<CodeData>("```");
+			ctx.cursor += n - 1; // fallback: emit the backticks as literal text
+			return textFallback<CodeData>("`".repeat(n));
 		}
 		// The info string (```ts) used to be folded into the code body, so a
 		// fenced block's language ended up as the first line of its own
@@ -100,11 +150,20 @@ export const inlineCodeRule: Rule<CodeData> = {
 	validate: (ctx) => ctx.peek(2) !== "` ",
 
 	tokenize(ctx) {
-		const content = consumeSpan(ctx, "`", 1);
-		if (content === null) {
-			return textFallback<CodeData>("`");
+		// A span opened by n backticks closes at the next run of exactly n, so ``a ` b`` holds a
+		// backtick. One space each side is padding when both are there, as `serialize` writes it.
+		const n = runAt(ctx.input, ctx.cursor);
+		const close = closingRun(ctx.input, ctx.cursor + n, n);
+		if (close < 0) {
+			ctx.cursor += n - 1;
+			return textFallback<CodeData>("`".repeat(n));
 		}
-		return { tag: "md:code", data: { value: content } };
+		let value = ctx.input.slice(ctx.cursor + n, close);
+		if (n > 1 && value.length > 2 && value.startsWith(" ") && value.endsWith(" ") && value.trim()) {
+			value = value.slice(1, -1);
+		}
+		ctx.cursor = close + n - 1;
+		return { tag: "md:code", data: { value } };
 	},
 
 	matchTag: "code",

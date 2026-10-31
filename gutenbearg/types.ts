@@ -11,6 +11,9 @@
 
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { IconName } from "./icons.ts";
+import type { VersionScheme, WorkspaceMember } from "./content/workspace.ts";
+
+export type { VersionScheme, Workspace, WorkspaceMember } from "./content/workspace.ts";
 
 export type { IconName } from "./icons.ts";
 
@@ -63,6 +66,13 @@ export interface SiteConfig {
 	editBase?: string;
 	/** Theme for drip; defaults to the project's own. */
 	theme?: string;
+	/**
+	 * How a package's version maps onto its docs version directories: `minor` (the default) puts
+	 * 0.3.2 in `0.3/`, `major` in `0/`, `exact` in `0.3.2/`.
+	 */
+	versioning?: VersionScheme;
+	/** `false` stops packages linking to the surrounding workspace, for docs about other code. */
+	workspace?: boolean;
 }
 
 /** A page's frontmatter. Anything else in the block is kept and ignored. */
@@ -134,6 +144,8 @@ export interface PackageInfo {
 	description?: string;
 	/** Newest first. */
 	versions: PackageVersion[];
+	/** The code package these docs belong to, found in the surrounding Deno workspace. */
+	source?: WorkspaceMember;
 }
 
 /** One term a page links with `[[id]]`. */

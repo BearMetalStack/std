@@ -4,6 +4,8 @@ site:
   repository: https://example.com/bramble
   editBase: https://example.com/bramble/edit/main/docs/
   sourceBase: https://example.com/bramble/blob/main/
+  # Bramble is made up, so its packages are not the workspace's @bearmetal/core and friends.
+  workspace: false
 name: Bramble
 text: Small reactive pieces for the web
 tagline: Signals, components and a router in under 9 kB. No virtual DOM, no build step required.

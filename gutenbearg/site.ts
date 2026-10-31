@@ -108,3 +108,8 @@ export function slugify(text: string): string {
 		"",
 	);
 }
+
+/** The version to show for a package: its released version when linked, else its newest docs. */
+export function releaseOf(pkg: PackageInfo): string | undefined {
+	return pkg.source?.version ?? (pkg.versions[0]?.version || undefined);
+}

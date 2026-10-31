@@ -59,6 +59,8 @@ deno task workspace:bump-versions      # bump versions for packages changed sinc
 deno task workspace:publish            # bump, then `deno publish` at the root (orders by deps itself)
 deno task bm:drip                      # regenerate Drip theme CSS/completions
 deno task docs:dev                     # VitePress docs site (docs/)
+deno task docs:gutenbearg              # gutenbearg docs site (.bearmetal/gutenbearg/), live reload
+deno task gutenbearg <command>         # the gutenbearg CLI: check, new, edit, changelog, build…
 ```
 
 `workspace:bump-versions` prompts only on a terminal. To decide bumps non-interactively, inspect
@@ -314,7 +316,12 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
   shells (`trail`, `shelves`, `den`) live in `templates/chrome.tsx`. `gutenbeargModule()` claims
   `@bearmetal/gutenbearg`. `cli.ts` handles dev/build/check plus `new`/`reindex`/`cut`. The module's
   `frame` option (`shell`/`article`) renders pages through an app's own `Layout()` instead of as
-  whole documents; the default `document` frame is the standalone site.
+  whole documents; the default `document` frame is the standalone site. `packages/<id>/` links to
+  the workspace member it documents (`content/workspace.ts`), which gives it a current version
+  (major.minor by default), so `new`/`edit`/`changelog` never take a version. This repo's own docs
+  site lives in the root `.bearmetal/gutenbearg/` (`deno task docs:gutenbearg` serves it,
+  `deno task gutenbearg …` runs the CLI); packages move there from VitePress one at a time,
+  gutenbearg first.
 - **`stack/`** — purely the `deno create jsr:@bearmetal/stack` scaffolding CLI/wizard that assembles
   a new app from the other packages (optional db/auth/dev-proxy modules). It owns none of the SSR or
   client-bundling machinery — that's `app/ssr`/`app/serve` — only the wizard itself and its own

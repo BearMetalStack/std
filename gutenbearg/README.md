@@ -48,6 +48,9 @@ gutenbearg dev                                   # serve, reloading on change
 gutenbearg check                                 # dead links, duplicate slugs, bad frontmatter…
 gutenbearg new page guides/start-here/deploying --after=getting-started
 gutenbearg new section packages/core/0.9/advanced --icon=gear
+gutenbearg new page core/learn/batching          # core's current version, from its deno.json
+gutenbearg edit core/reference/signal            # copy a page forward into the current version
+gutenbearg changelog core [--version=X] [--force]  # draft an entry from conventional commits
 gutenbearg reindex guides/start-here [--sections] [--dry-run]
 gutenbearg cut core 1.0                          # a new (empty, inheriting) version
 gutenbearg build --out=dist [--strict]           # static site via diecast
@@ -55,6 +58,18 @@ gutenbearg build --out=dist [--strict]           # static site via diecast
 
 All of these run as `deno run -A jsr:@bearmetal/gutenbearg/cli …`, take `--dir`, and accept paths
 written in slugs.
+
+**Packages link to code.** `packages/<id>/` is matched to a member of the surrounding Deno
+workspace: by `package:` in its `index.md`, else a member named `…/<id>`, else one in a directory
+called `<id>`. The link names the package and gives it a current version. Its docs version is the
+major.minor of that version unless `site.versioning` says `major` or `exact`. A path that starts
+with a package id (`core/learn/batching`) means that version. `edit` copies the newest older copy of
+a page into it under the same names, so you only ever change the current version.
+`site.workspace: false` turns linking off, for docs about code that lives elsewhere.
+
+`changelog` reads the commits since the package's last `<name>@<version>` tag and keeps those scoped
+to it: `feat` → added, `fix` → fixed, `refactor`/`perf` → changed, and `!` or a `BREAKING CHANGE`
+footer → breaking. It writes them oldest first, ready to edit.
 
 ## Shells
 

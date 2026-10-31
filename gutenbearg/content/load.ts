@@ -5,10 +5,13 @@
  * index.md                               home page; `site:` holds site settings
  * glossary/<term>.md                     `term`, `see`; the body is the definition
  * guides/<NNNN-[icon]-section>/<NNNN-page>.md
- * packages/<pkg>/index.md                `name`, `status`, `description`
+ * packages/<pkg>/index.md                `name`, `status`, `description`, `package`
  * packages/<pkg>/<version>/<NNNN-[icon]-section>/<NNNN-page>.md
  * packages/<pkg>/changelog/<version>.md  `date`; a list of `type: text` items
  * ```
+ *
+ * A package is linked to the workspace member it documents (see `./workspace.ts`), which names it
+ * and gives it a current version.
  *
  * A version directory holds only what changed: pages missing from it are inherited from the
  * versions before it, and `removed: true` drops one. A package with sections directly under it
@@ -50,6 +53,13 @@ import type {
 import { compareNames, type ParsedName, parseName, titleize } from "./names.ts";
 import { plainText, type RenderEnv, renderTree } from "./render.tsx";
 import { readingMinutes } from "../site.ts";
+import {
+	compareVersions,
+	findWorkspace,
+	fitsScheme,
+	linkPackage,
+	type Workspace,
+} from "./workspace.ts";
 
 /** Where content lives when nothing says otherwise. */
 export const DEFAULT_DIR = ".bearmetal/gutenbearg";
@@ -60,12 +70,17 @@ export interface LoadOptions {
 	base?: string;
 	/** Clawmark rules ahead of gutenbearg's own, for custom syntax. */
 	rules?: StagedRule[];
+	/**
+	 * The workspace packages link to. Found by walking up from the content directory when left
+	 * out; `null` links nothing.
+	 */
+	workspace?: Workspace | null;
 }
 
 const STATUSES = new Set<Status>(["stable", "beta", "alpha", "deprecated"]);
 const CHANGE_TYPES = new Set<ChangeType>(["added", "changed", "fixed", "deprecated", "breaking"]);
-/** `0.9`, `1.2.3-beta.1`, `v2` — but not `0000-commands`, which is a section. */
-const VERSION_DIR = /^(v?\d+\.\d+(\.\d+)*([-+][\w.]+)?|v\d+)$/;
+/** `0.9`, `1.2.3-beta.1`, `2` — but not `0000-commands`, which is a section. */
+export const VERSION_DIR = /^(v?\d+\.\d+(\.\d+)*([-+][\w.]+)?|v?\d+)$/;
 
 interface Parsed {
 	frontmatter: Record<string, unknown>;
@@ -96,6 +111,7 @@ export class ContentLoader {
 	#cache = new Map<string, { mtime: number; doc: Parsed }>();
 	#rules: StagedRule[];
 	#ruleMap: Map<string, AnyRule>;
+	#workspace: Promise<Workspace | null> | undefined;
 
 	constructor(readonly dir: string = DEFAULT_DIR, readonly options: LoadOptions = {}) {
 		this.#rules = [...(options.rules ?? []), ...docsRules(), ...defaultRules()];
@@ -107,6 +123,12 @@ export class ContentLoader {
 	/** Reads the whole directory. Content mistakes become diagnostics; only I/O failures throw. */
 	async load(): Promise<SiteContent> {
 		return await new Build(this, this.dir, this.options.base ?? "").run();
+	}
+
+	/** The workspace packages link to, found once per loader. */
+	workspace(): Promise<Workspace | null> {
+		if (this.options.workspace !== undefined) return Promise.resolve(this.options.workspace);
+		return this.#workspace ??= findWorkspace(this.dir);
 	}
 
 	get ruleMap(): Map<string, AnyRule> {
@@ -168,19 +190,6 @@ function str(v: unknown): string | undefined {
 	return v === undefined || v === null ? undefined : String(v);
 }
 
-function compareVersions(a: string, b: string): number {
-	const pa = a.replace(/^v/, "").split(/[.-]/).map((x) => (/^\d+$/.test(x) ? Number(x) : x));
-	const pb = b.replace(/^v/, "").split(/[.-]/).map((x) => (/^\d+$/.test(x) ? Number(x) : x));
-	for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-		const x = pa[i] ?? 0;
-		const y = pb[i] ?? 0;
-		if (x === y) continue;
-		if (typeof x === "number" && typeof y === "number") return x - y;
-		return String(x) < String(y) ? -1 : 1;
-	}
-	return 0;
-}
-
 /** One pass over the directory. */
 class Build {
 	diagnostics: Diagnostic[] = [];
@@ -192,6 +201,7 @@ class Build {
 	glossary: Record<string, GlossaryEntry> = {};
 	latest = new Map<string, string>();
 	sourceBase?: string;
+	site!: SiteConfig;
 
 	constructor(readonly loader: ContentLoader, readonly root: string, readonly base: string) {}
 
@@ -199,6 +209,7 @@ class Build {
 		const index = await this.#doc("index.md");
 		const fm = index?.frontmatter ?? {};
 		const site = this.#site(fm.site);
+		this.site = site;
 		this.sourceBase = site.sourceBase;
 
 		const guides = await this.#guides();
@@ -279,6 +290,10 @@ class Build {
 			sourceBase: str(s.sourceBase),
 			editBase: str(s.editBase),
 			theme: str(s.theme),
+			versioning: s.versioning === "major" || s.versioning === "minor" || s.versioning === "exact"
+				? s.versioning
+				: undefined,
+			workspace: s.workspace === false ? false : undefined,
 		};
 	}
 
@@ -416,6 +431,7 @@ class Build {
 
 	async #packages(): Promise<PackageInfo[]> {
 		const packages: PackageInfo[] = [];
+		const workspace = this.site.workspace === false ? null : await this.loader.workspace();
 		for (const entry of await this.#entries("packages")) {
 			if (!entry.isDirectory) continue;
 			const id = entry.name;
@@ -426,12 +442,17 @@ class Build {
 			);
 			const versionDirs = dirs.filter((d) => VERSION_DIR.test(d.name));
 			const status = str(meta.status) as Status | undefined;
+			const source = linkPackage(workspace, id, str(meta.package));
+			if (meta.package && !source) {
+				this.warn(`${rel}/index.md`, `no workspace package named "${meta.package}"`);
+			}
 			const pkg: PackageInfo = {
 				id,
-				name: str(meta.name) ?? id,
+				name: str(meta.name) ?? source?.name ?? id,
 				status: status && STATUSES.has(status) ? status : undefined,
 				description: str(meta.description),
 				versions: [],
+				source,
 			};
 
 			let versions: { version: string; dir: string }[];
@@ -441,6 +462,15 @@ class Build {
 						this.warn(
 							`${rel}/${d.name}`,
 							"is not a version; sections belong inside a version directory",
+						);
+					}
+				}
+				const scheme = this.site.versioning;
+				for (const d of versionDirs) {
+					if (scheme && !fitsScheme(d.name, scheme)) {
+						this.warn(
+							`${rel}/${d.name}`,
+							`doesn't match the site's "${scheme}" versioning; it still loads`,
 						);
 					}
 				}

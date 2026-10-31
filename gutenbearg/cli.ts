@@ -6,6 +6,9 @@
  * ```sh
  * deno run -A jsr:@bearmetal/gutenbearg/cli dev
  * deno run -A jsr:@bearmetal/gutenbearg/cli new page guides/start-here/deploying --after getting-started
+ * deno run -A jsr:@bearmetal/gutenbearg/cli new page core/learn/batching      # core's current version
+ * deno run -A jsr:@bearmetal/gutenbearg/cli edit core/reference/signal         # copy it forward
+ * deno run -A jsr:@bearmetal/gutenbearg/cli changelog core                     # draft from commits
  * deno run -A jsr:@bearmetal/gutenbearg/cli reindex guides/start-here
  * deno run -A jsr:@bearmetal/gutenbearg/cli build --out=dist --strict
  * ```
@@ -16,8 +19,10 @@ import { Router } from "@bearmetal/router";
 import { build } from "./build.ts";
 import { gutenbeargModule, reportDiagnostics } from "./module.tsx";
 import { DEFAULT_DIR, loadContent } from "./content/load.ts";
+import { draftChangelog } from "./content/changelog.ts";
 import {
 	ContentEditError,
+	copyForward,
 	cutVersion,
 	newPage,
 	newSection,
@@ -66,6 +71,18 @@ export async function main(args: string[] = Deno.args): Promise<number> {
 		cut: {
 			package: { type: "positional", required: true },
 			version: { type: "positional", required: true },
+		},
+		edit: {
+			path: {
+				type: "positional",
+				required: true,
+				description: "package/section/page; copied into the current version",
+			},
+		},
+		changelog: {
+			package: { type: "positional", required: true },
+			version: { type: "string", description: "Release the entry is for" },
+			force: { type: "flag", description: "Replace an existing entry" },
 		},
 	}).setProgram("gutenbearg").resolve();
 
@@ -131,6 +148,23 @@ export async function main(args: string[] = Deno.args): Promise<number> {
 			}
 			case "cut": {
 				console.log(`created ${await cutVersion(dir, a.package as string, a.version as string)}`);
+				return 0;
+			}
+			case "edit": {
+				const { file, copied } = await copyForward(dir, a.path as string);
+				console.log(copied ? `copied forward to ${file}` : `already current: ${file}`);
+				return 0;
+			}
+			case "changelog": {
+				const draft = await draftChangelog(dir, a.package as string, {
+					version: a.version as string | undefined,
+					force: !!a.force,
+				});
+				console.log(
+					`drafted ${draft.file} from ${draft.changes.length} commit(s) since ${
+						draft.since ?? "the beginning"
+					}; edit it before releasing`,
+				);
 				return 0;
 			}
 			default:

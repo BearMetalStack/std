@@ -16,8 +16,8 @@
 		"jsxImportSource": "@bearmetal/jsx"
 	},
 	"tasks": {
-		"dev": "deno test --watch -RW",
-		"test": "deno test -RW",
+		"dev": "deno test --watch -RW --allow-run=git",
+		"test": "deno test -RW --allow-run=git",
 		"example": "deno task --cwd=examples/bramble dev",
 		"bm:icons": {
 			"description": "Copies the Phosphor regular and fill sheets in from webbies",

@@ -1,6 +1,6 @@
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { PageContext } from "../types.ts";
-import { href, packageRoute, toneOf } from "../site.ts";
+import { href, packageRoute, releaseOf, toneOf } from "../site.ts";
 import { Badge } from "../blocks/mod.tsx";
 import { LOGO_ANIMATED } from "./assets.ts";
 import { Document, TopBar } from "./document.tsx";
@@ -44,7 +44,7 @@ export function HomeTemplate({ ctx }: { ctx: PageContext }): JSX.Element {
 						return (
 							<a class="sq" href={href(ctx, route)}>
 								<code>{p.name}</code>
-								{p.versions[0]?.version && <span class="mono">{p.versions[0].version}</span>}
+								{releaseOf(p) && <span class="mono">{releaseOf(p)}</span>}
 								{p.status && <Badge tone={toneOf(p.status)}>{p.status}</Badge>}
 							</a>
 						);
