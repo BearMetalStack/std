@@ -3,17 +3,14 @@ import type { PageContext } from "../types.ts";
 import { href, packageRoute, toneOf } from "../site.ts";
 import { Badge } from "../blocks/mod.tsx";
 import { LOGO_ANIMATED } from "./assets.ts";
-import { Document } from "./document.tsx";
-import { LAYOUTS } from "./chrome.tsx";
-import { UNMEASURED } from "./measure.ts";
+import { Document, TopBar } from "./document.tsx";
 
 /** The landing page: hero, the body's blocks, then a tile per package. No sidebar or rail. */
 export function HomeTemplate({ ctx }: { ctx: PageContext }): JSX.Element {
 	const { frontmatter: fm, body } = ctx.content.home;
-	const Header = LAYOUTS[ctx.layout].header;
 	return (
 		<Document ctx={ctx} title={ctx.content.site.name} description={fm.tagline}>
-			<Header ctx={ctx} measured={UNMEASURED} />
+			<TopBar ctx={ctx} />
 			<main class="gb-home">
 				<section class="gb-hero">
 					<div class="gb-hero-copy">

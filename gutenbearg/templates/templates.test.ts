@@ -1,6 +1,6 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { renderToString } from "@bearmetal/app/ssr";
-import type { PageContext, ShellLayout } from "../types.ts";
+import type { FrameKind, PageContext, ShellLayout } from "../types.ts";
 import { loadContent } from "../content/load.ts";
 import { renderRoute } from "./mod.ts";
 
@@ -56,4 +56,33 @@ Deno.test("older versions get a banner and a version menu", async () => {
 	assertStringIncludes(gone.html, "This page is gone in the latest release.");
 	const latest = await render("core/reference/signal");
 	assertStringIncludes(latest.html, 'href="/core/v0.8/reference/signal"');
+});
+
+const framed = async (route: string, frame: FrameKind) => {
+	const { status, view } = renderRoute({ content, route, layout: "shelves", base: "/docs", frame });
+	return { status, html: await renderToString(view) };
+};
+
+Deno.test("the shell frame keeps the docs chrome but not the document or header", async () => {
+	const { html } = await framed("core/learn/reactivity", "shell");
+	assert(!html.includes("<html"));
+	assert(!html.includes("gb-header"));
+	assert(!html.includes("data-gb-theme"));
+	assert(!html.includes('rel="stylesheet"'));
+	assertStringIncludes(html, 'class="gb-app gb-embedded frame-shell layout-shelves"');
+	for (const part of ["gb-docsbar", "data-gb-search", "gb-side", "gb-aside", 'id="gb-data"']) {
+		assertStringIncludes(html, part);
+	}
+	assertStringIncludes(html, 'href="/docs/core/v0.8/learn/reactivity"');
+});
+
+Deno.test("the article frame is the page alone", async () => {
+	const { html } = await framed("core/learn/reactivity", "article");
+	assert(!html.includes("gb-side"));
+	assert(!html.includes("gb-docsbar"));
+	assertStringIncludes(html, "gb-article");
+	assertStringIncludes(html, 'id="gb-data"');
+	const home = await framed("", "article");
+	assert(!home.html.includes("gb-header"));
+	assertEquals((await framed("nowhere", "article")).status, 404);
 });

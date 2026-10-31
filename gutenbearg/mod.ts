@@ -19,8 +19,8 @@
  * ```
  */
 
-export { gutenbeargModule, reportDiagnostics } from "./module.tsx";
-export type { GutenbeargOptions, RequestChoices } from "./module.tsx";
+export { GutenbeargModule, gutenbeargModule, reportDiagnostics } from "./module.tsx";
+export type { GutenbeargOptions, RenderOptions, RequestChoices } from "./module.tsx";
 export { ContentLoader, DEFAULT_DIR, loadContent } from "./content/load.ts";
 export type { LoadOptions } from "./content/load.ts";
 export { renderTree } from "./content/render.tsx";

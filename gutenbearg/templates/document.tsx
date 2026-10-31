@@ -3,11 +3,14 @@ import { Animations, BMDripBase } from "@bearmetal/drip/ssr";
 import type { Page, PageContext } from "../types.ts";
 import { latestPages, sectionOf } from "../site.ts";
 import { CLIENT, LOGO, STYLESHEET } from "./assets.ts";
-import { LAYOUTS } from "./chrome.tsx";
+import { DocsBar, LAYOUTS } from "./chrome.tsx";
 import { type Measured, UNMEASURED } from "./measure.ts";
 
 const THEME_BOOT =
 	`try{var t=localStorage.getItem("gb-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}`;
+
+const PAGE_STYLE =
+	`html{scroll-padding-top:6rem}body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);-webkit-font-smoothing:antialiased}`;
 
 /** What the client layer reads out of the page: the search index, glossary and route facts. */
 function ClientData({ ctx, written }: { ctx: PageContext; written: boolean }): JSX.Element {
@@ -32,8 +35,10 @@ function ClientData({ ctx, written }: { ctx: PageContext; written: boolean }): J
 }
 
 /**
- * The `<html>` every template renders into: drip's theme and base styles, the gutenbearg
- * stylesheet and client, and the stored light/dark choice applied before first paint.
+ * What every template renders into. In the `document` frame that is the whole `<html>`: drip's
+ * theme and base styles, the gutenbearg stylesheet and client, and the stored light/dark choice
+ * applied before first paint. Embedded, it is a `.gb-app` element for the app's own layout to
+ * place, carrying the client and its data; the stylesheet goes into the app's `<head>`.
  */
 export function Document(
 	{ ctx, title, description, written = false, children }: {
@@ -45,6 +50,16 @@ export function Document(
 		children?: JSX.Children;
 	},
 ): JSX.Element {
+	if (ctx.frame && ctx.frame !== "document") {
+		return (
+			<div class={`gb-app gb-embedded frame-${ctx.frame} layout-${ctx.layout}`}>
+				{ctx.inlineStylesheet && <link rel="stylesheet" href={STYLESHEET} />}
+				{children}
+				<ClientData ctx={ctx} written={written} />
+				<script type="module" src={CLIENT}></script>
+			</div>
+		);
+	}
 	const name = ctx.content.site.name;
 	const full = title === name ? title : `${title} · ${name}`;
 	return (
@@ -58,6 +73,7 @@ export function Document(
 				<script $raw>{THEME_BOOT}</script>
 				<BMDripBase theme={ctx.content.site.theme} />
 				<Animations />
+				<style $raw>{PAGE_STYLE}</style>
 				<link rel="stylesheet" href={STYLESHEET} />
 				<script type="module" src={CLIENT}></script>
 			</head>
@@ -69,7 +85,20 @@ export function Document(
 	);
 }
 
-/** Header, sidebar, main column and right rail around `children`, in the context's layout. */
+/** The bar above the page for the context's frame: the layout's header, the docs bar, or nothing. */
+export function TopBar(
+	{ ctx, page, measured = UNMEASURED }: { ctx: PageContext; page?: Page; measured?: Measured },
+): JSX.Element | null {
+	if (ctx.frame === "article") return null;
+	if (ctx.frame === "shell") return <DocsBar ctx={ctx} page={page} measured={measured} />;
+	const Header = LAYOUTS[ctx.layout].header;
+	return <Header ctx={ctx} page={page} measured={measured} />;
+}
+
+/**
+ * Header, sidebar, main column and right rail around `children`, in the context's layout. The
+ * `article` frame keeps only the main column.
+ */
 export function Shell(
 	{ ctx, page, measured = UNMEASURED, children }: {
 		ctx: PageContext;
@@ -78,11 +107,12 @@ export function Shell(
 		children?: JSX.Children;
 	},
 ): JSX.Element {
-	const { header: Header, side: Side, aside: Aside } = LAYOUTS[ctx.layout];
+	if (ctx.frame === "article") return <main class="gb-main">{children}</main>;
+	const { side: Side, aside: Aside } = LAYOUTS[ctx.layout];
 	const props = { ctx, page, measured };
 	return (
 		<>
-			<Header {...props} />
+			<TopBar {...props} />
 			<div class="gb-shell">
 				<aside class="gb-side">
 					<Side {...props} />

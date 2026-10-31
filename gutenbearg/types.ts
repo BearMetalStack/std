@@ -33,6 +33,17 @@ export type Tone = "success" | "info" | "warn" | "danger" | "brand" | "neutral";
  */
 export type ShellLayout = "trail" | "shelves" | "den";
 
+/**
+ * How much of gutenbearg a page brings with it.
+ *
+ * - `document` — a whole `<html>` document: header, theme toggle, drip's base styles. A
+ *   standalone docs site.
+ * - `shell` — the sidebar and right rail, with a bar holding search, the area switcher and the
+ *   version menu in place of the header. Rendered inside the app's own `Layout()`.
+ * - `article` — the page alone, inside the app's own `Layout()`.
+ */
+export type FrameKind = "document" | "shell" | "article";
+
 /** A changelog entry's kind, in the order the filters list them. */
 export type ChangeType = "added" | "changed" | "fixed" | "deprecated" | "breaking";
 
@@ -221,4 +232,17 @@ export interface PageContext {
 	base: string;
 	/** The page's scope; absent on the home and changelog pages. */
 	scope?: Scope;
+	/** How much chrome to render. Defaults to `document`. */
+	frame?: FrameKind;
+	/** Emit the stylesheet `<link>` inside an embedded frame, for hosts that can't add it to `<head>`. */
+	inlineStylesheet?: boolean;
+}
+
+/** A route ready to render: what it is called, the status to serve it with, and the view. */
+export interface RenderedRoute {
+	status: number;
+	/** The page title, without the site name. */
+	title: string;
+	description?: string;
+	view: () => JSX.Element;
 }

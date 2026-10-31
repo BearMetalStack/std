@@ -78,7 +78,35 @@ The module serves its stylesheet, client script, per-site icon sprite and logos 
 `/@bearmetal/gutenbearg/*`. The client is bundled with `Deno.bundle` on first request, so the app
 needs `--unstable-bundle`.
 
+## Inside an app
+
+The docs can also live inside an app's own pages, with its header and theme around them. Mount the
+module after the app's `Layout()` from `@bearmetal/app/ssr` and pick a frame:
+
+```ts
+router.use(Layout(AppLayout));
+router.use(await gutenbeargModule({ base: "/docs", frame: "shell" }));
+```
+
+- `document` (the default) serves whole HTML documents, as above.
+- `shell` keeps the sidebar and right rail. A bar with the areas, search and version menu stands in
+  for gutenbearg's header.
+- `article` is the page alone.
+
+Pages render through `Page()`, so they get the app's `<html>`, and the stylesheet is added to its
+`<head>` on routes under `base`. `resolve` can return a `frame` per request too. If no `Layout()`
+ran, gutenbearg warns once and serves whole documents.
+
+The app supplies drip (`BMDripBase`) and the theme: embedded docs follow its `data-theme`, and
+`site.theme` is ignored. If the app's header is sticky, set `--gb-host-offset` to its height so the
+docs bar and sidebars stick below it.
+
+To route the pages yourself, pass `routes: false`. The module then serves only its assets, and
+`render(route, { frame })` returns `{ status, title, description, view }` to place in any page. That
+view carries its own stylesheet link.
+
 ## Example
 
 `deno task example` serves `examples/bramble`. Add `?layout=shelves` or `?layout=den` to switch
-shells.
+shells. `examples/embedded` serves the same docs at `/docs` inside an app's layout; add
+`?frame=article` to drop the sidebars.

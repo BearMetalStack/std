@@ -1,0 +1,9 @@
+{
+	"tasks": {
+		"dev": "deno run -A main.tsx --watch"
+	},
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx"
+	}
+}

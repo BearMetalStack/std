@@ -15,6 +15,13 @@ export const CHANGE_TONES: [ChangeType, Tone][] = [
 ];
 const TONE = Object.fromEntries(CHANGE_TONES) as Record<ChangeType, Tone>;
 
+/** The changelog page's title and description, for one package or all of them. */
+export function changelogTitle(pkg?: PackageInfo): { title: string; description: string } {
+	return pkg
+		? { title: `${pkg.name} changelog`, description: `Every release of ${pkg.name}, newest first.` }
+		: { title: "Changelog", description: "Every release across the packages, newest first." };
+}
+
 /**
  * Releases as a timeline, for one package or all of them, filterable by change type (and by
  * package on the combined page). Types are OR'd, then narrowed to the chosen package; a release
@@ -68,10 +75,7 @@ export function ChangelogTemplate(
 		</div>
 	);
 	const measured = measure(body);
-	const title = pkg ? `${pkg.name} changelog` : "Changelog";
-	const description = pkg
-		? `Every release of ${pkg.name}, newest first.`
-		: "Every release across the packages, newest first.";
+	const { title, description } = changelogTitle(pkg);
 	return (
 		<Document ctx={ctx} title={title} description={description} written>
 			<Shell ctx={ctx} measured={measured}>

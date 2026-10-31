@@ -24,9 +24,11 @@ interface ClientData {
 }
 
 const SHEET = "/@bearmetal/gutenbearg/icons.svg";
-const $ = <E extends Element = HTMLElement>(sel: string, root: ParentNode = document) =>
+/** The docs, which may be one part of an app's page; nothing outside it is touched. */
+const APP: ParentNode = document.querySelector(".gb-app") ?? document;
+const $ = <E extends Element = HTMLElement>(sel: string, root: ParentNode = APP) =>
 	root.querySelector<E & Element>(sel) as E | null;
-const $$ = <E extends Element = HTMLElement>(sel: string, root: ParentNode = document) =>
+const $$ = <E extends Element = HTMLElement>(sel: string, root: ParentNode = APP) =>
 	[...root.querySelectorAll(sel)] as E[];
 
 const store = {
@@ -69,7 +71,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 	return node;
 }
 
-const data: ClientData = JSON.parse($("#gb-data")?.textContent ?? "{}");
+const data: ClientData = JSON.parse(document.getElementById("gb-data")?.textContent ?? "{}");
 const link = (route: string) => `${data.base}/${route}`;
 
 // ─── Theme ────────────────────────────────────────────────────────────────────

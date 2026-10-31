@@ -313,6 +313,25 @@ function HeaderDen(props: ChromeProps): JSX.Element {
 	);
 }
 
+/**
+ * What stands in for the header when the docs sit inside an app's page: the areas, search and the
+ * version menu. The app's own header keeps the logo and the theme.
+ */
+export function DocsBar(props: ChromeProps): JSX.Element {
+	const { ctx, page } = props;
+	return (
+		<div class="gb-docsbar">
+			<nav class="gb-links">
+				{areas(ctx).map((a) => <a class={a.on ? "on" : ""} href={href(ctx, a.route)}>{a.label}</a>)}
+			</nav>
+			<span class="gb-grow"></span>
+			<Search />
+			<VersionMenu {...props} />
+			<Progress page={page} />
+		</div>
+	);
+}
+
 // ─── Sidebars ─────────────────────────────────────────────────────────────────
 
 function SideTrail({ ctx, measured }: ChromeProps): JSX.Element | null {

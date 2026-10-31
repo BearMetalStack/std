@@ -312,7 +312,9 @@ The stack is layered; higher packages depend on lower ones. Rough dependency ord
   so diecast builds the site with no manifest (`build.ts`). Markdown goes through clawmark's
   `rules/extra/docs.ts`, and `content/render.tsx` maps the tree onto the blocks in `blocks/`. Three
   shells (`trail`, `shelves`, `den`) live in `templates/chrome.tsx`. `gutenbeargModule()` claims
-  `@bearmetal/gutenbearg`. `cli.ts` handles dev/build/check plus `new`/`reindex`/`cut`.
+  `@bearmetal/gutenbearg`. `cli.ts` handles dev/build/check plus `new`/`reindex`/`cut`. The module's
+  `frame` option (`shell`/`article`) renders pages through an app's own `Layout()` instead of as
+  whole documents; the default `document` frame is the standalone site.
 - **`stack/`** — purely the `deno create jsr:@bearmetal/stack` scaffolding CLI/wizard that assembles
   a new app from the other packages (optional db/auth/dev-proxy modules). It owns none of the SSR or
   client-bundling machinery — that's `app/ssr`/`app/serve` — only the wizard itself and its own
