@@ -1,7 +1,7 @@
 {
 	"name": "@bearmetal/gutenbearg",
 	"description": "Documentation sites for BearMetal: page templates, content blocks and the reading chrome around them",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts",
@@ -25,7 +25,10 @@
 		}
 	},
 	"publish": {
-		"exclude": ["tools", "examples"]
+		"exclude": [
+			"tools",
+			"examples"
+		]
 	},
 	"license": "MIT"
 }
