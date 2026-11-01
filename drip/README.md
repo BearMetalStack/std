@@ -125,6 +125,10 @@ anything registered them.
 | `.popover`/`bm-popover` | `popover.*`: overlay bg, border, radius, shadow, … |
 | `.tooltip`/`bm-tooltip` | `tooltip.*`                                        |
 
+A `.popover.anchored` is hung off its trigger with CSS anchor positioning (below it, flipped to
+whichever side fits) and fades in as it opens. The anchor pair (`anchor-name` on the trigger,
+`position-anchor` on the popover) is the caller's to set.
+
 Any of the first four takes `.raised` (the raised ground), `.inset` (the muted ground), `.flush` (no
 padding) and `.borderless`.
 

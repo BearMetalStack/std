@@ -408,6 +408,44 @@ tbody tr:hover > :is(td, th) {
 	max-width: var(--tooltip-max-width);
 }
 
+/*
+ * A popover hung off its trigger with CSS anchor positioning: below it,
+ * flipped to whichever side fits, fading and dropping in as it opens. The
+ * anchor itself (`anchor-name` on the trigger, `position-anchor` here) is
+ * per pair, so whatever wires the popover up sets it.
+ */
+:is(.popover, bm-popover).anchored {
+	position: fixed;
+	inset: auto;
+	margin: 0;
+	margin-block-start: var(--space-1-5);
+	position-area: bottom span-right;
+	position-try-fallbacks:
+		flip-block,
+		flip-inline,
+		flip-block flip-inline;
+
+	opacity: 0;
+	translate: 0 calc(-1 * var(--space-1));
+	transition:
+		opacity var(--duration-base) var(--ease-out),
+		translate var(--duration-base) var(--ease-out),
+		display var(--duration-base) allow-discrete,
+		overlay var(--duration-base) allow-discrete;
+
+	&:popover-open {
+		opacity: 1;
+		translate: 0 0;
+	}
+}
+
+@starting-style {
+	:is(.popover, bm-popover).anchored:popover-open {
+		opacity: 0;
+		translate: 0 calc(-1 * var(--space-1));
+	}
+}
+
 /* Modifiers, for any surface. */
 :is(.surface, .panel, .card, .popover, bm-surface, bm-panel, bm-card, bm-popover) {
 	&.raised {
