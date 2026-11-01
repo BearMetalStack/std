@@ -107,9 +107,9 @@ export function cssFromJson(
 }
 
 /**
- * Re-declares every token whose value is a `var()` reference on `[data-theme]`,
- * so a variant applied to an element below the root reaches the tokens derived
- * from it.
+ * Re-declares every token whose value is a `var()` reference on `[data-theme]`
+ * and `[data-density]`, so a variant (or a density) applied to an element below
+ * the root reaches the tokens derived from it.
  *
  * A custom property's `var()` is resolved on the element that declares it and
  * inherited as the result. Declared only on `:root`, `--btn-primary-bg:
@@ -130,7 +130,33 @@ function derivedTokenBlock(kvs: SectionedTokens, scope: string, joiner: string):
 		.filter(([, value]) => value.includes("var("))
 		.map(([key, value]) => `\t${key}: ${value};`);
 	if (!derived.length) return "";
-	return `[data-theme] {${joiner}${derived.join(joiner)}${joiner}}${joiner}`;
+	return [
+		`${DERIVED_SELECTOR} {${joiner}${derived.join(joiner)}${joiner}}${joiner}`,
+		densityBlocks(kvs, joiner),
+	].join("");
+}
+
+/** Where the derived tokens are re-declared: anything that re-themes or re-spaces. */
+export const DERIVED_SELECTOR = "[data-theme],\n[data-density]";
+
+/**
+ * One `[data-density="<name>"]` rule per `density.<name>` token, setting
+ * `--space-unit` from it. The space scale is `calc(var(--space-unit) * n)`, and
+ * it is re-declared on `[data-density]` along with every other derived token,
+ * so the whole scale - and every component token built on it - follows the
+ * unit on whatever element carries the attribute.
+ */
+function densityBlocks(kvs: SectionedTokens, joiner: string): string {
+	return kvs
+		.filter((pair): pair is [string, string, PropertyType] => typeof pair === "object")
+		.map(([key]) => key)
+		.filter((key) => key.startsWith("--density-"))
+		.map((key) =>
+			`[data-density="${
+				key.slice("--density-".length)
+			}"] {${joiner}\t--space-unit: var(${key});${joiner}}${joiner}`
+		)
+		.join("");
 }
 
 /**

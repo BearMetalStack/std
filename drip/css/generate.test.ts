@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { cssFromJson, themeCSS } from "./generate.ts";
+import { cssFromJson, DERIVED_SELECTOR, themeCSS } from "./generate.ts";
 import type { Theme } from "../types.ts";
 
 function theme(): Theme {
@@ -28,7 +28,7 @@ for (
 	] as const
 ) {
 	Deno.test(`${label}: derived tokens are re-declared on [data-theme] under :root`, () => {
-		const derived = block(render(theme(), ":root"), "[data-theme]");
+		const derived = block(render(theme(), ":root"), DERIVED_SELECTOR);
 		assert(derived, "no [data-theme] block");
 		assertStringIncludes(derived, "--btn-primary-bg: var(--color-interactive);");
 		// A literal resolves the same everywhere; re-declaring it is only noise.
@@ -39,11 +39,25 @@ for (
 	Deno.test(`${label}: the [data-theme] block comes before the variant blocks`, () => {
 		const css = render(theme(), ":root");
 		// Equal specificity, so order decides; a variant must never lose to it.
-		assert(css.indexOf("\n[data-theme] {") < css.indexOf('[data-theme="dark"]'));
+		assert(css.indexOf(`\n${DERIVED_SELECTOR} {`) < css.indexOf('[data-theme="dark"]'));
 	});
 
 	Deno.test(`${label}: a scope other than :root gets no [data-theme] block`, () => {
 		// Its variants only match elements that already carry the scope's tokens.
-		assertEquals(block(render(theme(), ".app"), "[data-theme]"), undefined);
+		assertEquals(block(render(theme(), ".app"), DERIVED_SELECTOR), undefined);
+	});
+
+	Deno.test(`${label}: each density token gets a [data-density] rule setting the unit`, () => {
+		const t = {
+			...theme(),
+			space: { unit: "4px", 2: { $ref: "$space.unit" } },
+			density: { compact: "3px" },
+		};
+		const css = render(t as Theme, ":root");
+		assertStringIncludes(
+			block(css, '[data-density="compact"]') ?? "",
+			"--space-unit: var(--density-compact);",
+		);
+		assertStringIncludes(block(css, DERIVED_SELECTOR) ?? "", "--space-2: var(--space-unit);");
 	});
 }

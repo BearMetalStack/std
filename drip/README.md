@@ -90,6 +90,53 @@ ink sets its own lightness, so the stop only lends the hue). A `.tag` with no mo
 it inherits. A tag is soft by default (`--tone-ground` behind `--tone-ink`), and `.solid` or
 `.outline` changes that. `tag.*` in the defaults layer holds its size, padding, radius and border.
 
+## Utility classes
+
+`css/utilities.css` (`UtilityStyle` in `drip/ssr`, included in `BMDripBase` after every other sheet)
+is a small utility layer over the defaults layer's scales:
+
+- **Spacing**: `gap-`, `gap-x-`, `gap-y-`, `p-`, `px-`, `py-`, `pt-`/`pr-`/`pb-`/`pl-`, and the same
+  set for `m-`, one class per `space.*` step. `gap-4` is `gap: var(--space-4)`, and `0.5` is
+  `gap-0-5`.
+- **Radius and shadow**: `rounded-<step>` and `shadow-<step>`, plus bare `rounded` and `shadow` for
+  `base`.
+- **Layout**: `flex`, `inline-flex`, `grid`, `flex-col`, `flex-wrap`, `items-*`, `justify-*`,
+  `grow`, `shrink-0`, `min-w-0`, `w-full`, `truncate`, `hidden`, …
+- **Composites**: `row` (a centred flex row) and `stack` (a flex column), both `gap-2` and both
+  overridable by any `gap-*`.
+
+The sheet is generated, not written. `css/utilities.ts` reads the step names off the tokens the
+defaults layer defines, so a new step gets its classes and a class can never name a missing step.
+`deno task bm:css` regenerates it, and a test fails if the committed file is stale. Every value is a
+`var()`, so the classes follow `data-density` and any theme override. They are unlayered and one
+class deep: an app's own rule of the same specificity, declared later, still wins.
+
+## Surfaces
+
+`components.css` styles five surfaces by class or by tag, so `<div class="popover">` and an app's
+own `<bm-popover>` element render the same. Bare `bm-*` tags are `display: block` whether or not
+anything registered them.
+
+| Surface                 | Tokens                                             |
+| ----------------------- | -------------------------------------------------- |
+| `.surface`/`bm-surface` | `--color-surface`                                  |
+| `.panel`/`bm-panel`     | `panel.*`: bg, border (+ width), radius, padding   |
+| `.card`/`bm-card`       | `card.*`, plus `.sm`/`.lg` for the padding steps   |
+| `.popover`/`bm-popover` | `popover.*`: overlay bg, border, radius, shadow, … |
+| `.tooltip`/`bm-tooltip` | `tooltip.*`                                        |
+
+Any of the first four takes `.raised` (the raised ground), `.inset` (the muted ground), `.flush` (no
+padding) and `.borderless`.
+
+## Density
+
+`density.<name>` in the defaults layer (`compact` `0.1875rem`, `cozy` `0.25rem`, `comfortable`
+`0.375rem`: ×¾ and ×1½) emits one `[data-density="<name>"]` rule per entry, setting `--space-unit`.
+The whole space scale is `calc(var(--space-unit) * n)`, and the generator re-declares it (with every
+other derived token) on `[data-density]` as well as `[data-theme]`. So the attribute works on any
+element, `<html>` included, and moves everything spaced in tokens: the scale, the utilities, and
+component tokens such as `--btn-padding-*`. A theme can retune or add densities under `density`.
+
 ## Corner shape and radius
 
 - `corner.shape` → `--corner-shape` is applied to every element (`round`, `bevel`, `notch`, `scoop`,

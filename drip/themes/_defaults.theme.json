@@ -75,6 +75,11 @@
 		"unit": "0__25rem",
 		"px": "1px"
 	},
+	"density": {
+		"compact": "0__1875rem",
+		"cozy": "0__25rem",
+		"comfortable": "0__375rem"
+	},
 	"radius": {
 		"none": "0",
 		"sm": { "$calc": { "op": "*", "left": "$radius.base", "right": "$radius.scale.sm" } },
@@ -358,6 +363,12 @@
 		"max": { "height": "85vh", "width": "32rem" },
 		"handle": { "color": { "$ref": "$color.border.strong" } },
 		"backdrop": { "$ref": "$modal.backdrop", "blur": { "$ref": "$modal.backdrop.blur" } }
+	},
+	"panel": {
+		"bg": { "$ref": "$color.surface" },
+		"border": { "$ref": "$color.border", "width": { "$ref": "$border.rule" } },
+		"radius": { "$ref": "$radius.md" },
+		"padding": { "$ref": "$space.3" }
 	},
 	"popover": {
 		"bg": { "$ref": "$color.surface.overlay" },

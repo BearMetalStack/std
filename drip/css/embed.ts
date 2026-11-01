@@ -1,6 +1,7 @@
 /**
  * Regenerates `embedded.ts` from the compliant stylesheets (`base.css`,
- * `components.css`, `animations.css`, `legible.css`), so they ship with the package as
+ * `components.css`, `animations.css`, `legible.css`, and the generated
+ * `utilities.css`), so they ship with the package as
  * strings. A published package is fetched over HTTP and a browser bundle has
  * no sibling files to read, so the `.css` files are the source and this module
  * is how everything else reaches them.
@@ -15,6 +16,7 @@ export const COMPLIANT_SOURCES = {
 	components: "components.css",
 	animations: "animations.css",
 	legible: "legible.css",
+	utilities: "utilities.css",
 } as const;
 
 const HERE = new URL(".", import.meta.url);

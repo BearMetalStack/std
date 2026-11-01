@@ -349,6 +349,81 @@ tbody tr:hover > :is(td, th) {
 	}
 }
 
+/* ============================================================
+   surfaces
+   Each is a class or a tag, so `<div class="popover">` and an app's
+   `<bm-popover>` element render the same. Bare `bm-*` tags are blocks
+   whether or not anything has registered them.
+   ============================================================ */
+
+:is(bm-surface, bm-panel, bm-card, bm-popover, bm-tooltip) {
+	display: block;
+}
+
+:is(.surface, bm-surface) {
+	background: var(--color-surface);
+	color: var(--color-text);
+}
+
+:is(.panel, bm-panel) {
+	background: var(--panel-bg);
+	color: var(--color-text);
+	border: var(--panel-border-width) solid var(--panel-border);
+	border-radius: var(--panel-radius);
+	padding: var(--panel-padding);
+}
+
+:is(.card, bm-card) {
+	background: var(--card-bg);
+	color: var(--color-text);
+	border: var(--card-border-width) solid var(--card-border);
+	border-radius: var(--card-radius);
+	box-shadow: var(--card-shadow);
+	padding: var(--card-padding);
+
+	&.sm {
+		padding: var(--card-padding-sm);
+	}
+	&.lg {
+		padding: var(--card-padding-lg);
+	}
+}
+
+:is(.popover, bm-popover) {
+	background: var(--popover-bg);
+	color: var(--color-text);
+	border: var(--popover-border-width) solid var(--popover-border);
+	border-radius: var(--popover-radius);
+	box-shadow: var(--popover-shadow);
+	padding: var(--popover-padding);
+}
+
+:is(.tooltip, bm-tooltip) {
+	background: var(--tooltip-bg);
+	color: var(--tooltip-color);
+	font-size: var(--tooltip-font-size);
+	padding: var(--tooltip-padding-y) var(--tooltip-padding-x);
+	border-radius: var(--tooltip-radius);
+	box-shadow: var(--tooltip-shadow);
+	max-width: var(--tooltip-max-width);
+}
+
+/* Modifiers, for any surface. */
+:is(.surface, .panel, .card, .popover, bm-surface, bm-panel, bm-card, bm-popover) {
+	&.raised {
+		background: var(--color-surface-raised);
+	}
+	&.inset {
+		background: var(--color-bg-muted);
+	}
+	&.flush {
+		padding: 0;
+	}
+	&.borderless {
+		border-color: transparent;
+	}
+}
+
 input:is([type="checkbox"], [type="radio"]) {
 	accent-color: var(--check-bg-checked);
 }

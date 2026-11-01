@@ -33,8 +33,8 @@
 			"command": "deno run -RW -E=BEARMETAL_ENV,BEARMETAL_DRIP_STRICT mod.ts"
 		},
 		"bm:css": {
-			"description": "Re-embeds the compliant stylesheets from css/*.css",
-			"command": "deno run -RW css/embed.ts"
+			"description": "Regenerates css/utilities.css, then re-embeds the compliant stylesheets from css/*.css",
+			"command": "deno run -RW css/utilities.ts && deno run -RW css/embed.ts"
 		},
 		"bm:fonts": {
 			"description": "Re-embeds the self-hosted font sheets from fonts/assets",

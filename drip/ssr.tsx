@@ -104,6 +104,17 @@ export function LegibleStyle(): import("@bearmetal/jsx/jsx-runtime").JSX.Element
 	return <style $raw>{compliantCSS("legible")}</style>;
 }
 
+/**
+ * Drip's utility classes (`css/utilities.css`, generated from the defaults
+ * layer by `css/utilities.ts`): `gap-4`, `p-2`, `flex`, `items-center`, `row`,
+ * `stack`, … Every value is a token, so they follow `data-density` and the
+ * theme. Included in {@linkcode BMDripBase}, last, so a utility beats the base
+ * and component sheets but not the app's own later rules.
+ */
+export function UtilityStyle(): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
+	return <style $raw>{compliantCSS("utilities")}</style>;
+}
+
 /** Drip's shared keyframes (`css/animations.css`). */
 export function Animations(): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
 	return <style $raw>{compliantCSS("animations")}</style>;
@@ -111,7 +122,7 @@ export function Animations(): import("@bearmetal/jsx/jsx-runtime").JSX.Element {
 
 /**
  * Drip's whole base in one: the theme's tokens, its self-hosted fonts, and the
- * base, component and legible sheets. `fontHref` and `preloadFonts` are
+ * base, component, legible and utility sheets. `fontHref` and `preloadFonts` are
  * {@linkcode Fonts}'s `href` and `preload`.
  *
  * Leave `theme` unset to render whichever theme the request chose through
@@ -132,6 +143,7 @@ export function BMDripBase(
 			<BaseStyle />
 			<ComponentStyle />
 			<LegibleStyle />
+			<UtilityStyle />
 		</>
 	);
 }
