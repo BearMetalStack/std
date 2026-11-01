@@ -101,7 +101,8 @@ is a small utility layer over the defaults layer's scales:
 - **Radius and shadow**: `rounded-<step>` and `shadow-<step>`, plus bare `rounded` and `shadow` for
   `base`.
 - **Layout**: `flex`, `inline-flex`, `grid`, `flex-col`, `flex-wrap`, `items-*`, `justify-*`,
-  `grow`, `shrink-0`, `min-w-0`, `w-full`, `truncate`, `hidden`, …
+  `flex-1`/`flex-auto`/`flex-none`, `grow`, `shrink-0`, `min-w-0`, `w-full`, `overflow-*`,
+  `truncate`, `hidden`, …
 - **Composites**: `row` (a centred flex row) and `stack` (a flex column), both `gap-2` and both
   overridable by any `gap-*`.
 

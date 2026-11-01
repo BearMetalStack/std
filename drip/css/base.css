@@ -258,7 +258,3 @@ span.highlight {
 	width: var(--spinner-size-xl);
 	height: var(--spinner-size-xl);
 }
-
-.flex {
-	display: flex;
-}

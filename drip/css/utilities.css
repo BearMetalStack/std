@@ -52,6 +52,15 @@
 .self-center {
 	align-self: center;
 }
+.flex-1 {
+	flex: 1 1 0%;
+}
+.flex-auto {
+	flex: 1 1 auto;
+}
+.flex-none {
+	flex: none;
+}
 .grow {
 	flex-grow: 1;
 }
@@ -69,6 +78,15 @@
 }
 .h-full {
 	height: 100%;
+}
+.overflow-auto {
+	overflow: auto;
+}
+.overflow-hidden {
+	overflow: hidden;
+}
+.overflow-y-auto {
+	overflow-y: auto;
 }
 .truncate {
 	overflow: hidden;
