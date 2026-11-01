@@ -21,16 +21,14 @@ const stylesheetRegistry = new Map<string, string>();
  * *now* would silently register nothing, and every component would serialize as
  * an empty tag.
  */
-const definitions = new Map<string, BmElementConstructor>();
+const definitions = new Map<string, CustomElementConstructor>();
 
 /** Registers everything not already registered. Safe to call repeatedly. */
 function defineAll(): void {
 	if (typeof customElements === "undefined") return;
 	for (const [tag, ctor] of definitions) {
 		if (customElements.get(tag)) continue;
-		const registered = isHotEnabled()
-			? hotStandIn(tag, ctor as unknown as CustomElementConstructor)
-			: ctor as unknown as CustomElementConstructor;
+		const registered = isHotEnabled() ? hotStandIn(tag, ctor) : ctor;
 		customElements.define(tag, registered);
 	}
 }
@@ -101,12 +99,7 @@ export function define(
 		// one component render on both sides, so this is no longer gated on
 		// `typeof document`. If no registry exists yet, `defineAll` picks it up
 		// when one does.
-		context.addInitializer(function () {
-			const hot = isHotEnabled() && definitions.has(tag);
-			definitions.set(tag, target);
-			if (hot) hotSwap(tag, target as unknown as CustomElementConstructor);
-			else defineAll();
-		});
+		context.addInitializer(() => register(tag, target as unknown as CustomElementConstructor));
 
 		// The stylesheet the server inlines for this tag. Recorded unconditionally
 		// — the cost is a Map entry, and the alternative is a component that
@@ -130,6 +123,54 @@ export function define(
 				document.head.appendChild(style);
 			}
 		}
+		return target;
+	};
+}
+
+/** Records a definition and registers it, or hot-swaps it in if it is a reload. */
+function register(tag: string, ctor: CustomElementConstructor): void {
+	const hot = isHotEnabled() && definitions.has(tag);
+	definitions.set(tag, ctor);
+	if (hot) hotSwap(tag, ctor);
+	else defineAll();
+}
+
+/**
+ * Registers any `HTMLElement` subclass as a custom element: `@define` without
+ * the `BMElement` machinery (no construction frame, no stylesheet registry).
+ * For thin elements whose look is CSS keyed on the tag and whose behaviour,
+ * if any, is a few lines of plain DOM.
+ *
+ * It registers wherever `@define` does (a server's microdom included) and
+ * hot-swaps the same way. Each application wraps the class in its own
+ * subclass, because one constructor can only be registered under one name, so
+ * stacking several gives one class several tags.
+ *
+ * @example
+ * ```ts
+ * @element("bm-panel")
+ * @element("bm-card")
+ * export class Surface extends HTMLElement {
+ *   connectedCallback() { this.setAttribute("role", "group"); }
+ * }
+ * ```
+ */
+export function element(
+	tag: string,
+): <T extends new (...args: any[]) => HTMLElement>(
+	target: T,
+	context: ClassDecoratorContext,
+) => T {
+	return function <T extends new (...args: any[]) => HTMLElement>(
+		original: T,
+		context: ClassDecoratorContext,
+	): T {
+		const name = normalizeComponentName(tag);
+		const target = { [original.name]: class extends original {} }[original.name] as
+			& T
+			& { tag: string };
+		target.tag = name;
+		context.addInitializer(() => register(name, target as unknown as CustomElementConstructor));
 		return target;
 	};
 }

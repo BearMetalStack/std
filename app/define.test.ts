@@ -29,3 +29,25 @@ Deno.test("normalizeComponentName is idempotent", () => {
 Deno.test("normalizeComponentName rejects names with nothing to build a tag from", () => {
 	assertThrows(() => normalizeComponentName("***"), Error, "alphanumeric");
 });
+
+Deno.test("@element registers a plain HTMLElement under every tag it is stacked with", async () => {
+	await import("@bearmetal/slag/global");
+	const { element } = await import("./define.ts");
+
+	@element("element-test-panel")
+	@element("element-test-card")
+	class Surface extends HTMLElement {
+		hello() {
+			return "hi";
+		}
+	}
+
+	const panel = customElements.get("element-test-panel");
+	const card = customElements.get("element-test-card");
+	assertEquals(typeof panel, "function");
+	assertEquals(typeof card, "function");
+	assertEquals(panel === card, false);
+	const el = document.createElement("element-test-card") as Surface;
+	assertEquals(el.hello(), "hi");
+	assertEquals((Surface as unknown as { tag: string }).tag, "element-test-panel");
+});
