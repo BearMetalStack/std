@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/dev-server",
-	"version": "0.2.5",
+	"version": "0.2.6",
 	"exports": {
 		".": "./mod.ts",
 		"./types": "./types.ts"
