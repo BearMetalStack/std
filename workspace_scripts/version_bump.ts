@@ -21,10 +21,23 @@
  * A bump is one of `patch`, `minor`, `major`, `retag`, `skip`, `dev`,
  * `dev:<name>`, or an explicit version such as `1.2.0-beta.1`. Packages may be
  * named in full (`@bearmetal/router`) or by their bare name (`router`).
+ *
+ * **Dependents are bumped too.** `deno publish` pins a package's in-workspace
+ * dependencies as `~<their version at the time>`, so a published package only
+ * ever accepts patch releases of what it imports. When a bump takes a
+ * dependency outside the range a dependent was last released against, the
+ * dependent has to be released again, commits or not - otherwise a consumer on
+ * the new version also loads the old one through the stale dependent, and gets
+ * two copies of every module-level registry. Those dependents are offered for
+ * a bump (interactively), or patched by default (with `--bump`/`--default`,
+ * where `--bump=<pkg>=<bump>` still overrides). `--default` does not apply to
+ * them: a `--default=skip` meant for unchanged-looking packages would quietly
+ * reintroduce exactly the split this exists to prevent.
  */
 
 import { parseArgs } from "@std/cli/parse-args";
 import { dirname, join } from "@std/path";
+import { buildDependencyGraph, type DependencyGraph } from "./dep_graph.ts";
 import { discoverPackages, REPO_ROOT, SCOPE, type WorkspacePackage } from "./workspace.ts";
 import { run, runOrNull, runOrThrow } from "./run.ts";
 
@@ -56,6 +69,15 @@ interface Candidate {
 interface Bump {
 	pkg: WorkspacePackage;
 	next: string;
+}
+
+/** One dependency a released package pins to a range its next version falls outside. */
+interface StalePin {
+	dep: string;
+	/** The dependency's version when the dependent was last released: the range is `~against`. */
+	against: string;
+	/** The version the dependency is at (or about to be bumped to). */
+	now: string;
 }
 
 const git = (args: string[]) => run(["git", ...args], { cwd: REPO_ROOT });
@@ -203,13 +225,18 @@ async function resolveBump(pkg: WorkspacePackage, bump: BumpKind): Promise<strin
 	}
 }
 
-async function promptBump(candidate: Candidate): Promise<BumpKind> {
+async function promptBump(candidate: Candidate, pins: readonly StalePin[] = []): Promise<BumpKind> {
 	const { pkg, commits } = candidate;
 	const preview = previewVersions(pkg.version);
 	const retagSuffix = await nextRetagSuffix(pkg.name, pkg.version);
 
-	console.log(`\n📦 ${pkg.name} has changes since ${pkg.version}`);
-	for (const c of commits) console.log(`    ${c.hash} ${c.subject}`);
+	if (commits.length > 0) {
+		console.log(`\n📦 ${pkg.name} has changes since ${pkg.version}`);
+		for (const c of commits) console.log(`    ${c.hash} ${c.subject}`);
+	} else {
+		console.log(`\n🔗 ${pkg.name} ${pkg.version} has no changes, but must be re-released`);
+	}
+	for (const line of describePins(pins)) console.log(`    ⚠ ${line}`);
 
 	const choice = prompt(
 		`  p) patch (default) → ${preview.patch}\n` +
@@ -249,19 +276,131 @@ async function writeVersion(pkg: WorkspacePackage, version: string): Promise<voi
 	await Deno.writeTextFile(path, JSON.stringify(config, null, "\t") + "\n");
 }
 
-async function findCandidates(): Promise<{ changed: Candidate[]; baselines: Candidate[] }> {
+interface Workspace {
+	packages: Map<string, WorkspacePackage>;
+	tags: Map<string, string | null>;
+	graph: DependencyGraph;
+	changed: Candidate[];
+	baselines: Candidate[];
+}
+
+async function loadWorkspace(): Promise<Workspace> {
+	const [discovered, graph] = await Promise.all([discoverPackages(), buildDependencyGraph()]);
+	const packages = new Map(discovered.map((pkg) => [pkg.name, pkg]));
+	const tags = new Map<string, string | null>();
 	const changed: Candidate[] = [];
 	const baselines: Candidate[] = [];
-	for (const pkg of await discoverPackages()) {
+	for (const pkg of discovered) {
 		const tag = await latestTag(pkg.name);
+		tags.set(pkg.name, tag);
 		const commits = await commitsSince(pkg.dir, tag);
 		if (commits.length === 0) continue;
 		(tag ? changed : baselines).push({ pkg, tag, commits });
 	}
-	return { changed, baselines };
+	return { packages, tags, graph, changed, baselines };
 }
 
-function printPlan(changed: Candidate[], baselines: Candidate[], json: boolean): void {
+/**
+ * Whether `~base` - what `deno publish` writes for an in-workspace dependency -
+ * accepts `version`: same major and minor, no lower patch, and not a
+ * prerelease (a range without one never matches one).
+ */
+function tildeAccepts(base: string, version: string): boolean {
+	const b = parseVersion(base);
+	const v = parseVersion(version);
+	if (v.prerelease) return base === version;
+	return v.major === b.major && v.minor === b.minor && v.patch >= b.patch;
+}
+
+const versionAtTagCache = new Map<string, string | null>();
+
+/** `dir`'s `deno.json` version as of `tag`, or null when it did not exist then. */
+async function versionAtTag(tag: string, dir: string): Promise<string | null> {
+	const key = `${tag}\0${dir}`;
+	if (!versionAtTagCache.has(key)) {
+		const raw = await runOrNull(["git", "show", `${tag}:${dir}/deno.json`], { cwd: REPO_ROOT });
+		let version: string | null = null;
+		try {
+			version = raw ? (JSON.parse(raw).version ?? null) : null;
+		} catch {
+			// An unparseable config at that tag tells us nothing about the range.
+		}
+		versionAtTagCache.set(key, version);
+	}
+	return versionAtTagCache.get(key)!;
+}
+
+/**
+ * Released, publishable packages whose last release pins a dependency to a
+ * range that `versionOf(dep)` falls outside - each needs releasing again.
+ *
+ * The range comes from the dependency's version at the dependent's own release
+ * tag, which is the workspace `deno publish` saw when it wrote the pin.
+ */
+async function findStale(
+	ws: Workspace,
+	versionOf: (name: string) => string,
+): Promise<Map<string, StalePin[]>> {
+	const stale = new Map<string, StalePin[]>();
+	for (const [name, deps] of ws.graph) {
+		const pkg = ws.packages.get(name);
+		const tag = ws.tags.get(name);
+		if (!pkg?.publishable || !tag) continue;
+		for (const depName of deps) {
+			const dep = ws.packages.get(depName);
+			if (!dep?.publishable) continue;
+			const against = await versionAtTag(tag, dep.dir);
+			if (!against) continue;
+			const now = versionOf(depName);
+			if (tildeAccepts(against, now)) continue;
+			const pins = stale.get(name) ?? [];
+			pins.push({ dep: depName, against, now });
+			stale.set(name, pins);
+		}
+	}
+	return stale;
+}
+
+function describePins(pins: readonly StalePin[]): string[] {
+	return pins.map((p) => `${p.dep}: released against ~${p.against}, which won't accept ${p.now}`);
+}
+
+/** A dependent the plan would release only because a dependency left its range. */
+interface Cascade {
+	pkg: WorkspacePackage;
+	pins: StalePin[];
+}
+
+/**
+ * The dependents the plan's suggested bumps would force out, to a fixpoint.
+ * Cascades are previewed as patches, which never leave a `~` range, so one
+ * pass past the changed packages settles it - the loop is for symmetry with
+ * the real run, where a cascade can be bumped further.
+ */
+async function planCascades(ws: Workspace): Promise<Cascade[]> {
+	const next = new Map<string, string>();
+	for (const { pkg, commits } of ws.changed) {
+		next.set(pkg.name, previewVersions(pkg.version)[suggestBump(pkg.version, commits)]);
+	}
+	const changedNames = new Set(ws.changed.map((c) => c.pkg.name));
+	const cascades = new Map<string, Cascade>();
+	for (;;) {
+		const stale = await findStale(ws, (n) => next.get(n) ?? ws.packages.get(n)!.version);
+		let grew = false;
+		for (const [name, pins] of stale) {
+			if (changedNames.has(name) || cascades.has(name)) continue;
+			const pkg = ws.packages.get(name)!;
+			cascades.set(name, { pkg, pins });
+			next.set(name, previewVersions(pkg.version).patch);
+			grew = true;
+		}
+		if (!grew) break;
+	}
+	return [...cascades.values()];
+}
+
+function printPlan(ws: Workspace, cascades: Cascade[], json: boolean): void {
+	const { changed, baselines } = ws;
 	if (json) {
 		console.log(JSON.stringify(
 			{
@@ -274,6 +413,14 @@ function printPlan(changed: Candidate[], baselines: Candidate[], json: boolean):
 					versions: previewVersions(pkg.version),
 					commits,
 				})),
+				dependents: cascades.map(({ pkg, pins }) => ({
+					name: pkg.name,
+					dir: pkg.dir,
+					current: pkg.version,
+					suggested: "patch",
+					versions: previewVersions(pkg.version),
+					stale: pins,
+				})),
 				baselines: baselines.map(({ pkg }) => ({ name: pkg.name, version: pkg.version })),
 			},
 			null,
@@ -282,7 +429,7 @@ function printPlan(changed: Candidate[], baselines: Candidate[], json: boolean):
 		return;
 	}
 
-	if (changed.length === 0 && baselines.length === 0) {
+	if (changed.length === 0 && baselines.length === 0 && cascades.length === 0) {
 		console.log("nothing to bump.");
 		return;
 	}
@@ -296,19 +443,31 @@ function printPlan(changed: Candidate[], baselines: Candidate[], json: boolean):
 		console.log(`    patch → ${v.patch}  minor → ${v.minor}  major → ${v.major}  dev → ${v.dev}`);
 		for (const c of commits) console.log(`    ${c.hash} ${c.breaking ? "‼ " : ""}${c.subject}`);
 	}
+	for (const { pkg, pins } of cascades) {
+		console.log(
+			`\n🔗 ${pkg.name} ${pkg.version} — no changes, must be re-released: patch → ${
+				previewVersions(pkg.version).patch
+			}`,
+		);
+		for (const line of describePins(pins)) console.log(`    ${line}`);
+	}
 	for (const { pkg } of baselines) {
 		console.log(`\n🏷  ${pkg.name} has never been tagged; will be tagged at ${pkg.version}`);
 	}
 }
 
-/** Maps `--bump` arguments onto packages, collecting every problem rather than stopping at one. */
+/**
+ * Maps `--bump` arguments onto packages, collecting every problem rather than
+ * stopping at one. Any released package may be named here, since which
+ * dependents get cascaded is only known once the other bumps are decided;
+ * `main` rejects a name that turned out to be neither changed nor cascaded.
+ */
 function parseBumpArgs(
 	args: readonly string[],
-	changed: readonly Candidate[],
+	ws: Workspace,
 ): { decisions: Map<string, BumpKind>; errors: string[] } {
 	const decisions = new Map<string, BumpKind>();
 	const errors: string[] = [];
-	const changedNames = new Set(changed.map((c) => c.pkg.name));
 
 	for (const arg of args) {
 		const eq = arg.lastIndexOf("=");
@@ -321,12 +480,17 @@ function parseBumpArgs(
 		const kind = parseBumpKind(arg.slice(eq + 1));
 
 		if (!kind) errors.push(`--bump=${arg}: unknown bump "${arg.slice(eq + 1)}"`);
-		else if (!changedNames.has(name)) {
-			errors.push(`--bump=${arg}: ${name} has no changes since its last tag (or does not exist)`);
-		} else if (decisions.has(name)) errors.push(`--bump=${arg}: ${name} given more than once`);
+		else if (!ws.packages.has(name)) errors.push(`--bump=${arg}: ${name} does not exist`);
+		else if (decisions.has(name)) errors.push(`--bump=${arg}: ${name} given more than once`);
 		else decisions.set(name, kind);
 	}
 	return { decisions, errors };
+}
+
+function fail(errors: readonly string[]): never {
+	for (const error of errors) console.error(`❌ ${error}`);
+	console.error("\nnothing was written. run with --plan to see what changed.");
+	Deno.exit(1);
 }
 
 if (import.meta.main) {
@@ -336,10 +500,11 @@ if (import.meta.main) {
 		collect: ["bump"],
 	});
 
-	const { changed, baselines } = await findCandidates();
+	const ws = await loadWorkspace();
+	const { changed, baselines } = ws;
 
 	if (flags.plan) {
-		printPlan(changed, baselines, flags.json);
+		printPlan(ws, await planCascades(ws), flags.json);
 		Deno.exit(0);
 	}
 
@@ -351,7 +516,10 @@ if (import.meta.main) {
 		Deno.exit(1);
 	}
 
-	if (changed.length === 0 && baselines.length === 0) {
+	// Stale dependents can exist with nothing changed: a release that skipped
+	// them is exactly what leaves them behind.
+	const initialCascades = await planCascades(ws);
+	if (changed.length === 0 && baselines.length === 0 && initialCascades.length === 0) {
 		console.log("nothing to bump.");
 		Deno.exit(0);
 	}
@@ -359,10 +527,11 @@ if (import.meta.main) {
 	const bumpArgs = flags.bump as string[];
 	const interactive = bumpArgs.length === 0 && flags.default === undefined;
 	const decisions = new Map<string, BumpKind>();
+	let explicit = new Map<string, BumpKind>();
 
 	if (interactive) {
-		if (changed.length > 0 && !Deno.stdin.isTerminal()) {
-			printPlan(changed, baselines, false);
+		if (!Deno.stdin.isTerminal()) {
+			printPlan(ws, initialCascades, false);
 			console.error(
 				"\n❌ stdin is not a terminal, so there is nobody to ask. " +
 					"decide with --bump=<package>=<bump> (and optionally --default=<bump>).",
@@ -373,7 +542,8 @@ if (import.meta.main) {
 			decisions.set(candidate.pkg.name, await promptBump(candidate));
 		}
 	} else {
-		const parsed = parseBumpArgs(bumpArgs, changed);
+		const parsed = parseBumpArgs(bumpArgs, ws);
+		explicit = parsed.decisions;
 		const errors = [...parsed.errors];
 		const fallback = flags.default === undefined ? undefined : parseBumpKind(flags.default);
 		if (fallback === null) errors.push(`--default=${flags.default}: unknown bump`);
@@ -382,33 +552,70 @@ if (import.meta.main) {
 		}
 
 		for (const { pkg } of changed) {
-			const decision = parsed.decisions.get(pkg.name) ?? fallback ?? undefined;
+			const decision = explicit.get(pkg.name) ?? fallback ?? undefined;
 			if (decision) decisions.set(pkg.name, decision);
 			else errors.push(`${pkg.name} has changes but no --bump was given (and no --default)`);
 		}
 
-		if (errors.length > 0) {
-			for (const error of errors) console.error(`❌ ${error}`);
-			console.error("\nnothing was written. run with --plan to see what changed.");
-			Deno.exit(1);
+		if (errors.length > 0) fail(errors);
+	}
+
+	// Resolve every decision before writing anything, cascading to dependents
+	// as each round of bumps pushes more of them out of range.
+	const next = new Map<string, string>();
+	const retags: WorkspacePackage[] = [];
+	const decide = async (pkg: WorkspacePackage, decision: BumpKind) => {
+		const version = await resolveBump(pkg, decision);
+		if (!version) console.log(`  - skipped ${pkg.name}`);
+		else if (version === "retag") retags.push(pkg);
+		else next.set(pkg.name, version);
+	};
+
+	for (const { pkg } of changed) await decide(pkg, decisions.get(pkg.name)!);
+
+	const versionOf = (name: string) => next.get(name) ?? ws.packages.get(name)!.version;
+	const considered = new Set(changed.map((c) => c.pkg.name));
+	for (;;) {
+		const stale = await findStale(ws, versionOf);
+		const fresh = [...stale].filter(([name]) => !considered.has(name));
+		if (fresh.length === 0) break;
+		for (const [name, pins] of fresh) {
+			considered.add(name);
+			const pkg = ws.packages.get(name)!;
+			const decision = interactive
+				? await promptBump({ pkg, tag: ws.tags.get(name)!, commits: [] }, pins)
+				: explicit.get(name) ?? { kind: "patch" as const };
+			if (!interactive && !explicit.has(name)) {
+				console.log(`  🔗 cascading to ${name}: ${describePins(pins).join("; ")}`);
+			}
+			await decide(pkg, decision);
 		}
 	}
 
-	const bumps: Bump[] = [];
-	const retags: WorkspacePackage[] = [];
+	const unused = [...explicit.keys()].filter((name) => !considered.has(name));
+	if (unused.length > 0) {
+		fail(
+			unused.map((name) =>
+				`--bump for ${name}: it has no changes since its last tag and no dependency left its range`
+			),
+		);
+	}
 
-	for (const { pkg } of changed) {
-		const next = await resolveBump(pkg, decisions.get(pkg.name)!);
-		if (!next) {
-			console.log(`  - skipped ${pkg.name}`);
-			continue;
-		}
-		if (next === "retag") {
-			retags.push(pkg);
-			continue;
-		}
-		await writeVersion(pkg, next);
-		bumps.push({ pkg, next });
+	// Whatever was skipped or retagged while stale stays stale; say so loudly.
+	for (const [name, pins] of await findStale(ws, versionOf)) {
+		if (next.has(name)) continue;
+		console.warn(
+			`  ⚠ ${name} stays released against an out-of-range dependency - ` +
+				`anything using it alongside the new version loads both:\n` +
+				describePins(pins).map((l) => `      ${l}`).join("\n"),
+		);
+	}
+
+	const bumps: Bump[] = [];
+	for (const [name, version] of next) {
+		const pkg = ws.packages.get(name)!;
+		await writeVersion(pkg, version);
+		bumps.push({ pkg, next: version });
 	}
 
 	// Only the bumped packages have a modified deno.json; committing the

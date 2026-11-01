@@ -67,7 +67,10 @@ deno task gutenbearg <command>         # the gutenbearg CLI: check, new, edit, c
 with `--plan` (or `--plan --json`: changed packages, commits since each tag, a suggested bump), then
 pass `--bump=<pkg>=<patch|minor|major|dev|dev:NAME|retag|skip|X.Y.Z>` per package, plus optionally
 `--default=<bump>` for the rest. Every changed package must be covered or nothing is written. It
-commits, tags, and pushes tags, so the no-commit-on-main rule applies.
+commits, tags, and pushes tags, so the no-commit-on-main rule applies. Dependents are cascaded: any
+released package whose last release pins an in-workspace dependency (`deno publish` writes `~x.y.z`)
+to a range the new version leaves is bumped too, commits or not — prompted interactively, patched by
+default otherwise (`--bump` overrides; `--default` doesn't apply). `--plan` lists them under 🔗.
 
 `workspace:check` is the CI gate: it exits non-zero if any package fails and takes `--filter=<pkg>`
 (repeatable), `--no-lint`, `--fmt`, and `--concurrency=N`. Pass these directly
