@@ -32,9 +32,7 @@
 		},
 		"docs:dev": "dx -A vitepress dev docs",
 		"docs:build": "dx -A vitepress build docs",
-		"docs:preview": "dx -A vitepress preview docs",
-		"docs:gutenbearg": "deno run -A gutenbearg/cli.ts dev",
-		"gutenbearg": "deno run -A gutenbearg/cli.ts"
+		"docs:preview": "dx -A vitepress preview docs"
 	},
 	"permissions": {
 		"publish": {
