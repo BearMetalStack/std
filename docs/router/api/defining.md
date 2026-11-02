@@ -38,6 +38,60 @@ declaring either twice throws. A name may not be `endpoint`, `routes`, `configur
 `controllers`, since those would shadow the contract's own members — the type system rejects them
 before the runtime check does.
 
+## root
+
+```ts
+defineApi({ root: "/api" });
+```
+
+Several contracts often live under one prefix. Rather than repeat `/api` on every route of every
+contract, pass it once as `root` and it is joined onto each `.route()` path. The full path is what
+the contract records: `api.routes`, `api.endpoint()`, the client's request URLs, and the routes
+`createApiModule` registers all see `/api/users`, not `/users`.
+
+```ts
+export const users = defineApi({ root: "/api" })
+	.route("/users", "users") // /api/users
+	.get(undefined, s.array(User))
+	.route("/users/:id", "user") // /api/users/:id
+	.get(undefined, { 200: User, 404: ApiError })
+	.build();
+
+export const billing = defineApi({ root: "/api" })
+	.route("/invoices", "invoices") // /api/invoices
+	.get(undefined, s.array(Invoice))
+	.build();
+```
+
+Leading and trailing slashes are normalized, so `"api"`, `"/api"`, and `"/api/"` are the same root.
+A root may carry its own parameters — `defineApi({ root: "/orgs/:org" })` — and they are inferred
+and required alongside the route's own.
+
+### absoluteRoute()
+
+```ts
+.absoluteRoute(path)
+.absoluteRoute(path, name)
+```
+
+Identical to `route()`, except the path ignores `root` and is used as-is — the contract-level
+counterpart of [`Module.absoluteRoute()`](../routing#absoluteroute). Absolute and rooted routes
+share the same namespace, so `.absoluteRoute("/api/users")` next to a rooted `.route("/users")`
+throws as a duplicate.
+
+```ts
+defineApi({ root: "/api" })
+	.route("/status", "status") // /api/status
+	.get(undefined, Status)
+	.absoluteRoute("/healthz") // /healthz
+	.get(undefined, s.string())
+	.build();
+```
+
+`root` is part of the contract, which is not the same thing as a mount path. Mounting the module
+under a prefix with `router.use("/v1", ...)` still joins `/v1` onto every route, absolute ones
+included, so the client's `baseUrl` has to match it as before.
+
 ## Methods
 
 ```ts

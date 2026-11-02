@@ -55,7 +55,13 @@
  * ```
  */
 
-export { type ApiBuilder, defineApi } from "./spec.ts";
+export {
+	type ApiBuilder,
+	defineApi,
+	type DefineApiOptions,
+	type JoinRoot,
+	type NormalizeRoot,
+} from "./spec.ts";
 export { ApiContractError, createClient, defaultValidateResponses } from "./client.ts";
 export { buildPath, readResponseBody, toFormData, toSearchParams } from "./encode.ts";
 export type * from "./types.ts";

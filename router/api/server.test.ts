@@ -174,3 +174,20 @@ describe("request validation", () => {
 		assertEquals(await res.json(), { input: "Ada", body: "Ada" });
 	});
 });
+
+describe("createApiModule with a rooted contract", () => {
+	it("serves rooted and absolute routes where the contract says", async () => {
+		const api = defineApi({ root: "/api" })
+			.route("/users/:id", "user").get(undefined, User)
+			.absoluteRoute("/healthz").get(undefined, s.string())
+			.build();
+		const request = serve(createApiModule(api, {
+			user: { get: (ctx) => Ok({ id: ctx.params.id, name: "Ada" }) },
+			"/healthz": { get: () => Ok("ok") },
+		}));
+
+		assertEquals(await (await request("/api/users/7")).json(), { id: "7", name: "Ada" });
+		assertEquals((await request("/users/7")).status, 404);
+		assertEquals(await (await request("/healthz")).text(), "ok");
+	});
+});

@@ -199,3 +199,75 @@ describe("contract types", () => {
 		assertEquals(api.routes.length, 3);
 	});
 });
+
+describe("defineApi root", () => {
+	it("joins the root onto every route", () => {
+		const api = defineApi({ root: "/api" })
+			.route("/users", "users").get(undefined, s.array(User))
+			.route("health").get(undefined, s.string())
+			.route("/").get(undefined, s.string())
+			.build();
+
+		assertEquals(api.routes.map((r) => r.path), ["/api/users", "/api/health", "/api"]);
+	});
+
+	it("normalizes the root's slashes", () => {
+		for (const root of ["api", "/api/", "api//"]) {
+			const api = defineApi({ root }).route("/x").get(undefined, s.string()).build();
+			assertEquals(api.routes[0].path, "/api/x");
+		}
+		for (const root of ["", "/"]) {
+			const api = defineApi({ root }).route("/x").get(undefined, s.string()).build();
+			assertEquals(api.routes[0].path, "/x");
+		}
+	});
+
+	it("leaves an absolute route out of the root", () => {
+		const api = defineApi({ root: "/api" })
+			.route("/users", "users").get(undefined, s.array(User))
+			.absoluteRoute("/healthz", "healthz").get(undefined, s.string())
+			.absoluteRoute("metrics").get(undefined, s.string())
+			.build();
+
+		assertEquals(api.routes.map((r) => r.path), ["/api/users", "/healthz", "/metrics"]);
+		assertEquals(api.routes.map((r) => r.name), ["users", "healthz", undefined]);
+	});
+
+	it("rejects an absolute route colliding with a rooted one", () => {
+		assertThrows(
+			() =>
+				defineApi({ root: "/api" })
+					.route("/a").get(undefined, s.string())
+					.absoluteRoute("/api/a").get(undefined, s.string())
+					.build(),
+			Error,
+			'Duplicate endpoint key "/api/a"',
+		);
+	});
+
+	it("carries the root into the route types", () => {
+		const api = defineApi({ root: "/orgs/:org/" })
+			.route("/users/:id", "user").get(undefined, User)
+			.route("members").get(undefined, s.array(User))
+			.absoluteRoute("healthz").get(undefined, s.string())
+			.build();
+
+		async function _compileTimeOnly() {
+			api.endpoint("/orgs/:org/users/:id");
+			api.endpoint("/orgs/:org/members");
+			api.endpoint("/healthz");
+			// @ts-expect-error - the declared path is not the full path
+			api.endpoint("/users/:id");
+			// @ts-expect-error - the absolute route is not under the root
+			api.endpoint("/orgs/:org/healthz");
+			// @ts-expect-error - the root's params are required too
+			api.user({ id: "1" });
+
+			const result = await api.user({ org: "o", id: "1" }).get();
+			assertType<Exact<typeof result.data, { id: string; name: string }>>();
+		}
+
+		assertEquals(typeof _compileTimeOnly, "function");
+		assertEquals(api.routes.length, 3);
+	});
+});

@@ -28,6 +28,18 @@ import type {
 
 // ─── Type-level accumulation ──────────────────────────────────────────────────
 
+type FixPath<P extends string> = P extends `/${string}` ? P : `/${P}`;
+
+/** Normalizes a contract root: leading slash, no trailing slash, `""` for none. */
+export type NormalizeRoot<R extends string> = R extends "" | "/" ? ""
+	: R extends `${infer Head}/` ? NormalizeRoot<Head>
+	: FixPath<R>;
+
+/** The full path of a route declared at `P` under the normalized root `R`. */
+export type JoinRoot<R extends string, P extends string> = R extends "" ? FixPath<P>
+	: FixPath<P> extends "/" ? R
+	: `${R}${FixPath<P>}`;
+
 type OpenEntry<P extends string, N extends string | undefined> = {
 	path: P;
 	name: N;
@@ -59,47 +71,67 @@ type WithMethod<
  * configured. Calling a verb before `.route()` resolves `Cur` to `never`, which
  * surfaces as a type error at the next step.
  */
-export interface ApiBuilder<Acc extends RouteTable, Cur extends RouteEntry | null> {
-	/** Closes the current route and opens a new one at `path`. */
-	route<P extends string>(path: P): ApiBuilder<Commit<Acc, Cur>, OpenEntry<P, undefined>>;
+export interface ApiBuilder<
+	Acc extends RouteTable,
+	Cur extends RouteEntry | null,
+	Root extends string = "",
+> {
+	/** Closes the current route and opens a new one at `path`, under the contract's root. */
+	route<P extends string>(
+		path: P,
+	): ApiBuilder<Commit<Acc, Cur>, OpenEntry<JoinRoot<Root, P>, undefined>, Root>;
 	/**
-	 * Closes the current route and opens a new one at `path`, reachable as
-	 * `api.<name>`. The name may not shadow a member of the api object itself.
+	 * Closes the current route and opens a new one at `path` under the contract's
+	 * root, reachable as `api.<name>`. The name may not shadow a member of the api
+	 * object itself.
 	 */
 	route<P extends string, N extends string>(
 		path: P,
 		name: N extends ReservedName ? never : N,
-	): ApiBuilder<Commit<Acc, Cur>, OpenEntry<P, N>>;
+	): ApiBuilder<Commit<Acc, Cur>, OpenEntry<JoinRoot<Root, P>, N>, Root>;
+
+	/**
+	 * Like {@link route}, but `path` ignores the contract's `root` and is used
+	 * as-is - the same escape hatch `Module.absoluteRoute()` offers for mount paths.
+	 */
+	absoluteRoute<P extends string>(
+		path: P,
+	): ApiBuilder<Commit<Acc, Cur>, OpenEntry<FixPath<P>, undefined>, Root>;
+	/** Like {@link route}, but `path` ignores the contract's `root`. */
+	absoluteRoute<P extends string, N extends string>(
+		path: P,
+		name: N extends ReservedName ? never : N,
+	): ApiBuilder<Commit<Acc, Cur>, OpenEntry<FixPath<P>, N>, Root>;
 
 	get<I extends Schema<unknown> | undefined, R extends ResponseSpec>(
 		input: I,
 		responses: R,
-	): ApiBuilder<Acc, WithMethod<Cur, "get", I, R>>;
+	): ApiBuilder<Acc, WithMethod<Cur, "get", I, R>, Root>;
 
 	post<I extends Schema<unknown> | undefined, R extends ResponseSpec>(
 		input: I,
 		responses: R,
-	): ApiBuilder<Acc, WithMethod<Cur, "post", I, R>>;
+	): ApiBuilder<Acc, WithMethod<Cur, "post", I, R>, Root>;
 
 	put<I extends Schema<unknown> | undefined, R extends ResponseSpec>(
 		input: I,
 		responses: R,
-	): ApiBuilder<Acc, WithMethod<Cur, "put", I, R>>;
+	): ApiBuilder<Acc, WithMethod<Cur, "put", I, R>, Root>;
 
 	patch<I extends Schema<unknown> | undefined, R extends ResponseSpec>(
 		input: I,
 		responses: R,
-	): ApiBuilder<Acc, WithMethod<Cur, "patch", I, R>>;
+	): ApiBuilder<Acc, WithMethod<Cur, "patch", I, R>, Root>;
 
 	delete<I extends Schema<unknown> | undefined, R extends ResponseSpec>(
 		input: I,
 		responses: R,
-	): ApiBuilder<Acc, WithMethod<Cur, "delete", I, R>>;
+	): ApiBuilder<Acc, WithMethod<Cur, "delete", I, R>, Root>;
 
 	options<I extends Schema<unknown> | undefined, R extends ResponseSpec>(
 		input: I,
 		responses: R,
-	): ApiBuilder<Acc, WithMethod<Cur, "options", I, R>>;
+	): ApiBuilder<Acc, WithMethod<Cur, "options", I, R>, Root>;
 
 	/** Closes the last route and returns the contract. */
 	build(): Api<Commit<Acc, Cur>>;
@@ -130,15 +162,37 @@ function normalizeResponses(spec: ResponseSpec): ResponseMap {
 	return spec;
 }
 
+function fixPath(path: string): string {
+	return path.startsWith("/") ? path : `/${path}`;
+}
+
+function normalizeRoot(root: string): string {
+	const trimmed = root.replace(/\/+$/, "");
+	return trimmed === "" ? "" : fixPath(trimmed);
+}
+
 class SpecBuilder {
+	#root: string;
 	#routes: RouteDef[] = [];
 	#keys = new Set<string>();
 	#current: RouteDef | null = null;
 
+	constructor(root: string) {
+		this.#root = normalizeRoot(root);
+	}
+
 	route(path: string, name?: string): this {
+		const fixed = fixPath(path);
+		return this.#open(this.#root && fixed === "/" ? this.#root : this.#root + fixed, name);
+	}
+
+	absoluteRoute(path: string, name?: string): this {
+		return this.#open(fixPath(path), name);
+	}
+
+	#open(fixed: string, name?: string): this {
 		this.#commit();
 
-		const fixed = path.startsWith("/") ? path : `/${path}`;
 		this.#claim(fixed);
 		if (name !== undefined) {
 			if (RESERVED.has(name)) {
@@ -211,6 +265,16 @@ class SpecBuilder {
 	}
 }
 
+/** Options for {@link defineApi}. */
+export type DefineApiOptions<Root extends string = string> = {
+	/**
+	 * Path prefix joined onto every route declared with `.route()`. Lets several
+	 * contracts share one prefix (`/api`) without repeating it on every route.
+	 * Routes declared with `.absoluteRoute()` ignore it.
+	 */
+	root?: Root;
+};
+
 /**
  * Starts a new API contract.
  *
@@ -223,8 +287,20 @@ class SpecBuilder {
  *   .route("/users/:id", "user")
  *     .get(undefined, { 200: User, 404: ApiError })
  *   .build();
+ *
+ * // every route under /api, except the absolute one
+ * const health = defineApi({ root: "/api" })
+ *   .route("/status", "status").get(undefined, s.string()) // /api/status
+ *   .absoluteRoute("/healthz").get(undefined, s.string()) // /healthz
+ *   .build();
  * ```
  */
-export function defineApi(): ApiBuilder<{}, null> {
-	return new SpecBuilder() as unknown as ApiBuilder<{}, null>;
+export function defineApi<Root extends string = "">(
+	options?: DefineApiOptions<Root>,
+): ApiBuilder<{}, null, NormalizeRoot<Root>> {
+	return new SpecBuilder(options?.root ?? "") as unknown as ApiBuilder<
+		{},
+		null,
+		NormalizeRoot<Root>
+	>;
 }

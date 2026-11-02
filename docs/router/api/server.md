@@ -177,4 +177,6 @@ const router = new Router()
 ```
 
 Mounted under a prefix, the contract's paths are joined with it as usual — so remember to point the
-client at the same prefix with `baseUrl`.
+client at the same prefix with `baseUrl`. If the prefix belongs to the contract rather than to where
+it happens to be mounted, declare it with [`root`](./defining#root) instead; the client then needs
+no `baseUrl` path at all.
