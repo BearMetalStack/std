@@ -138,7 +138,7 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 		e.prevClassList = cs;
 		el.classList.add(...cs);
 	} else if (key.startsWith("class-")) {
-		const cs = key.split("-")[1];
+		const cs = key.split("-").slice(1).join("-");
 		if (val) el.classList.add(cs);
 		else el.classList.remove(cs);
 	} else if (key.startsWith("on") && typeof val === "function") {
