@@ -203,7 +203,7 @@ export class WritableComputed<T> extends Signal.Computed<T> {
 	}
 }
 
-// TODO: figure out a good name for this
+/** Creates a set of writable signals for each field of T that updates the parent object on each change. Use this if effects on the root are desired when a field changes */
 export class SpreadSignal<T extends object> extends Signal.State<T> {
 	$: T = {} as T;
 	constructor(init: T) {
@@ -230,6 +230,54 @@ export class SpreadSignal<T extends object> extends Signal.State<T> {
 	set(val: T) {
 		super.set(val);
 		this.#buildShadow(val);
+	}
+}
+
+type FieldSignals<T> = {
+	[K in keyof T]: WritableComputed<T[K]>;
+};
+
+/**
+ * Like {@linkcode SpreadSignal}, but field changes don't cause effects on the parent object.
+ */
+export class StructSignal<T extends object> extends Signal.State<T> {
+	/** Reactive fields of the parent object that keep the parent object effect free.  */
+	readonly $ = {} as FieldSignals<T>;
+
+	constructor(init: T) {
+		super(init);
+		this.#buildShadow(init);
+	}
+
+	#buildShadow(init: T) {
+		Object.keys(this.$).forEach((k) => delete this.$[k as keyof T]);
+		const bindField = <K extends keyof T>(key: K) => {
+			const revision = new Signal.State(0);
+			let version = 0;
+
+			this.$[key] = new WritableComputed(
+				() => {
+					revision.get();
+					return this.get()[key];
+				},
+				(value) => {
+					const object = this.get();
+					if (Object.is(object[key], value)) return;
+
+					object[key] = value;
+					revision.set(++version);
+				},
+			);
+		};
+
+		for (const key of Object.keys(init) as (keyof T)[]) {
+			bindField(key);
+		}
+	}
+
+	set(v: T) {
+		super.set(v);
+		this.#buildShadow(v);
 	}
 }
 
