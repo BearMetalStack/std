@@ -15,9 +15,6 @@ const VIEWS: { view: EditorView; label: string }[] = [
 	{ view: "preview", label: "Preview" },
 ];
 
-/** `part` is a real attribute the JSX prop types do not list; spreading sidesteps the excess-property check. */
-const part = (name: string) => ({ part: name });
-
 /** Shows a slot's wrapper only while something is assigned to the slot. */
 const reveal = (e: Event): void => {
 	const slot = e.target as HTMLSlotElement;
@@ -307,11 +304,11 @@ export class ClawmarkEditor extends BMElement<Refs> {
 		return (
 			<>
 				<style $raw>{editorStyles}</style>
-				<div class="editor" {...part("editor")}>
-					<div class="toolbar" {...part("toolbar")} role="toolbar">
+				<div class="editor" part="editor">
+					<div class="toolbar" part="toolbar" role="toolbar">
 						<select
 							ref="block"
-							{...part("select")}
+							part="select"
 							class="rich-only"
 							aria-label="Block style"
 							onChange={(e: Event) => {
@@ -326,7 +323,7 @@ export class ClawmarkEditor extends BMElement<Refs> {
 							{inlines.map((m) => (
 								<button
 									type="button"
-									{...part("toggle")}
+									part="toggle"
 									data-inline={m.key}
 									data-key={m.key}
 									aria-pressed="false"
@@ -342,12 +339,12 @@ export class ClawmarkEditor extends BMElement<Refs> {
 							<slot name="additional-controls" onSlotchange={reveal}></slot>
 						</span>
 						<span class="spacer"></span>
-						<span class="group" role="tablist" {...part("tabs")}>
+						<span class="group" role="tablist" part="tabs">
 							{VIEWS.map((v) => (
 								<button
 									type="button"
 									role="tab"
-									{...part("tab")}
+									part="tab"
 									data-view={v.view}
 									aria-selected="false"
 									onClick={() => this.#show(v.view)}
@@ -382,7 +379,7 @@ export class ClawmarkEditor extends BMElement<Refs> {
 					<div
 						ref="rich"
 						data-pane="rich"
-						{...part("content")}
+						part="content"
 						class="cm-content"
 						spellcheck="true"
 						onInput={() => {
@@ -399,7 +396,7 @@ export class ClawmarkEditor extends BMElement<Refs> {
 					<textarea
 						ref="raw"
 						data-pane="raw"
-						{...part("raw")}
+						part="raw"
 						spellcheck="false"
 						onInput={(e: Event) => {
 							e.stopPropagation();
@@ -409,7 +406,7 @@ export class ClawmarkEditor extends BMElement<Refs> {
 						onBlur={() => this.#settle()}
 					>
 					</textarea>
-					<div ref="preview" data-pane="preview" {...part("preview")} class="cm-content"></div>
+					<div ref="preview" data-pane="preview" part="preview" class="cm-content"></div>
 				</div>
 			</>
 		);
