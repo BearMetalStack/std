@@ -191,3 +191,58 @@ Deno.test("type guards answer false for null and primitives instead of throwing"
 	assertEquals(Signal.isWatcher(watcher), true);
 	assertFalse(Signal.isState(computed));
 });
+
+Deno.test("an effect that throws does not stop other effects re-running", async () => {
+	const bad = createSignal(0);
+	const good = createSignal(0);
+	const seen: number[] = [];
+	const errors: unknown[] = [];
+	const origError = console.error;
+	console.error = (...args: unknown[]) => errors.push(args);
+	try {
+		const stopBad = effect(() => {
+			if (bad.get() > 0) throw new Error("boom");
+		});
+		const stopGood = effect(() => {
+			seen.push(good.get());
+		});
+
+		bad.set(1);
+		await flush();
+		good.set(1);
+		await flush();
+		good.set(2);
+		await flush();
+
+		stopBad();
+		stopGood();
+	} finally {
+		console.error = origError;
+	}
+
+	assertEquals(seen, [0, 1, 2], "the healthy effect keeps re-running after another one threw");
+	assertEquals(errors.length, 1, "the throw is reported once");
+});
+
+Deno.test("an effect's cleanup does not become a dependency of the effect", async () => {
+	const dep = createSignal(0);
+	const readInCleanup = createSignal(0);
+	let runs = 0;
+	const stop = effect(() => {
+		dep.get();
+		runs++;
+		return () => {
+			readInCleanup.get();
+		};
+	});
+
+	dep.set(1);
+	await flush();
+	assertEquals(runs, 2);
+
+	readInCleanup.set(1);
+	await flush();
+	stop();
+
+	assertEquals(runs, 2, "a signal read only by the cleanup does not re-run the effect");
+});

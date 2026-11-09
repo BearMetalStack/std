@@ -18,7 +18,9 @@ export function borrowOwnership<T>(
 	newOwner.refs = prevOwner?.refs;
 	newOwner.registerRef = prevOwner?.registerRef?.bind(prevOwner);
 	setCurrentOwner(newOwner);
-	const result = action();
-	setCurrentOwner(prevOwner);
-	return result;
+	try {
+		return action();
+	} finally {
+		setCurrentOwner(prevOwner);
+	}
 }

@@ -60,11 +60,19 @@ function flushPass(): void {
 	flushing = true;
 	try {
 		for (const s of watcher.getPending()) {
-			s.get();
+			// One effect failing is that effect's problem. Letting the throw out
+			// would skip re-arming the watcher below, and with it every effect in
+			// the app, until something happened to create a new one.
+			try {
+				s.get();
+			} catch (error) {
+				reportEffectError(error);
+			}
 		}
-		watcher.watch();
-		if (needsFlush && watcher.getPending().length) schedule();
 	} finally {
+		watcher.watch();
+		// Still inside the pass, so a follow-up queued here counts towards the cycle limit.
+		if (needsFlush && watcher.getPending().length) schedule();
 		flushing = false;
 	}
 }
@@ -117,6 +125,15 @@ export function flushEffects(): void {
 
 type CleanupFn = () => void;
 
+/**
+ * Reports an error thrown by an effect re-run by the scheduler. There is no
+ * caller to hand it to, so it goes where an uncaught error would — without
+ * taking the rest of the pass down with it.
+ */
+function reportEffectError(error: unknown): void {
+	console.error("effect threw:", error);
+}
+
 export function effect(fn: () => CleanupFn | void): CleanupFn {
 	let cleanup: CleanupFn | void;
 
@@ -126,7 +143,8 @@ export function effect(fn: () => CleanupFn | void): CleanupFn {
 		const prev = getCurrentOwner();
 		setCurrentOwner(owner);
 		try {
-			if (typeof cleanup === "function") cleanup();
+			// What the previous run's teardown reads is not a dependency of this run.
+			if (typeof cleanup === "function") Signal.subtle.untrack(cleanup);
 			cleanup = fn();
 		} finally {
 			setCurrentOwner(prev);
