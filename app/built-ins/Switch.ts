@@ -1,6 +1,6 @@
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal } from "../signals/wrapper.ts";
-import { createComputed } from "../signals.ts";
+import { createOwnedComputed } from "../signals.ts";
 import { borrowOwnership } from "../util/ownership.ts";
 import { drain } from "../util/drain.ts";
 
@@ -61,7 +61,7 @@ export function Switch<T>(
 
 	let prevVal: T | undefined = undefined;
 	let prevNode: JSX.Element | null = null;
-	return createComputed(() => {
+	return createOwnedComputed(() => {
 		const val = $.get();
 		if (prevVal === val) return prevNode;
 		prevVal = val;

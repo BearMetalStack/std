@@ -11,7 +11,7 @@ import type { Signal as Signals } from "@signals";
 import { Signal } from "@signals";
 import type { ContextMap } from "./context/mod.ts";
 import { inject, injectOrThrow, provide } from "./context/mod.ts";
-import { effect } from "./signals.ts";
+import { afterFlush, createComputed, effect } from "./signals.ts";
 import { coerceProp, declaredProps } from "./prop.ts";
 import { declaredState } from "./state.ts";
 import { declaredInspectable } from "./inspect.ts";
@@ -247,7 +247,7 @@ export abstract class BMElement<
 				this.#registerRefs();
 			});
 		} catch (e) {
-			console.log(this.tag, e);
+			console.error(`<${this.tag}> failed to render:`, e);
 		} finally {
 			setCurrentOwner(prevOwner);
 		}
@@ -301,7 +301,7 @@ export abstract class BMElement<
 
 	disconnectedCallback(): void {
 		this.#disconnectPending = true;
-		queueMicrotask(() => {
+		afterFlush(() => {
 			if (!this.#disconnectPending) return;
 			this.#disconnectPending = false;
 			this.#initialized = false;
@@ -501,7 +501,7 @@ export abstract class BMElement<
 	}
 
 	protected computed<T>(fn: () => T): Signals.Computed<T> {
-		return new Signal.Computed(fn);
+		return createComputed(fn);
 	}
 
 	provide<K extends keyof ContextMap>(key: K, value: ContextMap[K]): void {

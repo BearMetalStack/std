@@ -2,6 +2,7 @@ import { Signal } from "@signals";
 import {
 	getCurrentOwner,
 	isServerRendering,
+	type Owner,
 	setCurrentOwner,
 	setEffectImpl,
 	setUntrackImpl,
@@ -19,6 +20,8 @@ const MAX_FLUSH_PASSES = 100;
 let needsFlush = true;
 /** Whether a pass is running effects right now. */
 let flushing = false;
+/** Whether a pass is queued and has not started yet. */
+let flushQueued = false;
 /** Passes queued back to back by effects dirtying each other, since the last outside write. */
 let chainedPasses = 0;
 
@@ -38,6 +41,7 @@ function schedule(): void {
 		return;
 	}
 	needsFlush = false;
+	flushQueued = true;
 	queueMicrotask(scheduledFlush);
 }
 
@@ -75,6 +79,7 @@ function flushPass(): void {
 		if (needsFlush && watcher.getPending().length) schedule();
 		flushing = false;
 	}
+	drainAfterFlush();
 }
 
 /**
@@ -90,6 +95,7 @@ function flushPass(): void {
  * queues another pass and nothing is stranded once the render is over.
  */
 function scheduledFlush(): void {
+	flushQueued = false;
 	if (isServerRendering()) {
 		needsFlush = true;
 		return;
@@ -124,6 +130,34 @@ export function flushEffects(): void {
 }
 
 type CleanupFn = () => void;
+
+const afterFlushQueue: CleanupFn[] = [];
+
+/**
+ * Runs `fn` once the effects have stopped moving: after the pass in flight and
+ * any follow-up passes it queued, or on the next microtask if none is coming.
+ *
+ * One microtask is not enough to know a node has really left. A pass that
+ * removes a node can dirty an effect that puts it back, and that effect runs
+ * in the *next* pass, a microtask later. Teardown waits for the graph to
+ * settle so that is still seen as a move.
+ */
+export function afterFlush(fn: CleanupFn): void {
+	afterFlushQueue.push(fn);
+	queueMicrotask(drainAfterFlush);
+}
+
+function drainAfterFlush(): void {
+	// A pass still to come drains the queue when it is done.
+	if (flushQueued || flushing) return;
+	while (afterFlushQueue.length) {
+		try {
+			afterFlushQueue.shift()!();
+		} catch (error) {
+			reportEffectError(error);
+		}
+	}
+}
 
 /**
  * Reports an error thrown by an effect re-run by the scheduler. There is no
@@ -184,7 +218,91 @@ export function createSignal<T>(init: T): Signal.State<T> {
 	return new Signal.State(init);
 }
 
+/** An owner that collects cleanups into `into`, forwarding refs to `parent`. */
+function scopeOwner(parent: Owner, into: CleanupFn[]): NonNullable<Owner> {
+	return {
+		registerCleanup: (fn) => into.push(fn),
+		registerRef: parent?.registerRef?.bind(parent),
+		get refs() {
+			return parent?.refs;
+		},
+	};
+}
+
+function release(cleanups: CleanupFn[]): void {
+	Signal.subtle.untrack(() => {
+		for (const fn of cleanups) {
+			try {
+				fn();
+			} catch (error) {
+				reportEffectError(error);
+			}
+		}
+	});
+}
+
+/**
+ * A computed that owns what it builds.
+ *
+ * Each evaluation runs under its own scope: effects, `each()` lists and
+ * bindings created while it runs are registered there, not on the component.
+ * When a later evaluation produces a **different** value, the previous scope
+ * is released, because whatever it built has just been replaced. When it
+ * produces the **same** value (a cached node handed back again), the previous
+ * scope is kept, since what it built is still in use. Everything still held
+ * is released with the owner the computed was created under.
+ *
+ * Refs registered while it runs still reach that owner.
+ *
+ * Something built in one evaluation and handed back by a later one after a
+ * different value came in between, a node cached in a field and toggled in
+ * and out, has been released by then. Build such a node outside the computed.
+ */
 export function createComputed<T>(init: () => T): Signal.Computed<T> {
+	const owner = getCurrentOwner();
+	let held: CleanupFn[] = [];
+	let hasValue = false;
+	let last: T | undefined;
+	owner?.registerCleanup(() => {
+		const all = held;
+		held = [];
+		hasValue = false;
+		last = undefined;
+		release(all);
+	});
+	return new Signal.Computed(() => {
+		const fresh: CleanupFn[] = [];
+		const prev = getCurrentOwner();
+		setCurrentOwner(scopeOwner(owner, fresh));
+		let value: T;
+		try {
+			value = init();
+		} catch (error) {
+			release(fresh);
+			throw error;
+		} finally {
+			setCurrentOwner(prev);
+		}
+		if (hasValue && Object.is(value, last)) {
+			held.push(...fresh);
+		} else {
+			const replaced = held;
+			held = fresh;
+			release(replaced);
+		}
+		hasValue = true;
+		last = value;
+		return value;
+	});
+}
+
+/**
+ * A computed that re-establishes its creation-time owner and nothing more:
+ * what it builds is registered on that owner directly. For the built-ins that
+ * manage their branches' lifetimes themselves (`Show`, `Switch`), where a
+ * per-evaluation scope would tear down a branch they mean to keep.
+ */
+export function createOwnedComputed<T>(init: () => T): Signal.Computed<T> {
 	const owner = getCurrentOwner();
 	return new Signal.Computed(() => {
 		const prev = getCurrentOwner();

@@ -149,3 +149,37 @@ Deno.test("a same-document move keeps the instance mounted", async () => {
 		"reparenting is a disconnect/connect pair the debounce must absorb",
 	);
 });
+
+Deno.test("a move spread over two effect passes keeps the instance mounted", async () => {
+	const { createSignal, effect } = await import("./signals.ts");
+	const { make, counts } = defineProbe();
+	const from = createRoot();
+	const to = createRoot();
+	const el = make();
+
+	from.appendChild(el);
+	await flushMicrotasks();
+
+	const detach = createSignal(false);
+	const attach = createSignal(false);
+	const stopDetach = effect(() => {
+		if (!detach.get()) return;
+		from.removeChild(el);
+		attach.set(true);
+	});
+	const stopAttach = effect(() => {
+		if (attach.get()) to.appendChild(el);
+	});
+
+	detach.set(true);
+	await flushMicrotasks();
+	await new Promise((r) => setTimeout(r, 0));
+	stopDetach();
+	stopAttach();
+
+	assertEquals(
+		counts(),
+		{ initCount: 1, cleanupCount: 0 },
+		"removed in one pass and re-added in the follow-up pass is still a move",
+	);
+});

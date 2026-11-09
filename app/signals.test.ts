@@ -1,7 +1,7 @@
-import { assertEquals, assertFalse } from "@std/assert";
+import { assert, assertEquals, assertFalse } from "@std/assert";
 import { getCurrentOwner, type Owner, setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import { Signal } from "@signals";
-import { createComputed, createSignal, effect } from "./signals.ts";
+import { createComputed, createEffect, createSignal, effect } from "./signals.ts";
 
 function flush(): Promise<void> {
 	return new Promise((r) => setTimeout(r, 0));
@@ -34,8 +34,9 @@ Deno.test("effect re-establishes its creation-time owner on late re-runs", async
 	assertEquals(seen[1], owner, "the late re-run re-establishes the same owner, not null");
 });
 
-Deno.test("computed re-establishes its owner when the graph recomputes it late", async () => {
-	const owner = fakeOwner();
+Deno.test("computed runs under its owner's scope when the graph recomputes it late", async () => {
+	const refs = {};
+	const owner: Owner = { registerCleanup: () => {}, refs };
 	const trigger = createSignal(0);
 	const seen: Owner[] = [];
 
@@ -54,8 +55,10 @@ Deno.test("computed re-establishes its owner when the graph recomputes it late",
 	stop();
 
 	assertEquals(seen.length, 2);
-	assertEquals(seen[0], owner, "the synchronous first computation sees the owner");
-	assertEquals(seen[1], owner, "the late graph-driven recompute re-establishes the owner");
+	for (const [i, when] of [[0, "the synchronous first"], [1, "the late graph-driven"]] as const) {
+		assert(seen[i] !== null, `${when} computation has an owner`);
+		assert(seen[i]!.refs === refs, `${when} computation's refs reach the creating owner`);
+	}
 });
 
 Deno.test("effect restores the ambient owner after a late run — no global leak", async () => {
@@ -245,4 +248,81 @@ Deno.test("an effect's cleanup does not become a dependency of the effect", asyn
 	stop();
 
 	assertEquals(runs, 2, "a signal read only by the cleanup does not re-run the effect");
+});
+
+Deno.test("a computed releases what its previous evaluation built when its value changes", async () => {
+	const which = createSignal("a");
+	const inner = createSignal(0);
+	const runs: string[] = [];
+
+	const view = createComputed(() => {
+		const name = which.get();
+		createEffect(() => {
+			runs.push(`${name}:${inner.get()}`);
+		});
+		return name;
+	});
+	const stop = effect(() => {
+		view.get();
+	});
+
+	which.set("b");
+	await flush();
+	runs.length = 0;
+
+	inner.set(1);
+	await flush();
+	stop();
+
+	assertEquals(runs, ["b:1"], "only the current evaluation's effect is still live");
+});
+
+Deno.test("a computed keeps its previous evaluation's work while its value is unchanged", async () => {
+	const tick = createSignal(0);
+	const inner = createSignal(0);
+	const node = { id: "same" };
+	const runs: number[] = [];
+	let built = false;
+
+	const view = createComputed(() => {
+		tick.get();
+		if (!built) {
+			built = true;
+			createEffect(() => {
+				runs.push(inner.get());
+			});
+		}
+		return node;
+	});
+	const stop = effect(() => {
+		view.get();
+	});
+
+	tick.set(1);
+	await flush();
+	inner.set(1);
+	await flush();
+	stop();
+
+	assertEquals(runs, [0, 1], "the value is the same object, so what built it stays alive");
+});
+
+Deno.test("a computed's scope is released with its owner", () => {
+	const cleanups: (() => void)[] = [];
+	const owner: Owner = { registerCleanup: (fn) => cleanups.push(fn) };
+	const inner = createSignal(0);
+	let released = false;
+
+	setCurrentOwner(owner);
+	const view = createComputed(() => {
+		getCurrentOwner()!.registerCleanup(() => {
+			released = true;
+		});
+		return inner.get();
+	});
+	setCurrentOwner(null);
+	view.get();
+
+	for (const fn of cleanups) fn();
+	assertEquals(released, true);
 });

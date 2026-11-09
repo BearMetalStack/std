@@ -1,6 +1,6 @@
 import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { Signal } from "../signals/wrapper.ts";
-import { createComputed } from "../signals.ts";
+import { createOwnedComputed } from "../signals.ts";
 import { drain } from "../util/drain.ts";
 import { borrowOwnership } from "../util/ownership.ts";
 
@@ -20,7 +20,7 @@ export function when(
 	const cleanups: (() => void)[] = [];
 	let prevVal: boolean | undefined = undefined;
 	let prevNode: JSX.Element | null = null;
-	return createComputed(() => {
+	return createOwnedComputed(() => {
 		const val = e.get();
 		if (prevVal === val) return prevNode;
 		drain(cleanups, (e) => e());
