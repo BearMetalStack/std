@@ -51,7 +51,7 @@ export type EachRender<T> = (
 ) => Element | JSX.Element | null;
 
 interface ForProps<T> {
-	$: SignalOf<T[]>;
+	$: SignalOf<readonly T[]>;
 	keyOn: (item: T) => Key;
 	/** The selected key(s); see {@linkcode EachOptions.selected}. */
 	selected?: EachOptions["selected"];
@@ -125,7 +125,7 @@ function ownerScope() {
  * `jsx/lib/jsx.ts` for the related marker-range technique.
  */
 export function each<T>(
-	signal: SignalOf<T[] | Set<T>>,
+	signal: SignalOf<readonly T[] | ReadonlySet<T>>,
 	render: EachRender<T>,
 	key: (item: T) => Key,
 	options: EachOptions = {},
@@ -157,7 +157,7 @@ export function each<T>(
 }
 
 function shallowDiff<T>(
-	signal: SignalOf<T[] | Set<T>>,
+	signal: SignalOf<readonly T[] | ReadonlySet<T>>,
 	key: (item: T) => string | number,
 ) {
 	let prev = new Map<string | number, T>();
@@ -234,7 +234,7 @@ function nodesOf({ start, end }: Range): ChildNode[] {
 
 function reconcile<T>(
 	anchor: Text,
-	signal: SignalOf<T[] | Set<T>>,
+	signal: SignalOf<readonly T[] | ReadonlySet<T>>,
 	render: (item: T, index: number, row: EachRow<T>) => Element | null,
 	key: (item: T) => Key,
 	options: EachOptions,
