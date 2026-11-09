@@ -344,6 +344,34 @@ array (`md:heading` contributes six entries).
 Markdown from the rich view goes back through the existing reverse rules (`fromHtml` →
 `toMarkdown`), so a custom rule with a `match`/`serialize` pair reverses the same way it rendered.
 
+### Slots
+
+Every control can be replaced, and the toolbar can be extended, from the editor's light DOM:
+
+| Slot                                    | What it does                                                                                                                      |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `control-<key>`                         | Replaces the glyph in one inline toggle: `control-bold`, `control-strike`, `control-link`, ... The default glyph is the fallback. |
+| `view-rich`, `view-raw`, `view-preview` | Replace the view buttons' labels.                                                                                                 |
+| `additional-controls`                   | Extra controls after the inline toggles, behind a vertical rule.                                                                  |
+| `below-controls`                        | A full-width row under the controls.                                                                                              |
+
+The `<key>` is the entry's `EditorMeta.key`, so a custom rule's control gets a slot automatically.
+Empty `additional-controls` and `below-controls` slots take no space. The block-style select cannot
+take slotted content, since an `<option>` cannot hold elements.
+
+```html
+<cm-editor value="# Hi">
+	<bm-icon slot="control-bold" icon="bold"></bm-icon>
+	<bm-icon slot="view-raw" icon="code"></bm-icon>
+	<button slot="additional-controls" onmousedown="event.preventDefault()">...</button>
+	<small slot="below-controls">Saved</small>
+</cm-editor>
+```
+
+A control you slot in reaches the editor through `el.apply(key, value?)`, which does what the
+matching toolbar control does (`apply("h2")`, `apply("link", "https://...")`). Cancel `mousedown` on
+such a control so pressing it does not move the selection.
+
 ### Styling
 
 Every value is `var(--cm-<name>, var(<drip token>, <literal>))`, so the editor follows the active

@@ -90,6 +90,16 @@ const chrome = `
 	}
 	.group { display: flex; gap: 2px; }
 	.spacer { flex: 1; }
+	.extra {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		align-self: stretch;
+		padding-inline-start: ${t("gap")};
+		border-inline-start: 1px solid ${t("border")};
+	}
+	.below { flex: 0 0 100%; }
+	slot { display: contents; }
 
 	select, .toolbar button {
 		font: inherit;

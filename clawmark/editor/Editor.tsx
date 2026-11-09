@@ -18,6 +18,12 @@ const VIEWS: { view: EditorView; label: string }[] = [
 /** `part` is a real attribute the JSX prop types do not list; spreading sidesteps the excess-property check. */
 const part = (name: string) => ({ part: name });
 
+/** Shows a slot's wrapper only while something is assigned to the slot. */
+const reveal = (e: Event): void => {
+	const slot = e.target as HTMLSlotElement;
+	slot.parentElement!.hidden = slot.assignedNodes({ flatten: true }).length === 0;
+};
+
 const FLUSH_MS = 150;
 const HISTORY_LIMIT = 100;
 
@@ -91,6 +97,20 @@ export class ClawmarkEditor extends BMElement<Refs> {
 			return;
 		}
 		super.attributeChangedCallback(name, old, value);
+	}
+
+	/**
+	 * Applies a toolbar style by its key (`"bold"`, `"h2"`, `"link"`), exactly as
+	 * the matching control would. This is how controls placed in the
+	 * `additional-controls` or `below-controls` slots reach the editor. They
+	 * should cancel `mousedown` so pressing them does not move the selection.
+	 */
+	apply(key: string, value?: string): void {
+		const { blocks, inlines } = this.#meta;
+		const meta = [...blocks, ...inlines].find((m) => m.key === key);
+		if (!meta) return;
+		if (meta.kind === "inline" && value === undefined) this.#toggle(meta);
+		else this.#apply(meta, value);
 	}
 
 	#emit(type: "input" | "change"): void {
@@ -220,6 +240,9 @@ export class ClawmarkEditor extends BMElement<Refs> {
 			const markdown = this.#md.get();
 			const view = this.view.get();
 			this.setAttribute("view", view);
+			for (const tab of this.shadowRoot?.querySelectorAll<HTMLElement>("[data-view]") ?? []) {
+				tab.setAttribute("aria-selected", String(tab.dataset.view === view));
+			}
 			this.#internals?.setFormValue(markdown);
 			const rich = this.refs.rich.get();
 			const raw = this.refs.raw.get();
@@ -311,9 +334,12 @@ export class ClawmarkEditor extends BMElement<Refs> {
 									onMousedown={(e: Event) => e.preventDefault()}
 									onClick={() => this.#toggle(m)}
 								>
-									{m.icon ?? m.label}
+									<slot name={`control-${m.key}`}>{m.icon ?? m.label}</slot>
 								</button>
 							))}
+						</span>
+						<span class="extra" hidden>
+							<slot name="additional-controls" onSlotchange={reveal}></slot>
 						</span>
 						<span class="spacer"></span>
 						<span class="group" role="tablist" {...part("tabs")}>
@@ -323,13 +349,16 @@ export class ClawmarkEditor extends BMElement<Refs> {
 									role="tab"
 									{...part("tab")}
 									data-view={v.view}
-									aria-selected={String(this.view.get() === v.view)}
+									aria-selected="false"
 									onClick={() => this.#show(v.view)}
 								>
-									{v.label}
+									<slot name={`view-${v.view}`}>{v.label}</slot>
 								</button>
 							))}
 						</span>
+						<div class="below" hidden>
+							<slot name="below-controls" onSlotchange={reveal}></slot>
+						</div>
 					</div>
 					<form
 						ref="linkRow"
