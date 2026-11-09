@@ -4,14 +4,43 @@ import { Signal } from "./signals/wrapper.ts";
 export { Signal } from "./signals/wrapper.ts";
 export * from "./signals.ts";
 
+/**
+ * A `Signal.State` whose writes land after `debounceDurationMs` of quiet.
+ *
+ * `get()` keeps returning the last landed value until then; `pending` says a
+ * write is waiting, and `flush()` lands it now. Created under an owner, a
+ * waiting write is landed (not dropped) when the owner is torn down.
+ */
 export class DebouncedSignal<T> extends Signal.State<T> {
+	/** Whether a write is waiting out the debounce. */
+	readonly pending: Signal.State<boolean> = new Signal.State(false);
+	#timer?: ReturnType<typeof setTimeout>;
+	#next?: T;
+
 	constructor(initial: T, private debounceDurationMs: number) {
 		super(initial);
+		getCurrentOwner()?.registerCleanup(() => this.flush());
 	}
-	#timer?: ReturnType<typeof setTimeout>;
-	set(val: T) {
+
+	set(val: T): void {
 		clearTimeout(this.#timer);
-		this.#timer = setTimeout(() => super.set(val), this.debounceDurationMs);
+		this.#next = val;
+		this.pending.set(true);
+		this.#timer = setTimeout(() => this.flush(), this.debounceDurationMs);
+	}
+
+	/** Lands the waiting write now, if there is one. */
+	flush(): void {
+		clearTimeout(this.#timer);
+		if (!Signal.subtle.untrack(() => this.pending.get())) return;
+		this.pending.set(false);
+		super.set(this.#next as T);
+	}
+
+	/** Drops the waiting write, if there is one. */
+	cancel(): void {
+		clearTimeout(this.#timer);
+		this.pending.set(false);
 	}
 }
 
@@ -34,7 +63,7 @@ export class IntervalSignal<T> extends Signal.State<T> implements IntervalManage
 		this.#callback = callback;
 		this.#duration = intervalDurationMs;
 		this.#prime();
-		getCurrentOwner()?.registerCleanup(this.cancel);
+		getCurrentOwner()?.registerCleanup(() => this.cancel());
 	}
 	#prime() {
 		this.#timer = setInterval(
@@ -49,7 +78,7 @@ export class IntervalSignal<T> extends Signal.State<T> implements IntervalManage
 	setDuration(durationMs: number) {
 		this.cancel();
 		this.#duration = durationMs;
-		this.#prime;
+		this.#prime();
 	}
 	getDurationMs(): number {
 		return this.#duration;
@@ -63,8 +92,9 @@ export class IntervalSignal<T> extends Signal.State<T> implements IntervalManage
 export class DirtySignal<T> extends Signal.State<T> {
 	#dirty = new Signal.State(false);
 	set(val: T) {
+		const same = Object.is(Signal.subtle.untrack(() => super.get()), val);
 		super.set(val);
-		this.#dirty.set(true);
+		if (!same) this.#dirty.set(true);
 	}
 	isDirty(): boolean {
 		return this.#dirty.get();
@@ -88,6 +118,15 @@ export class LazySignal<T> extends Signal.State<T> {
 	#fetcher: () => Promise<T>;
 	#fetched = false;
 	#inflight: Promise<void> | null = null;
+	/** Whether a fetch is running. */
+	readonly loading: Signal.State<boolean> = new Signal.State(false);
+	/**
+	 * The last fetch's error, cleared by the next success. A failed fetch is not
+	 * retried by reading again, only by {@linkcode LazySignal.refresh}.
+	 */
+	readonly error: Signal.State<unknown> = new Signal.State<unknown>(undefined);
+	#failed = false;
+
 	constructor(initial: T, fetcher: () => T | Promise<T>) {
 		super(initial);
 		this.#fetcher = async () => await fetcher();
@@ -97,7 +136,7 @@ export class LazySignal<T> extends Signal.State<T> {
 		super.set(val);
 	}
 	get(): T {
-		if (!this.#fetched && !this.#inflight) this.#fetch(false);
+		if (!this.#fetched && !this.#inflight && !this.#failed) this.#fetch(false);
 		return super.get();
 	}
 
@@ -107,13 +146,23 @@ export class LazySignal<T> extends Signal.State<T> {
 	}
 
 	#fetch(force: boolean): Promise<void> {
+		this.#failed = false;
+		this.loading.set(true);
 		const run = this.#fetcher().then(
 			(val) => {
-				if (this.#inflight === run) this.#inflight = null;
+				if (this.#inflight !== run) return;
+				this.#inflight = null;
+				this.loading.set(false);
+				this.error.set(undefined);
 				if (force || !this.#fetched) this.set(val);
 			},
 			(e) => {
-				if (this.#inflight === run) this.#inflight = null;
+				if (this.#inflight === run) {
+					this.#inflight = null;
+					this.#failed = true;
+					this.loading.set(false);
+					this.error.set(e);
+				}
 				throw e;
 			},
 		);
@@ -203,86 +252,71 @@ export class WritableComputed<T> extends Signal.Computed<T> {
 	}
 }
 
-/** Creates a set of writable signals for each field of T that updates the parent object on each change. Use this if effects on the root are desired when a field changes */
-export class SpreadSignal<T extends object> extends Signal.State<T> {
-	$: T = {} as T;
-	constructor(init: T) {
-		super(init);
-		this.#buildShadow(init);
-	}
-
-	#buildShadow(from: T) {
-		if (!from) return;
-		this.$ = {} as T;
-		Object.keys(from).map((k) =>
-			Object.assign(
-				this.$,
-				k,
-				new WritableComputed(() => this.get()[k as keyof T], (v) => {
-					const obj = this.get();
-					Object.assign(obj, k, v);
-					super.set(obj);
-				}),
-			)
-		);
-	}
-
-	set(val: T) {
-		super.set(val);
-		this.#buildShadow(val);
-	}
-}
-
 type FieldSignals<T> = {
 	[K in keyof T]: WritableComputed<T[K]>;
 };
 
 /**
- * Like {@linkcode SpreadSignal}, but field changes don't cause effects on the parent object.
+ * An object signal with a writable signal per field, `$.<field>`. Writing a
+ * field changes it in place and notifies that field's readers only: whoever
+ * reads the whole object (`get()`) is not re-run by a field write.
+ * Replacing the object with `set()` notifies everyone.
+ *
+ * Field signals are made on first use and kept, so one held across a `set()`
+ * keeps working, and keys the object gains later get fields too.
  */
 export class StructSignal<T extends object> extends Signal.State<T> {
-	/** Reactive fields of the parent object that keep the parent object effect free.  */
-	readonly $ = {} as FieldSignals<T>;
+	#fields = new Map<PropertyKey, WritableComputed<unknown>>();
+	#revision = new Signal.State(0);
 
-	constructor(init: T) {
-		super(init);
-		this.#buildShadow(init);
+	/** Reactive fields of the object, which change it without notifying `get()`'s readers. */
+	readonly $: FieldSignals<T> = new Proxy({} as FieldSignals<T>, {
+		get: (_, key) => this.#field(key),
+		has: (_, key) => key in this.#raw(),
+		ownKeys: () => Reflect.ownKeys(this.#raw()),
+		getOwnPropertyDescriptor: (_, key) =>
+			key in this.#raw()
+				? { configurable: true, enumerable: true, value: this.#field(key) }
+				: undefined,
+	});
+
+	#raw(): T {
+		return Signal.subtle.untrack(() => Signal.State.prototype.get.call(this) as T);
 	}
 
-	#buildShadow(init: T) {
-		Object.keys(this.$).forEach((k) => delete this.$[k as keyof T]);
-		const bindField = <K extends keyof T>(key: K) => {
-			const revision = new Signal.State(0);
-			let version = 0;
-
-			this.$[key] = new WritableComputed(
+	#field(key: PropertyKey): WritableComputed<unknown> {
+		let field = this.#fields.get(key);
+		if (!field) {
+			field = new WritableComputed(
 				() => {
-					revision.get();
-					return this.get()[key];
+					this.#revision.get();
+					return (this.get() as Record<PropertyKey, unknown>)[key];
 				},
 				(value) => {
-					const object = this.get();
+					const object = this.#raw() as Record<PropertyKey, unknown>;
 					if (Object.is(object[key], value)) return;
-
 					object[key] = value;
-					revision.set(++version);
+					this.#revision.set(Signal.subtle.untrack(() => this.#revision.get()) + 1);
 				},
 			);
-		};
-
-		for (const key of Object.keys(init) as (keyof T)[]) {
-			bindField(key);
+			this.#fields.set(key, field);
 		}
-	}
-
-	set(v: T) {
-		super.set(v);
-		this.#buildShadow(v);
+		return field;
 	}
 }
 
+/**
+ * An array signal whose array can be changed with the usual methods:
+ * `get().push(x)`, `get()[i] = x`, `get().length = 0`.
+ *
+ * The arrays themselves are never changed: each change copies the current
+ * array and sets the copy, so a snapshot already taken (`[...get()]`, or the
+ * value an `equals` saw) stays as it was. What `get()` returns is a view onto
+ * whatever the signal holds *now*, so several changes through one held view
+ * all apply. `get()` hands back the same view until the array changes.
+ */
 export class ArraySignal<T> extends Signal.State<T[]> {
-	static #proxiedProps = new Set<keyof unknown[]>([
+	static #proxiedProps = new Set<PropertyKey>([
 		"push",
 		"pop",
 		"shift",
@@ -290,57 +324,72 @@ export class ArraySignal<T> extends Signal.State<T[]> {
 		"splice",
 		"sort",
 		"reverse",
+		"fill",
+		"copyWithin",
 	]);
+
+	#proxies = new WeakMap<T[], T[]>();
+	#targets = new WeakMap<T[], T[]>();
 
 	constructor(init: T[]) {
 		super(init);
 	}
 
+	set(val: T[]): void {
+		super.set(this.#targets.get(val) ?? val);
+	}
+
 	get(): T[] {
-		const targetArray = super.get();
+		const target = super.get();
+		let proxy = this.#proxies.get(target);
+		if (!proxy) {
+			proxy = new Proxy(target, this.#handler());
+			this.#proxies.set(target, proxy);
+			this.#targets.set(proxy, target);
+		}
+		return proxy;
+	}
 
-		const handler: ProxyHandler<T[]> = {
-			get: (target, prop) => {
-				if (
-					typeof prop === "string" &&
-					ArraySignal.#proxiedProps.has(prop as keyof unknown[])
-				) {
-					const methodName = prop as Extract<keyof T[], string>;
+	/** The array held now, read without tracking. */
+	#current(): T[] {
+		return Signal.subtle.untrack(() => Signal.State.prototype.get.call(this) as T[]);
+	}
 
-					return (...args: unknown[]) => {
-						const clone = [...target];
-						const method = clone[methodName];
-
-						if (typeof method === "function") {
+	#handler(): ProxyHandler<T[]> {
+		const change = (fn: (copy: T[]) => unknown) => {
+			const copy = [...this.#current()];
+			const result = fn(copy);
+			this.set(copy);
+			return result;
+		};
+		return {
+			get: (_, prop) => {
+				if (ArraySignal.#proxiedProps.has(prop)) {
+					return (...args: unknown[]) =>
+						change(
 							// deno-lint-ignore ban-types
-							const result = (method as Function).apply(
-								clone,
-								args,
-							);
-							this.set(clone);
-							return result;
-						}
-					};
+							(copy) => ((copy as any)[prop] as Function).apply(copy, args),
+						);
 				}
-
-				return Reflect.get(target, prop);
+				return Reflect.get(this.#current(), prop);
 			},
-			set: (target, prop, value, receiver) => {
-				if (prop === "length") {
-					return Reflect.set(target, prop, value, receiver);
-				}
-
-				const success = Reflect.set(target, prop, value, receiver);
-
-				if (success) {
-					this.set([...target]);
-				}
-
-				return success;
+			set: (_, prop, value) => {
+				change((copy) => Reflect.set(copy, prop, value));
+				return true;
+			},
+			deleteProperty: (_, prop) => {
+				change((copy) => Reflect.deleteProperty(copy, prop));
+				return true;
+			},
+			has: (_, prop) => Reflect.has(this.#current(), prop),
+			ownKeys: () => Reflect.ownKeys(this.#current()),
+			getOwnPropertyDescriptor: (_, prop) => {
+				const desc = Reflect.getOwnPropertyDescriptor(this.#current(), prop);
+				// `length` is non-configurable on every array, the target included.
+				if (desc && prop !== "length") desc.configurable = true;
+				return desc;
 			},
 		};
-
-		return new Proxy(targetArray, handler);
 	}
 }
 
@@ -348,8 +397,11 @@ export class DirtyArraySignal<T> extends ArraySignal<T> {
 	#dirty = new Signal.State(false);
 
 	set(val: T[]) {
+		const before = Signal.subtle.untrack(() => super.get());
 		super.set(val);
-		this.#dirty.set(true);
+		const after = Signal.subtle.untrack(() => super.get());
+		const same = before.length === after.length && before.every((v, i) => Object.is(v, after[i]));
+		if (!same) this.#dirty.set(true);
 	}
 	isDirty(): boolean {
 		return this.#dirty.get();

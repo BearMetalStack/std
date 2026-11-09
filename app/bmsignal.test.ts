@@ -1,12 +1,17 @@
 import { assert, assertEquals } from "@std/assert";
 import {
+	ArraySignal,
 	createComputed,
 	createLazySignals,
 	DebouncedSignal,
+	DirtyArraySignal,
+	DirtySignal,
 	effect,
 	IntervalSignal,
 	LazySignal,
+	StructSignal,
 } from "./bmsignals.ts";
+import { setCurrentOwner } from "@bearmetal/jsx/jsx-runtime";
 import { Signal } from "./signals/wrapper.ts";
 
 Deno.test("DebouncedSignal is Signal.State", () => {
@@ -100,4 +105,122 @@ Deno.test("createLazySignals hands back the same signal for the same arguments",
 	chars.delete("bell");
 	assert(chars("bell").get().length === 0, "deleted keys start over");
 	stop();
+});
+
+const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
+
+Deno.test("IntervalSignal.setDuration keeps the interval running at the new rate", async () => {
+	const s = new IntervalSignal(0, (v) => v + 1, 1000);
+	s.setDuration(5);
+	await tick(30);
+	s.cancel();
+	assert(s.get() > 0, "the interval restarted after setDuration");
+});
+
+Deno.test("IntervalSignal is cancelled cleanly with its owner", () => {
+	const cleanups: (() => void)[] = [];
+	setCurrentOwner({ registerCleanup: (fn) => cleanups.push(fn) });
+	try {
+		new IntervalSignal(0, (v) => v + 1, 5);
+	} finally {
+		setCurrentOwner(null);
+	}
+	for (const fn of cleanups) fn();
+});
+
+Deno.test("StructSignal field signals stay live across set()", () => {
+	const s = new StructSignal({ a: 1, b: 2 });
+	const a = s.$.a;
+	s.set({ a: 10, b: 20 });
+	a.set(11);
+	assertEquals(s.$.a.get(), 11, "the field signal held before set() still writes through");
+	assert(s.$.a === a, "the same field signal is handed back");
+});
+
+Deno.test("StructSignal has fields for keys added after construction", () => {
+	const s = new StructSignal<{ a: number; b?: number }>({ a: 1 });
+	s.set({ a: 1, b: 2 });
+	assertEquals(s.$.b?.get(), 2);
+});
+
+Deno.test("ArraySignal.get() keeps its identity until the array changes", () => {
+	const s = new ArraySignal([1, 2]);
+	assert(s.get() === s.get());
+});
+
+Deno.test("ArraySignal index writes do not mutate the previous snapshot", () => {
+	const s = new ArraySignal([1, 2]);
+	const before = Signal.subtle.untrack(() => [...s.get()]);
+	const prevSnapshot = Signal.State.prototype.get.call(s) as number[];
+	s.get()[0] = 9;
+	assertEquals(prevSnapshot, before, "the snapshot readers already had is unchanged");
+	assertEquals([...s.get()], [9, 2]);
+});
+
+Deno.test("ArraySignal length writes notify", async () => {
+	const s = new ArraySignal([1, 2, 3]);
+	const seen: number[] = [];
+	const stop = effect(() => {
+		seen.push(s.get().length);
+	});
+	s.get().length = 1;
+	await tick();
+	stop();
+	assertEquals(seen, [3, 1]);
+});
+
+Deno.test("LazySignal does not refetch on every read after a failure", async () => {
+	let calls = 0;
+	const origError = console.error;
+	console.error = () => {};
+	try {
+		const s = new LazySignal(0, () => {
+			calls++;
+			return Promise.reject(new Error("nope"));
+		});
+		s.get();
+		await tick();
+		s.get();
+		s.get();
+		await tick();
+		assertEquals(calls, 1);
+		assert(s.error.get() instanceof Error, "the failure is on error");
+		assertEquals(s.loading.get(), false);
+	} finally {
+		console.error = origError;
+	}
+});
+
+Deno.test("DebouncedSignal reports pending and can be flushed", () => {
+	const s = new DebouncedSignal(0, 1000);
+	s.set(5);
+	assertEquals(s.pending.get(), true);
+	s.flush();
+	assertEquals(s.get(), 5);
+	assertEquals(s.pending.get(), false);
+});
+
+Deno.test("DirtySignal stays clean when set to an equal value", () => {
+	const s = new DirtySignal("a");
+	s.set("a");
+	assertEquals(s.isDirty(), false);
+	s.set("b");
+	assertEquals(s.isDirty(), true);
+});
+
+Deno.test("DirtyArraySignal stays clean when set to an equal array", () => {
+	const s = new DirtyArraySignal(["a"]);
+	s.set(["a"]);
+	assertEquals(s.isDirty(), false);
+});
+
+Deno.test("several changes through one held ArraySignal array all apply", () => {
+	const s = new ArraySignal<number>([0, 0]);
+	const arr = s.get();
+	arr[0] = 1;
+	arr[1] = 2;
+	arr.push(3);
+	arr.push(4);
+	assertEquals([...s.get()], [1, 2, 3, 4]);
+	assertEquals(arr.length, 4, "the held array reads the latest value");
 });
