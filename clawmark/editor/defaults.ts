@@ -129,7 +129,7 @@ export const defaultEditorMeta: Record<string, EditorMeta | EditorMeta[]> = {
 		key: "link",
 		kind: "inline",
 		label: "Link",
-		icon: "🔗",
+		icon: "Link",
 		element: { tag: "a" },
 		is: tagIs("a"),
 		shortcut: "Mod+K",

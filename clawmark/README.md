@@ -304,3 +304,50 @@ const myWriter: WriteProfile = {
 	assemble: singlePart("doc.xml", { extension: "xml" }),
 };
 ```
+
+## Editor (`@bearmetal/clawmark/editor`)
+
+A shadow-DOM web component, built on `@bearmetal/app`, with three views over one markdown value:
+**rich** (contenteditable), **raw** (textarea) and **preview** (the exact forward render). Block
+styles live in a select, inline styles are toggles, and both are derived from the rules in use.
+
+It is a bundle-only component: rules are functions, so they cannot be passed as attributes. Define
+the editor from a file the app bundles (an `@components` file or a `*.manifest.ts`) and name the tag
+in views.
+
+```ts
+import { defaultRules } from "@bearmetal/clawmark";
+import { defineEditor, withEditor } from "@bearmetal/clawmark/editor";
+
+// <cm-editor> is defined on import with defaultRules(). For another rule set or tag:
+defineEditor("note-editor", {
+	rules: [...defaultRules(), myRule],
+	meta: { "md:highlight": [] }, // hide a default toolbar entry
+});
+```
+
+```html
+<cm-editor value="# Hello" placeholder="Write something…"></cm-editor>
+```
+
+`el.value` is the markdown. The element emits `input` and `change` as `CustomEvent<{ value }>`, and
+participates in forms through its `name`.
+
+### Making a rule appear in the toolbar
+
+`Rule` itself knows nothing about editors. `withEditor(rule, meta)` returns a `WysiwygRule` carrying
+an `EditorMeta` (kind, label, the element to create, an `is(el)` check, an optional shortcut and
+prompt); `editorRules(rules)` does the same for the default rules by id. A rule without metadata
+still parses, renders and round-trips; it just has no toolbar entry. A rule's `editor` may be an
+array (`md:heading` contributes six entries).
+
+Markdown from the rich view goes back through the existing reverse rules (`fromHtml` →
+`toMarkdown`), so a custom rule with a `match`/`serialize` pair reverses the same way it rendered.
+
+### Styling
+
+Every value is `var(--cm-<name>, var(<drip token>, <literal>))`, so the editor follows the active
+Drip theme and any single value can be overridden from outside the shadow root, e.g.
+`cm-editor { --cm-radius: 0; --cm-link: hotpink; }`. The full list is `editorTokens` in
+`editor/tokens.ts`. Shadow parts: `editor`, `toolbar`, `select`, `toggle`, `tabs`, `tab`, `content`,
+`raw`, `preview`.

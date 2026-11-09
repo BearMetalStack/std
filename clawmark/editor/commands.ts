@@ -212,12 +212,43 @@ function sameShape(a: Element, b: Element): boolean {
 	return [...a.attributes].every((attr) => b.getAttribute(attr.name) === attr.value);
 }
 
+const BLOCKS = new Set([
+	"P",
+	"H1",
+	"H2",
+	"H3",
+	"H4",
+	"H5",
+	"H6",
+	"LI",
+	"BLOCKQUOTE",
+	"PRE",
+	"TD",
+	"TH",
+	"DIV",
+]);
+
+/** Lifts `wrapper` above inline parents it fills entirely, so `<em><b>x</b></em>` becomes `<b><em>x</em></b>`. */
+function hoist(root: HTMLElement, wrapper: Element): void {
+	for (;;) {
+		const parent = wrapper.parentElement;
+		if (!parent || parent === root || BLOCKS.has(parent.tagName)) return;
+		if (parent.childNodes.length !== 1 || sameShape(parent, wrapper)) return;
+		const inner = [...wrapper.childNodes];
+		parent.replaceWith(wrapper);
+		parent.replaceChildren(...inner);
+		wrapper.append(parent);
+	}
+}
+
 function mergeNeighbours(el: Element): void {
-	for (
+	for (;;) {
 		let next = el.nextSibling;
-		next instanceof Element && sameShape(el, next);
-		next = el.nextSibling
-	) {
+		// A lone space between two wrappers belongs inside the merged one.
+		const gap = next instanceof Text && !/\S/.test(next.data) ? next : null;
+		if (gap) next = gap.nextSibling;
+		if (!(next instanceof Element) || !sameShape(el, next)) return;
+		if (gap) el.append(gap);
 		while (next.firstChild) el.append(next.firstChild);
 		next.remove();
 	}
@@ -236,8 +267,10 @@ export function toggleInline(root: HTMLElement, meta: EditorMeta, value?: string
 	if (!nodes.length) return false;
 
 	const withStyle = nodes.map((n) => matching(root, n, meta));
-	if (withStyle.every(Boolean)) {
+	const blank = (n: Text) => !/\S/.test(n.data) && nodes.length > 1;
+	if (nodes.every((n, i) => withStyle[i] || blank(n))) {
 		nodes.forEach((n, i) => {
+			if (!withStyle[i]) return;
 			const el = matching(root, n, meta) ?? withStyle[i];
 			if (el) unwrapAround(el, n);
 		});
@@ -250,12 +283,17 @@ export function toggleInline(root: HTMLElement, meta: EditorMeta, value?: string
 			},
 		};
 		nodes.forEach((n, i) => {
-			if (withStyle[i]) return;
+			if (withStyle[i] || blank(n)) return;
 			const wrapper = create(doc, spec);
 			n.replaceWith(wrapper);
 			wrapper.append(n);
 		});
-		for (const n of nodes) {
+		const fresh = nodes.filter((n) => !blank(n));
+		for (const n of fresh) {
+			const wrapper = matching(root, n, meta);
+			if (wrapper) hoist(root, wrapper);
+		}
+		for (const n of fresh) {
 			const wrapper = matching(root, n, meta);
 			if (wrapper) mergeNeighbours(wrapper);
 		}

@@ -1,0 +1,16 @@
+{
+	"tasks": {
+		"dev": "deno run -A --watch --watch-exclude=components main.ts"
+	},
+	"imports": {
+		"@components/": "./components/",
+		"@app/": "./app/",
+		"@pages/": "./pages/",
+		"@views/": "./views/"
+	},
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx",
+		"noImplicitOverride": false
+	}
+}
