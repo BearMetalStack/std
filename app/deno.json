@@ -1,6 +1,6 @@
 {
 	"name": "@bearmetal/app",
-	"version": "0.6.1",
+	"version": "0.7.0",
 	"exports": {
 		".": "./mod.ts",
 		"./signals": "./bmsignals.ts",
