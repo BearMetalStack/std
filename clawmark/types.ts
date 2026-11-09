@@ -987,3 +987,5 @@ export interface WriteResult {
 	media?: Record<string, Uint8Array>;
 	warnings: string[];
 }
+
+export type * from "./editor/types.ts";

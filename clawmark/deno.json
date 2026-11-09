@@ -20,10 +20,16 @@
 		"./profiles/text": "./profiles/text/mod.ts",
 		"./profiles/media": "./profiles/media.ts",
 		"./rules/extra": "./rules/extra/mod.ts",
-		"./rules/helpers": "./rules/helpers.ts"
+		"./rules/helpers": "./rules/helpers.ts",
+		"./editor": "./editor/mod.ts"
 	},
 	"tasks": {
 		"dev": "deno test --watch"
+	},
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "@bearmetal/jsx",
+		"jsxImportSourceTypes": "@bearmetal/jsx"
 	},
 	"license": "MIT"
 }
