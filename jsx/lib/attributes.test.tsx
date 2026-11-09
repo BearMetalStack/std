@@ -51,3 +51,19 @@ Deno.test("autocomplete takes any token on every form control", () => {
 	assertEquals(textarea.getAttribute("autocomplete"), "street-address");
 	assertEquals(select.getAttribute("autocomplete"), "country");
 });
+
+Deno.test("shadow DOM attributes: slot, part and exportparts reach every element", () => {
+	const el = <span slot="control-bold" part="toggle" exportparts="inner: outer" /> as HTMLElement;
+	assertEquals(el.getAttribute("slot"), "control-bold");
+	assertEquals(el.getAttribute("part"), "toggle");
+	assertEquals(el.getAttribute("exportparts"), "inner: outer");
+});
+
+Deno.test('contenteditable is enumerated, so "false" is written rather than dropped', () => {
+	const on = <div contenteditable="true" /> as HTMLElement;
+	const off = <div contenteditable="false" /> as HTMLElement;
+	const plain = <div contenteditable="plaintext-only" /> as HTMLElement;
+	assertEquals(on.getAttribute("contenteditable"), "true");
+	assertEquals(off.getAttribute("contenteditable"), "false");
+	assertEquals(plain.getAttribute("contenteditable"), "plaintext-only");
+});

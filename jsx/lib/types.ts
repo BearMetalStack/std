@@ -58,6 +58,12 @@ export interface MakeCoreProps<Extra = never> extends CustomProps {
 	/** A boolean attribute: `true` adds it, `false` leaves it off. */
 	autofocus?: boolean | Extra;
 	lang?: string | Extra;
+	/** The named slot of a shadow host's template this element is assigned to. */
+	slot?: string | Extra;
+	/** Names this element for styling from outside its shadow root, through `::part()`. */
+	part?: string | Extra;
+	/** Re-exports the parts of a nested shadow root, as `inner` or `inner: outer`. */
+	exportparts?: string | Extra;
 	children?: MakeChildren<Extra>;
 	$raw?: boolean;
 	ref?: string;
@@ -79,6 +85,12 @@ export interface MakeCommonProps<Extra = never> extends MakeCoreProps<Extra> {
 	 * it takes the strings, which is what the runtime writes through.
 	 */
 	spellcheck?: "true" | "false" | Extra;
+	/**
+	 * Enumerated, like `spellcheck`: `"false"` makes an element inside an editable
+	 * region read-only, which `false` (the attribute left off) does not. `true` and
+	 * the empty form both mean `"true"`.
+	 */
+	contenteditable?: boolean | "true" | "false" | "plaintext-only" | Extra;
 	inputmode?:
 		| "none"
 		| "text"
