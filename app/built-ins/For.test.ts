@@ -338,3 +338,102 @@ Deno.test("selected accepts several keys, and row.index follows reorders", async
 		setCurrentOwner(null);
 	}
 });
+
+Deno.test("a signal read while rendering a row does not re-render or duplicate rows", async () => {
+	setCurrentOwner(fakeOwner());
+	try {
+		const extra = createSignal(0);
+		let renders = 0;
+		const signal = createSignal<Item[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }]);
+		const host = mount(each(signal, (item) => {
+			renders++;
+			extra.get();
+			return render(item);
+		}, (i) => i.id));
+		await flush();
+
+		extra.set(1);
+		await flush();
+
+		assertEquals(tags(host), ["a", "b"], "no duplicate rows");
+		assertEquals(renders, 2, "rows are rendered once each");
+	} finally {
+		setCurrentOwner(null);
+	}
+});
+
+Deno.test("a row that renders a fragment is removed and moved whole", async () => {
+	setCurrentOwner(fakeOwner());
+	try {
+		const signal = createSignal<Item[]>([{ id: 1, label: "a" }, { id: 2, label: "b" }]);
+		const host = mount(each(signal, (item) => {
+			const frag = document.createDocumentFragment();
+			frag.append(
+				document.createElement(`${item.label}1`),
+				document.createElement(`${item.label}2`),
+			);
+			return frag as unknown as Element;
+		}, (i) => i.id));
+		await flush();
+		assertEquals(tags(host), ["a1", "a2", "b1", "b2"]);
+
+		signal.set([{ id: 2, label: "b" }, { id: 1, label: "a" }]);
+		await flush();
+		assertEquals(tags(host), ["b1", "b2", "a1", "a2"], "reordered whole");
+
+		signal.set([{ id: 1, label: "a" }]);
+		await flush();
+		assertEquals(tags(host), ["a1", "a2"], "removed whole");
+	} finally {
+		setCurrentOwner(null);
+	}
+});
+
+Deno.test("row.item follows the item, and inPlace keeps the row instead of rebuilding it", async () => {
+	setCurrentOwner(fakeOwner());
+	try {
+		let renders = 0;
+		const labels: string[] = [];
+		const signal = createSignal<Item[]>([{ id: 1, label: "v0" }]);
+		const stops: (() => void)[] = [];
+		const host = mount(each(
+			signal,
+			(item, _i, row) => {
+				renders++;
+				stops.push(effect(() => {
+					labels.push(row.item.get().label);
+				}));
+				return render(item);
+			},
+			(i) => i.id,
+			{ inPlace: true },
+		));
+		await flush();
+
+		signal.set([{ id: 1, label: "v1" }]);
+		await flush();
+		stops.forEach((s) => s());
+
+		assertEquals(renders, 1, "not rebuilt");
+		assertEquals(tags(host), ["v0"], "the original node is kept");
+		assertEquals(labels, ["v0", "v1"], "row.item carried the update");
+	} finally {
+		setCurrentOwner(null);
+	}
+});
+
+Deno.test("each warns about duplicate keys", async () => {
+	setCurrentOwner(fakeOwner());
+	const warned: unknown[] = [];
+	const orig = console.warn;
+	console.warn = (...a: unknown[]) => warned.push(a);
+	try {
+		const signal = createSignal<Item[]>([{ id: 1, label: "a" }, { id: 1, label: "b" }]);
+		mount(each(signal, render, (i) => i.id));
+		await flush();
+		assertEquals(warned.length, 1);
+	} finally {
+		console.warn = orig;
+		setCurrentOwner(null);
+	}
+});

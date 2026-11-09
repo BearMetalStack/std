@@ -9,9 +9,14 @@ type Key = string | number;
  * Per-row reactive state {@linkcode each} hands its render callback, so a row
  * can react to things that change *about* it without being rebuilt.
  */
-export interface EachRow {
+export interface EachRow<T = unknown> {
 	/** The row's key. */
 	readonly key: Key;
+	/**
+	 * The row's item as it is now. A row rebuilt on change gets the new item as
+	 * its argument anyway; a row kept with `inPlace` reads updates from here.
+	 */
+	readonly item: Signal.State<T>;
 	/** The row's current position. Unlike the render callback's `index`, follows reorders. */
 	readonly index: Signal.Computed<number>;
 	/**
@@ -29,13 +34,20 @@ export interface EachOptions {
 	 * {@linkcode EachRow.selected}.
 	 */
 	selected?: SignalOf<Key | null | undefined | readonly Key[] | ReadonlySet<Key>>;
+	/**
+	 * Keep a row when its item changes (by any shallow field) instead of
+	 * rebuilding it, and hand the change to {@linkcode EachRow.item}. For rows
+	 * with state the DOM must not lose, such as focus or a caret. Without it, a
+	 * changed item is rendered again from scratch.
+	 */
+	inPlace?: boolean;
 }
 
 /** What `each()` and `<For>` call to build a row. */
 export type EachRender<T> = (
 	item: T,
 	index: number,
-	row: EachRow,
+	row: EachRow<T>,
 ) => Element | JSX.Element | null;
 
 interface ForProps<T> {
@@ -43,6 +55,8 @@ interface ForProps<T> {
 	keyOn: (item: T) => Key;
 	/** The selected key(s); see {@linkcode EachOptions.selected}. */
 	selected?: EachOptions["selected"];
+	/** See {@linkcode EachOptions.inPlace}. */
+	inPlace?: boolean;
 	children: EachRender<T>;
 }
 
@@ -57,9 +71,9 @@ interface ForProps<T> {
  * ```
  */
 export function For<T>(
-	{ $, keyOn, selected, children }: ForProps<T>,
+	{ $, keyOn, selected, inPlace, children }: ForProps<T>,
 ): ReturnType<typeof each<T>> {
-	return each($, children, keyOn, { selected });
+	return each($, children, keyOn, { selected, inPlace });
 }
 
 function isSelected(
@@ -125,7 +139,7 @@ export function each<T>(
 	const stop = reconcile(
 		anchor,
 		signal,
-		render as (i: T, ii: number, row: EachRow) => Element,
+		render as (i: T, ii: number, row: EachRow<T>) => Element,
 		key,
 		options,
 	);
@@ -147,10 +161,18 @@ function shallowDiff<T>(
 	key: (item: T) => string | number,
 ) {
 	let prev = new Map<string | number, T>();
+	let warnedDuplicates = false;
 
 	return new Signal.Computed(() => {
 		const items = Array.from(signal.get());
 		const next = new Map(items.map((item) => [key(item), item]));
+		if (next.size !== items.length && !warnedDuplicates) {
+			warnedDuplicates = true;
+			console.warn(
+				"each(): several items share a key, so only the last of each is rendered. " +
+					"Keys must be unique within a list.",
+			);
+		}
 
 		const added: T[] = [];
 		const updated: T[] = [];
@@ -177,29 +199,81 @@ function shallowDiff<T>(
 	});
 }
 
+/**
+ * The nodes one row occupies, first to last. An element row is itself; a row
+ * that rendered a fragment is bracketed by two empty text nodes, so it can be
+ * moved and removed whole, including whatever its own reactive children later
+ * insert inside it.
+ */
+interface Range {
+	start: ChildNode;
+	end: ChildNode;
+}
+
+function toRange(node: Node): { range: Range; insertable: Node } {
+	if (node.nodeType === 11) {
+		const frag = node as DocumentFragment;
+		const start = document.createTextNode("");
+		const end = document.createTextNode("");
+		frag.prepend(start);
+		frag.append(end);
+		return { range: { start, end }, insertable: frag };
+	}
+	const el = node as ChildNode;
+	return { range: { start: el, end: el }, insertable: el };
+}
+
+function nodesOf({ start, end }: Range): ChildNode[] {
+	const nodes: ChildNode[] = [];
+	for (let n: ChildNode | null = start; n; n = n.nextSibling) {
+		nodes.push(n);
+		if (n === end) break;
+	}
+	return nodes;
+}
+
 function reconcile<T>(
 	anchor: Text,
 	signal: SignalOf<T[] | Set<T>>,
-	render: (item: T, index: number, row: EachRow) => Element | null,
+	render: (item: T, index: number, row: EachRow<T>) => Element | null,
 	key: (item: T) => Key,
 	options: EachOptions,
 ) {
-	const keyMap = new Map<
-		Key,
-		{ node: Element; cleanup?: () => void; row: EachRow; position: Signal.State<number> }
-	>();
+	interface Entry {
+		range: Range;
+		/** Not yet placed: the fragment holding a fresh row's nodes. */
+		pending?: Node;
+		cleanup?: () => void;
+		row: EachRow<T>;
+		item: Signal.State<T>;
+		position: Signal.State<number>;
+	}
+	const keyMap = new Map<Key, Entry>();
 	const diff = shallowDiff(signal, key);
-	const { selected } = options;
+	const { selected, inPlace } = options;
 	const noSelection = new Signal.Computed(() => false);
 
-	const makeRow = (k: Key, index: number) => {
+	const makeRow = (k: Key, index: number, item: T) => {
 		const position = new Signal.State(index);
-		const row: EachRow = {
+		const current = new Signal.State<T>(item);
+		const row: EachRow<T> = {
 			key: k,
+			item: current,
 			index: new Signal.Computed(() => position.get()),
 			selected: selected ? new Signal.Computed(() => isSelected(selected.get(), k)) : noSelection,
 		};
-		return { row, position };
+		return { row, position, current };
+	};
+
+	/**
+	 * Renders a row under its own scope, untracked: what the render reads is the
+	 * row's business, not a dependency of the list. Tracked, a read here re-ran
+	 * the reconcile with the same diff and rendered every added row again.
+	 */
+	const build = (item: T, index: number, row: EachRow<T>) => {
+		using scope = ownerScope();
+		const node = Signal.subtle.untrack(() => render(item, index, row));
+		return { node, cleanup: () => scope.cleanups.forEach((fn) => fn()) };
 	};
 
 	const stop = effect(() => {
@@ -208,8 +282,9 @@ function reconcile<T>(
 
 		for (const k of removed) {
 			const entry = keyMap.get(k);
-			entry?.cleanup?.();
-			entry?.node.remove();
+			if (!entry) continue;
+			entry.cleanup?.();
+			for (const n of nodesOf(entry.range)) n.remove();
 			keyMap.delete(k);
 		}
 
@@ -217,51 +292,52 @@ function reconcile<T>(
 			const k = key(item);
 			const entry = keyMap.get(k);
 			if (!entry) continue;
-			using scope = ownerScope();
-			const newNode = render(item, items.indexOf(item), entry.row);
+			entry.item.set(item);
+			if (inPlace) continue;
+			const { node, cleanup } = build(item, items.indexOf(item), entry.row);
 			entry.cleanup?.();
-			if (newNode == null) {
+			const old = nodesOf(entry.range);
+			if (node == null) {
 				keyMap.delete(k);
-				entry.node.remove();
+				for (const n of old) n.remove();
 				continue;
 			}
-			entry.node.replaceWith(newNode);
-			entry.node = newNode;
-			entry.cleanup = () => scope.cleanups.forEach((fn) => fn());
+			const { range, insertable } = toRange(node);
+			old[0].before(insertable);
+			for (const n of old) n.remove();
+			entry.range = range;
+			entry.cleanup = cleanup;
 		}
 
 		for (const item of added) {
 			const k = key(item);
-			using scope = ownerScope();
 			const index = items.indexOf(item);
-			const { row, position } = makeRow(k, index);
-			const node = render(item, index, row);
+			const { row, position, current } = makeRow(k, index, item);
+			const { node, cleanup } = build(item, index, row);
 			if (node == null) continue;
-			keyMap.set(k, {
-				node,
-				cleanup: () => scope.cleanups.forEach((fn) => fn()),
-				row,
-				position,
-			});
+			const { range, insertable } = toRange(node);
+			keyMap.set(k, { range, pending: insertable, cleanup, row, item: current, position });
 		}
 
-		// Reorder in place, walking the sibling chain from `anchor`. Each managed
-		// node is moved only when it is not already where signal order wants it,
-		// so untouched items keep their identity (and DOM state) across updates.
-		// Newly added nodes, still detached, are inserted here on their first pass.
+		// Reorder in place, walking the sibling chain from `anchor`. Each row is
+		// moved only when it is not already where signal order wants it, so
+		// untouched rows keep their identity (and DOM state) across updates.
+		// Newly added rows, still detached, are inserted here on their first pass.
 		let previousNode: ChildNode = anchor;
 		let position = 0;
 		for (const item of items) {
 			const k = key(item);
 			const entry = keyMap.get(k);
 			if (!entry) continue;
-			const { node } = entry;
 			const at = position++;
 			if (Signal.subtle.untrack(() => entry.position.get()) !== at) entry.position.set(at);
-			if (previousNode.nextSibling !== node) {
-				previousNode.after(node);
+			if (entry.pending) {
+				previousNode.after(entry.pending);
+				entry.pending = undefined;
+			} else if (previousNode.nextSibling !== entry.range.start) {
+				previousNode.after(...nodesOf(entry.range));
 			}
-			previousNode = node;
+			previousNode = entry.range.end;
 		}
 	});
 

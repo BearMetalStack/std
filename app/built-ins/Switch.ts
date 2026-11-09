@@ -59,7 +59,8 @@ export function Switch<T>(
 	/** The cleanups of the branch showing now, when it is not kept. */
 	let active: (() => void)[] = [];
 
-	let prevVal: T | undefined = undefined;
+	const UNSET = Symbol("unset");
+	let prevVal: T | typeof UNSET = UNSET;
 	let prevNode: JSX.Element | null = null;
 	return createOwnedComputed(() => {
 		const val = $.get();

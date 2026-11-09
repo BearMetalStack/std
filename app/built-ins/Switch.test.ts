@@ -181,3 +181,14 @@ Deno.test("without $$, leaving a branch tears it down", async () => {
 		setCurrentOwner(null);
 	}
 });
+
+Deno.test("Switch renders the Default when the value starts undefined", async () => {
+	const out = Switch<string | undefined>({
+		$: createSignal<string | undefined>(undefined),
+		children: [
+			Case({ $: "a", children: r("A") }),
+			Default({ children: r("fallback") }),
+		],
+	});
+	assertEquals(await rendered(out), "fallback");
+});

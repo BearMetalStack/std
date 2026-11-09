@@ -18,7 +18,7 @@ export function when(
 	run: () => JSX.Element,
 ): Signal.Computed<JSX.Element | null> {
 	const cleanups: (() => void)[] = [];
-	let prevVal: boolean | undefined = undefined;
+	let prevVal: boolean | null = null;
 	let prevNode: JSX.Element | null = null;
 	return createOwnedComputed(() => {
 		const val = e.get();
