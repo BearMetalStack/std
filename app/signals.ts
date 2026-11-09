@@ -258,7 +258,10 @@ function release(cleanups: CleanupFn[]): void {
  * different value came in between, a node cached in a field and toggled in
  * and out, has been released by then. Build such a node outside the computed.
  */
-export function createComputed<T>(init: () => T): Signal.Computed<T> {
+export function createComputed<T>(
+	init: () => T,
+	options?: Signal.Options<T>,
+): Signal.Computed<T> {
 	const owner = getCurrentOwner();
 	let held: CleanupFn[] = [];
 	let hasValue = false;
@@ -293,7 +296,7 @@ export function createComputed<T>(init: () => T): Signal.Computed<T> {
 		hasValue = true;
 		last = value;
 		return value;
-	});
+	}, options);
 }
 
 /**
@@ -312,6 +315,108 @@ export function createOwnedComputed<T>(init: () => T): Signal.Computed<T> {
 		} finally {
 			setCurrentOwner(prev);
 		}
+	});
+}
+
+/**
+ * Runs `fn` under a fresh owner that belongs to no component, and hands back
+ * its result with the function that tears it down: every effect, list, save
+ * task and cleanup registered while `fn` ran (or later, through the owner it
+ * was given) goes when `dispose` is called, newest first. `dispose` is safe to
+ * call more than once.
+ *
+ * For things whose lifetime is not a DOM node's: a workspace tab's tool, a
+ * cache entry, a background task. `fn` receives `dispose` so it can end
+ * itself.
+ *
+ * @example
+ * ```ts
+ * const [tool, close] = createScope(() => new ChapterTool(id));
+ * // ...the tab closes:
+ * close();
+ * ```
+ */
+export function createScope<T>(fn: (dispose: () => void) => T): [T, () => void] {
+	let cleanups: CleanupFn[] = [];
+	let disposed = false;
+	const owner: NonNullable<Owner> = {
+		registerCleanup(cleanup) {
+			if (disposed) {
+				Signal.subtle.untrack(cleanup);
+				return;
+			}
+			cleanups.push(cleanup);
+		},
+	};
+	const dispose = () => {
+		if (disposed) return;
+		disposed = true;
+		const all = cleanups.reverse();
+		cleanups = [];
+		release(all);
+	};
+	const prev = getCurrentOwner();
+	setCurrentOwner(owner);
+	try {
+		return [Signal.subtle.untrack(() => fn(dispose)), dispose];
+	} catch (error) {
+		dispose();
+		throw error;
+	} finally {
+		setCurrentOwner(prev);
+	}
+}
+
+/**
+ * A computed that is handed its own previous value: history a derivation
+ * needs, without a variable closed over and mutated from inside it.
+ *
+ * @example
+ * ```ts
+ * // The last non-null selection, held while nothing is selected.
+ * const lastPicked = createMemo<string | null>((prev) => picked.get() ?? prev ?? null);
+ * ```
+ */
+export function createMemo<T>(
+	fn: (prev: T | undefined) => T,
+	initial?: T,
+	options?: Signal.Options<T>,
+): Signal.Computed<T> {
+	let prev = initial;
+	return createComputed(() => (prev = fn(prev)), options);
+}
+
+/**
+ * An effect with its dependency spelled out: re-runs `fn` when `source`
+ * produces a new value (by `Object.is`), with the previous one. `fn` itself
+ * runs untracked, so what it reads or writes never re-runs it. A cleanup it
+ * returns runs before the next call and when the watch ends.
+ *
+ * Owned like {@linkcode createEffect}; returns the function that stops it.
+ * Pass `immediate: false` to skip the call for the value `source` starts with.
+ *
+ * @example
+ * ```ts
+ * watch(focusedTab, (tab) => { if (tab) latest.set(tab.toolType, tab.uuid); });
+ * ```
+ */
+export function watch<T>(
+	source: SignalOf<T> | (() => T),
+	fn: (next: T, prev: T | undefined) => CleanupFn | void,
+	{ immediate = true }: { immediate?: boolean } = {},
+): CleanupFn {
+	const value = typeof source === "function" ? createComputed(source) : source;
+	let prev: T | undefined;
+	let first = true;
+	return createEffect(() => {
+		const next = value.get();
+		const was = prev;
+		prev = next;
+		if (first) {
+			first = false;
+			if (!immediate) return;
+		}
+		return Signal.subtle.untrack(() => fn(next, was));
 	});
 }
 

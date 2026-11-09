@@ -303,12 +303,43 @@ export abstract class BMElement<
 		this.#disconnectPending = true;
 		afterFlush(() => {
 			if (!this.#disconnectPending) return;
+			if (this.#retainers > 0) return;
 			this.#disconnectPending = false;
-			this.#initialized = false;
-			this.#constructionEffectsLive = false;
-			for (const cleanup of this.#cleanups) cleanup();
-			this.#cleanups = [];
+			this.#teardown();
 		});
+	}
+
+	#teardown(): void {
+		this.#initialized = false;
+		this.#constructionEffectsLive = false;
+		const cleanups = this.#cleanups;
+		this.#cleanups = [];
+		for (const cleanup of cleanups) cleanup();
+	}
+
+	/** How many holders are keeping this element alive out of the DOM. */
+	#retainers = 0;
+
+	/**
+	 * Keeps this element alive while it is out of the DOM: leaving no longer
+	 * tears it down (its effects keep running, `init()` will not run again),
+	 * until every holder has called the function this returns. If it is out
+	 * of the DOM when the last holder lets go, it is torn down then.
+	 *
+	 * For an element cached and moved around by something that knows its real
+	 * lifetime, such as a keyed node pool ({@linkcode createKeyedNodes}).
+	 */
+	retain(): () => void {
+		this.#retainers++;
+		let released = false;
+		return () => {
+			if (released) return;
+			released = true;
+			this.#retainers--;
+			if (this.#retainers > 0 || !this.#disconnectPending) return;
+			this.#disconnectPending = false;
+			this.#teardown();
+		};
 	}
 
 	/**
