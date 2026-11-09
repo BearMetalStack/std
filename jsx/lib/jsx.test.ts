@@ -526,3 +526,52 @@ Deno.test("a signal style drops properties the next object leaves out", () => {
 	style.set(null);
 	assertEquals(html(el), "<div></div>");
 });
+
+Deno.test("a reactive child handed the same fragment again keeps its content", () => {
+	const frag = document.createDocumentFragment();
+	const d = document.createElement("div");
+	d.textContent = "KEPT";
+	frag.appendChild(d);
+	const unrelated = signal(0);
+	const mode = signal(true);
+	const view = { get: () => (mode.get() ? frag : null) };
+
+	const container = jsx("div", { children: view }) as unknown as El;
+	assertEquals(container.innerHTML, "<div>KEPT</div>");
+
+	unrelated.set(1);
+	assertEquals(container.innerHTML, "<div>KEPT</div>", "a re-run with the same fragment");
+
+	mode.set(false);
+	mode.set(true);
+	assertEquals(
+		container.innerHTML,
+		"<div>KEPT</div>",
+		"the fragment shown again after another value",
+	);
+});
+
+Deno.test("a signal-valued handler is swapped, not added again on every change", () => {
+	const calls: string[] = [];
+	const handler = signal<() => void>(() => calls.push("first"));
+	const el = jsx("button", { onClick: handler }) as unknown as HTMLElement;
+
+	handler.set(() => calls.push("second"));
+	el.dispatchEvent(new Event("click"));
+
+	assertEquals(calls, ["second"]);
+});
+
+Deno.test("a reactive class that becomes null clears instead of throwing", () => {
+	const cls = signal<string | null>("a b");
+	const el = jsx("div", { class: cls }) as unknown as HTMLElement;
+	cls.set(null);
+	assertEquals(el.getAttribute("class") ?? "", "");
+});
+
+Deno.test("prop: assigns a property even when the value looks like a signal", () => {
+	const value = { get: () => 1, set: () => {} };
+	const el = jsx("div", { "prop:bag": value }) as unknown as { bag: unknown };
+	assertStrictEquals(el.bag, value);
+	assert(!(el as unknown as HTMLElement).hasAttribute("prop:bag"));
+});

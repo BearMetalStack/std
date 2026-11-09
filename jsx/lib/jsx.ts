@@ -149,7 +149,7 @@ function applyProp(el: HTMLElement, key: string, val: unknown) {
 	}
 	if (key === "class") {
 		const e = el as unknown as { prevClassList?: string[] };
-		const cs = (val as string).split(" ").filter(Boolean);
+		const cs = String(val ?? "").split(" ").filter(Boolean);
 		const prev = e.prevClassList ?? [];
 		el.classList.remove(...prev);
 		e.prevClassList = cs;
@@ -513,6 +513,14 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 	}
 	for (const [key, val] of Object.entries(attrs)) {
 		if (key === "children") continue;
+		if (key.startsWith("prop:")) {
+			// Always a property, whatever the value looks like. The way to hand an
+			// element an object that happens to have a get(), which would
+			// otherwise be bound as a signal.
+			// deno-lint-ignore no-explicit-any
+			(el as any)[key.slice(5)] = val;
+			continue;
+		}
 		if (key === "ref" && typeof val === "string" && _currentOwner?.registerRef) {
 			_currentOwner.registerRef(val, el);
 			continue;
@@ -534,7 +542,16 @@ function applyProps(el: HTMLElement, props: Record<string, unknown>) {
 			(el as any)[key] = val;
 			continue;
 		}
-		if (isSignal(val)) {
+		if (isSignal(val) && key.startsWith("on")) {
+			// A handler that changes: swap it, rather than adding one per change.
+			const type = key.slice(2).toLowerCase();
+			reactiveEffect(() => {
+				const handler = val.get();
+				if (typeof handler !== "function") return;
+				el.addEventListener(type, handler as EventListener);
+				return () => el.removeEventListener(type, handler as EventListener);
+			});
+		} else if (isSignal(val)) {
 			reactiveEffect(() => applyProp(el, key, val.get()));
 		} else if (isWritableSignal(existing)) {
 			reflectProp(el, key, val);
@@ -631,11 +648,42 @@ function appendReactiveChild(parent: Element | DocumentFragment, signal: SignalL
 }
 
 /** Keeps the nodes between two markers in step with `signal`. */
+/**
+ * The nodes a fragment held when it was first inserted, kept current while it
+ * is showing. Inserting a fragment empties it, so the same fragment handed
+ * back later would otherwise insert nothing.
+ */
+const fragmentNodes = new WeakMap<DocumentFragment, Node[]>();
+
+function nodesBetween(start: Node, end: Node): Node[] {
+	const nodes: Node[] = [];
+	for (let n = start.nextSibling; n && n !== end; n = n.nextSibling) nodes.push(n);
+	return nodes;
+}
+
 function bindRange(start: Node, end: Node, signal: SignalLike, raw: boolean) {
+	/** The fragment the range is showing, if it is showing one. */
+	let shown: DocumentFragment | null = null;
 	reactiveEffect(() => {
 		const v = unwrap(signal);
 		const parentNode = end.parentNode;
 		if (!parentNode) return;
+
+		// Before the range changes, remember what the fragment showing in it
+		// holds now, including anything its own reactive children added.
+		if (shown) fragmentNodes.set(shown, nodesBetween(start, end));
+
+		if (v instanceof Node && v.nodeType === 11) {
+			const frag = v as DocumentFragment;
+			if (frag === shown) return;
+			const nodes = fragmentNodes.get(frag) ?? [...frag.childNodes];
+			fragmentNodes.set(frag, nodes);
+			clearRange(parentNode, start, end);
+			for (const n of nodes) parentNode.insertBefore(n, end);
+			shown = frag;
+			return;
+		}
+		shown = null;
 
 		if (v instanceof Node) {
 			if (start.nextSibling === v && v.nextSibling === end) return;
@@ -753,7 +801,11 @@ export function jsx(
 	}
 
 	if (typeof tag === "function") {
-		return tag(props);
+		// Untracked for the reason construction is on the BMC branch above: a
+		// signal a component reads while building is its own business. Tracked,
+		// it became a dependency of whatever render called the component, which
+		// then rebuilt the whole subtree, and froze when building wrote it.
+		return _untrack(() => tag(props));
 	}
 
 	if (tag === "template") {

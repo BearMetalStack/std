@@ -61,6 +61,8 @@ export interface MakeCoreProps<Extra = never> extends CustomProps {
 	children?: MakeChildren<Extra>;
 	$raw?: boolean;
 	ref?: string;
+	/** Always assigned as a property, never bound as a signal or an attribute. */
+	[key: `prop:${string}`]: unknown;
 	[key: `data-${string}`]: string | undefined;
 	[key: `aria-${string}`]: string | boolean | undefined;
 }
