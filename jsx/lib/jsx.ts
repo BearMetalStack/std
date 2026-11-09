@@ -13,7 +13,7 @@
 
 import { type BMC, isBMC } from "./bmc.ts";
 import { Html } from "./html.ts";
-import { trackPending } from "./pending.ts";
+import { isServerRendering, trackPending } from "./pending.ts";
 
 type SignalLike = { get(): unknown };
 type WritableSignalLike = SignalLike & { set(value: unknown): void };
@@ -94,10 +94,27 @@ export function getCurrentOwner(): Owner {
 	return _currentOwner;
 }
 
+let warnedUnowned = false;
+
+/**
+ * A binding built with no owner is never torn down: its effect keeps the node
+ * (and whatever it reads) alive for the life of the page. Said once, since one
+ * unowned subtree usually means many bindings.
+ */
+function warnUnowned(): void {
+	if (warnedUnowned || isServerRendering()) return;
+	warnedUnowned = true;
+	console.warn(
+		"A reactive binding was created without an owner, so it will never be cleaned up.\n" +
+			"Build JSX with signals inside a component's template or init(), or inside a scope.",
+	);
+}
+
 function reactiveEffect(fn: () => CleanupFn | void): void {
 	if (!_effect) return;
 	const cleanup = _effect(fn);
-	_currentOwner?.registerCleanup(cleanup);
+	if (_currentOwner) _currentOwner.registerCleanup(cleanup);
+	else warnUnowned();
 }
 
 // -- shared util --
