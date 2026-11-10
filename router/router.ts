@@ -49,7 +49,6 @@ export type {
 	StaticMount,
 };
 
-export { isAnyModule, Module };
 export type { AnyModule, ModuleStateOf };
 
 // ─── Router ───────────────────────────────────────────────────────────────────
