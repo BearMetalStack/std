@@ -8,6 +8,7 @@
 		"./ssr": "./ssr/mod.ts",
 		"./serve": "./serve/mod.tsx",
 		"./build": "./serve/build.ts",
+		"./internals": "./internals.ts",
 		"./types": "./types.ts"
 	},
 	"tasks": {
