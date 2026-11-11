@@ -51,6 +51,18 @@ Deno.test("round trip: nested unordered list", () => assertBoth("- a\n  - b\n- c
 Deno.test("round trip: ordered list", () => assertBoth("1. a\n2. b"));
 Deno.test("round trip: checklist", () => assertBoth("- [x] done\n- [ ] todo"));
 Deno.test("round trip: table with alignment", () => assertBoth("|a|b|\n|:-|-:|\n|1|2|"));
+Deno.test("round trip: a line break in a table cell", () => {
+	assertBoth("|a|b|\n|:-|:-|\n|one<br>two|**x**<br>y|");
+	assertEquals(
+		toHtml("|a|\n|-|\n|one<br/>two|"),
+		'<table><thead><tr><th style="text-align:center">a</th></tr></thead>' +
+			'<tr><td style="text-align:left">one<br>two</td></tr></table>',
+	);
+});
+Deno.test("round trip: a pipe in a table cell", () => {
+	assertBoth("|a\\|b|c|\n|:-|:-|\n|`x\\|y`|\\||");
+	assertEquals(htmlToMarkdown("<table><tr><th>a|b</th></tr></table>").trim(), "|a\\|b|\n|:-|");
+});
 Deno.test("round trip: footnote", () => assertBoth("noted[^1]\n\n[^1]: the note"));
 
 // ---- documented lossy cases -----------------------------------------------

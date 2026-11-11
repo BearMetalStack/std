@@ -284,6 +284,17 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 			const cellTag = state.head ? "th" : "td";
 			const columns = (data(node).columns as string[] | undefined) ?? [];
 			const tr = ctx.el("tr", attrs(node));
+			// A row the markdown parser or the html reader built has real
+			// cells, emitted below with whatever they hold - a link, emphasis,
+			// a line break. Only a row from a reader that kept flat text
+			// (docx, odt) is written from `columns`.
+			if (node.children.some((child) => child.tag === "md:tablecell")) {
+				return {
+					kind: "element",
+					el: state.head ? ctx.el("thead", {}, [tr]) : tr,
+					into: tr,
+				};
+			}
 			columns.forEach((cell, index) => {
 				const align = state.head ? "c" : (state.columnAlign?.[index] ?? "l");
 				append(
@@ -296,6 +307,16 @@ export function htmlWriter(options: HtmlWriteOptions = {}): WriteProfile {
 			return {
 				kind: "nodes",
 				nodes: [state.head ? ctx.el("thead", {}, [tr]) : tr],
+			};
+		}),
+
+		out("md:tablecell").to((node, ctx) => {
+			const state = tableState(ctx);
+			const index = data(node).index as number;
+			const align = state.head ? "c" : (state.columnAlign?.[index] ?? "l");
+			return {
+				kind: "element",
+				el: ctx.el(state.head ? "th" : "td", { style: CELL_ALIGN[align] }),
 			};
 		}),
 
