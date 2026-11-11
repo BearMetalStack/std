@@ -45,6 +45,7 @@ export async function withDefaultTokens(theme: Theme): Promise<Theme> {
  * `./themes/*.json` at runtime fails in exactly the places a theme matters most.
  */
 const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
+	badapple: () => import("./themes/badapple.theme.json", { with: { type: "json" } }),
 	bearmetal: () => import("./themes/bearmetal.theme.json", { with: { type: "json" } }),
 	foxfire: () => import("./themes/foxfire.theme.json", { with: { type: "json" } }),
 	hazelthorn: () => import("./themes/hazelthorn.theme.json", { with: { type: "json" } }),
@@ -163,6 +164,7 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"hazelthorn",
 	"monochrome",
 	"tortiecat",
+	"badapple",
 ]);
 
 /** Names of every theme bundled with Drip. */

@@ -324,11 +324,11 @@ the reference instead of letting the browser decide which flavour of wrong to se
 
 ## Bundled themes
 
-`bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, and `tortiecat` ship in `themes/` and
-resolve by name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A
-project theme with the same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a
-variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`,
-`aromantic`, `progress`) alongside `light` and `dark`; select one with `data-theme`.
+`bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, and `badapple` ship in
+`themes/` and resolve by name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`,
+the palette). A project theme with the same name under `.bearmetal/drip/themes` takes precedence.
+`pride` carries a variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`,
+`asexual`, `aromantic`, `progress`) alongside `light` and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -351,6 +351,13 @@ accent and the focus ring. Shadows are hard offset patches (ginger, then ink) dr
 `patch.ginger` and `patch.ink` tokens, which each variant restates; rules are 2px and corners are
 squircles. Its variants are `light` (default), `dark`, and `dilute`, the blue-grey and cream of a
 dilute tortie, selected with `data-theme`. `warning` aliases `yellow`, since orange is the brand.
+
+`badapple` is a candy-apple red on bruise-plum neutrals with a poison-green accent and focus ring.
+Every corner has a bite out of it (`corner.shape: scoop`), shadows are coloured glows drawn from its
+own `apple.glow` token, which each variant restates, primary buttons carry a gloss highlight, hover
+underlines are wavy, and headings use the serif stack. Its variants are `light` (default), `dark`,
+`poison` (deep purple, with the green and the red trading places), and `silhouette` (pure black on
+pure white with red as the only color). `danger` aliases `orange`, since red is the brand.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the
