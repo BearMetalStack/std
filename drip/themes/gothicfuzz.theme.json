@@ -241,6 +241,9 @@
 	"radius": {
 		"base": "0__25rem"
 	},
+	"corner": {
+		"shape": "round"
+	},
 	"shadow": {
 		"xs": "0 0 3px 2px var(--fuzz-near), 0 0 9px 3px var(--fuzz-far)",
 		"sm": "0 0 4px 2px var(--fuzz-near), 0 0 12px 4px var(--fuzz-far)",

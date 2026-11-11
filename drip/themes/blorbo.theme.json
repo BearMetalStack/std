@@ -237,6 +237,9 @@
 	"radius": {
 		"base": "0__5rem"
 	},
+	"corner": {
+		"shape": "round"
+	},
 	"shadow": {
 		"xs": "0 0 0 2px var(--sticker-edge), 0 0 0 3px var(--sticker-cut), 2px 3px 0 3px var(--sticker-drop)",
 		"sm": "0 0 0 3px var(--sticker-edge), 0 0 0 4px var(--sticker-cut), 3px 5px 0 4px var(--sticker-drop)",

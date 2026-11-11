@@ -255,6 +255,9 @@
 	"radius": {
 		"base": "0__125rem"
 	},
+	"corner": {
+		"shape": "round"
+	},
 	"shadow": {
 		"xs": "2px 2px 0 0 var(--form-canary), 2px 2px 0 1px var(--color-border-strong)",
 		"sm": "3px 3px 0 0 var(--form-canary), 3px 3px 0 1px var(--color-border-strong), 6px 6px 0 0 var(--form-pink), 6px 6px 0 1px var(--color-border-strong)",

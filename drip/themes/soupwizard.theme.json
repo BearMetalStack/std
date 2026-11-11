@@ -227,6 +227,9 @@
 	"radius": {
 		"base": "0__25rem"
 	},
+	"corner": {
+		"shape": "round"
+	},
 	"shadow": {
 		"xs": "inset 0 2px 0 0 var(--soup-broth), 0 -3px 6px -2px var(--soup-steam), 0 -9px 12px -6px var(--soup-steam), 0 2px 0 0 var(--color-border-strong)",
 		"sm": "inset 0 3px 0 0 var(--soup-broth), 0 -5px 10px -3px var(--soup-steam), 0 -15px 20px -10px var(--soup-steam), 0 2px 0 0 var(--color-border-strong)",

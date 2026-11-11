@@ -236,6 +236,9 @@
 	"radius": {
 		"base": "0__75rem"
 	},
+	"corner": {
+		"shape": "round"
+	},
 	"border": {
 		"rule": {
 			"$ref": "$border.2"

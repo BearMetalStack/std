@@ -252,6 +252,9 @@
 	"radius": {
 		"base": "0__5rem"
 	},
+	"corner": {
+		"shape": "round"
+	},
 	"shadow": {
 		"xs": "0 0 0 2px var(--color-bg), 0 0 0 3px var(--tea-ring)",
 		"sm": "0 0 0 3px var(--color-bg), 0 0 0 5px var(--tea-ring)",
