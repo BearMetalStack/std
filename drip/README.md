@@ -324,11 +324,12 @@ the reference instead of letting the browser decide which flavour of wrong to se
 
 ## Bundled themes
 
-`bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, and `badapple` ship in
-`themes/` and resolve by name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`,
-the palette). A project theme with the same name under `.bearmetal/drip/themes` takes precedence.
-`pride` carries a variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`,
-`asexual`, `aromantic`, `progress`) alongside `light` and `dark`; select one with `data-theme`.
+`bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, and `spacetea`
+ship in `themes/` and resolve by name anywhere a theme name is accepted (`drip.defaultTheme`,
+`loadTheme`, the palette). A project theme with the same name under `.bearmetal/drip/themes` takes
+precedence. `pride` carries a variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`,
+`pansexual`, `asexual`, `aromantic`, `progress`) alongside `light` and `dark`; select one with
+`data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -358,6 +359,13 @@ own `apple.glow` token, which each variant restates, primary buttons carry a glo
 underlines are wavy, and headings use the serif stack. Its variants are `light` (default), `dark`,
 `poison` (deep purple, with the green and the red trading places), and `silhouette` (pure black on
 pure white with red as the only color). `danger` aliases `orange`, since red is the brand.
+
+`spacetea` is butterfly-pea violet on deep-space indigo with an amber tea accent. Shadows are
+concentric orbit rings drawn from its own `tea.ring` token, which each variant restates; buttons,
+tags and nav items are capsules, tags have dashed borders, the focus ring is dotted, hover
+underlines are dotted, and headings use the mono stack. Its variants are `light` (default), `dark`,
+`matcha` (a pale green light mode) and `hibiscus` (a wine-dark mode with pink ink). `warning`
+aliases `yellow` and `info` aliases `cyan`, to stay clear of the amber accent and the violet brand.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the
