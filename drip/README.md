@@ -325,11 +325,11 @@ the reference instead of letting the browser decide which flavour of wrong to se
 ## Bundled themes
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
-`milkplus`, and `tokenburn` ship in `themes/` and resolve by name anywhere a theme name is accepted
-(`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name under
-`.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag (`lesbian`, `gay`,
-`trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`, `progress`) alongside `light`
-and `dark`; select one with `data-theme`.
+`milkplus`, `tokenburn`, and `misprint` ship in `themes/` and resolve by name anywhere a theme name
+is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name
+under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag (`lesbian`,
+`gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`, `progress`) alongside
+`light` and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -381,6 +381,14 @@ restates. Corners are notched and pills are bevelled into chips, tags and the fo
 disabled controls are hatched, and the spinner runs fast. Its variants are `light` (default),
 `dark`, `inferno` (red-black with yellow ink) and `pilot` (a blue gas flame on navy). `warning`
 aliases `yellow`, since orange is the brand.
+
+`misprint` is a two-color risograph run that came out of register: teal and coral on newsprint with
+black ink rules. Every shadow is a pair of plates slipped in opposite directions, drawn from its own
+`print.a` and `print.b` tokens, which each variant restates; corners are square, rules are 2px,
+hover underlines are doubled, disabled controls carry a line screen, and a pressed control slides
+onto its teal plate. Its variants are `light` (default), `dark` (black stock), `anaglyph` (black on
+white with red and cyan plates) and `zine` (black toner on yellow copier paper with a grey ghost
+copy).
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the

@@ -50,6 +50,7 @@ const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
 	foxfire: () => import("./themes/foxfire.theme.json", { with: { type: "json" } }),
 	hazelthorn: () => import("./themes/hazelthorn.theme.json", { with: { type: "json" } }),
 	milkplus: () => import("./themes/milkplus.theme.json", { with: { type: "json" } }),
+	misprint: () => import("./themes/misprint.theme.json", { with: { type: "json" } }),
 	monochrome: () => import("./themes/monochrome.theme.json", { with: { type: "json" } }),
 	pride: () => import("./themes/pride.theme.json", { with: { type: "json" } }),
 	spacetea: () => import("./themes/spacetea.theme.json", { with: { type: "json" } }),
@@ -171,6 +172,7 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"spacetea",
 	"milkplus",
 	"tokenburn",
+	"misprint",
 ]);
 
 /** Names of every theme bundled with Drip. */
