@@ -325,10 +325,10 @@ the reference instead of letting the browser decide which flavour of wrong to se
 ## Bundled themes
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
-`milkplus`, `tokenburn`, `misprint`, and `blorbo` ship in `themes/` and resolve by name anywhere a
-theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the
-same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag
-(`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
+`milkplus`, `tokenburn`, `misprint`, `blorbo`, and `goblinmode` ship in `themes/` and resolve by
+name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project
+theme with the same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant
+per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
 `progress`) alongside `light` and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
@@ -396,6 +396,14 @@ solid drop drawn from its own `sticker.edge`, `sticker.cut` and `sticker.drop` t
 variant restates. Component radii are stated as four uneven corners so nothing is quite symmetrical.
 Its variants are `light` (default), `dark`, and one per fic genre: `fluff` (pastel pink), `angst`
 (desaturated storm grey with blue ink) and `feral` (magenta and yellow on black).
+
+`goblinmode` is a swamp hoard: gold on mud-olive with a slime-green accent. Every surface is grubby
+at the edges and sits on a crooked smear, an inset vignette and an offset slab drawn from its own
+`goblin.grime` and `goblin.muck` tokens, which each variant restates. Corners are rough-hewn (a
+`superellipse` between a bevel and a curve, with four uneven radii per component), rules are 2px,
+tags are stitched with dashed borders, the focus ring is a double line and disabled controls are
+crosshatched. Its variants are `light` (default), `dark`, `hoard` (gold ink and gold rules on
+brown-black) and `shroom` (toadstool purple with pink ink and a red smear).
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the
