@@ -325,11 +325,11 @@ the reference instead of letting the browser decide which flavour of wrong to se
 ## Bundled themes
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
-`milkplus`, `tokenburn`, `misprint`, `blorbo`, and `goblinmode` ship in `themes/` and resolve by
-name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project
-theme with the same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant
-per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
-`progress`) alongside `light` and `dark`; select one with `data-theme`.
+`milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, and `taxfraud` ship in `themes/` and
+resolve by name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A
+project theme with the same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a
+variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`,
+`aromantic`, `progress`) alongside `light` and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -404,6 +404,15 @@ at the edges and sits on a crooked smear, an inset vignette and an offset slab d
 tags are stitched with dashed borders, the focus ring is a double line and disabled controls are
 crosshatched. Its variants are `light` (default), `dark`, `hoard` (gold ink and gold rules on
 brown-black) and `shroom` (toadstool purple with pink ink and a red smear).
+
+`taxfraud` is a set of books nobody should look at closely: banknote green on green-bar ledger paper
+with red ink for the accent. Every surface is the top sheet of a carbon-copy form, with the canary
+and pink copies showing beneath it, drawn from its own `form.canary` and `form.pink` tokens, which
+each variant restates. Selected items are highlighted and carry an accountant's double underline,
+invalid fields get a double red rule, buttons are typed in the mono stack under serif headings, and
+a disabled control is redacted: a solid bar in the text color with the label inked to match. Its
+variants are `light` (default), `dark`, `offshore` (gold on deep sea blue), `audit` (red ink and red
+rules on white) and `manila` (black type on a folder).
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the
