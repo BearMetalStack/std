@@ -325,11 +325,12 @@ the reference instead of letting the browser decide which flavour of wrong to se
 ## Bundled themes
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
-`milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, `taxfraud`, and `gothicfuzz` ship in
-`themes/` and resolve by name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`,
-the palette). A project theme with the same name under `.bearmetal/drip/themes` takes precedence.
-`pride` carries a variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`,
-`asexual`, `aromantic`, `progress`) alongside `light` and `dark`; select one with `data-theme`.
+`milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, `taxfraud`, `gothicfuzz`, and
+`soupwizard` ship in `themes/` and resolve by name anywhere a theme name is accepted
+(`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name under
+`.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag (`lesbian`, `gay`,
+`trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`, `progress`) alongside `light`
+and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -421,6 +422,14 @@ arches, round at the top and nearly square at the foot, so buttons and cards sta
 headstones; headings use the serif stack, button lettering is spaced wide and the spinner turns
 slowly. Its variants are `light` (default, black ink on pale lilac), `dark`, `moth` (dusty taupe
 with rose ink and a moss haze) and `pedal` (an orange fuzz box on black).
+
+`soupwizard` is a wizard who only makes soup: robe blue on warm stoneware with a golden-broth
+accent. Every surface is a bowl. Component radii are flat at the rim and round at the foot, an inset
+line of broth sits along the top edge, and steam rises above it in place of a shadow, drawn from its
+own `soup.broth` and `soup.steam` tokens, which each variant restates. Headings use the serif stack,
+the focus ring is dotted and the spinner stirs slowly. Its variants are `light` (default), `dark` (a
+midnight-blue robe with gold ink) and a soup each for `tomato`, `pea` and `borscht`. `info` aliases
+`cyan`, since blue is the brand.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the
