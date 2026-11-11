@@ -161,14 +161,13 @@ cannot express is dropped on the way through. That is the trade, and it is the p
 `md → html → md` is a fixed point for every construct except these, all of which are properties of
 the _forward_ engine rather than of the reverse pipeline:
 
-| Input               | Output             | Why                                                                               |
-| ------------------- | ------------------ | --------------------------------------------------------------------------------- |
-| `_a_`               | `*a*`              | Both lex to `md:italic`; the serializer picks one spelling.                       |
-| `3. a`              | `1. a`             | `orderedListRule.validate` discards the digits — ordinals never reach the tree.   |
-| `a\nb`              | `a b`              | A soft wrap collapses to a space in the lexer, irreversibly.                      |
-| header-only table   | alignment lost     | Header cells are always rendered centered, so only a body row carries the signal. |
-| `\|` in a cell      | breaks on re-parse | `tableRule.tokenize` splits on a bare `\|` with no escape awareness.              |
-| markup in image alt | flattened          | An `<img alt>` cannot itself hold markup, so it stays an opaque string.           |
+| Input               | Output         | Why                                                                               |
+| ------------------- | -------------- | --------------------------------------------------------------------------------- |
+| `_a_`               | `*a*`          | Both lex to `md:italic`; the serializer picks one spelling.                       |
+| `3. a`              | `1. a`         | `orderedListRule.validate` discards the digits — ordinals never reach the tree.   |
+| `a\nb`              | `a b`          | A soft wrap collapses to a space in the lexer, irreversibly.                      |
+| header-only table   | alignment lost | Header cells are always rendered centered, so only a body row carries the signal. |
+| markup in image alt | flattened      | An `<img alt>` cannot itself hold markup, so it stays an opaque string.           |
 
 `html → md → html` is the stronger invariant and holds throughout, since the cosmetic differences
 above all render identically.

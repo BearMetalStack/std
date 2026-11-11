@@ -47,6 +47,7 @@ const CORPUS: [string, string][] = [
 	["nested list", "- one\n  - deep\n"],
 	["checklist", "- [x] done\n- [ ] todo\n"],
 	["table", "| a | b |\n| :- | -: |\n| 1 | 2 |\n"],
+	["table with marked-up cells", "| a | **b** |\n| :- | -: |\n| one<br>two | [x](y) |\n"],
 	["footnote", "text[^1]\n\n[^1]: the note\n"],
 	["multiple blocks", "# T\n\nBody text.\n\n- a\n- b\n"],
 ];

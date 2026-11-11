@@ -127,6 +127,8 @@ export function parseInline(source: string, rules: readonly AnyRule[], offset = 
 export function flattenInline(nodes: readonly Node[]): string {
 	return nodes.map((node) => {
 		if (node.tag === "core:text") return (node.data as { value: string }).value;
+		// A break is whitespace to anything reading flat text.
+		if (node.tag === "md:linebreak") return " ";
 		const data = node.data as { value?: string; alt?: string };
 		if (typeof data?.value === "string") return data.value;
 		if (typeof data?.alt === "string") return data.alt;

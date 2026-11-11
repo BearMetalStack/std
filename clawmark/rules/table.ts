@@ -74,7 +74,8 @@ function serializeTable(node: Node, ctx: SerializeContext): string {
 		const cells = cellsOf(row);
 		if (cells.length > 0) {
 			const text = cells[index] ? ctx.children(cells[index]) : "";
-			return text.replace(/\n/g, " ").replaceAll("|", "\\|");
+			// A hard break is `\` + newline, which a one-line cell cannot hold.
+			return text.replace(/\\\n/g, "<br>").replace(/\n/g, " ").replaceAll("|", "\\|");
 		}
 		const raw = (row.data as RowData).columns[index] ?? "";
 		return ctx.escape(raw.replace(/\n/g, " "), "cell");
@@ -82,9 +83,6 @@ function serializeTable(node: Node, ctx: SerializeContext): string {
 
 	const line = (row: Node) => {
 		const cells = Array.from({ length: columns }, (_, i) => cellText(row, i));
-		if (cells.some((c) => c.includes("|"))) {
-			ctx.warn("`|` inside a table cell will not survive a re-parse", node);
-		}
 		return `|${cells.join("|")}|`;
 	};
 
@@ -104,14 +102,58 @@ function alignOf(cell: XmlElement): "l" | "c" | "r" {
 	return "l";
 }
 
-/** A row's cells, trimmed, each with where its text starts in `line`. */
+/**
+ * A row's cells, trimmed, each with where its text starts in `line`.
+ *
+ * `\|` is a pipe that belongs to the cell, not a boundary, and it is
+ * un-escaped here rather than left for the inline pass: the escape is the
+ * table's own (the serializer adds it to whatever a cell holds, code spans
+ * included), so it has to come off before anything inside the cell is read.
+ * A span after one therefore sits a character early in the source.
+ */
 function splitCells(line: string): { text: string; start: number }[] {
-	let pos = line.startsWith("|") ? 1 : 0;
-	return line.replace(/^\|/, "").replace(/\|$/, "").split("|").map((raw) => {
-		const start = pos + raw.length - raw.trimStart().length;
-		pos += raw.length + 1;
-		return { text: raw.trim(), start };
-	});
+	const from = line.startsWith("|") ? 1 : 0;
+	let to = line.length;
+	if (to > from && line[to - 1] === "|" && line[to - 2] !== "\\") to--;
+
+	const cells: { text: string; start: number }[] = [];
+	const cut = (begin: number, end: number) => {
+		const raw = line.slice(begin, end);
+		cells.push({
+			text: raw.trim().replaceAll("\\|", "|"),
+			start: begin + raw.length - raw.trimStart().length,
+		});
+	};
+	let begin = from;
+	for (let i = from; i < to; i++) {
+		if (line[i] === "\\" && line[i + 1] === "|") i++;
+		else if (line[i] === "|") {
+			cut(begin, i);
+			begin = i + 1;
+		}
+	}
+	cut(begin, to);
+	return cells;
+}
+
+const CELL_BREAK = /<br\s*\/?>/gi;
+
+/**
+ * A cell's inline content. A cell is one line of source, so a line break
+ * inside it has no markdown spelling; `<br>` is the one every renderer of
+ * pipe tables already agrees on, and it is read here - and written by
+ * `serializeTable` - as an `md:linebreak`.
+ */
+function parseCell(text: string, rules: readonly AnyRule[], offset: number): Node[] {
+	const nodes: Node[] = [];
+	let last = 0;
+	for (const match of text.matchAll(CELL_BREAK)) {
+		nodes.push(...parseInline(text.slice(last, match.index), rules, offset + last));
+		nodes.push({ tag: "md:linebreak", data: {}, children: [] });
+		last = match.index + match[0].length;
+	}
+	nodes.push(...parseInline(text.slice(last), rules, offset + last));
+	return nodes;
 }
 
 export function createTableRules(): AnyRule[] {
@@ -158,7 +200,7 @@ export function createTableRules(): AnyRule[] {
 				});
 				split.forEach(({ text, start }, index) => {
 					const at = ctx.cursor + start;
-					const children = parseInline(text, cellRules, ctx.offset + at);
+					const children = parseCell(text, cellRules, ctx.offset + at);
 					tokens.push({
 						tag: "md:tablecell",
 						data: { index, children },
