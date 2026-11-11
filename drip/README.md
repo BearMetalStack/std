@@ -325,11 +325,11 @@ the reference instead of letting the browser decide which flavour of wrong to se
 ## Bundled themes
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
-`milkplus`, `tokenburn`, and `misprint` ship in `themes/` and resolve by name anywhere a theme name
-is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name
-under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag (`lesbian`,
-`gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`, `progress`) alongside
-`light` and `dark`; select one with `data-theme`.
+`milkplus`, `tokenburn`, `misprint`, and `blorbo` ship in `themes/` and resolve by name anywhere a
+theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the
+same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag
+(`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
+`progress`) alongside `light` and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -389,6 +389,13 @@ hover underlines are doubled, disabled controls carry a line screen, and a press
 onto its teal plate. Its variants are `light` (default), `dark` (black stock), `anaglyph` (black on
 white with red and cyan plates) and `zine` (black toner on yellow copier paper with a grey ghost
 copy).
+
+`blorbo` is a sticker sheet of your favorite little guy: gummy green on fandom navy with a
+heart-pink accent. Every surface is a die-cut sticker, with a thick edge, a thin cut line and a
+solid drop drawn from its own `sticker.edge`, `sticker.cut` and `sticker.drop` tokens, which each
+variant restates. Component radii are stated as four uneven corners so nothing is quite symmetrical.
+Its variants are `light` (default), `dark`, and one per fic genre: `fluff` (pastel pink), `angst`
+(desaturated storm grey with blue ink) and `feral` (magenta and yellow on black).
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the

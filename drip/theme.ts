@@ -47,6 +47,7 @@ export async function withDefaultTokens(theme: Theme): Promise<Theme> {
 const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
 	badapple: () => import("./themes/badapple.theme.json", { with: { type: "json" } }),
 	bearmetal: () => import("./themes/bearmetal.theme.json", { with: { type: "json" } }),
+	blorbo: () => import("./themes/blorbo.theme.json", { with: { type: "json" } }),
 	foxfire: () => import("./themes/foxfire.theme.json", { with: { type: "json" } }),
 	hazelthorn: () => import("./themes/hazelthorn.theme.json", { with: { type: "json" } }),
 	milkplus: () => import("./themes/milkplus.theme.json", { with: { type: "json" } }),
@@ -173,6 +174,7 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"milkplus",
 	"tokenburn",
 	"misprint",
+	"blorbo",
 ]);
 
 /** Names of every theme bundled with Drip. */
