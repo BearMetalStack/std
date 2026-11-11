@@ -45,11 +45,26 @@ export async function withDefaultTokens(theme: Theme): Promise<Theme> {
  * `./themes/*.json` at runtime fails in exactly the places a theme matters most.
  */
 const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
+	badapple: () => import("./themes/badapple.theme.json", { with: { type: "json" } }),
 	bearmetal: () => import("./themes/bearmetal.theme.json", { with: { type: "json" } }),
+	blorbo: () => import("./themes/blorbo.theme.json", { with: { type: "json" } }),
+	forbiddenpudding: () =>
+		import("./themes/forbiddenpudding.theme.json", { with: { type: "json" } }),
 	foxfire: () => import("./themes/foxfire.theme.json", { with: { type: "json" } }),
+	goblinmode: () => import("./themes/goblinmode.theme.json", { with: { type: "json" } }),
+	gothicfuzz: () => import("./themes/gothicfuzz.theme.json", { with: { type: "json" } }),
 	hazelthorn: () => import("./themes/hazelthorn.theme.json", { with: { type: "json" } }),
+	horseattorney: () => import("./themes/horseattorney.theme.json", { with: { type: "json" } }),
+	milkplus: () => import("./themes/milkplus.theme.json", { with: { type: "json" } }),
+	misprint: () => import("./themes/misprint.theme.json", { with: { type: "json" } }),
 	monochrome: () => import("./themes/monochrome.theme.json", { with: { type: "json" } }),
+	paperjam: () => import("./themes/paperjam.theme.json", { with: { type: "json" } }),
 	pride: () => import("./themes/pride.theme.json", { with: { type: "json" } }),
+	soupwizard: () => import("./themes/soupwizard.theme.json", { with: { type: "json" } }),
+	spacetea: () => import("./themes/spacetea.theme.json", { with: { type: "json" } }),
+	taxfraud: () => import("./themes/taxfraud.theme.json", { with: { type: "json" } }),
+	tokenburn: () => import("./themes/tokenburn.theme.json", { with: { type: "json" } }),
+	tortiecat: () => import("./themes/tortiecat.theme.json", { with: { type: "json" } }),
 };
 
 /** Names of the themes that ship with drip. */
@@ -161,6 +176,20 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"foxfire",
 	"hazelthorn",
 	"monochrome",
+	"tortiecat",
+	"badapple",
+	"spacetea",
+	"milkplus",
+	"tokenburn",
+	"misprint",
+	"blorbo",
+	"goblinmode",
+	"taxfraud",
+	"gothicfuzz",
+	"soupwizard",
+	"paperjam",
+	"forbiddenpudding",
+	"horseattorney",
 ]);
 
 /** Names of every theme bundled with Drip. */

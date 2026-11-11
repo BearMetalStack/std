@@ -324,10 +324,12 @@ the reference instead of letting the browser decide which flavour of wrong to se
 
 ## Bundled themes
 
-`bearmetal`, `pride`, `foxfire`, `hazelthorn`, and `monochrome` ship in `themes/` and resolve by
-name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project
-theme with the same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant
-per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
+`bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
+`milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, `taxfraud`, `gothicfuzz`, `soupwizard`,
+`paperjam`, `forbiddenpudding`, and `horseattorney` ship in `themes/` and resolve by name anywhere a
+theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the
+same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag
+(`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
 `progress`) alongside `light` and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
@@ -345,6 +347,115 @@ something to work with. Every state reads without color:
 Soft shadows become hard offsets and motion is off. Its variants are `light` (default), `dark`, and
 `high-contrast` (`(prefers-contrast: more) and (prefers-color-scheme: light)`), which also thickens
 rules and the focus ring.
+
+`tortiecat` is a tortoiseshell coat: near-black fur, ginger patches, cream, and eye-green for the
+accent and the focus ring. Shadows are hard offset patches (ginger, then ink) drawn from its own
+`patch.ginger` and `patch.ink` tokens, which each variant restates; rules are 2px and corners are
+squircles. Its variants are `light` (default), `dark`, and `dilute`, the blue-grey and cream of a
+dilute tortie, selected with `data-theme`. `warning` aliases `yellow`, since orange is the brand.
+
+`badapple` is a candy-apple red on bruise-plum neutrals with a poison-green accent and focus ring.
+Every corner has a bite out of it (`corner.shape: scoop`), shadows are coloured glows drawn from its
+own `apple.glow` token, which each variant restates, primary buttons carry a gloss highlight, hover
+underlines are wavy, and headings use the serif stack. Its variants are `light` (default), `dark`,
+`poison` (deep purple, with the green and the red trading places), and `silhouette` (pure black on
+pure white with red as the only color). `danger` aliases `orange`, since red is the brand.
+
+`spacetea` is butterfly-pea violet on deep-space indigo with an amber tea accent. Shadows are
+concentric orbit rings drawn from its own `tea.ring` token, which each variant restates; buttons,
+tags and nav items are capsules, tags have dashed borders, the focus ring is dotted, hover
+underlines are dotted, and headings use the mono stack. Its variants are `light` (default), `dark`,
+`matcha` (a pale green light mode) and `hibiscus` (a wine-dark mode with pink ink). `warning`
+aliases `yellow` and `info` aliases `cyan`, to stay clear of the amber accent and the violet brand.
+
+`milkplus` is a milk bar: strawberry pink on milk white with cocoa ink and a carton-blue accent.
+Everything is a chunky candy key: surfaces sit on a solid bottom lip and primary buttons on a darker
+one, drawn from its own `milk.lip` and `milk.pour` tokens, which each variant restates; buttons
+carry a gloss highlight and sink onto the lip when pressed, rules are 2px and radii are large. Its
+variants are `light` (default), `dark` (chocolate milk), and a flavor each for `banana`, `melon` and
+`taro`, selected with `data-theme`. `info` aliases `cyan`, since blue is close to the accent.
+
+`tokenburn` is a terminal on fire: flame orange on charcoal with a hot yellow accent, set entirely
+in the mono stack. Every surface burns along its bottom edge, a bright core line, a flame and a wide
+ember drawn from its own `burn.core`, `burn.flame` and `burn.ember` tokens, which each variant
+restates. Corners are notched and pills are bevelled into chips, tags and the focus ring are dashed,
+disabled controls are hatched, and the spinner runs fast. Its variants are `light` (default),
+`dark`, `inferno` (red-black with yellow ink) and `pilot` (a blue gas flame on navy). `warning`
+aliases `yellow`, since orange is the brand.
+
+`misprint` is a two-color risograph run that came out of register: teal and coral on newsprint with
+black ink rules. Every shadow is a pair of plates slipped in opposite directions, drawn from its own
+`print.a` and `print.b` tokens, which each variant restates; corners are square, rules are 2px,
+hover underlines are doubled, disabled controls carry a line screen, and a pressed control slides
+onto its teal plate. Its variants are `light` (default), `dark` (black stock), `anaglyph` (black on
+white with red and cyan plates) and `zine` (black toner on yellow copier paper with a grey ghost
+copy).
+
+`blorbo` is a sticker sheet of your favorite little guy: gummy green on fandom navy with a
+heart-pink accent. Every surface is a die-cut sticker, with a thick edge, a thin cut line and a
+solid drop drawn from its own `sticker.edge`, `sticker.cut` and `sticker.drop` tokens, which each
+variant restates. Component radii are stated as four uneven corners so nothing is quite symmetrical.
+Its variants are `light` (default), `dark`, and one per fic genre: `fluff` (pastel pink), `angst`
+(desaturated storm grey with blue ink) and `feral` (magenta and yellow on black).
+
+`goblinmode` is a swamp hoard: gold on mud-olive with a slime-green accent. Every surface is grubby
+at the edges and sits on a crooked smear, an inset vignette and an offset slab drawn from its own
+`goblin.grime` and `goblin.muck` tokens, which each variant restates. Corners are rough-hewn (a
+`superellipse` between a bevel and a curve, with four uneven radii per component), rules are 2px,
+tags are stitched with dashed borders, the focus ring is a double line and disabled controls are
+crosshatched. Its variants are `light` (default), `dark`, `hoard` (gold ink and gold rules on
+brown-black) and `shroom` (toadstool purple with pink ink and a red smear).
+
+`taxfraud` is a set of books nobody should look at closely: banknote green on green-bar ledger paper
+with red ink for the accent. Every surface is the top sheet of a carbon-copy form, with the canary
+and pink copies showing beneath it, drawn from its own `form.canary` and `form.pink` tokens, which
+each variant restates. Selected items are highlighted and carry an accountant's double underline,
+invalid fields get a double red rule, buttons are typed in the mono stack under serif headings, and
+a disabled control is redacted: a solid bar in the text color with the label inked to match. Its
+variants are `light` (default), `dark`, `offshore` (gold on deep sea blue), `audit` (red ink and red
+rules on white) and `manila` (black type on a folder).
+
+`gothicfuzz` is black velvet with a nap: pastel lilac on violet-black with a mint accent. Nothing
+has a hard edge. Every surface wears a tight fuzzy halo and a wider haze in place of a shadow, drawn
+from its own `fuzz.near` and `fuzz.far` tokens, which each variant restates. Component radii are
+arches, round at the top and nearly square at the foot, so buttons and cards stand like windows and
+headstones; headings use the serif stack, button lettering is spaced wide and the spinner turns
+slowly. Its variants are `light` (default, black ink on pale lilac), `dark`, `moth` (dusty taupe
+with rose ink and a moss haze) and `pedal` (an orange fuzz box on black).
+
+`soupwizard` is a wizard who only makes soup: robe blue on warm stoneware with a golden-broth
+accent. Every surface is a bowl. Component radii are flat at the rim and round at the foot, an inset
+line of broth sits along the top edge, and steam rises above it in place of a shadow, drawn from its
+own `soup.broth` and `soup.steam` tokens, which each variant restates. Headings use the serif stack,
+the focus ring is dotted and the spinner stirs slowly. Its variants are `light` (default), `dark` (a
+midnight-blue robe with gold ink) and a soup each for `tomato`, `pea` and `borscht`. `info` aliases
+`cyan`, since blue is the brand.
+
+`paperjam` takes its name both ways: office paper stuck to raspberry jam, with a sticky-note yellow
+accent. Every surface is a sheet with its top-right corner folded down (`corner.shape` is stated per
+corner, bevelling only that one), stuck to a layer of jam that shows at the bottom left and smears
+beyond it, drawn from its own `jam.spread` and `jam.smear` tokens, which each variant restates.
+Toasts are sticky notes, a pressed control squishes into its jam, and disabled controls print with
+banding. Its variants are `light` (default), `dark`, `marmalade`, `beige` (putty office plastic with
+a green readout and a red error light) and `lcd` (a one-color olive display). `info` aliases `cyan`.
+
+`forbiddenpudding` looks delicious and must not be eaten: custard yellow and near-black, in the
+colors of hazard tape, with a warning-orange accent. Every surface is a block of something
+gelatinous, shaded from inside rather than outlined, with a highlight across the top, depth pooling
+at the bottom and a contact shadow on the floor, drawn from its own `pudding.shine`, `pudding.depth`
+and `pudding.floor` tokens, which each variant restates. Corners are fat superellipses, the focus
+ring is a dashed cordon, and disabled controls are taped off in hazard stripes. Its variants are
+`light` (default), `dark`, and a forbidden snack each for `lava`, `slime` and `detergent`.
+
+`horseattorney` is the letterhead of a law firm whose senior partner is a horse: oxblood leather on
+mahogany and cream, set entirely in the serif stack. Every surface is mounted like a brass
+nameplate, a thick metal frame between two engraved lines with bevelled corners, drawn from its own
+`brass.face` and `brass.edge` tokens, which each variant restates. Badges stay round, as rosettes.
+The semantic roles follow horse-show ribbon placings rather than convention: `success` aliases
+`blue` (first place), `danger` aliases `red` (second), `warning` aliases `yellow` (third) and `info`
+aliases `green`. Its variants are `light` (default), `dark` (chambers after hours, with brass ink),
+`legalpad` (blue ink on a yellow pad with a red margin line), `dapple` (a grey in a charcoal suit,
+with steel in place of brass) and `palomino`.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the

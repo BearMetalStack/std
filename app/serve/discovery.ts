@@ -54,10 +54,15 @@ export interface Resolved {
 	pageKeys: Set<string>;
 }
 
-async function findDir(candidates: string[], dir?: string): Promise<string | null> {
+async function findDir(
+	candidates: string[],
+	dir?: string,
+	base?: string,
+): Promise<string | null> {
 	for (const candidate of dir ? [dir] : candidates) {
+		const path = base && !candidate.startsWith("/") ? joinPath(base, candidate) : candidate;
 		try {
-			if ((await Deno.stat(candidate)).isDirectory) return candidate;
+			if ((await Deno.stat(path)).isDirectory) return path;
 		} catch {
 			// not this one
 		}
@@ -65,19 +70,25 @@ async function findDir(candidates: string[], dir?: string): Promise<string | nul
 	return null;
 }
 
-/** The first of {@linkcode componentDirs} that exists, or `null`. */
-export function findComponentsDir(dir?: string): Promise<string | null> {
-	return findDir(componentDirs, dir);
+/**
+ * The first of {@linkcode componentDirs} that exists, or `null`.
+ *
+ * Relative paths resolve against `base` when given, else the working
+ * directory — `base` is what lets a compiled binary look inside its own
+ * embedded filesystem rather than wherever it was started from.
+ */
+export function findComponentsDir(dir?: string, base?: string): Promise<string | null> {
+	return findDir(componentDirs, dir, base);
 }
 
-/** The first of {@linkcode appDirs} that exists, or `null`. */
-export function findAppDir(dir?: string): Promise<string | null> {
-	return findDir(appDirs, dir);
+/** The first of {@linkcode appDirs} that exists, or `null`. See {@linkcode findComponentsDir}. */
+export function findAppDir(dir?: string, base?: string): Promise<string | null> {
+	return findDir(appDirs, dir, base);
 }
 
-/** The first of {@linkcode pageDirs} that exists, or `null`. */
-export function findPagesDir(dir?: string): Promise<string | null> {
-	return findDir(pageDirs, dir);
+/** The first of {@linkcode pageDirs} that exists, or `null`. See {@linkcode findComponentsDir}. */
+export function findPagesDir(dir?: string, base?: string): Promise<string | null> {
+	return findDir(pageDirs, dir, base);
 }
 
 async function fileUrl(path: string): Promise<string> {
@@ -104,9 +115,114 @@ export interface ResolveOptions {
 	synthesizeIn?: string;
 }
 
+/** One module the combined entry imports, and which directory it came from. */
+export interface ClientFile {
+	/** Which of `@components`/`@app`/`@pages` it lives in. */
+	dir: "components" | "app" | "pages";
+	/** Path relative to that directory, posix-style. */
+	rel: string;
+	/** Real path on disk (or in a compiled binary's embedded filesystem). */
+	path: string;
+}
+
+/** What {@linkcode discoverClient} finds: the modules the client is made of. */
+export interface ClientSources {
+	/** Every module the combined entry imports, in import order. */
+	files: ClientFile[];
+	/** `@components` modules the server imports for their `@define` side effects, as `file:` URLs. */
+	sideEffects: string[];
+	/** Candidate keys with a `@components` manifest. */
+	componentManifestKeys: Set<string>;
+	/** Candidate keys discovered under `@pages`. Drives per-route dispatch resolution. */
+	pageKeys: Set<string>;
+}
+
+/**
+ * Applies the `@components`/`@app`/`@pages` conventions to directories on
+ * disk, without bundling or writing anything.
+ *
+ * `@components` contributes its `*.manifest.*` files, or every component when
+ * there is no manifest at all (zero-config). `@app` and `@pages` contribute
+ * every script. Any directory may be `null`.
+ */
+export async function discoverClient(
+	componentsDir: string | null,
+	appDir: string | null,
+	pagesDir: string | null,
+): Promise<ClientSources> {
+	const files: ClientFile[] = [];
+	const sideEffects: string[] = [];
+	const componentManifestKeys = new Set<string>();
+	const pageKeys = new Set<string>();
+
+	if (componentsDir) {
+		const manifests: ClientFile[] = [];
+		for await (const entry of walkDir(componentsDir)) {
+			if (!entry.isFile || !manifestSuffixRx.test(entry.name)) continue;
+			manifests.push({
+				dir: "components",
+				rel: relativeTo(componentsDir, entry.path),
+				path: entry.path,
+			});
+		}
+
+		if (manifests.length > 0) {
+			for (const manifest of manifests) {
+				componentManifestKeys.add(manifest.rel.replace(manifestSuffixRx, ""));
+				files.push(manifest);
+				sideEffects.push(await fileUrl(manifest.path));
+			}
+		} else {
+			// Zero-config: no manifest anywhere, so every component in the
+			// directory ships, exactly as if one big manifest listed them all.
+			for await (const entry of walkDir(componentsDir)) {
+				if (!entry.isFile) continue;
+				if (manifestSuffixRx.test(entry.name)) continue;
+				if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
+				files.push({
+					dir: "components",
+					rel: relativeTo(componentsDir, entry.path),
+					path: entry.path,
+				});
+				sideEffects.push(await fileUrl(entry.path));
+			}
+		}
+	}
+
+	if (appDir) {
+		for await (const entry of walkDir(appDir)) {
+			if (!entry.isFile) continue;
+			if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
+			files.push({ dir: "app", rel: relativeTo(appDir, entry.path), path: entry.path });
+		}
+	}
+
+	if (pagesDir) {
+		for await (const entry of walkDir(pagesDir)) {
+			if (!entry.isFile) continue;
+			if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
+			const rel = relativeTo(pagesDir, entry.path);
+			pageKeys.add(rel.replace(scriptSuffixRx, ""));
+			files.push({ dir: "pages", rel, path: entry.path });
+		}
+	}
+
+	return { files, sideEffects, componentManifestKeys, pageKeys };
+}
+
+/**
+ * Source of the combined client entry: one side-effect import per specifier,
+ * then `dispatch()` from `@bearmetal/app` when there are `@pages` to run.
+ */
+export function clientEntrySource(specifiers: string[], hasPages: boolean): string {
+	const lines = specifiers.map((spec) => `import ${JSON.stringify(spec)};`);
+	if (hasPages) lines.push(`import { dispatch } from "@bearmetal/app";`, "dispatch();");
+	return lines.join("\n") + "\n";
+}
+
 /**
  * Works out what the one combined bundle entry should import, and which
- * `@components`/`@pages` candidate keys exist.
+ * `@components`/`@pages` candidate keys exist, and writes that entry.
  *
  * The directories are where the code really is, and `@components` is what the
  * server imports for `@define` side effects. The entry imports from
@@ -119,61 +235,15 @@ export async function resolveEntrypoints(
 	pagesDir: string | null,
 	options: ResolveOptions = {},
 ): Promise<Resolved> {
-	const componentManifestKeys = new Set<string>();
-	const pageKeys = new Set<string>();
-	const imports: string[] = [];
-	const sideEffects: string[] = [];
+	const sources = await discoverClient(componentsDir, appDir, pagesDir);
+	const { sideEffects, componentManifestKeys, pageKeys } = sources;
 	const mirrors = options.mirrors ?? {};
+	const originals = { components: componentsDir, app: appDir, pages: pagesDir };
 
-	/** The path the entry imports for `rel` under `dir`, read from its mirror when there is one. */
-	const bundled = (dir: string, mirror: string | null | undefined, rel: string) =>
-		joinPath(mirror ?? dir, rel);
-
-	if (componentsDir) {
-		const manifests: { key: string; source: string; rel: string }[] = [];
-		for await (const entry of walkDir(componentsDir)) {
-			if (!entry.isFile || !manifestSuffixRx.test(entry.name)) continue;
-			const rel = relativeTo(componentsDir, entry.path);
-			manifests.push({ key: rel.replace(manifestSuffixRx, ""), source: entry.path, rel });
-		}
-
-		if (manifests.length > 0) {
-			for (const manifest of manifests) {
-				componentManifestKeys.add(manifest.key);
-				imports.push(bundled(componentsDir, mirrors.components, manifest.rel));
-				sideEffects.push(await fileUrl(manifest.source));
-			}
-		} else {
-			// Zero-config: no manifest anywhere, so every component in the
-			// directory ships, exactly as if one big manifest listed them all.
-			for await (const entry of walkDir(componentsDir)) {
-				if (!entry.isFile) continue;
-				if (manifestSuffixRx.test(entry.name)) continue;
-				if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
-				const rel = relativeTo(componentsDir, entry.path);
-				imports.push(bundled(componentsDir, mirrors.components, rel));
-				sideEffects.push(await fileUrl(entry.path));
-			}
-		}
-	}
-
-	if (appDir) {
-		for await (const entry of walkDir(appDir)) {
-			if (!entry.isFile) continue;
-			if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
-			imports.push(bundled(appDir, mirrors.app, relativeTo(appDir, entry.path)));
-		}
-	}
-
-	if (pagesDir) {
-		for await (const entry of walkDir(pagesDir)) {
-			if (!entry.isFile) continue;
-			if (!scriptFiles.includes(entry.name.split(".").pop()!)) continue;
-			const rel = relativeTo(pagesDir, entry.path);
-			pageKeys.add(rel.replace(scriptSuffixRx, ""));
-			imports.push(bundled(pagesDir, mirrors.pages, rel));
-		}
-	}
+	/** The path the entry imports for `file`, read from its mirror when there is one. */
+	const imports = sources.files.map((file) =>
+		joinPath(mirrors[file.dir] ?? originals[file.dir]!, file.rel)
+	);
 
 	if (imports.length === 0) {
 		return { entrypoints: [], sideEffects, componentManifestKeys, pageKeys };
@@ -184,16 +254,12 @@ export async function resolveEntrypoints(
 	// Named distinctly: outputs are keyed by entrypoint basename, and a bare
 	// `index.ts` would collide with `@bearmetal/app/signals`'s own index.ts.
 	const synthesized = joinPath(dir, "bearmetal-app.ts");
-	const lines: string[] = [];
+	const specifiers: string[] = [];
 	for (const path of imports) {
 		const real = await Deno.realPath(path);
-		const spec = options.synthesizeIn ? `./${relativeTo(dir, path)}` : `file://${real}`;
-		lines.push(`import ${JSON.stringify(spec)};`);
+		specifiers.push(options.synthesizeIn ? `./${relativeTo(dir, path)}` : `file://${real}`);
 	}
-	if (pageKeys.size > 0) {
-		lines.push(`import { dispatch } from "@bearmetal/app";`, "dispatch();");
-	}
-	const content = lines.join("\n") + "\n";
+	const content = clientEntrySource(specifiers, pageKeys.size > 0);
 	const current = await Deno.readTextFile(synthesized).catch(() => null);
 	if (current !== content) await Deno.writeTextFile(synthesized, content);
 

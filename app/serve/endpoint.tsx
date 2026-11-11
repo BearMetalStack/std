@@ -1,5 +1,6 @@
 import { TrustedModule } from "@bearmetal/router";
 import { isDev } from "@bearmetal/miscellanea/environment";
+import type { JSX } from "@bearmetal/jsx/jsx-runtime";
 import type { RouteHeadContributor } from "../ssr/head.ts";
 import { defaultBundleName } from "./discovery.ts";
 import { resolveForRoute } from "./routeResolution.ts";
@@ -23,8 +24,12 @@ export class AppModule extends TrustedModule {
  * The default bundle is the only one referenced; shared chunks are pulled in by
  * the entry that imports them.
  */
-export function componentHeadTags(styles: string, version: string, hasDefault: boolean) {
-	const tags = [];
+export function componentHeadTags(
+	styles: string,
+	version: string,
+	hasDefault: boolean,
+): JSX.Element[] {
+	const tags: JSX.Element[] = [];
 	if (styles) {
 		tags.push(
 			<link rel="stylesheet" href={`${componentsEndpoint}/${stylesheetName}?v=${version}`} />,

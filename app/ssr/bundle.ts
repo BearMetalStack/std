@@ -37,7 +37,7 @@ export type BundleOptions = {
  * the client bundle. `stylesheet` is served as CSS alongside the bundle, so a
  * second copy inside it is dead weight that also arrives too late to help.
  */
-const serverOnlyNames = ["serverInit", "stylesheet"];
+export const serverOnlyNames = ["serverInit", "stylesheet"];
 
 /**
  * Bundles a set of entrypoints in a single pass, with code splitting on.
