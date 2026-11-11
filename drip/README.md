@@ -326,11 +326,11 @@ the reference instead of letting the browser decide which flavour of wrong to se
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
 `milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, `taxfraud`, `gothicfuzz`, `soupwizard`,
-`paperjam`, and `forbiddenpudding` ship in `themes/` and resolve by name anywhere a theme name is
-accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name under
-`.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag (`lesbian`, `gay`,
-`trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`, `progress`) alongside `light`
-and `dark`; select one with `data-theme`.
+`paperjam`, `forbiddenpudding`, and `horseattorney` ship in `themes/` and resolve by name anywhere a
+theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the
+same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag
+(`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
+`progress`) alongside `light` and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -446,6 +446,16 @@ at the bottom and a contact shadow on the floor, drawn from its own `pudding.shi
 and `pudding.floor` tokens, which each variant restates. Corners are fat superellipses, the focus
 ring is a dashed cordon, and disabled controls are taped off in hazard stripes. Its variants are
 `light` (default), `dark`, and a forbidden snack each for `lava`, `slime` and `detergent`.
+
+`horseattorney` is the letterhead of a law firm whose senior partner is a horse: oxblood leather on
+mahogany and cream, set entirely in the serif stack. Every surface is mounted like a brass
+nameplate, a thick metal frame between two engraved lines with bevelled corners, drawn from its own
+`brass.face` and `brass.edge` tokens, which each variant restates. Badges stay round, as rosettes.
+The semantic roles follow horse-show ribbon placings rather than convention: `success` aliases
+`blue` (first place), `danger` aliases `red` (second), `warning` aliases `yellow` (third) and `info`
+aliases `green`. Its variants are `light` (default), `dark` (chambers after hours, with brass ink),
+`legalpad` (blue ink on a yellow pad with a red margin line), `dapple` (a grey in a charcoal suit,
+with steel in place of brass) and `palomino`.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the
