@@ -324,12 +324,12 @@ the reference instead of letting the browser decide which flavour of wrong to se
 
 ## Bundled themes
 
-`bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, and `spacetea`
-ship in `themes/` and resolve by name anywhere a theme name is accepted (`drip.defaultTheme`,
-`loadTheme`, the palette). A project theme with the same name under `.bearmetal/drip/themes` takes
-precedence. `pride` carries a variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`,
-`pansexual`, `asexual`, `aromantic`, `progress`) alongside `light` and `dark`; select one with
-`data-theme`.
+`bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
+and `milkplus` ship in `themes/` and resolve by name anywhere a theme name is accepted
+(`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name under
+`.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag (`lesbian`, `gay`,
+`trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`, `progress`) alongside `light`
+and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -366,6 +366,13 @@ tags and nav items are capsules, tags have dashed borders, the focus ring is dot
 underlines are dotted, and headings use the mono stack. Its variants are `light` (default), `dark`,
 `matcha` (a pale green light mode) and `hibiscus` (a wine-dark mode with pink ink). `warning`
 aliases `yellow` and `info` aliases `cyan`, to stay clear of the amber accent and the violet brand.
+
+`milkplus` is a milk bar: strawberry pink on milk white with cocoa ink and a carton-blue accent.
+Everything is a chunky candy key: surfaces sit on a solid bottom lip and primary buttons on a darker
+one, drawn from its own `milk.lip` and `milk.pour` tokens, which each variant restates; buttons
+carry a gloss highlight and sink onto the lip when pressed, rules are 2px and radii are large. Its
+variants are `light` (default), `dark` (chocolate milk), and a flavor each for `banana`, `melon` and
+`taro`, selected with `data-theme`. `info` aliases `cyan`, since blue is close to the accent.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the
