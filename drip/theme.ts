@@ -48,6 +48,8 @@ const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
 	badapple: () => import("./themes/badapple.theme.json", { with: { type: "json" } }),
 	bearmetal: () => import("./themes/bearmetal.theme.json", { with: { type: "json" } }),
 	blorbo: () => import("./themes/blorbo.theme.json", { with: { type: "json" } }),
+	forbiddenpudding: () =>
+		import("./themes/forbiddenpudding.theme.json", { with: { type: "json" } }),
 	foxfire: () => import("./themes/foxfire.theme.json", { with: { type: "json" } }),
 	goblinmode: () => import("./themes/goblinmode.theme.json", { with: { type: "json" } }),
 	gothicfuzz: () => import("./themes/gothicfuzz.theme.json", { with: { type: "json" } }),
@@ -185,6 +187,7 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"gothicfuzz",
 	"soupwizard",
 	"paperjam",
+	"forbiddenpudding",
 ]);
 
 /** Names of every theme bundled with Drip. */

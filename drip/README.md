@@ -326,8 +326,8 @@ the reference instead of letting the browser decide which flavour of wrong to se
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
 `milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, `taxfraud`, `gothicfuzz`, `soupwizard`,
-and `paperjam` ship in `themes/` and resolve by name anywhere a theme name is accepted
-(`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name under
+`paperjam`, and `forbiddenpudding` ship in `themes/` and resolve by name anywhere a theme name is
+accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name under
 `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag (`lesbian`, `gay`,
 `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`, `progress`) alongside `light`
 and `dark`; select one with `data-theme`.
@@ -438,6 +438,14 @@ beyond it, drawn from its own `jam.spread` and `jam.smear` tokens, which each va
 Toasts are sticky notes, a pressed control squishes into its jam, and disabled controls print with
 banding. Its variants are `light` (default), `dark`, `marmalade`, `beige` (putty office plastic with
 a green readout and a red error light) and `lcd` (a one-color olive display). `info` aliases `cyan`.
+
+`forbiddenpudding` looks delicious and must not be eaten: custard yellow and near-black, in the
+colors of hazard tape, with a warning-orange accent. Every surface is a block of something
+gelatinous, shaded from inside rather than outlined, with a highlight across the top, depth pooling
+at the bottom and a contact shadow on the floor, drawn from its own `pudding.shine`, `pudding.depth`
+and `pudding.floor` tokens, which each variant restates. Corners are fat superellipses, the focus
+ring is a dashed cordon, and disabled controls are taped off in hazard stripes. Its variants are
+`light` (default), `dark`, and a forbidden snack each for `lava`, `slime` and `detergent`.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the
