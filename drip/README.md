@@ -325,7 +325,7 @@ the reference instead of letting the browser decide which flavour of wrong to se
 ## Bundled themes
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
-and `milkplus` ship in `themes/` and resolve by name anywhere a theme name is accepted
+`milkplus`, and `tokenburn` ship in `themes/` and resolve by name anywhere a theme name is accepted
 (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name under
 `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag (`lesbian`, `gay`,
 `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`, `progress`) alongside `light`
@@ -373,6 +373,14 @@ one, drawn from its own `milk.lip` and `milk.pour` tokens, which each variant re
 carry a gloss highlight and sink onto the lip when pressed, rules are 2px and radii are large. Its
 variants are `light` (default), `dark` (chocolate milk), and a flavor each for `banana`, `melon` and
 `taro`, selected with `data-theme`. `info` aliases `cyan`, since blue is close to the accent.
+
+`tokenburn` is a terminal on fire: flame orange on charcoal with a hot yellow accent, set entirely
+in the mono stack. Every surface burns along its bottom edge, a bright core line, a flame and a wide
+ember drawn from its own `burn.core`, `burn.flame` and `burn.ember` tokens, which each variant
+restates. Corners are notched and pills are bevelled into chips, tags and the focus ring are dashed,
+disabled controls are hatched, and the spinner runs fast. Its variants are `light` (default),
+`dark`, `inferno` (red-black with yellow ink) and `pilot` (a blue gas flame on navy). `warning`
+aliases `yellow`, since orange is the brand.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the

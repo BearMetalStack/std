@@ -53,6 +53,7 @@ const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
 	monochrome: () => import("./themes/monochrome.theme.json", { with: { type: "json" } }),
 	pride: () => import("./themes/pride.theme.json", { with: { type: "json" } }),
 	spacetea: () => import("./themes/spacetea.theme.json", { with: { type: "json" } }),
+	tokenburn: () => import("./themes/tokenburn.theme.json", { with: { type: "json" } }),
 	tortiecat: () => import("./themes/tortiecat.theme.json", { with: { type: "json" } }),
 };
 
@@ -169,6 +170,7 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"badapple",
 	"spacetea",
 	"milkplus",
+	"tokenburn",
 ]);
 
 /** Names of every theme bundled with Drip. */
