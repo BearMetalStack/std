@@ -325,11 +325,11 @@ the reference instead of letting the browser decide which flavour of wrong to se
 ## Bundled themes
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
-`milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, and `taxfraud` ship in `themes/` and
-resolve by name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A
-project theme with the same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a
-variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`,
-`aromantic`, `progress`) alongside `light` and `dark`; select one with `data-theme`.
+`milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, `taxfraud`, and `gothicfuzz` ship in
+`themes/` and resolve by name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`,
+the palette). A project theme with the same name under `.bearmetal/drip/themes` takes precedence.
+`pride` carries a variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`,
+`asexual`, `aromantic`, `progress`) alongside `light` and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -413,6 +413,14 @@ invalid fields get a double red rule, buttons are typed in the mono stack under 
 a disabled control is redacted: a solid bar in the text color with the label inked to match. Its
 variants are `light` (default), `dark`, `offshore` (gold on deep sea blue), `audit` (red ink and red
 rules on white) and `manila` (black type on a folder).
+
+`gothicfuzz` is black velvet with a nap: pastel lilac on violet-black with a mint accent. Nothing
+has a hard edge. Every surface wears a tight fuzzy halo and a wider haze in place of a shadow, drawn
+from its own `fuzz.near` and `fuzz.far` tokens, which each variant restates. Component radii are
+arches, round at the top and nearly square at the foot, so buttons and cards stand like windows and
+headstones; headings use the serif stack, button lettering is spaced wide and the spinner turns
+slowly. Its variants are `light` (default, black ink on pale lilac), `dark`, `moth` (dusty taupe
+with rose ink and a moss haze) and `pedal` (an orange fuzz box on black).
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the

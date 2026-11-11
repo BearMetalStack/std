@@ -50,6 +50,7 @@ const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
 	blorbo: () => import("./themes/blorbo.theme.json", { with: { type: "json" } }),
 	foxfire: () => import("./themes/foxfire.theme.json", { with: { type: "json" } }),
 	goblinmode: () => import("./themes/goblinmode.theme.json", { with: { type: "json" } }),
+	gothicfuzz: () => import("./themes/gothicfuzz.theme.json", { with: { type: "json" } }),
 	hazelthorn: () => import("./themes/hazelthorn.theme.json", { with: { type: "json" } }),
 	milkplus: () => import("./themes/milkplus.theme.json", { with: { type: "json" } }),
 	misprint: () => import("./themes/misprint.theme.json", { with: { type: "json" } }),
@@ -179,6 +180,7 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"blorbo",
 	"goblinmode",
 	"taxfraud",
+	"gothicfuzz",
 ]);
 
 /** Names of every theme bundled with Drip. */
