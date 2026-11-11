@@ -83,7 +83,7 @@
 	"radius": {
 		"none": "0",
 		"sm": { "$calc": { "op": "*", "left": "$radius.base", "right": "$radius.scale.sm" } },
-		"base": "0__25rem",
+		"base": "1rem",
 		"md": { "$calc": { "op": "*", "left": "$radius.base", "right": "$radius.scale.md" } },
 		"lg": { "$calc": { "op": "*", "left": "$radius.base", "right": "$radius.scale.lg" } },
 		"xl": { "$calc": { "op": "*", "left": "$radius.base", "right": "$radius.scale.xl" } },
@@ -100,7 +100,7 @@
 		}
 	},
 	"corner": {
-		"shape": "round",
+		"shape": "squircle",
 		"pill": { "$ref": "$corner.shape" }
 	},
 	"border": {
