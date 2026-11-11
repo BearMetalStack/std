@@ -325,8 +325,8 @@ the reference instead of letting the browser decide which flavour of wrong to se
 ## Bundled themes
 
 `bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, `tortiecat`, `badapple`, `spacetea`,
-`milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, `taxfraud`, `gothicfuzz`, and
-`soupwizard` ship in `themes/` and resolve by name anywhere a theme name is accepted
+`milkplus`, `tokenburn`, `misprint`, `blorbo`, `goblinmode`, `taxfraud`, `gothicfuzz`, `soupwizard`,
+and `paperjam` ship in `themes/` and resolve by name anywhere a theme name is accepted
 (`drip.defaultTheme`, `loadTheme`, the palette). A project theme with the same name under
 `.bearmetal/drip/themes` takes precedence. `pride` carries a variant per flag (`lesbian`, `gay`,
 `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`, `progress`) alongside `light`
@@ -430,6 +430,14 @@ own `soup.broth` and `soup.steam` tokens, which each variant restates. Headings 
 the focus ring is dotted and the spinner stirs slowly. Its variants are `light` (default), `dark` (a
 midnight-blue robe with gold ink) and a soup each for `tomato`, `pea` and `borscht`. `info` aliases
 `cyan`, since blue is the brand.
+
+`paperjam` takes its name both ways: office paper stuck to raspberry jam, with a sticky-note yellow
+accent. Every surface is a sheet with its top-right corner folded down (`corner.shape` is stated per
+corner, bevelling only that one), stuck to a layer of jam that shows at the bottom left and smears
+beyond it, drawn from its own `jam.spread` and `jam.smear` tokens, which each variant restates.
+Toasts are sticky notes, a pressed control squishes into its jam, and disabled controls print with
+banding. Its variants are `light` (default), `dark`, `marmalade`, `beige` (putty office plastic with
+a green readout and a red error light) and `lcd` (a one-color olive display). `info` aliases `cyan`.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the

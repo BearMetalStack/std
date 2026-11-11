@@ -55,6 +55,7 @@ const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
 	milkplus: () => import("./themes/milkplus.theme.json", { with: { type: "json" } }),
 	misprint: () => import("./themes/misprint.theme.json", { with: { type: "json" } }),
 	monochrome: () => import("./themes/monochrome.theme.json", { with: { type: "json" } }),
+	paperjam: () => import("./themes/paperjam.theme.json", { with: { type: "json" } }),
 	pride: () => import("./themes/pride.theme.json", { with: { type: "json" } }),
 	soupwizard: () => import("./themes/soupwizard.theme.json", { with: { type: "json" } }),
 	spacetea: () => import("./themes/spacetea.theme.json", { with: { type: "json" } }),
@@ -183,6 +184,7 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"taxfraud",
 	"gothicfuzz",
 	"soupwizard",
+	"paperjam",
 ]);
 
 /** Names of every theme bundled with Drip. */
