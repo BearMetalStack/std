@@ -324,11 +324,11 @@ the reference instead of letting the browser decide which flavour of wrong to se
 
 ## Bundled themes
 
-`bearmetal`, `pride`, `foxfire`, `hazelthorn`, and `monochrome` ship in `themes/` and resolve by
-name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A project
-theme with the same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a variant
-per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`, `aromantic`,
-`progress`) alongside `light` and `dark`; select one with `data-theme`.
+`bearmetal`, `pride`, `foxfire`, `hazelthorn`, `monochrome`, and `tortiecat` ship in `themes/` and
+resolve by name anywhere a theme name is accepted (`drip.defaultTheme`, `loadTheme`, the palette). A
+project theme with the same name under `.bearmetal/drip/themes` takes precedence. `pride` carries a
+variant per flag (`lesbian`, `gay`, `trans`, `nonbinary`, `bisexual`, `pansexual`, `asexual`,
+`aromantic`, `progress`) alongside `light` and `dark`; select one with `data-theme`.
 
 `monochrome` is for grayscale and e-ink displays, and is the reference for the treatment tokens.
 Surfaces are separated by rules rather than fills, and they stay opaque. The primary button is the
@@ -345,6 +345,12 @@ something to work with. Every state reads without color:
 Soft shadows become hard offsets and motion is off. Its variants are `light` (default), `dark`, and
 `high-contrast` (`(prefers-contrast: more) and (prefers-color-scheme: light)`), which also thickens
 rules and the focus ring.
+
+`tortiecat` is a tortoiseshell coat: near-black fur, ginger patches, cream, and eye-green for the
+accent and the focus ring. Shadows are hard offset patches (ginger, then ink) drawn from its own
+`patch.ginger` and `patch.ink` tokens, which each variant restates; rules are 2px and corners are
+squircles. Its variants are `light` (default), `dark`, and `dilute`, the blue-grey and cream of a
+dilute tortie, selected with `data-theme`. `warning` aliases `yellow`, since orange is the brand.
 
 Every bundled variant states every token rather than relying on derivation, and `theme.test.ts`
 holds each bundled theme to zero generate-time diagnostics. `BUILTIN_THEMES` in `theme.ts` is the

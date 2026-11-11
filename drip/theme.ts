@@ -50,6 +50,7 @@ const builtinThemes: Record<string, () => Promise<{ default: unknown }>> = {
 	hazelthorn: () => import("./themes/hazelthorn.theme.json", { with: { type: "json" } }),
 	monochrome: () => import("./themes/monochrome.theme.json", { with: { type: "json" } }),
 	pride: () => import("./themes/pride.theme.json", { with: { type: "json" } }),
+	tortiecat: () => import("./themes/tortiecat.theme.json", { with: { type: "json" } }),
 };
 
 /** Names of the themes that ship with drip. */
@@ -161,6 +162,7 @@ export const BUILTIN_THEMES: readonly string[] = Object.freeze([
 	"foxfire",
 	"hazelthorn",
 	"monochrome",
+	"tortiecat",
 ]);
 
 /** Names of every theme bundled with Drip. */
